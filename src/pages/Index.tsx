@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, Shield, DollarSign } from "lucide-react";
+import { CheckSquare, FileText, FileCheck, FolderKanban } from "lucide-react";
 import { VaultLogo } from "@/components/VaultLogo";
 import { FeatureCard } from "@/components/FeatureCard";
 import { ParticleField } from "@/components/ParticleField";
@@ -9,24 +9,28 @@ const features = [
     title: "TASKVAULT",
     description: "Gerencie suas tarefas com prioridades inteligentes e controle total sobre sua produtividade diária",
     variant: "magenta" as const,
+    href: "/taskvault",
   },
   {
     icon: <FileText className="w-7 h-7" />,
     title: "AJUSTASPED",
     description: "Sistema inteligente para ajustes e validação automática de arquivos SPED com precisão",
     variant: "cyan" as const,
+    href: "/ajustasped",
   },
   {
-    icon: <Shield className="w-7 h-7" />,
-    title: "CONTROLERETENCOES",
-    description: "Controle completo de retenções fiscais e obrigações tributárias em tempo real",
+    icon: <FileCheck className="w-7 h-7" />,
+    title: "CONFERESPED",
+    description: "Confira e valide arquivos SPED com precisão e gere relatórios detalhados",
     variant: "orange" as const,
+    href: "/conferesped",
   },
   {
-    icon: <DollarSign className="w-7 h-7" />,
-    title: "FINANCEIRO",
-    description: "Gestão financeira completa com fluxo de caixa inteligente e relatórios detalhados",
+    icon: <FolderKanban className="w-7 h-7" />,
+    title: "PROJETOVAULT",
+    description: "Gestão de projetos com visões Kanban, Gantt e colaboração em tempo real",
     variant: "blue" as const,
+    href: "/projetovault",
   },
 ];
 
@@ -103,6 +107,7 @@ const Index = () => {
                 title={feature.title}
                 description={feature.description}
                 variant={feature.variant}
+                href={feature.href}
               />
             </div>
           ))}
