@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type CardVariant = "magenta" | "cyan" | "orange" | "blue";
 
@@ -8,6 +9,7 @@ interface FeatureCardProps {
   title: string;
   description: string;
   variant: CardVariant;
+  href: string;
 }
 
 const variantStyles: Record<CardVariant, { 
@@ -42,11 +44,11 @@ const variantStyles: Record<CardVariant, {
   },
 };
 
-export function FeatureCard({ icon, title, description, variant }: FeatureCardProps) {
+export function FeatureCard({ icon, title, description, variant, href }: FeatureCardProps) {
   const styles = variantStyles[variant];
 
   return (
-    <div className="group relative cursor-pointer">
+    <Link to={href} className="group relative block">
       {/* Glow background */}
       <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${styles.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl`} />
       
@@ -93,6 +95,6 @@ export function FeatureCard({ icon, title, description, variant }: FeatureCardPr
           <div className="absolute inset-0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/5 to-transparent skew-x-12" />
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
