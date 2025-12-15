@@ -1,32 +1,32 @@
 import { useState } from "react";
-import { RibbonMenu } from "@/components/RibbonMenu";
+import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { 
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
-  Settings, Users, Tag, Flag
+  Settings, Users, Tag, Flag, Star, Bell, Zap
 } from "lucide-react";
 
-const ribbonTabs = [
+const widgetGroups = [
   {
-    id: "home",
-    label: "Início",
-    icon: <ListTodo className="w-4 h-4" />,
+    id: "actions",
+    label: "Ações Rápidas",
+    icon: <Zap className="w-4 h-4" />,
     items: [
-      { id: "new", label: "Nova Tarefa", icon: <Plus className="w-6 h-6" /> },
-      { id: "edit", label: "Editar", icon: <Edit className="w-6 h-6" /> },
-      { id: "delete", label: "Excluir", icon: <Trash2 className="w-6 h-6" /> },
-      { id: "complete", label: "Concluir", icon: <CheckSquare className="w-6 h-6" /> },
+      { id: "new", label: "Nova", icon: <Plus className="w-5 h-5" />, badge: "+" },
+      { id: "edit", label: "Editar", icon: <Edit className="w-5 h-5" /> },
+      { id: "delete", label: "Excluir", icon: <Trash2 className="w-5 h-5" /> },
+      { id: "complete", label: "Concluir", icon: <CheckSquare className="w-5 h-5" /> },
     ],
   },
   {
     id: "view",
-    label: "Visualizar",
+    label: "Visualização",
     icon: <Filter className="w-4 h-4" />,
     items: [
-      { id: "filter", label: "Filtrar", icon: <Filter className="w-6 h-6" /> },
-      { id: "sort", label: "Ordenar", icon: <SortAsc className="w-6 h-6" /> },
-      { id: "search", label: "Buscar", icon: <Search className="w-6 h-6" /> },
-      { id: "calendar", label: "Calendário", icon: <Calendar className="w-6 h-6" /> },
+      { id: "filter", label: "Filtrar", icon: <Filter className="w-5 h-5" /> },
+      { id: "sort", label: "Ordenar", icon: <SortAsc className="w-5 h-5" /> },
+      { id: "search", label: "Buscar", icon: <Search className="w-5 h-5" /> },
+      { id: "calendar", label: "Agenda", icon: <Calendar className="w-5 h-5" /> },
     ],
   },
   {
@@ -34,33 +34,39 @@ const ribbonTabs = [
     label: "Organizar",
     icon: <Tag className="w-4 h-4" />,
     items: [
-      { id: "tags", label: "Tags", icon: <Tag className="w-6 h-6" /> },
-      { id: "priority", label: "Prioridade", icon: <Flag className="w-6 h-6" /> },
-      { id: "deadline", label: "Prazo", icon: <Clock className="w-6 h-6" /> },
-      { id: "assign", label: "Atribuir", icon: <Users className="w-6 h-6" /> },
+      { id: "tags", label: "Tags", icon: <Tag className="w-5 h-5" />, badge: 5 },
+      { id: "priority", label: "Prioridade", icon: <Flag className="w-5 h-5" /> },
+      { id: "deadline", label: "Prazo", icon: <Clock className="w-5 h-5" /> },
+      { id: "assign", label: "Atribuir", icon: <Users className="w-5 h-5" /> },
     ],
   },
   {
-    id: "data",
-    label: "Dados",
-    icon: <FileDown className="w-4 h-4" />,
+    id: "extras",
+    label: "Extras",
+    icon: <Star className="w-4 h-4" />,
     items: [
-      { id: "export", label: "Exportar", icon: <FileDown className="w-6 h-6" /> },
-      { id: "import", label: "Importar", icon: <FileUp className="w-6 h-6" /> },
-      { id: "settings", label: "Configurar", icon: <Settings className="w-6 h-6" /> },
+      { id: "favorite", label: "Favoritos", icon: <Star className="w-5 h-5" />, badge: 3 },
+      { id: "notify", label: "Alertas", icon: <Bell className="w-5 h-5" />, badge: 2 },
+      { id: "export", label: "Exportar", icon: <FileDown className="w-5 h-5" /> },
+      { id: "import", label: "Importar", icon: <FileUp className="w-5 h-5" /> },
+    ],
+  },
+  {
+    id: "settings",
+    label: "Configurações",
+    icon: <Settings className="w-4 h-4" />,
+    items: [
+      { id: "general", label: "Geral", icon: <Settings className="w-5 h-5" /> },
+      { id: "users", label: "Usuários", icon: <Users className="w-5 h-5" /> },
     ],
   },
 ];
 
 export default function TaskVault() {
-  const [activeTab, setActiveTab] = useState("home");
-
   return (
     <div className="min-h-screen bg-background">
-      <RibbonMenu
-        tabs={ribbonTabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
+      <WidgetRibbon
+        groups={widgetGroups}
         title="TaskVault"
         accentColor="magenta"
       />
@@ -77,7 +83,7 @@ export default function TaskVault() {
                 <h2 className="text-2xl font-bold text-foreground">TaskVault</h2>
                 <p className="text-muted-foreground max-w-md">
                   Gerencie suas tarefas de forma inteligente. 
-                  Selecione uma ação no ribbon acima para começar.
+                  Use os widgets acima para começar.
                 </p>
               </div>
             </div>
