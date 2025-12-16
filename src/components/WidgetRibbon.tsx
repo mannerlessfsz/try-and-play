@@ -1,6 +1,6 @@
-import { ReactNode, useState, useRef, useCallback } from "react";
+import { ReactNode, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, ChevronRight, GripVertical, ChevronDown, ChevronUp, Maximize2, Minimize2 } from "lucide-react";
+import { Home, ChevronRight, ChevronUp, Maximize2, Minimize2, Building2, Calendar, CalendarRange, ListTodo } from "lucide-react";
 
 interface WidgetItem {
   id: string;
@@ -16,11 +16,6 @@ interface WidgetGroup {
   label: string;
   icon: ReactNode;
   items: WidgetItem[];
-}
-
-interface WidgetPosition {
-  x: number;
-  y: number;
 }
 
 interface WidgetRibbonProps {
@@ -82,58 +77,12 @@ const accentStyles = {
 
 export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) {
   const styles = accentStyles[accentColor];
-  const [expandedWidgets, setExpandedWidgets] = useState<string[]>(groups.map(g => g.id));
+  const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [positions, setPositions] = useState<Record<string, WidgetPosition>>({});
-  const [dragging, setDragging] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleWidget = (id: string) => {
-    setExpandedWidgets(prev => 
-      prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id]
-    );
-  };
-
-  const handleMouseDown = useCallback((e: React.MouseEvent, widgetId: string) => {
-    const target = e.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    
-    // Get current position or default to 0
-    const currentPos = positions[widgetId] || { x: 0, y: 0 };
-    
-    setDragOffset({
-      x: e.clientX - rect.left + currentPos.x,
-      y: e.clientY - rect.top + currentPos.y
-    });
-    setDragging(widgetId);
-    e.preventDefault();
-  }, [positions]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging || !containerRef.current) return;
-    
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const newX = e.clientX - containerRect.left - dragOffset.x;
-    const newY = e.clientY - containerRect.top - dragOffset.y;
-    
-    setPositions(prev => ({
-      ...prev,
-      [dragging]: { x: newX, y: newY }
-    }));
-  }, [dragging, dragOffset]);
-
-  const handleMouseUp = useCallback(() => {
-    setDragging(null);
-  }, []);
-
-  const resetPosition = (widgetId: string) => {
-    setPositions(prev => {
-      const newPos = { ...prev };
-      delete newPos[widgetId];
-      return newPos;
-    });
+    setExpandedWidget(prev => prev === id ? null : id);
   };
 
   return (
@@ -170,149 +119,217 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
         </button>
       </div>
 
-      {/* Widgets Container - Fixed at bottom */}
+      {/* Bottom Bar - Centered Menu + Right Filters */}
       <div 
-        ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
         className={`
           fixed bottom-0 left-0 right-0 z-40
           bg-card/95 backdrop-blur-xl border-t ${styles.border}
           transition-all duration-400 ease-out
           ${isMinimized ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}
-          ${dragging ? 'cursor-grabbing' : ''}
         `}
       >
-        <div className="flex items-start gap-2 p-2 overflow-x-auto">
-          {groups.map((group, groupIndex) => {
-            const isExpanded = expandedWidgets.includes(group.id);
-            const pos = positions[group.id];
-            const isDragging = dragging === group.id;
-            
-            return (
-              <div 
-                key={group.id}
-                className={`
-                  relative flex-shrink-0 rounded-lg
-                  bg-background/95 backdrop-blur-sm
-                  border ${styles.border} 
-                  transition-all duration-300 ease-out
-                  ${isDragging ? `${styles.glow} scale-105 z-50` : 'z-10'}
-                  hover:border-foreground/30
-                `}
-                style={{
-                  transform: pos ? `translate(${pos.x}px, ${pos.y}px)` : undefined,
-                  transition: isDragging ? 'box-shadow 0.2s, scale 0.2s' : 'all 0.3s ease-out',
-                }}
-              >
-                {/* Widget Header - Compact */}
-                <div 
-                  className={`
-                    flex items-center gap-2 px-2 py-1.5
-                    ${isExpanded ? `border-b ${styles.border}` : ''}
-                  `}
-                >
-                  {/* Drag Handle */}
-                  <div 
-                    onMouseDown={(e) => handleMouseDown(e, group.id)}
-                    onDoubleClick={() => resetPosition(group.id)}
-                    className={`
-                      p-0.5 rounded cursor-grab active:cursor-grabbing
-                      text-muted-foreground/50 hover:text-foreground
-                      transition-colors duration-200
-                    `}
-                    title="Arraste • Duplo clique = reset"
-                  >
-                    <GripVertical className="w-3 h-3" />
-                  </div>
-                  
-                  <div 
-                    className="flex items-center gap-2 flex-1 cursor-pointer select-none"
-                    onClick={() => toggleWidget(group.id)}
-                  >
-                    <div className={`${styles.text}`}>
-                      {group.icon}
-                    </div>
-                    <span className="font-semibold text-foreground text-xs whitespace-nowrap">
-                      {group.label}
-                    </span>
-                  </div>
-                  
+        <div className="flex items-center justify-between px-4 py-2">
+          {/* Left spacer for centering */}
+          <div className="w-[300px]" />
+          
+          {/* Centered Icon Menus */}
+          <div className="flex items-center gap-2">
+            {groups.map((group) => {
+              const isExpanded = expandedWidget === group.id;
+              
+              return (
+                <div key={group.id} className="relative">
+                  {/* Icon Button */}
                   <button
                     onClick={() => toggleWidget(group.id)}
-                    className={`p-0.5 rounded ${styles.text} opacity-60 hover:opacity-100 transition-opacity`}
+                    className={`
+                      relative flex items-center justify-center
+                      w-10 h-10 rounded-lg
+                      transition-all duration-300
+                      ${isExpanded 
+                        ? `${styles.bg} ${styles.border} border ${styles.text} ${styles.glowSubtle}` 
+                        : `bg-background/80 border border-foreground/10 text-foreground/70 hover:text-foreground hover:border-foreground/30`
+                      }
+                    `}
+                    title={group.label}
                   >
-                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
+                    {group.icon}
                   </button>
-                </div>
-                
-                {/* Widget Content - Compact */}
-                <div 
-                  className={`
-                    flex gap-1 overflow-hidden
-                    transition-all duration-300 ease-out
-                    ${isExpanded ? 'max-h-[120px] p-1.5 opacity-100' : 'max-h-0 p-0 opacity-0'}
-                  `}
-                >
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={item.onClick}
-                      onMouseEnter={() => setHoveredItem(item.id)}
-                      onMouseLeave={() => setHoveredItem(null)}
-                      disabled={item.disabled}
+                  
+                  {/* Expanded Panel */}
+                  {isExpanded && (
+                    <div 
                       className={`
-                        relative flex flex-col items-center gap-1 p-1.5 rounded-md
-                        transition-all duration-200 group min-w-[48px]
-                        ${item.disabled 
-                          ? 'opacity-40 cursor-not-allowed' 
-                          : `cursor-pointer hover:bg-foreground/10 active:scale-95`
-                        }
+                        absolute bottom-full left-1/2 -translate-x-1/2 mb-2
+                        bg-background/95 backdrop-blur-xl
+                        border ${styles.border} rounded-xl
+                        p-2 min-w-[180px]
+                        animate-fade-in
+                        ${styles.glowSubtle}
                       `}
                     >
-                      {/* Badge */}
-                      {item.badge && (
-                        <div className={`
-                          absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5
-                          rounded-full ${styles.bgSolid}
-                          flex items-center justify-center
-                          text-[8px] font-bold text-primary-foreground
-                        `}>
-                          {item.badge}
-                        </div>
-                      )}
-                      
-                      {/* Icon */}
-                      <div className={`
-                        w-7 h-7 rounded-md flex items-center justify-center
-                        bg-foreground/5 border border-foreground/10
-                        group-hover:border-foreground/20 group-hover:bg-foreground/10
-                        transition-all duration-200
-                        ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
-                      `}>
-                        <div className="scale-75">
-                          {item.icon}
-                        </div>
+                      {/* Header */}
+                      <div className={`flex items-center justify-between gap-2 px-2 pb-2 mb-2 border-b ${styles.border}`}>
+                        <span className={`text-xs font-semibold ${styles.text}`}>{group.label}</span>
+                        <ChevronUp className={`w-3 h-3 ${styles.text} opacity-60`} />
                       </div>
                       
-                      {/* Label */}
-                      <span className={`
-                        text-[9px] font-medium text-foreground/60
-                        group-hover:text-foreground
-                        transition-colors duration-200
-                        whitespace-nowrap
-                      `}>
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
+                      {/* Actions Grid */}
+                      <div className="grid grid-cols-2 gap-1">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={item.onClick}
+                            onMouseEnter={() => setHoveredItem(item.id)}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            disabled={item.disabled}
+                            className={`
+                              relative flex flex-col items-center gap-1 p-2 rounded-lg
+                              transition-all duration-200 group
+                              ${item.disabled 
+                                ? 'opacity-40 cursor-not-allowed' 
+                                : `cursor-pointer hover:bg-foreground/10 active:scale-95`
+                              }
+                            `}
+                          >
+                            {/* Badge */}
+                            {item.badge && (
+                              <div className={`
+                                absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5
+                                rounded-full ${styles.bgSolid}
+                                flex items-center justify-center
+                                text-[8px] font-bold text-primary-foreground
+                              `}>
+                                {item.badge}
+                              </div>
+                            )}
+                            
+                            {/* Icon */}
+                            <div className={`
+                              w-8 h-8 rounded-md flex items-center justify-center
+                              bg-foreground/5 border border-foreground/10
+                              group-hover:border-foreground/20 group-hover:bg-foreground/10
+                              transition-all duration-200
+                              ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
+                            `}>
+                              {item.icon}
+                            </div>
+                            
+                            {/* Label */}
+                            <span className={`
+                              text-[10px] font-medium text-foreground/60
+                              group-hover:text-foreground
+                              transition-colors duration-200
+                              whitespace-nowrap
+                            `}>
+                              {item.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          
+          {/* Right Side - Quick Filters */}
+          <div className="flex items-center gap-2">
+            <FilterSelect 
+              icon={<Building2 className="w-3.5 h-3.5" />}
+              label="Empresa"
+              options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
+              accentStyles={styles}
+            />
+            <FilterSelect 
+              icon={<Calendar className="w-3.5 h-3.5" />}
+              label="Competência"
+              options={["Todas", "01/2024", "02/2024", "03/2024"]}
+              accentStyles={styles}
+            />
+            <FilterInput 
+              icon={<CalendarRange className="w-3.5 h-3.5" />}
+              label="Período"
+              type="date"
+              placeholder="Inicial"
+              accentStyles={styles}
+            />
+            <FilterInput 
+              icon={<CalendarRange className="w-3.5 h-3.5" />}
+              label=""
+              type="date"
+              placeholder="Final"
+              accentStyles={styles}
+            />
+            <FilterSelect 
+              icon={<ListTodo className="w-3.5 h-3.5" />}
+              label="Tarefa"
+              options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
+              accentStyles={styles}
+            />
+          </div>
         </div>
       </div>
     </>
+  );
+}
+
+// Filter Select Component
+interface FilterSelectProps {
+  icon: ReactNode;
+  label: string;
+  options: string[];
+  accentStyles: typeof accentStyles.magenta;
+}
+
+function FilterSelect({ icon, label, options, accentStyles: styles }: FilterSelectProps) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {label && <span className="text-[9px] text-muted-foreground/70 px-1">{label}</span>}
+      <div className={`
+        flex items-center gap-1.5 px-2 py-1.5 rounded-md
+        bg-background/80 border border-foreground/10
+        hover:border-foreground/20 transition-all duration-200
+        text-xs text-foreground/80
+      `}>
+        <span className={styles.text}>{icon}</span>
+        <select className="bg-transparent outline-none cursor-pointer text-[11px] min-w-[70px]">
+          {options.map(opt => (
+            <option key={opt} value={opt} className="bg-background text-foreground">{opt}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// Filter Input Component
+interface FilterInputProps {
+  icon: ReactNode;
+  label: string;
+  type: string;
+  placeholder: string;
+  accentStyles: typeof accentStyles.magenta;
+}
+
+function FilterInput({ icon, label, type, placeholder, accentStyles: styles }: FilterInputProps) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {label && <span className="text-[9px] text-muted-foreground/70 px-1">{label}</span>}
+      <div className={`
+        flex items-center gap-1.5 px-2 py-1.5 rounded-md
+        bg-background/80 border border-foreground/10
+        hover:border-foreground/20 transition-all duration-200
+        text-xs text-foreground/80
+      `}>
+        <span className={styles.text}>{icon}</span>
+        <input 
+          type={type}
+          placeholder={placeholder}
+          className="bg-transparent outline-none w-[90px] text-[11px] placeholder:text-muted-foreground/50"
+        />
+      </div>
+    </div>
   );
 }
