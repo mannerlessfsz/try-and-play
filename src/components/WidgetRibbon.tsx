@@ -133,7 +133,7 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
           <div className="w-[300px]" />
           
           {/* Centered Icon Menus */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-red-950/60 backdrop-blur-sm px-3 py-2 rounded-xl border border-red-500/30">
             {groups.map((group) => {
               const isExpanded = expandedWidget === group.id;
               
@@ -144,11 +144,11 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                     onClick={() => toggleWidget(group.id)}
                     className={`
                       relative flex items-center justify-center
-                      w-10 h-10 rounded-lg
+                      w-11 h-11 rounded-lg
                       transition-all duration-300
                       ${isExpanded 
-                        ? `${styles.bg} ${styles.border} border ${styles.text} ${styles.glowSubtle}` 
-                        : `bg-background/80 border border-foreground/10 text-foreground/70 hover:text-foreground hover:border-foreground/30`
+                        ? `bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)] scale-105` 
+                        : `bg-red-900/50 border border-red-500/40 text-red-200 hover:text-white hover:bg-red-800/60 hover:border-red-400/60`
                       }
                     `}
                     title={group.label}
@@ -161,17 +161,17 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                     <div 
                       className={`
                         absolute bottom-full left-1/2 -translate-x-1/2 mb-2
-                        bg-background/95 backdrop-blur-xl
-                        border ${styles.border} rounded-xl
-                        p-2 min-w-[180px]
+                        bg-red-950/95 backdrop-blur-xl
+                        border border-red-500/40 rounded-xl
+                        p-2 min-w-[200px]
                         animate-fade-in
-                        ${styles.glowSubtle}
+                        shadow-[0_0_30px_rgba(239,68,68,0.3)]
                       `}
                     >
                       {/* Header */}
-                      <div className={`flex items-center justify-between gap-2 px-2 pb-2 mb-2 border-b ${styles.border}`}>
-                        <span className={`text-xs font-semibold ${styles.text}`}>{group.label}</span>
-                        <ChevronUp className={`w-3 h-3 ${styles.text} opacity-60`} />
+                      <div className="flex items-center justify-between gap-2 px-2 pb-2 mb-2 border-b border-red-500/30">
+                        <span className="text-xs font-bold text-red-300">{group.label}</span>
+                        <ChevronUp className="w-3 h-3 text-red-400 opacity-60" />
                       </div>
                       
                       {/* Actions Grid */}
@@ -207,18 +207,18 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                             {/* Icon */}
                             <div className={`
                               w-8 h-8 rounded-md flex items-center justify-center
-                              bg-foreground/5 border border-foreground/10
-                              group-hover:border-foreground/20 group-hover:bg-foreground/10
+                              bg-red-900/40 border border-red-500/30
+                              group-hover:border-red-400/50 group-hover:bg-red-800/50
                               transition-all duration-200
-                              ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
+                              ${hoveredItem === item.id ? 'text-red-300' : 'text-red-200/70'}
                             `}>
                               {item.icon}
                             </div>
                             
                             {/* Label */}
                             <span className={`
-                              text-[10px] font-medium text-foreground/60
-                              group-hover:text-foreground
+                              text-[10px] font-medium text-red-200/70
+                              group-hover:text-white
                               transition-colors duration-200
                               whitespace-nowrap
                             `}>
