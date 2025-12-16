@@ -137,55 +137,54 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
   };
 
   return (
-    <div className="w-full relative">
-      {/* Ambient gradient */}
-      <div className={`absolute inset-0 bg-gradient-to-b ${styles.gradient} opacity-30 pointer-events-none`} />
-      
-      {/* Top Bar */}
-      <div className={`relative bg-card/60 backdrop-blur-2xl border-b ${styles.border} px-6 py-3 flex items-center justify-between`}>
-        <div className="flex items-center gap-4">
+    <>
+      {/* Top Bar - Fixed at top */}
+      <div className={`fixed top-0 left-0 right-0 z-40 bg-card/90 backdrop-blur-xl border-b ${styles.border} px-4 py-2 flex items-center justify-between`}>
+        <div className="flex items-center gap-3">
           <Link 
             to="/" 
             className={`
-              flex items-center gap-2 ${styles.text} px-4 py-2 rounded-xl 
-              transition-all duration-300 group relative overflow-hidden
-              hover:bg-white/5 border border-transparent hover:${styles.border}
+              flex items-center gap-2 ${styles.text} px-3 py-1.5 rounded-lg 
+              transition-all duration-300 group
+              hover:bg-white/10 border border-transparent hover:${styles.border}
             `}
           >
-            <Home className="w-5 h-5 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300" />
-            <span className="font-bold tracking-wider">VAULT</span>
+            <Home className="w-4 h-4 group-hover:scale-110 transition-all duration-300" />
+            <span className="font-bold text-sm tracking-wider">VAULT</span>
           </Link>
           
           <div className="flex items-center gap-2">
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${styles.bg} ${styles.border} border`}>
-              <span className={`font-bold ${styles.text} tracking-wide`}>{title}</span>
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+            <div className={`flex items-center gap-2 px-2 py-1 rounded-md ${styles.bg} border ${styles.border}`}>
+              <span className={`font-bold text-sm ${styles.text}`}>{title}</span>
             </div>
           </div>
         </div>
         
         <button
           onClick={() => setIsMinimized(!isMinimized)}
-          className={`p-2 rounded-lg ${styles.hoverBg} transition-all duration-300 ${styles.text}`}
+          className={`p-1.5 rounded-md ${styles.hoverBg} transition-all duration-300 ${styles.text}`}
+          title={isMinimized ? "Mostrar widgets" : "Ocultar widgets"}
         >
           {isMinimized ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Widgets Container */}
+      {/* Widgets Container - Fixed at bottom */}
       <div 
         ref={containerRef}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         className={`
-          relative bg-card/20 backdrop-blur-xl border-b ${styles.border}
-          transition-all duration-500 ease-out
-          ${isMinimized ? 'h-0 opacity-0 overflow-hidden' : 'min-h-[200px] opacity-100'}
+          fixed bottom-0 left-0 right-0 z-40
+          bg-card/95 backdrop-blur-xl border-t ${styles.border}
+          transition-all duration-400 ease-out
+          ${isMinimized ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}
           ${dragging ? 'cursor-grabbing' : ''}
         `}
       >
-        <div className="flex flex-wrap items-start gap-4 p-4">
+        <div className="flex items-start gap-2 p-2 overflow-x-auto">
           {groups.map((group, groupIndex) => {
             const isExpanded = expandedWidgets.includes(group.id);
             const pos = positions[group.id];
@@ -195,25 +194,23 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
               <div 
                 key={group.id}
                 className={`
-                  relative flex-shrink-0 rounded-2xl 
-                  bg-gradient-to-br from-card/90 to-card/50 backdrop-blur-xl
+                  relative flex-shrink-0 rounded-lg
+                  bg-background/95 backdrop-blur-sm
                   border ${styles.border} 
                   transition-all duration-300 ease-out
-                  ${isExpanded ? styles.glowSubtle : ''}
                   ${isDragging ? `${styles.glow} scale-105 z-50` : 'z-10'}
-                  hover:${styles.borderActive}
+                  hover:border-foreground/30
                 `}
                 style={{
                   transform: pos ? `translate(${pos.x}px, ${pos.y}px)` : undefined,
                   transition: isDragging ? 'box-shadow 0.2s, scale 0.2s' : 'all 0.3s ease-out',
-                  animationDelay: `${groupIndex * 100}ms`
                 }}
               >
-                {/* Widget Header */}
+                {/* Widget Header - Compact */}
                 <div 
                   className={`
-                    flex items-center justify-between gap-3 px-4 py-3
-                    border-b ${isExpanded ? styles.border : 'border-transparent'}
+                    flex items-center gap-2 px-2 py-1.5
+                    ${isExpanded ? `border-b ${styles.border}` : ''}
                   `}
                 >
                   {/* Drag Handle */}
@@ -221,54 +218,44 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                     onMouseDown={(e) => handleMouseDown(e, group.id)}
                     onDoubleClick={() => resetPosition(group.id)}
                     className={`
-                      p-1 rounded-md cursor-grab active:cursor-grabbing
-                      ${styles.hoverBg} transition-all duration-200
-                      text-muted-foreground hover:text-foreground
+                      p-0.5 rounded cursor-grab active:cursor-grabbing
+                      text-muted-foreground/50 hover:text-foreground
+                      transition-colors duration-200
                     `}
-                    title="Arraste para mover • Duplo clique para resetar"
+                    title="Arraste • Duplo clique = reset"
                   >
-                    <GripVertical className="w-4 h-4" />
+                    <GripVertical className="w-3 h-3" />
                   </div>
                   
                   <div 
-                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                    className="flex items-center gap-2 flex-1 cursor-pointer select-none"
                     onClick={() => toggleWidget(group.id)}
                   >
-                    <div className={`
-                      w-8 h-8 rounded-lg ${styles.bg} flex items-center justify-center
-                      ${styles.text} transition-all duration-300
-                    `}>
+                    <div className={`${styles.text}`}>
                       {group.icon}
                     </div>
-                    <span className="font-semibold text-foreground text-sm whitespace-nowrap">
+                    <span className="font-semibold text-foreground text-xs whitespace-nowrap">
                       {group.label}
                     </span>
                   </div>
                   
-                  {/* Expand/Collapse Button */}
                   <button
                     onClick={() => toggleWidget(group.id)}
-                    className={`
-                      p-1.5 rounded-lg ${styles.hoverBg} ${styles.bg}
-                      transition-all duration-300 ${styles.text}
-                    `}
+                    className={`p-0.5 rounded ${styles.text} opacity-60 hover:opacity-100 transition-opacity`}
                   >
-                    {isExpanded 
-                      ? <ChevronUp className="w-4 h-4" /> 
-                      : <ChevronDown className="w-4 h-4" />
-                    }
+                    {isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronUp className="w-3 h-3" />}
                   </button>
                 </div>
                 
-                {/* Widget Content - Expandable */}
+                {/* Widget Content - Compact */}
                 <div 
                   className={`
-                    grid grid-cols-2 gap-2 overflow-hidden
-                    transition-all duration-500 ease-out
-                    ${isExpanded ? 'max-h-[300px] p-3 opacity-100' : 'max-h-0 p-0 opacity-0'}
+                    flex gap-1 overflow-hidden
+                    transition-all duration-300 ease-out
+                    ${isExpanded ? 'max-h-[120px] p-1.5 opacity-100' : 'max-h-0 p-0 opacity-0'}
                   `}
                 >
-                  {group.items.map((item, itemIndex) => (
+                  {group.items.map((item) => (
                     <button
                       key={item.id}
                       onClick={item.onClick}
@@ -276,34 +263,21 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                       onMouseLeave={() => setHoveredItem(null)}
                       disabled={item.disabled}
                       className={`
-                        relative flex flex-col items-center gap-2 p-3 rounded-xl
-                        transition-all duration-300 group min-w-[70px]
+                        relative flex flex-col items-center gap-1 p-1.5 rounded-md
+                        transition-all duration-200 group min-w-[48px]
                         ${item.disabled 
                           ? 'opacity-40 cursor-not-allowed' 
-                          : `cursor-pointer hover:scale-105 active:scale-95 ${styles.hoverBg}`
+                          : `cursor-pointer hover:bg-foreground/10 active:scale-95`
                         }
                       `}
-                      style={{
-                        animationDelay: `${itemIndex * 50}ms`
-                      }}
                     >
-                      {/* Hover effect */}
-                      <div className={`
-                        absolute inset-0 rounded-xl transition-all duration-300
-                        ${hoveredItem === item.id && !item.disabled 
-                          ? `${styles.bg} ${styles.glowSubtle}` 
-                          : 'opacity-0'
-                        }
-                      `} />
-                      
                       {/* Badge */}
                       {item.badge && (
                         <div className={`
-                          absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1
-                          rounded-full bg-gradient-to-r ${styles.gradientSolid}
+                          absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5
+                          rounded-full ${styles.bgSolid}
                           flex items-center justify-center
-                          text-[10px] font-bold text-primary-foreground
-                          ${styles.glow}
+                          text-[8px] font-bold text-primary-foreground
                         `}>
                           {item.badge}
                         </div>
@@ -311,21 +285,22 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                       
                       {/* Icon */}
                       <div className={`
-                        relative w-10 h-10 rounded-xl flex items-center justify-center
-                        bg-card/50 border ${styles.border}
-                        group-hover:${styles.borderActive} group-hover:scale-110
-                        transition-all duration-300 z-10
+                        w-7 h-7 rounded-md flex items-center justify-center
+                        bg-foreground/5 border border-foreground/10
+                        group-hover:border-foreground/20 group-hover:bg-foreground/10
+                        transition-all duration-200
+                        ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
                       `}>
-                        <div className={`${styles.text} transition-all duration-300`}>
+                        <div className="scale-75">
                           {item.icon}
                         </div>
                       </div>
                       
                       {/* Label */}
                       <span className={`
-                        text-[10px] font-medium text-muted-foreground 
-                        group-hover:${styles.text}
-                        transition-all duration-300 relative z-10
+                        text-[9px] font-medium text-foreground/60
+                        group-hover:text-foreground
+                        transition-colors duration-200
                         whitespace-nowrap
                       `}>
                         {item.label}
@@ -337,10 +312,7 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
             );
           })}
         </div>
-        
-        {/* Bottom accent */}
-        <div className={`absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-${accentColor}/30 to-transparent`} />
       </div>
-    </div>
+    </>
   );
 }

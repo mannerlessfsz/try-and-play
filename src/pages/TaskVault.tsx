@@ -64,7 +64,7 @@ const widgetGroups = [
 
 export default function TaskVault() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pt-12 pb-32">
       <WidgetRibbon
         groups={widgetGroups}
         title="TaskVault"
@@ -83,7 +83,7 @@ export default function TaskVault() {
                 <h2 className="text-2xl font-bold text-foreground">TaskVault</h2>
                 <p className="text-muted-foreground max-w-md">
                   Gerencie suas tarefas de forma inteligente. 
-                  Use os widgets acima para começar.
+                  Use os widgets abaixo para começar.
                 </p>
               </div>
             </div>
