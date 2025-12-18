@@ -119,7 +119,55 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
         </button>
       </div>
 
-      {/* Bottom Bar - Centered Menu + Right Filters */}
+      {/* Right Sidebar - Quick Filters */}
+      <div 
+        className={`
+          fixed top-14 right-0 bottom-20 z-30
+          w-48 bg-card/90 backdrop-blur-xl border-l ${styles.border}
+          transition-all duration-400 ease-out p-3
+          ${isMinimized ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'}
+        `}
+      >
+        <div className="flex flex-col gap-3">
+          <div className="text-xs font-bold text-red-400 border-b border-red-500/20 pb-2 mb-1">
+            Filtros Rápidos
+          </div>
+          <FilterSelect 
+            icon={<Building2 className="w-3.5 h-3.5" />}
+            label="Empresa"
+            options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
+            accentStyles={styles}
+          />
+          <FilterSelect 
+            icon={<Calendar className="w-3.5 h-3.5" />}
+            label="Competência"
+            options={["Todas", "01/2024", "02/2024", "03/2024"]}
+            accentStyles={styles}
+          />
+          <FilterInput 
+            icon={<CalendarRange className="w-3.5 h-3.5" />}
+            label="Período inicial"
+            type="date"
+            placeholder="Inicial"
+            accentStyles={styles}
+          />
+          <FilterInput 
+            icon={<CalendarRange className="w-3.5 h-3.5" />}
+            label="Período final"
+            type="date"
+            placeholder="Final"
+            accentStyles={styles}
+          />
+          <FilterSelect 
+            icon={<ListTodo className="w-3.5 h-3.5" />}
+            label="Tarefa"
+            options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
+            accentStyles={styles}
+          />
+        </div>
+      </div>
+
+      {/* Bottom Bar - Centered Menu Only */}
       <div 
         className={`
           fixed bottom-0 left-0 right-0 z-40
@@ -128,10 +176,7 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
           ${isMinimized ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}
         `}
       >
-        <div className="flex items-center justify-between px-4 py-2">
-          {/* Left spacer for centering */}
-          <div className="w-[300px]" />
-          
+        <div className="flex items-center justify-center px-4 py-2">
           {/* Centered Icon Menus */}
           <div className="flex items-center gap-1 bg-red-950/60 backdrop-blur-sm px-3 py-2 rounded-xl border border-red-500/30">
             {groups.map((group) => {
@@ -232,42 +277,6 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
                 </div>
               );
             })}
-          </div>
-          
-          {/* Right Side - Quick Filters */}
-          <div className="flex items-center gap-2">
-            <FilterSelect 
-              icon={<Building2 className="w-3.5 h-3.5" />}
-              label="Empresa"
-              options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
-              accentStyles={styles}
-            />
-            <FilterSelect 
-              icon={<Calendar className="w-3.5 h-3.5" />}
-              label="Competência"
-              options={["Todas", "01/2024", "02/2024", "03/2024"]}
-              accentStyles={styles}
-            />
-            <FilterInput 
-              icon={<CalendarRange className="w-3.5 h-3.5" />}
-              label="Período"
-              type="date"
-              placeholder="Inicial"
-              accentStyles={styles}
-            />
-            <FilterInput 
-              icon={<CalendarRange className="w-3.5 h-3.5" />}
-              label=""
-              type="date"
-              placeholder="Final"
-              accentStyles={styles}
-            />
-            <FilterSelect 
-              icon={<ListTodo className="w-3.5 h-3.5" />}
-              label="Tarefa"
-              options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
-              accentStyles={styles}
-            />
           </div>
         </div>
       </div>
