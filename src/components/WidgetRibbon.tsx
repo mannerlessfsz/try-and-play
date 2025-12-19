@@ -20,6 +20,7 @@ interface WidgetGroup {
 
 interface WidgetRibbonProps {
   groups: WidgetGroup[];
+  sidebarContent?: ReactNode;
   title: string;
   accentColor: "magenta" | "cyan" | "orange" | "blue";
 }
@@ -75,7 +76,7 @@ const accentStyles = {
   },
 };
 
-export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) {
+export function WidgetRibbon({ groups, title, accentColor, sidebarContent }: WidgetRibbonProps) {
   const styles = accentStyles[accentColor];
   const [expandedWidget, setExpandedWidget] = useState<string | null>(null);
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -119,52 +120,57 @@ export function WidgetRibbon({ groups, title, accentColor }: WidgetRibbonProps) 
         </button>
       </div>
 
-      {/* Right Sidebar - Quick Filters */}
+      {/* Right Sidebar */}
       <div 
         className={`
           fixed top-14 right-0 bottom-20 z-30
-          w-48 bg-card/90 backdrop-blur-xl border-l ${styles.border}
-          transition-all duration-400 ease-out p-3
+          w-64 bg-card/90 backdrop-blur-xl border-l ${styles.border}
+          transition-all duration-400 ease-out
           ${isMinimized ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'}
+          overflow-y-auto
         `}
       >
-        <div className="flex flex-col gap-3">
-          <div className="text-xs font-bold text-red-400 border-b border-red-500/20 pb-2 mb-1">
-            Filtros Rápidos
+        {sidebarContent ? (
+          sidebarContent
+        ) : (
+          <div className="flex flex-col gap-3 p-3">
+            <div className="text-xs font-bold text-red-400 border-b border-red-500/20 pb-2 mb-1">
+              Filtros Rápidos
+            </div>
+            <FilterSelect 
+              icon={<Building2 className="w-3.5 h-3.5" />}
+              label="Empresa"
+              options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
+              accentStyles={styles}
+            />
+            <FilterSelect 
+              icon={<Calendar className="w-3.5 h-3.5" />}
+              label="Competência"
+              options={["Todas", "01/2024", "02/2024", "03/2024"]}
+              accentStyles={styles}
+            />
+            <FilterInput 
+              icon={<CalendarRange className="w-3.5 h-3.5" />}
+              label="Período inicial"
+              type="date"
+              placeholder="Inicial"
+              accentStyles={styles}
+            />
+            <FilterInput 
+              icon={<CalendarRange className="w-3.5 h-3.5" />}
+              label="Período final"
+              type="date"
+              placeholder="Final"
+              accentStyles={styles}
+            />
+            <FilterSelect 
+              icon={<ListTodo className="w-3.5 h-3.5" />}
+              label="Tarefa"
+              options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
+              accentStyles={styles}
+            />
           </div>
-          <FilterSelect 
-            icon={<Building2 className="w-3.5 h-3.5" />}
-            label="Empresa"
-            options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
-            accentStyles={styles}
-          />
-          <FilterSelect 
-            icon={<Calendar className="w-3.5 h-3.5" />}
-            label="Competência"
-            options={["Todas", "01/2024", "02/2024", "03/2024"]}
-            accentStyles={styles}
-          />
-          <FilterInput 
-            icon={<CalendarRange className="w-3.5 h-3.5" />}
-            label="Período inicial"
-            type="date"
-            placeholder="Inicial"
-            accentStyles={styles}
-          />
-          <FilterInput 
-            icon={<CalendarRange className="w-3.5 h-3.5" />}
-            label="Período final"
-            type="date"
-            placeholder="Final"
-            accentStyles={styles}
-          />
-          <FilterSelect 
-            icon={<ListTodo className="w-3.5 h-3.5" />}
-            label="Tarefa"
-            options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
-            accentStyles={styles}
-          />
-        </div>
+        )}
       </div>
 
       {/* Bottom Bar - Centered Menu Only */}
