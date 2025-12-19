@@ -71,10 +71,13 @@ const widgetGroups = [
   },
 ];
 
+type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
+
 export default function TaskVault() {
   const [activeTab, setActiveTab] = useState<"tarefas" | "empresas">("tarefas");
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
   const [showModal, setShowModal] = useState<"tarefa" | "empresa" | null>(null);
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   
   const [empresas, setEmpresas] = useState<Empresa[]>([
     { id: "1", nome: "Empresa Alpha", cnpj: "12.345.678/0001-90", email: "contato@alpha.com" },
@@ -91,7 +94,7 @@ export default function TaskVault() {
     { id: "6", titulo: "Calcular ICMS ST", descricao: "Cálculo substituição tributária", empresaId: "3", prioridade: "alta", status: "pendente", dataVencimento: "2024-12-21", progresso: 10, criadoEm: "2024-12-17" },
   ]);
 
-  const [atividades] = useState<Atividade[]>([
+  const [atividades, setAtividades] = useState<Atividade[]>([
     { id: "1", tipo: "criacao", descricao: "Nova tarefa criada: Conferir SPED Fiscal", timestamp: "Há 2 horas", usuario: "Sistema" },
     { id: "2", tipo: "conclusao", descricao: "Tarefa concluída: Importar NF-e", timestamp: "Há 4 horas", usuario: "Ana Silva" },
     { id: "3", tipo: "comentario", descricao: "Comentário em: Ajustar EFD", timestamp: "Há 6 horas", usuario: "Carlos" },
@@ -105,6 +108,37 @@ export default function TaskVault() {
   const tarefasEmAndamento = tarefas.filter(t => t.status === "em_andamento").length;
   const tarefasConcluidas = tarefas.filter(t => t.status === "concluida").length;
   const tarefasUrgentes = tarefas.filter(t => t.prioridade === "alta" && t.status !== "concluida").length;
+
+  // Filter tasks based on active filter
+  const getFilteredTarefas = () => {
+    switch (activeFilter) {
+      case "em_andamento":
+        return tarefas.filter(t => t.status === "em_andamento");
+      case "concluida":
+        return tarefas.filter(t => t.status === "concluida");
+      case "urgente":
+        return tarefas.filter(t => t.prioridade === "alta" && t.status !== "concluida");
+      default:
+        return tarefas;
+    }
+  };
+
+  const filteredTarefas = getFilteredTarefas();
+
+  const handleFilterClick = (filter: FilterType) => {
+    setActiveFilter(prev => prev === filter ? "all" : filter);
+  };
+
+  const addAtividade = (tipo: Atividade["tipo"], descricao: string) => {
+    const nova: Atividade = {
+      id: Date.now().toString(),
+      tipo,
+      descricao,
+      timestamp: "Agora",
+      usuario: "Você",
+    };
+    setAtividades(prev => [nova, ...prev]);
+  };
 
   const handleSaveTarefa = () => {
     if (!novaTarefa.titulo || !novaTarefa.empresaId) {
@@ -123,6 +157,7 @@ export default function TaskVault() {
       criadoEm: new Date().toISOString().split("T")[0],
     };
     setTarefas(prev => [...prev, tarefa]);
+    addAtividade("criacao", `Nova tarefa criada: ${tarefa.titulo}`);
     setNovaTarefa({ prioridade: "media", status: "pendente" });
     setShowModal(null);
     toast({ title: "Tarefa criada com sucesso!" });
@@ -140,198 +175,285 @@ export default function TaskVault() {
       email: novaEmpresa.email || "",
     };
     setEmpresas(prev => [...prev, empresa]);
+    addAtividade("criacao", `Nova empresa: ${empresa.nome}`);
     setNovaEmpresa({});
     setShowModal(null);
     toast({ title: "Empresa criada com sucesso!" });
   };
 
   const deleteTarefa = (id: string) => {
+    const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.filter(t => t.id !== id));
+    if (tarefa) addAtividade("edicao", `Tarefa excluída: ${tarefa.titulo}`);
     toast({ title: "Tarefa excluída" });
   };
 
   const deleteEmpresa = (id: string) => {
+    const empresa = empresas.find(e => e.id === id);
     setEmpresas(prev => prev.filter(e => e.id !== id));
+    if (empresa) addAtividade("edicao", `Empresa excluída: ${empresa.nome}`);
     toast({ title: "Empresa excluída" });
   };
 
   const updateTarefaStatus = (id: string, status: Tarefa["status"]) => {
+    const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.map(t => 
       t.id === id ? { ...t, status, progresso: status === "concluida" ? 100 : status === "em_andamento" ? 50 : t.progresso } : t
     ));
+    if (tarefa && status === "concluida") {
+      addAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`);
+    }
   };
 
   const getEmpresaNome = (id: string) => empresas.find(e => e.id === id)?.nome || "-";
 
   const kanbanColumns = {
-    pendente: tarefas.filter(t => t.status === "pendente"),
-    em_andamento: tarefas.filter(t => t.status === "em_andamento"),
-    concluida: tarefas.filter(t => t.status === "concluida"),
+    pendente: filteredTarefas.filter(t => t.status === "pendente"),
+    em_andamento: filteredTarefas.filter(t => t.status === "em_andamento"),
+    concluida: filteredTarefas.filter(t => t.status === "concluida"),
   };
+
+  // Sidebar content with filters and timeline
+  const sidebarContent = (
+    <div className="flex flex-col h-full">
+      {/* Filters Section */}
+      <div className="p-3 border-b border-red-500/20">
+        <div className="text-xs font-bold text-red-400 mb-3">Filtros Rápidos</div>
+        <div className="space-y-2">
+          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
+            <option>Todas Empresas</option>
+            {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
+            <option>Todas Prioridades</option>
+            <option value="alta">Alta</option>
+            <option value="media">Média</option>
+            <option value="baixa">Baixa</option>
+          </select>
+          <input 
+            type="date" 
+            className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80"
+            placeholder="Data inicial"
+          />
+        </div>
+      </div>
+
+      {/* Timeline Section */}
+      <div className="flex-1 p-3 overflow-y-auto">
+        <div className="text-xs font-bold text-red-400 mb-3 flex items-center gap-2">
+          <Activity className="w-3.5 h-3.5" />
+          Atividades Recentes
+        </div>
+        <div className="space-y-1">
+          {atividades.map(atividade => (
+            <TimelineItem key={atividade.id} atividade={atividade} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-24">
-      <WidgetRibbon groups={widgetGroups} title="TaskVault" accentColor="magenta" />
+      <WidgetRibbon 
+        groups={widgetGroups} 
+        title="TaskVault" 
+        accentColor="magenta" 
+        sidebarContent={sidebarContent}
+      />
       
-      <div className="p-4 max-w-[1600px] mx-auto mr-52">
-        {/* Dashboard Metrics */}
+      <div className="p-4 max-w-[1400px] mx-auto mr-72">
+        {/* Dashboard Metrics - Now clickable filters */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <MetricCard title="Total de Tarefas" value={totalTarefas} change="+12% este mês" changeType="up" icon={ListTodo} color="red" />
-          <MetricCard title="Em Andamento" value={tarefasEmAndamento} change="+3 novas" changeType="up" icon={Activity} color="blue" />
-          <MetricCard title="Concluídas" value={tarefasConcluidas} change={`${Math.round((tarefasConcluidas/totalTarefas)*100)}% do total`} changeType="up" icon={CheckSquare} color="green" />
-          <MetricCard title="Urgentes" value={tarefasUrgentes} change="Atenção!" changeType="down" icon={AlertTriangle} color="yellow" />
+          <MetricCard 
+            title="Total de Tarefas" 
+            value={totalTarefas} 
+            change="+12% este mês" 
+            changeType="up" 
+            icon={ListTodo} 
+            color="red"
+            isActive={activeFilter === "all"}
+            onClick={() => handleFilterClick("all")}
+          />
+          <MetricCard 
+            title="Em Andamento" 
+            value={tarefasEmAndamento} 
+            change="+3 novas" 
+            changeType="up" 
+            icon={Activity} 
+            color="blue"
+            isActive={activeFilter === "em_andamento"}
+            onClick={() => handleFilterClick("em_andamento")}
+          />
+          <MetricCard 
+            title="Concluídas" 
+            value={tarefasConcluidas} 
+            change={`${Math.round((tarefasConcluidas/totalTarefas)*100)}% do total`} 
+            changeType="up" 
+            icon={CheckSquare} 
+            color="green"
+            isActive={activeFilter === "concluida"}
+            onClick={() => handleFilterClick("concluida")}
+          />
+          <MetricCard 
+            title="Urgentes" 
+            value={tarefasUrgentes} 
+            change="Atenção!" 
+            changeType="down" 
+            icon={AlertTriangle} 
+            color="yellow"
+            isActive={activeFilter === "urgente"}
+            onClick={() => handleFilterClick("urgente")}
+          />
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          <div className="lg:col-span-3">
-            {/* Tabs & View Toggle */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setActiveTab("tarefas")}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "tarefas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <ListTodo className="w-4 h-4 inline mr-2" />Tarefas ({tarefas.length})
-                </button>
-                <button
-                  onClick={() => setActiveTab("empresas")}
-                  className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "empresas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Building2 className="w-4 h-4 inline mr-2" />Empresas ({empresas.length})
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {activeTab === "tarefas" && (
-                  <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-                    <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                      <Columns className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                      <List className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-                <Button onClick={() => setShowModal("tarefa")} className="bg-red-500 hover:bg-red-600 text-white">
-                  <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
-                </Button>
-                <Button onClick={() => setShowModal("empresa")} variant="outline" className="border-red-500/50 text-red-300 hover:bg-red-500/20">
-                  <Building2 className="w-4 h-4 mr-1" /> Nova Empresa
-                </Button>
-              </div>
-            </div>
+        {/* Filter indicator */}
+        {activeFilter !== "all" && (
+          <div className="mb-4 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Filtro ativo:</span>
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+              {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Urgentes"}
+            </span>
+            <button 
+              onClick={() => setActiveFilter("all")}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Limpar
+            </button>
+          </div>
+        )}
 
-            {/* Content */}
-            {activeTab === "tarefas" ? (
-              viewMode === "kanban" ? (
-                <div className="grid grid-cols-3 gap-4">
-                  {(["pendente", "em_andamento", "concluida"] as const).map(status => (
-                    <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
-                      <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
-                        <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
-                        <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
-                        <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
-                          {kanbanColumns[status].length}
-                        </span>
-                      </div>
-                      <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                        {kanbanColumns[status].map(tarefa => (
-                          <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-red-950/50 border-b border-red-500/20">
-                      <tr>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Título</th>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Empresa</th>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Prioridade</th>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Status</th>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Progresso</th>
-                        <th className="text-left p-3 text-xs font-semibold text-red-300">Vencimento</th>
-                        <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tarefas.map(tarefa => (
-                        <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
-                          <td className="p-3">
-                            <div className="font-medium text-foreground">{tarefa.titulo}</div>
-                            <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
-                          </td>
-                          <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
-                          <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
-                          <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
-                          <td className="p-3">
-                            <div className="w-20">
-                              <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
-                              <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
-                                <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
-                          <td className="p-3 text-right">
-                            <button onClick={() => deleteTarefa(tarefa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
-            ) : (
-              <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-red-950/50 border-b border-red-500/20">
-                    <tr>
-                      <th className="text-left p-3 text-xs font-semibold text-red-300">Nome</th>
-                      <th className="text-left p-3 text-xs font-semibold text-red-300">CNPJ</th>
-                      <th className="text-left p-3 text-xs font-semibold text-red-300">Email</th>
-                      <th className="text-left p-3 text-xs font-semibold text-red-300">Tarefas</th>
-                      <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {empresas.map(empresa => (
-                      <tr key={empresa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
-                        <td className="p-3">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">{empresa.nome.charAt(0)}</div>
-                            <span className="font-medium text-foreground">{empresa.nome}</span>
-                          </div>
-                        </td>
-                        <td className="p-3 text-sm text-foreground/80">{empresa.cnpj}</td>
-                        <td className="p-3 text-sm text-foreground/80">{empresa.email}</td>
-                        <td className="p-3"><span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">{tarefas.filter(t => t.empresaId === empresa.id).length} tarefas</span></td>
-                        <td className="p-3 text-right"><button onClick={() => deleteEmpresa(empresa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        {/* Tabs & View Toggle */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setActiveTab("tarefas")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "tarefas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+            >
+              <ListTodo className="w-4 h-4 inline mr-2" />Tarefas ({filteredTarefas.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("empresas")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "empresas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+            >
+              <Building2 className="w-4 h-4 inline mr-2" />Empresas ({empresas.length})
+            </button>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {activeTab === "tarefas" && (
+              <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
+                <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Columns className="w-4 h-4" />
+                </button>
+                <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                  <List className="w-4 h-4" />
+                </button>
               </div>
             )}
-          </div>
-
-          {/* Timeline */}
-          <div className="lg:col-span-1">
-            <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 p-4 sticky top-20">
-              <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-red-400" />Atividades Recentes
-              </h3>
-              <div className="space-y-1">
-                {atividades.map(atividade => (
-                  <TimelineItem key={atividade.id} atividade={atividade} />
-                ))}
-              </div>
-            </div>
+            <Button onClick={() => setShowModal("tarefa")} className="bg-red-500 hover:bg-red-600 text-white">
+              <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
+            </Button>
+            <Button onClick={() => setShowModal("empresa")} variant="outline" className="border-red-500/50 text-red-300 hover:bg-red-500/20">
+              <Building2 className="w-4 h-4 mr-1" /> Nova Empresa
+            </Button>
           </div>
         </div>
+
+        {/* Content - Full width Kanban */}
+        {activeTab === "tarefas" ? (
+          viewMode === "kanban" ? (
+            <div className="grid grid-cols-3 gap-4">
+              {(["pendente", "em_andamento", "concluida"] as const).map(status => (
+                <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
+                    <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
+                    <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
+                      {kanbanColumns[status].length}
+                    </span>
+                  </div>
+                  <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                    {kanbanColumns[status].map(tarefa => (
+                      <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-red-950/50 border-b border-red-500/20">
+                  <tr>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Título</th>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Empresa</th>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Prioridade</th>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Status</th>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Progresso</th>
+                    <th className="text-left p-3 text-xs font-semibold text-red-300">Vencimento</th>
+                    <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTarefas.map(tarefa => (
+                    <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
+                      <td className="p-3">
+                        <div className="font-medium text-foreground">{tarefa.titulo}</div>
+                        <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
+                      </td>
+                      <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
+                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
+                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
+                      <td className="p-3">
+                        <div className="w-20">
+                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
+                          <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
+                      <td className="p-3 text-right">
+                        <button onClick={() => deleteTarefa(tarefa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : (
+          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-red-950/50 border-b border-red-500/20">
+                <tr>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Nome</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">CNPJ</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Email</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Tarefas</th>
+                  <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {empresas.map(empresa => (
+                  <tr key={empresa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">{empresa.nome.charAt(0)}</div>
+                        <span className="font-medium text-foreground">{empresa.nome}</span>
+                      </div>
+                    </td>
+                    <td className="p-3 text-sm text-foreground/80">{empresa.cnpj}</td>
+                    <td className="p-3 text-sm text-foreground/80">{empresa.email}</td>
+                    <td className="p-3"><span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">{tarefas.filter(t => t.empresaId === empresa.id).length} tarefas</span></td>
+                    <td className="p-3 text-right"><button onClick={() => deleteEmpresa(empresa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {showModal === "tarefa" && <TaskModal novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} empresas={empresas} onSave={handleSaveTarefa} onClose={() => setShowModal(null)} />}
