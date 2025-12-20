@@ -262,7 +262,7 @@ export default function TaskVault() {
         sidebarContent={sidebarContent}
       />
       
-      <div className="p-4 max-w-[1400px] mx-auto mr-72">
+      <div className="p-4 pr-72">
         {/* Dashboard Metrics - Now clickable filters */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <MetricCard 
