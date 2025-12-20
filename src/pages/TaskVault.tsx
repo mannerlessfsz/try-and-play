@@ -360,26 +360,61 @@ export default function TaskVault() {
           </div>
         </div>
 
-        {/* Content - Full width Kanban */}
+        {/* Content - Dynamic Kanban based on filter */}
         {activeTab === "tarefas" ? (
           viewMode === "kanban" ? (
-            <div className="grid grid-cols-3 gap-4">
-              {(["pendente", "em_andamento", "concluida"] as const).map(status => (
-                <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
-                    <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
-                    <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
-                      {kanbanColumns[status].length}
+            <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
+              {activeFilter === "all" ? (
+                // Show all 3 columns when "all" filter is active
+                (["pendente", "em_andamento", "concluida"] as const).map(status => (
+                  <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
+                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
+                      <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
+                      <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
+                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
+                        {kanbanColumns[status].length}
+                      </span>
+                    </div>
+                    <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                      {kanbanColumns[status].map(tarefa => (
+                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                // Show single column with filtered tasks
+                <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
+                  activeFilter === "em_andamento" ? "border-blue-500/30" : 
+                  activeFilter === "concluida" ? "border-green-500/30" : 
+                  "border-yellow-500/30"
+                }`}>
+                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-foreground/10">
+                    <div className={`w-3 h-3 rounded-full ${
+                      activeFilter === "em_andamento" ? "bg-blue-500 animate-pulse" : 
+                      activeFilter === "concluida" ? "bg-green-500" : 
+                      "bg-yellow-500 animate-pulse"
+                    }`} />
+                    <h3 className="text-lg font-semibold text-foreground">
+                      {activeFilter === "em_andamento" ? "Em Andamento" : 
+                       activeFilter === "concluida" ? "Concluídas" : 
+                       "Tarefas Urgentes"}
+                    </h3>
+                    <span className={`ml-auto text-sm px-3 py-1 rounded-full ${
+                      activeFilter === "em_andamento" ? "bg-blue-500/20 text-blue-300" : 
+                      activeFilter === "concluida" ? "bg-green-500/20 text-green-300" : 
+                      "bg-yellow-500/20 text-yellow-300"
+                    }`}>
+                      {filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
-                    {kanbanColumns[status].map(tarefa => (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                    {filteredTarefas.map(tarefa => (
                       <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
                     ))}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           ) : (
             <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
