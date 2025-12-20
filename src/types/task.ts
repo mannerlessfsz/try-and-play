@@ -5,6 +5,14 @@ export interface Empresa {
   email: string;
 }
 
+export interface TarefaArquivo {
+  id: string;
+  nome: string;
+  tamanho: string;
+  tipo: string;
+  dataUpload: string;
+}
+
 export interface Tarefa {
   id: string;
   titulo: string;
@@ -15,6 +23,7 @@ export interface Tarefa {
   dataVencimento: string;
   progresso?: number;
   criadoEm?: string;
+  arquivos?: TarefaArquivo[];
 }
 
 export interface Atividade {

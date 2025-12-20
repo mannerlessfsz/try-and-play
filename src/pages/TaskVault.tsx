@@ -2,6 +2,7 @@ import { useState } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { MetricCard } from "@/components/task/MetricCard";
 import { KanbanCard } from "@/components/task/KanbanCard";
+import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
 import { EmpresaModal } from "@/components/task/EmpresaModal";
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Tarefa, Empresa, Atividade, prioridadeColors, statusColors } from "@/types/task";
+import { Tarefa, Empresa, Atividade, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
 
 const widgetGroups = [
   {
@@ -205,6 +206,12 @@ export default function TaskVault() {
     }
   };
 
+  const updateTarefaArquivos = (id: string, arquivos: TarefaArquivo[]) => {
+    setTarefas(prev => prev.map(t => 
+      t.id === id ? { ...t, arquivos } : t
+    ));
+  };
+
   const getEmpresaNome = (id: string) => empresas.find(e => e.id === id)?.nome || "-";
 
   const kanbanColumns = {
@@ -383,7 +390,7 @@ export default function TaskVault() {
                   </div>
                 ))
               ) : (
-                // Show single column with filtered tasks
+                // Show single column with expanded tasks stacked vertically
                 <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
                   activeFilter === "em_andamento" ? "border-blue-500/30" : 
                   activeFilter === "concluida" ? "border-green-500/30" : 
@@ -408,9 +415,16 @@ export default function TaskVault() {
                       {filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}
                     </span>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                  <div className="space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
                     {filteredTarefas.map(tarefa => (
-                      <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
+                      <ExpandedTaskCard 
+                        key={tarefa.id} 
+                        tarefa={tarefa} 
+                        empresaNome={getEmpresaNome(tarefa.empresaId)} 
+                        onDelete={() => deleteTarefa(tarefa.id)} 
+                        onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)}
+                        onUpdateArquivos={(arquivos) => updateTarefaArquivos(tarefa.id, arquivos)}
+                      />
                     ))}
                   </div>
                 </div>
