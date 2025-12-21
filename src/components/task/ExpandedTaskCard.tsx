@@ -25,7 +25,7 @@ export function ExpandedTaskCard({
   onStatusChange,
   onUpdateArquivos 
 }: ExpandedTaskCardProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progresso = tarefa.progresso || (tarefa.status === "concluida" ? 100 : tarefa.status === "em_andamento" ? 50 : 0);
 
