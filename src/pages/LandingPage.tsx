@@ -63,9 +63,18 @@ const LandingPage = () => {
   // Redirect to dashboard if already logged in
   useEffect(() => {
     if (!loading && user) {
-      navigate('/dashboard');
+      navigate('/dashboard', { replace: true });
     }
   }, [user, loading, navigate]);
+
+  // Show loading while checking auth or redirecting
+  if (loading || user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
