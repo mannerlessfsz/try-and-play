@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { usePermissions, AppModule, PermissionType, AppRole } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -16,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { 
   ArrowLeft, 
   Users, 
@@ -92,16 +92,6 @@ interface ContaBancaria {
   ativo: boolean;
 }
 
-interface NovaEmpresa {
-  nome: string;
-  cnpj: string;
-  email: string;
-  telefone: string;
-  modulos: { modulo: AppModule; ativo: boolean; modo: 'basico' | 'pro' }[];
-  contas: { nome: string; banco: string; agencia: string; conta: string; tipo: 'corrente' | 'poupanca' | 'investimento' }[];
-  gerente: { email: string; password: string; fullName: string };
-}
-
 const MODULES: { value: AppModule; label: string }[] = [
   { value: 'taskvault', label: 'TaskVault' },
   { value: 'financialace', label: 'FinancialACE' },
@@ -123,11 +113,6 @@ const ROLES: { value: AppRole; label: string; color: string }[] = [
   { value: 'user', label: 'Usuário', color: 'bg-blue-500' }
 ];
 
-const BANCOS = [
-  'Banco do Brasil', 'Bradesco', 'Itaú', 'Santander', 'Caixa', 
-  'Nubank', 'Inter', 'C6 Bank', 'Sicredi', 'Sicoob', 'Outro'
-];
-
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -139,16 +124,6 @@ const Admin: React.FC = () => {
   const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
   const [expandedEmpresa, setExpandedEmpresa] = useState<string | null>(null);
-  
-  const [novaEmpresa, setNovaEmpresa] = useState<NovaEmpresa>({
-    nome: '',
-    cnpj: '',
-    email: '',
-    telefone: '',
-    modulos: MODULES.map(m => ({ modulo: m.value, ativo: false, modo: 'basico' as const })),
-    contas: [],
-    gerente: { email: '', password: '', fullName: '' }
-  });
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({
@@ -217,115 +192,6 @@ const Admin: React.FC = () => {
       const { data, error } = await supabase.from('contas_bancarias').select('*');
       if (error) throw error;
       return data as ContaBancaria[];
-    }
-  });
-
-  // Create empresa mutation (complete with modules, accounts, and manager)
-  const createEmpresaMutation = useMutation({
-    mutationFn: async (empresa: NovaEmpresa) => {
-      // 1. Create manager user first if provided
-      let managerId: string | null = null;
-      
-      if (empresa.gerente.email && empresa.gerente.password) {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: empresa.gerente.email,
-          password: empresa.gerente.password,
-          options: {
-            data: { full_name: empresa.gerente.fullName }
-          }
-        });
-        if (authError) throw new Error(`Erro ao criar gerente: ${authError.message}`);
-        managerId = authData.user?.id || null;
-        
-        // Add manager role using security definer function
-        if (managerId) {
-          await supabase.rpc('assign_manager_role', { _user_id: managerId });
-        }
-      }
-
-      // 2. Create empresa
-      const { data: empresaData, error: empresaError } = await supabase
-        .from('empresas')
-        .insert({
-          nome: empresa.nome,
-          cnpj: empresa.cnpj || null,
-          email: empresa.email || null,
-          telefone: empresa.telefone || null,
-          manager_id: managerId,
-        })
-        .select()
-        .single();
-
-      if (empresaError) throw empresaError;
-
-      // 3. Link manager to empresa
-      if (managerId) {
-        await supabase.from('user_empresas').insert({
-          user_id: managerId,
-          empresa_id: empresaData.id,
-          is_owner: true
-        });
-
-        // Grant all permissions to manager for active modules
-        const activeModules = empresa.modulos.filter(m => m.ativo);
-        for (const mod of activeModules) {
-          for (const perm of PERMISSIONS) {
-            await supabase.from('user_permissions').insert({
-              user_id: managerId,
-              empresa_id: empresaData.id,
-              module: mod.modulo,
-              permission: perm.value,
-              is_pro_mode: mod.modo === 'pro'
-            });
-          }
-        }
-      }
-
-      // 4. Create modulos
-      const modulosAtivos = empresa.modulos.filter(m => m.ativo);
-      if (modulosAtivos.length > 0) {
-        const { error: modulosError } = await supabase
-          .from('empresa_modulos')
-          .insert(modulosAtivos.map(m => ({
-            empresa_id: empresaData.id,
-            modulo: m.modulo,
-            modo: m.modo,
-            ativo: true,
-          })));
-        if (modulosError) throw modulosError;
-      }
-
-      // 5. Create bank accounts
-      if (empresa.contas.length > 0) {
-        const { error: contasError } = await supabase
-          .from('contas_bancarias')
-          .insert(empresa.contas.map(c => ({
-            empresa_id: empresaData.id,
-            nome: c.nome,
-            banco: c.banco,
-            agencia: c.agencia || null,
-            conta: c.conta || null,
-            tipo: c.tipo,
-          })));
-        if (contasError) throw contasError;
-      }
-
-      return empresaData;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-empresa-modulos'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-contas-bancarias'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-all-roles'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-all-user-empresas'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-all-permissions'] });
-      setIsAddingEmpresa(false);
-      resetNovaEmpresa();
-      toast({ title: 'Empresa cadastrada com sucesso!' });
-    },
-    onError: (error) => {
-      toast({ title: 'Erro ao cadastrar empresa', description: error.message, variant: 'destructive' });
     }
   });
 
@@ -495,84 +361,14 @@ const Admin: React.FC = () => {
   const getEmpresaContas = (empresaId: string) => contasBancarias.filter(c => c.empresa_id === empresaId);
   const getManagerUser = (managerId: string | null) => users.find(u => u.id === managerId);
 
-  const resetNovaEmpresa = () => {
-    setNovaEmpresa({
-      nome: '',
-      cnpj: '',
-      email: '',
-      telefone: '',
-      modulos: MODULES.map(m => ({ modulo: m.value, ativo: false, modo: 'basico' as const })),
-      contas: [],
-      gerente: { email: '', password: '', fullName: '' }
-    });
-  };
-
-  const toggleModulo = (moduloId: AppModule) => {
-    setNovaEmpresa(prev => ({
-      ...prev,
-      modulos: prev.modulos.map(m => 
-        m.modulo === moduloId ? { ...m, ativo: !m.ativo } : m
-      ),
-    }));
-  };
-
-  const setModuloModo = (moduloId: AppModule, modo: 'basico' | 'pro') => {
-    setNovaEmpresa(prev => ({
-      ...prev,
-      modulos: prev.modulos.map(m => 
-        m.modulo === moduloId ? { ...m, modo } : m
-      ),
-    }));
-  };
-
-  const addNovaConta = () => {
-    setNovaEmpresa(prev => ({
-      ...prev,
-      contas: [...prev.contas, { nome: '', banco: '', agencia: '', conta: '', tipo: 'corrente' as const }],
-    }));
-  };
-
-  const updateConta = (index: number, field: keyof NovaEmpresa['contas'][0], value: string) => {
-    setNovaEmpresa(prev => ({
-      ...prev,
-      contas: prev.contas.map((c, i) => 
-        i === index ? { ...c, [field]: value } : c
-      ),
-    }));
-  };
-
-  const removeConta = (index: number) => {
-    setNovaEmpresa(prev => ({
-      ...prev,
-      contas: prev.contas.filter((_, i) => i !== index),
-    }));
-  };
-
-  const hasFinancialActive = novaEmpresa.modulos.some(m => m.modulo === 'financialace' && m.ativo);
-
-  const handleSubmitNovaEmpresa = () => {
-    if (!novaEmpresa.nome.trim()) {
-      toast({ title: 'Razão Social é obrigatória', variant: 'destructive' });
-      return;
-    }
-
-    const modulosAtivos = novaEmpresa.modulos.filter(m => m.ativo);
-    if (modulosAtivos.length === 0) {
-      toast({ title: 'Selecione pelo menos um módulo', variant: 'destructive' });
-      return;
-    }
-
-    if (hasFinancialActive && novaEmpresa.contas.length === 0) {
-      toast({ title: 'Para o FinancialACE, adicione pelo menos uma conta bancária', variant: 'destructive' });
-      return;
-    }
-
-    if (novaEmpresa.gerente.email && novaEmpresa.gerente.password.length < 6) {
-      toast({ title: 'A senha do gerente deve ter pelo menos 6 caracteres', variant: 'destructive' });
-      return;
-    }
-
-    createEmpresaMutation.mutate(novaEmpresa);
+  const handleWizardSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-empresa-modulos'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-contas-bancarias'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-all-roles'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-all-user-empresas'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-all-permissions'] });
   };
 
   if (!isAdmin) {
@@ -811,265 +607,14 @@ const Admin: React.FC = () => {
                   <CardTitle>Empresas</CardTitle>
                   <CardDescription>Gerencie as empresas do sistema</CardDescription>
                 </div>
-                <Dialog open={isAddingEmpresa} onOpenChange={(open) => { setIsAddingEmpresa(open); if (!open) resetNovaEmpresa(); }}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2">
-                      <Plus className="w-4 h-4" /> Nova Empresa
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                      <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
-                    </DialogHeader>
-                    
-                    <div className="space-y-6 mt-4">
-                      {/* Dados da Empresa */}
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-semibold border-b pb-2">Dados da Empresa</h4>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="col-span-2">
-                            <Label htmlFor="razaoSocial">Razão Social *</Label>
-                            <Input
-                              id="razaoSocial"
-                              value={novaEmpresa.nome}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, nome: e.target.value }))}
-                              placeholder="Nome da empresa"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="cnpj">CNPJ</Label>
-                            <Input
-                              id="cnpj"
-                              value={novaEmpresa.cnpj}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, cnpj: e.target.value }))}
-                              placeholder="00.000.000/0000-00"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="telefone">Telefone</Label>
-                            <Input
-                              id="telefone"
-                              value={novaEmpresa.telefone}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, telefone: e.target.value }))}
-                              placeholder="(00) 00000-0000"
-                            />
-                          </div>
-                          <div className="col-span-2">
-                            <Label htmlFor="emailEmpresa">E-mail</Label>
-                            <Input
-                              id="emailEmpresa"
-                              type="email"
-                              value={novaEmpresa.email}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, email: e.target.value }))}
-                              placeholder="contato@empresa.com"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Módulos */}
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-semibold border-b pb-2">Módulos *</h4>
-                        <div className="grid grid-cols-2 gap-3">
-                          {MODULES.map((modulo) => {
-                            const config = novaEmpresa.modulos.find(m => m.modulo === modulo.value);
-                            const isAtivo = config?.ativo || false;
-                            
-                            return (
-                              <div 
-                                key={modulo.value}
-                                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
-                                  isAtivo 
-                                    ? 'border-primary/50 bg-primary/5' 
-                                    : 'border-border/50 bg-muted/20'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Switch
-                                    checked={isAtivo}
-                                    onCheckedChange={() => toggleModulo(modulo.value)}
-                                  />
-                                  <span className={`font-medium text-sm ${isAtivo ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                    {modulo.label}
-                                  </span>
-                                </div>
-
-                                {isAtivo && (
-                                  <Select
-                                    value={config?.modo || 'basico'}
-                                    onValueChange={(value) => setModuloModo(modulo.value, value as 'basico' | 'pro')}
-                                  >
-                                    <SelectTrigger className="w-24 h-8">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="basico">Básico</SelectItem>
-                                      <SelectItem value="pro">Pro</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Contas Bancárias - Only if FinancialACE */}
-                      {hasFinancialActive && (
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between border-b pb-2">
-                            <h4 className="text-sm font-semibold">Contas Bancárias *</h4>
-                            <Button type="button" variant="outline" size="sm" onClick={addNovaConta}>
-                              <Plus className="w-3 h-3 mr-1" />
-                              Adicionar
-                            </Button>
-                          </div>
-
-                          {novaEmpresa.contas.length === 0 ? (
-                            <p className="text-sm text-muted-foreground p-3 bg-muted/20 rounded-lg">
-                              Adicione pelo menos uma conta bancária para o módulo FinancialACE
-                            </p>
-                          ) : (
-                            <div className="space-y-3">
-                              {novaEmpresa.contas.map((conta, index) => (
-                                <div key={index} className="p-3 rounded-lg border border-border/50 bg-muted/10 space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                      <CreditCard className="w-4 h-4 text-muted-foreground" />
-                                      <span className="text-sm font-medium">Conta {index + 1}</span>
-                                    </div>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-7 w-7 text-destructive"
-                                      onClick={() => removeConta(index)}
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div className="col-span-2">
-                                      <Label className="text-xs">Nome/Apelido</Label>
-                                      <Input
-                                        value={conta.nome}
-                                        onChange={(e) => updateConta(index, 'nome', e.target.value)}
-                                        placeholder="Ex: Conta Principal"
-                                        className="h-8 text-sm"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Banco</Label>
-                                      <Select
-                                        value={conta.banco}
-                                        onValueChange={(value) => updateConta(index, 'banco', value)}
-                                      >
-                                        <SelectTrigger className="h-8 text-sm">
-                                          <SelectValue placeholder="Selecione" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {BANCOS.map(banco => (
-                                            <SelectItem key={banco} value={banco}>{banco}</SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Tipo</Label>
-                                      <Select
-                                        value={conta.tipo}
-                                        onValueChange={(value) => updateConta(index, 'tipo', value)}
-                                      >
-                                        <SelectTrigger className="h-8 text-sm">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="corrente">Corrente</SelectItem>
-                                          <SelectItem value="poupanca">Poupança</SelectItem>
-                                          <SelectItem value="investimento">Investimento</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Agência</Label>
-                                      <Input
-                                        value={conta.agencia}
-                                        onChange={(e) => updateConta(index, 'agencia', e.target.value)}
-                                        placeholder="0000"
-                                        className="h-8 text-sm"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Label className="text-xs">Conta</Label>
-                                      <Input
-                                        value={conta.conta}
-                                        onChange={(e) => updateConta(index, 'conta', e.target.value)}
-                                        placeholder="00000-0"
-                                        className="h-8 text-sm"
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Usuário Gerente */}
-                      <div className="space-y-4">
-                        <h4 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
-                          <Crown className="w-4 h-4 text-yellow-500" />
-                          Usuário Gerente (Opcional)
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          O gerente terá acesso a todos os módulos da empresa com todas as permissões, mas não poderá alterar a plataforma.
-                        </p>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="col-span-2">
-                            <Label htmlFor="gerenteNome">Nome Completo</Label>
-                            <Input
-                              id="gerenteNome"
-                              value={novaEmpresa.gerente.fullName}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, gerente: { ...prev.gerente, fullName: e.target.value } }))}
-                              placeholder="Nome do gerente"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="gerenteEmail">E-mail</Label>
-                            <Input
-                              id="gerenteEmail"
-                              type="email"
-                              value={novaEmpresa.gerente.email}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, gerente: { ...prev.gerente, email: e.target.value } }))}
-                              placeholder="gerente@empresa.com"
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="gerenteSenha">Senha</Label>
-                            <Input
-                              id="gerenteSenha"
-                              type="password"
-                              value={novaEmpresa.gerente.password}
-                              onChange={(e) => setNovaEmpresa(prev => ({ ...prev, gerente: { ...prev.gerente, password: e.target.value } }))}
-                              placeholder="Mínimo 6 caracteres"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex justify-end gap-2 pt-4 border-t">
-                        <Button variant="outline" onClick={() => setIsAddingEmpresa(false)}>
-                          Cancelar
-                        </Button>
-                        <Button onClick={handleSubmitNovaEmpresa} disabled={createEmpresaMutation.isPending}>
-                          {createEmpresaMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                          Cadastrar Empresa
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button className="gap-2" onClick={() => setIsAddingEmpresa(true)}>
+                  <Plus className="w-4 h-4" /> Nova Empresa
+                </Button>
+                <EmpresaWizard 
+                  isOpen={isAddingEmpresa} 
+                  onClose={() => setIsAddingEmpresa(false)}
+                  onSuccess={handleWizardSuccess}
+                />
               </CardHeader>
               <CardContent>
                 {empresasLoading ? (
