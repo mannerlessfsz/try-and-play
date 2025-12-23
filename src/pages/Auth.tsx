@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, Mail, Shield, Users } from 'lucide-react';
+import { Loader2, Lock, User, Mail, Shield, Users, ArrowLeft } from 'lucide-react';
 import { z } from 'zod';
 
 const usernameSchema = z.string().min(3, 'Usuário deve ter pelo menos 3 caracteres');
@@ -269,6 +269,17 @@ const Auth: React.FC = () => {
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* Link para voltar à página inicial */}
+          <div className="mt-6 pt-4 border-t border-border/50">
+            <Link 
+              to="/" 
+              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Voltar à página inicial
+            </Link>
+          </div>
         </CardContent>
       </Card>
     </div>
