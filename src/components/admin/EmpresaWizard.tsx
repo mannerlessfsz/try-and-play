@@ -149,74 +149,55 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
       });
       if (roleError) throw roleError;
 
-      // 3. Create empresa
-      const { data: empresaData, error: empresaError } = await supabase
-        .from('empresas')
-        .insert({
-          nome: data.nome,
-          cnpj: data.cnpj || null,
-          telefone: data.telefone || null,
-          manager_id: managerId,
-        })
-        .select()
-        .single();
-
-      if (empresaError) throw empresaError;
-
-      // 4. Link manager to empresa
-      const { error: userEmpresaError } = await supabase.from('user_empresas').insert({
-        user_id: managerId,
-        empresa_id: empresaData.id,
-        is_owner: true
+      // 3. Create empresa using SECURITY DEFINER function (bypasses RLS)
+      const { data: empresaId, error: empresaError } = await supabase.rpc('create_empresa_for_manager', {
+        _nome: data.nome,
+        _cnpj: data.cnpj || null,
+        _telefone: data.telefone || null,
+        _manager_id: managerId,
       });
-      if (userEmpresaError) throw userEmpresaError;
 
-      // 5. Create empresa modulos
+      if (empresaError) throw new Error(`Erro ao criar empresa: ${empresaError.message}`);
+      if (!empresaId) throw new Error('Erro ao obter ID da empresa criada');
+
+      // 4. Link manager to empresa using SECURITY DEFINER function
+      const { error: userEmpresaError } = await supabase.rpc('link_user_to_empresa', {
+        _user_id: managerId,
+        _empresa_id: empresaId,
+        _is_owner: true
+      });
+      if (userEmpresaError) throw new Error(`Erro ao vincular gerente: ${userEmpresaError.message}`);
+
+      // 5. Create empresa modulos using SECURITY DEFINER function
       const modulosAtivos = data.modulos.filter(m => m.ativo);
-      if (modulosAtivos.length > 0) {
-        const { error: modulosError } = await supabase
-          .from('empresa_modulos')
-          .insert(modulosAtivos.map(m => ({
-            empresa_id: empresaData.id,
-            modulo: m.modulo,
-            modo: m.modo,
-            ativo: true,
-          })));
-        if (modulosError) throw modulosError;
+      for (const mod of modulosAtivos) {
+        const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
+          _empresa_id: empresaId,
+          _modulo: mod.modulo,
+          _modo: mod.modo,
+          _ativo: true,
+        });
+        if (moduloError) throw new Error(`Erro ao adicionar módulo: ${moduloError.message}`);
       }
 
-      // 6. Create user permissions
-      const permissionsToInsert: {
-        user_id: string;
-        empresa_id: string;
-        module: AppModule;
-        permission: PermissionType;
-        is_pro_mode: boolean;
-      }[] = [];
-
+      // 6. Create user permissions using SECURITY DEFINER function
       for (const permConfig of data.permissoes) {
         const moduloConfig = data.modulos.find(m => m.modulo === permConfig.modulo);
         if (moduloConfig?.ativo && permConfig.permissions.length > 0) {
           for (const perm of permConfig.permissions) {
-            permissionsToInsert.push({
-              user_id: managerId,
-              empresa_id: empresaData.id,
-              module: permConfig.modulo,
-              permission: perm,
-              is_pro_mode: moduloConfig.modo === 'pro',
+            const { error: permError } = await supabase.rpc('add_user_permission', {
+              _user_id: managerId,
+              _empresa_id: empresaId,
+              _module: permConfig.modulo,
+              _permission: perm,
+              _is_pro_mode: moduloConfig.modo === 'pro',
             });
+            if (permError) throw new Error(`Erro ao adicionar permissão: ${permError.message}`);
           }
         }
       }
 
-      if (permissionsToInsert.length > 0) {
-        const { error: permError } = await supabase
-          .from('user_permissions')
-          .insert(permissionsToInsert);
-        if (permError) throw permError;
-      }
-
-      return empresaData;
+      return { id: empresaId, nome: data.nome };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
