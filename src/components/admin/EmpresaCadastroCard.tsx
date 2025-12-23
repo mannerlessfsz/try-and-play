@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Building2, Plus, Trash2, CreditCard, ChevronDown, ChevronUp } from "lucide-react";
+import { Building2, Plus, CreditCard, Trash2, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useEmpresas } from "@/hooks/useEmpresas";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 
 type AppModule = Database['public']['Enums']['app_module'];
@@ -21,7 +21,6 @@ interface ModuloConfig {
 }
 
 interface ContaBancaria {
-  id?: string;
   nome: string;
   banco: string;
   agencia: string;
@@ -33,15 +32,17 @@ interface NovaEmpresa {
   nome: string;
   cnpj: string;
   email: string;
+  telefone: string;
   modulos: ModuloConfig[];
   contas: ContaBancaria[];
+  gerente: { email: string; password: string; fullName: string };
 }
 
-const modulosDisponiveis: { id: AppModule; nome: string; cor: string }[] = [
-  { id: 'taskvault', nome: 'TaskVault', cor: 'magenta' },
-  { id: 'financialace', nome: 'FinancialACE', cor: 'blue' },
-  { id: 'conferesped', nome: 'ConfereSped', cor: 'orange' },
-  { id: 'ajustasped', nome: 'AjustaSped', cor: 'cyan' },
+const modulosDisponiveis: { id: AppModule; nome: string }[] = [
+  { id: 'taskvault', nome: 'TaskVault' },
+  { id: 'financialace', nome: 'FinancialACE' },
+  { id: 'conferesped', nome: 'ConfereSped' },
+  { id: 'ajustasped', nome: 'AjustaSped' },
 ];
 
 const bancosDisponiveis = [
@@ -49,93 +50,113 @@ const bancosDisponiveis = [
   'Nubank', 'Inter', 'C6 Bank', 'Sicredi', 'Sicoob', 'Outro'
 ];
 
+const PERMISSIONS = ['view', 'create', 'edit', 'delete', 'export'] as const;
+
 export function EmpresaCadastroCard() {
   const { empresas, loading: isLoading } = useEmpresas();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
-  const [expandedEmpresa, setExpandedEmpresa] = useState<string | null>(null);
   const [novaEmpresa, setNovaEmpresa] = useState<NovaEmpresa>({
     nome: '',
     cnpj: '',
     email: '',
+    telefone: '',
     modulos: modulosDisponiveis.map(m => ({
       modulo: m.id,
       ativo: false,
       modo: 'basico' as const,
     })),
     contas: [],
-  });
-
-  // Fetch modulos for each empresa
-  const { data: empresaModulos } = useQuery({
-    queryKey: ['empresa-modulos'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('empresa_modulos')
-        .select('*');
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch contas bancarias
-  const { data: contasBancarias } = useQuery({
-    queryKey: ['contas-bancarias'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('contas_bancarias')
-        .select('*');
-      if (error) throw error;
-      return data;
-    },
+    gerente: { email: '', password: '', fullName: '' },
   });
 
   const createEmpresaMutation = useMutation({
     mutationFn: async (empresa: NovaEmpresa) => {
-      // 1. Create empresa
+      // 1. Create manager user first if provided
+      let managerId: string | null = null;
+      
+      if (empresa.gerente.email && empresa.gerente.password) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: empresa.gerente.email,
+          password: empresa.gerente.password,
+          options: {
+            data: { full_name: empresa.gerente.fullName }
+          }
+        });
+        if (authError) throw new Error(`Erro ao criar gerente: ${authError.message}`);
+        managerId = authData.user?.id || null;
+        
+        // Add manager role
+        if (managerId) {
+          await supabase.from('user_roles').insert({ user_id: managerId, role: 'manager' });
+        }
+      }
+
+      // 2. Create empresa
       const { data: empresaData, error: empresaError } = await supabase
         .from('empresas')
         .insert({
           nome: empresa.nome,
           cnpj: empresa.cnpj || null,
           email: empresa.email || null,
+          telefone: empresa.telefone || null,
+          manager_id: managerId,
         })
         .select()
         .single();
 
       if (empresaError) throw empresaError;
 
-      // 2. Create modulos for the empresa
+      // 3. Link manager to empresa
+      if (managerId) {
+        await supabase.from('user_empresas').insert({
+          user_id: managerId,
+          empresa_id: empresaData.id,
+          is_owner: true
+        });
+
+        // Grant all permissions to manager for active modules
+        const activeModules = empresa.modulos.filter(m => m.ativo);
+        for (const mod of activeModules) {
+          for (const perm of PERMISSIONS) {
+            await supabase.from('user_permissions').insert({
+              user_id: managerId,
+              empresa_id: empresaData.id,
+              module: mod.modulo,
+              permission: perm,
+              is_pro_mode: mod.modo === 'pro'
+            });
+          }
+        }
+      }
+
+      // 4. Create modulos
       const modulosAtivos = empresa.modulos.filter(m => m.ativo);
       if (modulosAtivos.length > 0) {
         const { error: modulosError } = await supabase
           .from('empresa_modulos')
-          .insert(
-            modulosAtivos.map(m => ({
-              empresa_id: empresaData.id,
-              modulo: m.modulo,
-              modo: m.modo,
-              ativo: true,
-            }))
-          );
+          .insert(modulosAtivos.map(m => ({
+            empresa_id: empresaData.id,
+            modulo: m.modulo,
+            modo: m.modo,
+            ativo: true,
+          })));
         if (modulosError) throw modulosError;
       }
 
-      // 3. Create bank accounts
+      // 5. Create bank accounts
       if (empresa.contas.length > 0) {
         const { error: contasError } = await supabase
           .from('contas_bancarias')
-          .insert(
-            empresa.contas.map(c => ({
-              empresa_id: empresaData.id,
-              nome: c.nome,
-              banco: c.banco,
-              agencia: c.agencia || null,
-              conta: c.conta || null,
-              tipo: c.tipo,
-            }))
-          );
+          .insert(empresa.contas.map(c => ({
+            empresa_id: empresaData.id,
+            nome: c.nome,
+            banco: c.banco,
+            agencia: c.agencia || null,
+            conta: c.conta || null,
+            tipo: c.tipo,
+          })));
         if (contasError) throw contasError;
       }
 
@@ -143,6 +164,7 @@ export function EmpresaCadastroCard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresas'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
       queryClient.invalidateQueries({ queryKey: ['empresa-modulos'] });
       queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] });
       toast({ title: 'Empresa cadastrada com sucesso!' });
@@ -158,80 +180,25 @@ export function EmpresaCadastroCard() {
     },
   });
 
-  const deleteEmpresaMutation = useMutation({
-    mutationFn: async (empresaId: string) => {
-      const { error } = await supabase
-        .from('empresas')
-        .delete()
-        .eq('id', empresaId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['empresas'] });
-      queryClient.invalidateQueries({ queryKey: ['empresa-modulos'] });
-      queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] });
-      toast({ title: 'Empresa excluída com sucesso!' });
-    },
-    onError: (error) => {
-      toast({ 
-        title: 'Erro ao excluir empresa', 
-        description: error.message,
-        variant: 'destructive' 
-      });
-    },
-  });
-
-  const addContaMutation = useMutation({
-    mutationFn: async ({ empresaId, conta }: { empresaId: string; conta: ContaBancaria }) => {
-      const { error } = await supabase
-        .from('contas_bancarias')
-        .insert({
-          empresa_id: empresaId,
-          nome: conta.nome,
-          banco: conta.banco,
-          agencia: conta.agencia || null,
-          conta: conta.conta || null,
-          tipo: conta.tipo,
-        });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] });
-      toast({ title: 'Conta bancária adicionada!' });
-    },
-  });
-
-  const deleteContaMutation = useMutation({
-    mutationFn: async (contaId: string) => {
-      const { error } = await supabase
-        .from('contas_bancarias')
-        .delete()
-        .eq('id', contaId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contas-bancarias'] });
-      toast({ title: 'Conta bancária removida!' });
-    },
-  });
-
   const resetForm = () => {
     setNovaEmpresa({
       nome: '',
       cnpj: '',
       email: '',
+      telefone: '',
       modulos: modulosDisponiveis.map(m => ({
         modulo: m.id,
         ativo: false,
         modo: 'basico' as const,
       })),
       contas: [],
+      gerente: { email: '', password: '', fullName: '' },
     });
   };
 
   const handleSubmit = () => {
     if (!novaEmpresa.nome.trim()) {
-      toast({ title: 'Nome da empresa é obrigatório', variant: 'destructive' });
+      toast({ title: 'Razão social é obrigatória', variant: 'destructive' });
       return;
     }
 
@@ -292,19 +259,11 @@ export function EmpresaCadastroCard() {
     }));
   };
 
-  const getEmpresaModulos = (empresaId: string) => {
-    return empresaModulos?.filter(m => m.empresa_id === empresaId) || [];
-  };
-
-  const getEmpresaContas = (empresaId: string) => {
-    return contasBancarias?.filter(c => c.empresa_id === empresaId) || [];
-  };
-
   const hasFinancialActive = novaEmpresa.modulos.some(m => m.modulo === 'financialace' && m.ativo);
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card/30 backdrop-blur-xl p-6">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
             <Building2 className="w-5 h-5 text-primary-foreground" />
@@ -312,7 +271,7 @@ export function EmpresaCadastroCard() {
           <div>
             <h3 className="font-semibold text-foreground">Cadastro de Empresas</h3>
             <p className="text-xs text-muted-foreground">
-              {empresas?.length || 0} empresas cadastradas
+              {isLoading ? 'Carregando...' : `${empresas?.length || 0} empresas cadastradas`}
             </p>
           </div>
         </div>
@@ -335,12 +294,12 @@ export function EmpresaCadastroCard() {
                 <h4 className="text-sm font-medium mb-3">Dados da Empresa</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
-                    <Label htmlFor="nome">Nome da Empresa *</Label>
+                    <Label htmlFor="nome">Razão Social *</Label>
                     <Input
                       id="nome"
                       value={novaEmpresa.nome}
                       onChange={(e) => setNovaEmpresa(prev => ({ ...prev, nome: e.target.value }))}
-                      placeholder="Razão Social"
+                      placeholder="Nome completo da empresa"
                     />
                   </div>
                   <div>
@@ -353,7 +312,7 @@ export function EmpresaCadastroCard() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="email">E-mail</Label>
                     <Input
                       id="email"
                       type="email"
@@ -362,12 +321,73 @@ export function EmpresaCadastroCard() {
                       placeholder="contato@empresa.com"
                     />
                   </div>
+                  <div className="col-span-2">
+                    <Label htmlFor="telefone">Telefone</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="telefone"
+                        value={novaEmpresa.telefone}
+                        onChange={(e) => setNovaEmpresa(prev => ({ ...prev, telefone: e.target.value }))}
+                        placeholder="(00) 00000-0000"
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Gerente */}
+              <div>
+                <h4 className="text-sm font-medium mb-3">Usuário Gerente</h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  O gerente terá acesso administrativo aos módulos contratados pela empresa
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <Label htmlFor="gerente-nome">Nome Completo</Label>
+                    <Input
+                      id="gerente-nome"
+                      value={novaEmpresa.gerente.fullName}
+                      onChange={(e) => setNovaEmpresa(prev => ({ 
+                        ...prev, 
+                        gerente: { ...prev.gerente, fullName: e.target.value } 
+                      }))}
+                      placeholder="Nome do gerente"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gerente-email">E-mail de Acesso</Label>
+                    <Input
+                      id="gerente-email"
+                      type="email"
+                      value={novaEmpresa.gerente.email}
+                      onChange={(e) => setNovaEmpresa(prev => ({ 
+                        ...prev, 
+                        gerente: { ...prev.gerente, email: e.target.value } 
+                      }))}
+                      placeholder="gerente@empresa.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="gerente-senha">Senha Inicial</Label>
+                    <Input
+                      id="gerente-senha"
+                      type="password"
+                      value={novaEmpresa.gerente.password}
+                      onChange={(e) => setNovaEmpresa(prev => ({ 
+                        ...prev, 
+                        gerente: { ...prev.gerente, password: e.target.value } 
+                      }))}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Módulos */}
               <div>
-                <h4 className="text-sm font-medium mb-3">Módulos Disponíveis *</h4>
+                <h4 className="text-sm font-medium mb-3">Módulos Contratados *</h4>
                 <div className="space-y-2">
                   {modulosDisponiveis.map((modulo) => {
                     const config = novaEmpresa.modulos.find(m => m.modulo === modulo.id);
@@ -525,108 +545,6 @@ export function EmpresaCadastroCard() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
-
-      {/* Lista de empresas */}
-      <div className="space-y-2 max-h-64 overflow-y-auto">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Carregando...</p>
-        ) : empresas?.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma empresa cadastrada</p>
-        ) : (
-          empresas?.map((empresa) => {
-            const modulos = getEmpresaModulos(empresa.id);
-            const contas = getEmpresaContas(empresa.id);
-            const isExpanded = expandedEmpresa === empresa.id;
-
-            return (
-              <div
-                key={empresa.id}
-                className="rounded-lg bg-muted/20 border border-border/30 overflow-hidden"
-              >
-                <div
-                  className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/30 transition-colors"
-                  onClick={() => setExpandedEmpresa(isExpanded ? null : empresa.id)}
-                >
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-foreground">{empresa.nome}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {empresa.cnpj || 'CNPJ não informado'}
-                    </p>
-                    <div className="flex gap-1 mt-1">
-                      {modulos.map(m => (
-                        <span
-                          key={m.id}
-                          className={`text-[10px] px-1.5 py-0.5 rounded ${
-                            m.modo === 'pro' 
-                              ? 'bg-primary/20 text-primary' 
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {m.modulo} {m.modo === 'pro' && '(Pro)'}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {contas.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        {contas.length} conta{contas.length > 1 ? 's' : ''}
-                      </span>
-                    )}
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    )}
-                  </div>
-                </div>
-
-                {isExpanded && (
-                  <div className="px-3 pb-3 pt-0 border-t border-border/20 space-y-2">
-                    {contas.length > 0 && (
-                      <div className="mt-2">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Contas Bancárias:</p>
-                        {contas.map(conta => (
-                          <div key={conta.id} className="flex items-center justify-between text-xs py-1">
-                            <span className="text-foreground">{conta.nome} - {conta.banco}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground">{conta.agencia}/{conta.conta}</span>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 text-destructive hover:text-destructive"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteContaMutation.mutate(conta.id);
-                                }}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex justify-end pt-2">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteEmpresaMutation.mutate(empresa.id);
-                        }}
-                      >
-                        <Trash2 className="w-3 h-3 mr-1" />
-                        Excluir Empresa
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
       </div>
     </div>
   );
