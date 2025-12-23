@@ -8,7 +8,8 @@ import {
   User, Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, ArrowUpRight, ArrowDownRight, Zap, Clock, Tag,
   Activity, List, LayoutGrid, Target, AlertTriangle, Upload,
-  FileText, CheckCircle2, XCircle, Link2, ChevronDown, Loader2
+  FileText, CheckCircle2, XCircle, Link2, ChevronDown, Loader2,
+  Landmark
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
 import { CategoriasManager } from "@/components/financial/CategoriasManager";
 import { TransacoesManager } from "@/components/financial/TransacoesManager";
+import { UserHeader } from "@/components/financial/UserHeader";
+import { ImportExtratoModal } from "@/components/financial/ImportExtratoModal";
+import { RelatoriosManager } from "@/components/financial/RelatoriosManager";
 
 interface ExtratoImportado {
   id: string;
@@ -110,7 +114,7 @@ type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "conciliacao" | "relatorios">("transacoes");
+  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios">("transacoes");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [modo, setModo] = useState<ModoFinanceiro>("pro");
@@ -118,10 +122,16 @@ export default function FinancialACE() {
   const { toast } = useToast();
   const { empresaAtiva, empresasDisponiveis, setEmpresaAtiva, loading: empresaLoading } = useEmpresaAtiva();
 
-  const [extratosImportados, setExtratosImportados] = useState<ExtratoImportado[]>([
-    { id: "1", nome: "extrato_banco_dez2024.ofx", tipo: "ofx", dataImportacao: "2024-12-20", status: "pendente", transacoes: 45, conciliadas: 42 },
-    { id: "2", nome: "extrato_cartao_dez.pdf", tipo: "pdf", dataImportacao: "2024-12-18", status: "concluido", transacoes: 23, conciliadas: 23 },
-  ]);
+  // Competência filter
+  const currentDate = new Date();
+  const [competenciaMes, setCompetenciaMes] = useState<number>(currentDate.getMonth() + 1);
+  const [competenciaAno, setCompetenciaAno] = useState<number>(currentDate.getFullYear());
+
+  // Import modal state
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+
+  const [extratosImportados, setExtratosImportados] = useState<ExtratoImportado[]>([]);
 
   const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
   const [lancamentoParaVincular, setLancamentoParaVincular] = useState<LancamentoExtrato | null>(null);
@@ -177,7 +187,7 @@ export default function FinancialACE() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -192,6 +202,24 @@ export default function FinancialACE() {
       });
       return;
     }
+
+    // Open modal to select competência
+    setPendingFile(file);
+    setImportModalOpen(true);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileUpload = async (competencia: { mes: number; ano: number }) => {
+    setImportModalOpen(false);
+    
+    if (!pendingFile) return;
+    const file = pendingFile;
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    setPendingFile(null);
 
     const novoExtrato: ExtratoImportado = {
       id: Date.now().toString(),
@@ -565,6 +593,7 @@ export default function FinancialACE() {
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-24">
+      <UserHeader />
       <WidgetRibbon 
         groups={widgetGroups} 
         title={`FinancialACE ${modo === "pro" ? "Pro" : "Básico"} - ${empresaAtiva?.nome || ''}`}
@@ -649,6 +678,12 @@ export default function FinancialACE() {
               <PieChart className="w-4 h-4 inline mr-2" />Categorias
             </button>
             <button
+              onClick={() => setActiveTab("contas")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "contas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+            >
+              <Landmark className="w-4 h-4 inline mr-2" />Contas Bancárias
+            </button>
+            <button
               onClick={() => setActiveTab("conciliacao")}
               className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "conciliacao" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
             >
@@ -692,6 +727,10 @@ export default function FinancialACE() {
           <CategoriasManager empresaId={empresaAtiva.id} />
         )}
 
+        {activeTab === "contas" && empresaAtiva && (
+          <ContasBancariasManager empresaId={empresaAtiva.id} />
+        )}
+
         {activeTab === "conciliacao" && (
           <div className="space-y-4">
             {/* Compact Upload Area */}
@@ -710,7 +749,7 @@ export default function FinancialACE() {
                   ref={fileInputRef}
                   type="file"
                   accept=".pdf,.ofx"
-                  onChange={handleFileUpload}
+                  onChange={handleFileSelect}
                   className="hidden"
                   id="extrato-upload"
                 />
@@ -914,23 +953,8 @@ export default function FinancialACE() {
           </div>
         )}
 
-        {activeTab === "relatorios" && modo === "pro" && (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-blue-500/20 p-8 min-h-[40vh]">
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center space-y-4">
-                <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-500/20 flex items-center justify-center">
-                  <BarChart3 className="w-8 h-8 text-blue-500" />
-                </div>
-                <h2 className="text-xl font-bold text-foreground">Relatórios Profissionais</h2>
-                <p className="text-muted-foreground max-w-md">
-                  Gere relatórios detalhados de fluxo de caixa, DRE, balanço patrimonial e muito mais.
-                </p>
-                <Button className="bg-blue-500 hover:bg-blue-600 text-white">
-                  Gerar Relatório
-                </Button>
-              </div>
-            </div>
-          </div>
+        {activeTab === "relatorios" && modo === "pro" && empresaAtiva && (
+          <RelatoriosManager empresaId={empresaAtiva.id} />
         )}
       </div>
 
@@ -1001,6 +1025,14 @@ export default function FinancialACE() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Importação com Competência */}
+      <ImportExtratoModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        onConfirm={handleFileUpload}
+        fileName={pendingFile?.name || ''}
+      />
     </div>
   );
 }
