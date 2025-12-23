@@ -7,7 +7,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { EmpresaAtivaProvider } from "@/contexts/EmpresaAtivaContext";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Index";
-import Auth from "./pages/Auth";
+import ClientAuth from "./pages/ClientAuth";
+import MasterAuth from "./pages/MasterAuth";
 import Admin from "./pages/Admin";
 import TaskVault from "./pages/TaskVault";
 import AjustaSped from "./pages/AjustaSped";
@@ -28,7 +29,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<LandingPage />} />
-              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth" element={<ClientAuth />} />
+              <Route path="/master" element={<MasterAuth />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
               <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
