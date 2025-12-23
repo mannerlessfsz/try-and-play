@@ -66,26 +66,26 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content: `Você é um especialista em extrair dados de extratos bancários em PDF.
-Analise a imagem/documento do extrato bancário e extraia TODAS as transações encontradas.
+Analise o documento do extrato bancário e extraia TODAS as transações encontradas.
 
 Para cada transação, identifique:
-- data: no formato YYYY-MM-DD
+- date: no formato YYYY-MM-DD
 - description: descrição da transação
-- amount: valor numérico (sempre positivo)
-- type: "credit" para entradas/depósitos, "debit" para saídas/pagamentos/débitos
+- amount: valor numérico (sempre positivo, sem formatação)
+- type: "credit" para entradas/depósitos/créditos, "debit" para saídas/pagamentos/débitos
 
-IMPORTANTE:
-- Valores com sinal negativo ou indicação de débito/saída são do tipo "debit"
-- Valores com sinal positivo ou indicação de crédito/entrada são do tipo "credit"
-- Retorne APENAS um JSON válido no formato: { "transactions": [...] }
-- Não inclua explicações, apenas o JSON`
+REGRAS CRÍTICAS:
+- Valores com sinal negativo ou indicação de D/débito/saída são do tipo "debit"
+- Valores com sinal positivo ou indicação de C/crédito/entrada são do tipo "credit"
+- Retorne SOMENTE o JSON puro, SEM markdown, SEM backticks, SEM explicações
+- Formato exato: {"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":123.45,"type":"credit"}]}`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extraia todas as transações deste extrato bancário em PDF. Retorne apenas o JSON com as transações.'
+                text: 'Extraia todas as transações deste extrato bancário. Retorne SOMENTE o JSON puro sem formatação markdown.'
               },
               {
                 type: 'image_url',
@@ -97,7 +97,7 @@ IMPORTANTE:
           }
         ],
         temperature: 0.1,
-        max_tokens: 4096,
+        max_tokens: 16000,
       }),
     });
 
@@ -120,20 +120,58 @@ IMPORTANTE:
     let transactions: Transaction[] = [];
     
     try {
+      // Clean the response - remove markdown code blocks if present
+      let cleanContent = content.trim();
+      
+      // Remove markdown code blocks
+      cleanContent = cleanContent.replace(/^```json\s*/i, '');
+      cleanContent = cleanContent.replace(/^```\s*/i, '');
+      cleanContent = cleanContent.replace(/\s*```$/i, '');
+      cleanContent = cleanContent.trim();
+      
+      console.log('Cleaned content (first 200 chars):', cleanContent.substring(0, 200));
+      
       // Try to extract JSON from the response
-      const jsonMatch = content.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
+      const jsonMatch = cleanContent.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+        // Try to fix common JSON issues - truncated arrays
+        let jsonStr = jsonMatch[0];
+        
+        // If JSON appears truncated (missing closing brackets), try to fix it
+        const openBrackets = (jsonStr.match(/\[/g) || []).length;
+        const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+        const openBraces = (jsonStr.match(/\{/g) || []).length;
+        const closeBraces = (jsonStr.match(/\}/g) || []).length;
+        
+        // Add missing closing brackets
+        if (openBrackets > closeBrackets) {
+          // Find last complete object and close the array there
+          const lastCompleteObj = jsonStr.lastIndexOf('}');
+          if (lastCompleteObj > 0) {
+            jsonStr = jsonStr.substring(0, lastCompleteObj + 1);
+            // Add missing array and object closings
+            for (let i = 0; i < openBrackets - closeBrackets; i++) {
+              jsonStr += ']';
+            }
+            for (let i = 0; i < openBraces - closeBraces - (openBrackets - closeBrackets); i++) {
+              jsonStr += '}';
+            }
+          }
+        }
+        
+        console.log('Attempting to parse JSON...');
+        const parsed = JSON.parse(jsonStr);
         transactions = (parsed.transactions || []).map((t: any, index: number) => ({
           id: `pdf-${Date.now()}-${index}`,
           date: t.date || new Date().toISOString().split('T')[0],
           description: t.description || 'Transação não identificada',
-          amount: Math.abs(parseFloat(t.amount) || 0),
+          amount: Math.abs(parseFloat(String(t.amount).replace(/[^\d.-]/g, '')) || 0),
           type: t.type === 'credit' ? 'credit' : 'debit',
         }));
       }
     } catch (parseError) {
       console.error('Error parsing AI response:', parseError);
+      console.error('Raw content length:', content.length);
     }
 
     console.log(`Extracted ${transactions.length} transactions from PDF`);

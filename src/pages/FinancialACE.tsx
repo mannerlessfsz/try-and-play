@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { parseOFX, readFileAsText } from "@/utils/ofxParser";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -137,6 +138,7 @@ export default function FinancialACE() {
   ]);
 
   const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
+  const [lancamentoParaVincular, setLancamentoParaVincular] = useState<LancamentoExtrato | null>(null);
   
   const [lancamentosExtrato, setLancamentosExtrato] = useState<LancamentoExtrato[]>([
     { id: "l1", extratoId: "1", data: "2024-12-20", descricao: "TED RECEBIDA - CLIENTE ABC LTDA", valor: 5000, tipo: "credito", conciliado: true, transacaoVinculadaId: "1" },
@@ -331,31 +333,102 @@ export default function FinancialACE() {
     }
   };
 
-  const handleConciliar = (lancamentoId: string) => {
+  // Open modal to select transaction to link
+  const handleOpenVincular = (lancamento: LancamentoExtrato) => {
+    setLancamentoParaVincular(lancamento);
+  };
+
+  // Get matching transactions for linking (same type: credito->receita, debito->despesa)
+  const getTransacoesParaVincular = () => {
+    if (!lancamentoParaVincular) return [];
+    const tipoTransacao = lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa';
+    // Filter transactions that are not already linked and match the type
+    const jaVinculadas = lancamentosExtrato
+      .filter(l => l.conciliado && l.transacaoVinculadaId)
+      .map(l => l.transacaoVinculadaId);
+    
+    return transacoes.filter(t => 
+      t.tipo === tipoTransacao && 
+      !jaVinculadas.includes(t.id)
+    );
+  };
+
+  // Link the lancamento to a transaction
+  const handleVincular = (transacaoId: string) => {
+    if (!lancamentoParaVincular) return;
+
+    const transacao = transacoes.find(t => t.id === transacaoId);
+    
     setLancamentosExtrato(prev => 
       prev.map(l => 
-        l.id === lancamentoId ? { ...l, conciliado: true } : l
+        l.id === lancamentoParaVincular.id 
+          ? { ...l, conciliado: true, transacaoVinculadaId: transacaoId } 
+          : l
       )
     );
 
-    // Update extrato counters and check if complete
-    const lancamento = lancamentosExtrato.find(l => l.id === lancamentoId);
-    if (lancamento) {
-      setExtratosImportados(prev => 
-        prev.map(e => {
-          if (e.id === lancamento.extratoId) {
-            const newConciliadas = e.conciliadas + 1;
-            const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
-            return { ...e, conciliadas: newConciliadas, status: newStatus };
-          }
-          return e;
-        })
-      );
-    }
+    // Update extrato counters
+    setExtratosImportados(prev => 
+      prev.map(e => {
+        if (e.id === lancamentoParaVincular.extratoId) {
+          const newConciliadas = e.conciliadas + 1;
+          const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
+          return { ...e, conciliadas: newConciliadas, status: newStatus };
+        }
+        return e;
+      })
+    );
+
+    setLancamentoParaVincular(null);
     
     toast({
       title: "Lançamento conciliado",
-      description: "O lançamento foi vinculado com sucesso.",
+      description: `Vinculado a: ${transacao?.descricao || 'Transação'}`,
+    });
+  };
+
+  // Create new transaction from lancamento
+  const handleCriarTransacao = () => {
+    if (!lancamentoParaVincular) return;
+
+    const novaTransacao: Transacao = {
+      id: `t-${Date.now()}`,
+      descricao: lancamentoParaVincular.descricao,
+      valor: lancamentoParaVincular.valor,
+      tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa',
+      categoria: 'Outros',
+      data: lancamentoParaVincular.data,
+      status: 'confirmado',
+    };
+
+    setTransacoes(prev => [...prev, novaTransacao]);
+    
+    // Now link the lancamento to this new transaction
+    setLancamentosExtrato(prev => 
+      prev.map(l => 
+        l.id === lancamentoParaVincular.id 
+          ? { ...l, conciliado: true, transacaoVinculadaId: novaTransacao.id } 
+          : l
+      )
+    );
+
+    // Update extrato counters
+    setExtratosImportados(prev => 
+      prev.map(e => {
+        if (e.id === lancamentoParaVincular.extratoId) {
+          const newConciliadas = e.conciliadas + 1;
+          const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
+          return { ...e, conciliadas: newConciliadas, status: newStatus };
+        }
+        return e;
+      })
+    );
+
+    setLancamentoParaVincular(null);
+    
+    toast({
+      title: "Transação criada e vinculada",
+      description: `Nova ${novaTransacao.tipo} de ${formatCurrency(novaTransacao.valor)}`,
     });
   };
 
@@ -803,7 +876,7 @@ export default function FinancialACE() {
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              onClick={() => handleConciliar(lancamento.id)}
+                              onClick={() => handleOpenVincular(lancamento)}
                               className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
                             >
                               <Link2 className="w-4 h-4 mr-1" />
@@ -939,6 +1012,74 @@ export default function FinancialACE() {
           </div>
         )}
       </div>
+
+      {/* Modal de Vinculação */}
+      <Dialog open={!!lancamentoParaVincular} onOpenChange={() => setLancamentoParaVincular(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Vincular Lançamento</DialogTitle>
+          </DialogHeader>
+          
+          {lancamentoParaVincular && (
+            <div className="space-y-4">
+              {/* Lancamento Info */}
+              <div className="p-4 bg-muted/50 rounded-lg">
+                <div className="text-sm text-muted-foreground mb-1">Lançamento do Extrato:</div>
+                <div className="font-medium">{lancamentoParaVincular.descricao}</div>
+                <div className="flex items-center gap-4 mt-2 text-sm">
+                  <span className={lancamentoParaVincular.tipo === 'credito' ? 'text-green-500' : 'text-red-500'}>
+                    {lancamentoParaVincular.tipo === 'credito' ? '+' : '-'} {formatCurrency(lancamentoParaVincular.valor)}
+                  </span>
+                  <span className="text-muted-foreground">{lancamentoParaVincular.data}</span>
+                </div>
+              </div>
+
+              {/* Options */}
+              <div className="space-y-2">
+                <div className="text-sm font-medium">
+                  Vincular a uma {lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa'} existente:
+                </div>
+                
+                {getTransacoesParaVincular().length > 0 ? (
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {getTransacoesParaVincular().map(t => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleVincular(t.id)}
+                        className="w-full p-3 text-left rounded-lg border border-foreground/10 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="font-medium text-sm">{t.descricao}</div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                          <span className={t.tipo === 'receita' ? 'text-green-500' : 'text-red-500'}>
+                            {formatCurrency(t.valor)}
+                          </span>
+                          <span>{t.data}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-muted">{t.categoria}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground p-3 bg-muted/30 rounded-lg">
+                    Nenhuma {lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa'} disponível para vincular.
+                  </div>
+                )}
+              </div>
+
+              {/* Create New Transaction */}
+              <div className="pt-4 border-t border-foreground/10">
+                <Button 
+                  onClick={handleCriarTransacao}
+                  className="w-full bg-blue-500 hover:bg-blue-600"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Criar nova {lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa'} e vincular
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
