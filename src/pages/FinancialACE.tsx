@@ -8,11 +8,19 @@ import {
   User, Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, ArrowUpRight, ArrowDownRight, Zap, Clock, Tag,
   Activity, List, LayoutGrid, Target, AlertTriangle, Upload,
-  FileText, CheckCircle2, XCircle, Link2
+  FileText, CheckCircle2, XCircle, Link2, ChevronDown
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Atividade } from "@/types/task";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from "@/components/ui/card";
 
 // Interfaces for financial data
 interface Transacao {
@@ -119,6 +127,7 @@ export default function FinancialACE() {
   const [modo, setModo] = useState<ModoFinanceiro>("pro");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { empresaAtiva, empresasDisponiveis, setEmpresaAtiva, loading: empresaLoading } = useEmpresaAtiva();
 
   const [extratosImportados, setExtratosImportados] = useState<ExtratoImportado[]>([
     { id: "1", nome: "extrato_banco_dez2024.ofx", tipo: "ofx", dataImportacao: "2024-12-20", status: "pendente", transacoes: 45, conciliadas: 42 },
@@ -277,6 +286,42 @@ export default function FinancialACE() {
   // Sidebar content
   const sidebarContent = (
     <div className="flex flex-col h-full">
+      {/* Empresa Selector */}
+      <div className="p-3 border-b border-blue-500/20">
+        <div className="text-xs font-bold text-blue-400 mb-3">Empresa Ativa</div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="outline" 
+              className="w-full justify-between text-xs bg-card/50 border-blue-500/30"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <Building2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
+                <span className="truncate">{empresaAtiva?.nome || 'Selecione'}</span>
+              </div>
+              <ChevronDown className="w-3 h-3 flex-shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            {empresasDisponiveis.map(empresa => (
+              <DropdownMenuItem 
+                key={empresa.id}
+                onClick={() => setEmpresaAtiva(empresa)}
+                className="flex flex-col items-start"
+              >
+                <span className="font-medium">{empresa.nome}</span>
+                {empresa.cnpj && (
+                  <span className="text-xs text-muted-foreground">{empresa.cnpj}</span>
+                )}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {empresaAtiva?.cnpj && (
+          <p className="text-xs text-muted-foreground mt-2">CNPJ: {empresaAtiva.cnpj}</p>
+        )}
+      </div>
+
       {/* Mode Toggle */}
       <div className="p-3 border-b border-blue-500/20">
         <div className="text-xs font-bold text-blue-400 mb-3">Modo</div>
@@ -344,11 +389,48 @@ export default function FinancialACE() {
     </div>
   );
 
+  // Show message if no empresa selected
+  if (!empresaLoading && !empresaAtiva) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-500/20 flex items-center justify-center mb-4">
+              <Building2 className="w-8 h-8 text-blue-500" />
+            </div>
+            <h2 className="text-xl font-bold text-foreground mb-2">Nenhuma empresa selecionada</h2>
+            <p className="text-muted-foreground mb-6">
+              Para usar o FinancialACE, você precisa estar vinculado a uma empresa. 
+              Entre em contato com o administrador para associar seu usuário a uma empresa.
+            </p>
+            {empresasDisponiveis.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">Selecione uma empresa:</p>
+                {empresasDisponiveis.map(empresa => (
+                  <Button 
+                    key={empresa.id}
+                    variant="outline"
+                    className="w-full justify-start"
+                    onClick={() => setEmpresaAtiva(empresa)}
+                  >
+                    <Building2 className="w-4 h-4 mr-2" />
+                    {empresa.nome}
+                    {empresa.cnpj && <span className="ml-2 text-xs text-muted-foreground">({empresa.cnpj})</span>}
+                  </Button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pt-14 pb-24">
       <WidgetRibbon 
         groups={widgetGroups} 
-        title={`FinancialACE ${modo === "pro" ? "Pro" : "Básico"}`}
+        title={`FinancialACE ${modo === "pro" ? "Pro" : "Básico"} - ${empresaAtiva?.nome || ''}`}
         accentColor="blue" 
         sidebarContent={sidebarContent}
       />

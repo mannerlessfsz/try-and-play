@@ -92,7 +92,10 @@ const Admin: React.FC = () => {
   const { isAdmin } = usePermissions();
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddingEmpresa, setIsAddingEmpresa] = useState(false);
+  const [isAddingUser, setIsAddingUser] = useState(false);
   const [newEmpresa, setNewEmpresa] = useState({ nome: '', cnpj: '', email: '' });
+  const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
+  const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({
@@ -247,9 +250,70 @@ const Admin: React.FC = () => {
     }
   });
 
+  // Create new user mutation
+  const createUserMutation = useMutation({
+    mutationFn: async ({ email, password, fullName }: { email: string; password: string; fullName: string }) => {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: fullName }
+        }
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setIsAddingUser(false);
+      setNewUser({ email: '', password: '', fullName: '' });
+      toast({ title: 'Usuário criado com sucesso', description: 'O usuário pode fazer login agora.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao criar usuário', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Update empresa mutation
+  const updateEmpresaMutation = useMutation({
+    mutationFn: async (empresa: Empresa) => {
+      const { data, error } = await supabase.from('empresas').update({
+        nome: empresa.nome,
+        cnpj: empresa.cnpj,
+        email: empresa.email
+      }).eq('id', empresa.id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+      setEditingEmpresa(null);
+      toast({ title: 'Empresa atualizada com sucesso' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar empresa', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Delete empresa mutation
+  const deleteEmpresaMutation = useMutation({
+    mutationFn: async (empresaId: string) => {
+      const { error } = await supabase.from('empresas').delete().eq('id', empresaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+      toast({ title: 'Empresa removida' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao remover empresa', description: error.message, variant: 'destructive' });
+    }
+  });
+
   const getUserRoles = (userId: string) => allRoles.filter(r => r.user_id === userId);
   const getUserPermissions = (userId: string) => allPermissions.filter(p => p.user_id === userId);
   const getUserEmpresas = (userId: string) => allUserEmpresas.filter(ue => ue.user_id === userId);
+  const getEmpresaUsers = (empresaId: string) => allUserEmpresas.filter(ue => ue.empresa_id === empresaId);
 
   if (!isAdmin) {
     return (
@@ -301,9 +365,59 @@ const Admin: React.FC = () => {
           {/* Users Tab */}
           <TabsContent value="users">
             <Card className="glass">
-              <CardHeader>
-                <CardTitle>Usuários do Sistema</CardTitle>
-                <CardDescription>Gerencie papéis e acessos de cada usuário</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Usuários do Sistema</CardTitle>
+                  <CardDescription>Gerencie papéis e acessos de cada usuário</CardDescription>
+                </div>
+                <Dialog open={isAddingUser} onOpenChange={setIsAddingUser}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2">
+                      <UserPlus className="w-4 h-4" /> Novo Usuário
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Cadastrar Novo Usuário</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Nome Completo</Label>
+                        <Input
+                          value={newUser.fullName}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, fullName: e.target.value }))}
+                          placeholder="Nome do usuário"
+                        />
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={newUser.email}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                      <div>
+                        <Label>Senha</Label>
+                        <Input
+                          type="password"
+                          value={newUser.password}
+                          onChange={(e) => setNewUser(prev => ({ ...prev, password: e.target.value }))}
+                          placeholder="Mínimo 6 caracteres"
+                        />
+                      </div>
+                      <Button 
+                        onClick={() => createUserMutation.mutate(newUser)}
+                        disabled={!newUser.email || !newUser.password || newUser.password.length < 6 || createUserMutation.isPending}
+                        className="w-full"
+                      >
+                        {createUserMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                        Criar Usuário
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 {usersLoading ? (
@@ -489,42 +603,128 @@ const Admin: React.FC = () => {
                   <div className="flex justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
+                ) : empresas.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">Nenhuma empresa cadastrada</p>
+                    <Button onClick={() => setIsAddingEmpresa(true)} className="mt-4">
+                      <Plus className="w-4 h-4 mr-2" /> Cadastrar Primeira Empresa
+                    </Button>
+                  </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>CNPJ</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Usuários</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {empresas.map((empresa) => {
-                        const empresaUsers = allUserEmpresas.filter(ue => ue.empresa_id === empresa.id);
-                        return (
-                          <TableRow key={empresa.id}>
-                            <TableCell className="font-medium">{empresa.nome}</TableCell>
-                            <TableCell>{empresa.cnpj || '-'}</TableCell>
-                            <TableCell>{empresa.email || '-'}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1 flex-wrap">
-                                {empresaUsers.map(ue => {
-                                  const user = users.find(u => u.id === ue.user_id);
-                                  return (
-                                    <Badge key={ue.id} variant="secondary">
-                                      {user?.full_name || user?.email || 'N/A'}
-                                    </Badge>
-                                  );
-                                })}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {empresas.map((empresa) => {
+                      const empresaUsers = getEmpresaUsers(empresa.id);
+                      return (
+                        <Card key={empresa.id} className="bg-muted/30 border-border/50 hover:border-primary/50 transition-all">
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                                  <Building2 className="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h3 className="font-semibold text-foreground">{empresa.nome}</h3>
+                                  <p className="text-xs text-muted-foreground">{empresa.cnpj || 'CNPJ não informado'}</p>
+                                </div>
                               </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                              <div className="flex gap-1">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8"
+                                  onClick={() => setEditingEmpresa(empresa)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  onClick={() => {
+                                    if (confirm(`Deseja remover a empresa ${empresa.nome}?`)) {
+                                      deleteEmpresaMutation.mutate(empresa.id);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                            
+                            {empresa.email && (
+                              <p className="text-xs text-muted-foreground mb-3">{empresa.email}</p>
+                            )}
+                            
+                            <div className="border-t border-border/50 pt-3">
+                              <p className="text-xs font-medium text-muted-foreground mb-2">Usuários vinculados:</p>
+                              <div className="flex gap-1 flex-wrap">
+                                {empresaUsers.length === 0 ? (
+                                  <span className="text-xs text-muted-foreground italic">Nenhum usuário</span>
+                                ) : (
+                                  empresaUsers.map(ue => {
+                                    const user = users.find(u => u.id === ue.user_id);
+                                    return (
+                                      <Badge key={ue.id} variant="secondary" className="text-xs">
+                                        {user?.full_name || user?.email || 'N/A'}
+                                        {ue.is_owner && <span className="text-primary ml-1">★</span>}
+                                      </Badge>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
                 )}
+
+                {/* Edit Empresa Dialog */}
+                <Dialog open={!!editingEmpresa} onOpenChange={(open) => !open && setEditingEmpresa(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar Empresa</DialogTitle>
+                    </DialogHeader>
+                    {editingEmpresa && (
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Nome</Label>
+                          <Input
+                            value={editingEmpresa.nome}
+                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, nome: e.target.value } : null)}
+                            placeholder="Nome da empresa"
+                          />
+                        </div>
+                        <div>
+                          <Label>CNPJ</Label>
+                          <Input
+                            value={editingEmpresa.cnpj || ''}
+                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, cnpj: e.target.value } : null)}
+                            placeholder="00.000.000/0000-00"
+                          />
+                        </div>
+                        <div>
+                          <Label>Email</Label>
+                          <Input
+                            value={editingEmpresa.email || ''}
+                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, email: e.target.value } : null)}
+                            placeholder="contato@empresa.com"
+                          />
+                        </div>
+                        <Button 
+                          onClick={() => editingEmpresa && updateEmpresaMutation.mutate(editingEmpresa)}
+                          disabled={!editingEmpresa.nome || updateEmpresaMutation.isPending}
+                          className="w-full"
+                        >
+                          {updateEmpresaMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                          Salvar Alterações
+                        </Button>
+                      </div>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </CardContent>
             </Card>
           </TabsContent>
