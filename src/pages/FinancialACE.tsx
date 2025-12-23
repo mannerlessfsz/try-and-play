@@ -8,7 +8,7 @@ import {
   User, Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, ArrowUpRight, ArrowDownRight, Zap, Clock, Tag,
   Activity, List, LayoutGrid, Target, AlertTriangle, Upload,
-  FileText, CheckCircle2, XCircle, Link2, ChevronDown
+  FileText, CheckCircle2, XCircle, Link2, ChevronDown, Loader2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,8 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
+import { parseOFX, readFileAsText } from "@/utils/ofxParser";
+import { supabase } from "@/integrations/supabase/client";
 
 // Interfaces for financial data
 interface Transacao {
@@ -189,7 +191,7 @@ export default function FinancialACE() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
@@ -216,20 +218,83 @@ export default function FinancialACE() {
     };
 
     setExtratosImportados(prev => [novoExtrato, ...prev]);
-    
-    // Simulate processing and generate mock transactions
-    setTimeout(() => {
-      const numTransacoes = Math.floor(Math.random() * 15) + 5;
-      const novosLancamentos: LancamentoExtrato[] = Array.from({ length: numTransacoes }, (_, i) => ({
-        id: `${novoExtrato.id}-l${i}`,
-        extratoId: novoExtrato.id,
-        data: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        descricao: ["PIX RECEBIDO", "TED RECEBIDA", "DEB AUTO", "PAG BOLETO", "COMPRA CARTAO"][Math.floor(Math.random() * 5)] + ` - ITEM ${i + 1}`,
-        valor: Math.floor(Math.random() * 5000) + 100,
-        tipo: Math.random() > 0.5 ? "credito" : "debito",
-        conciliado: false,
-      }));
+
+    try {
+      let novosLancamentos: LancamentoExtrato[] = [];
+
+      if (extension === 'ofx') {
+        // Parse OFX client-side
+        const content = await readFileAsText(file);
+        const result = parseOFX(content);
+        
+        console.log('OFX parsed:', result);
+        
+        novosLancamentos = result.transactions.map((t, i) => ({
+          id: `${novoExtrato.id}-l${i}`,
+          extratoId: novoExtrato.id,
+          data: t.date,
+          descricao: t.description,
+          valor: t.amount,
+          tipo: t.type === 'credit' ? 'credito' : 'debito',
+          conciliado: false,
+        }));
+
+        toast({
+          title: "OFX processado",
+          description: `Banco: ${result.bankId || 'N/A'} | Conta: ${result.accountId || 'N/A'}`,
+        });
+
+      } else if (extension === 'pdf') {
+        // Parse PDF via edge function with AI
+        toast({
+          title: "Processando PDF",
+          description: "Usando IA para extrair transações...",
+        });
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const { data, error } = await supabase.functions.invoke('parse-pdf-extrato', {
+          body: formData,
+        });
+
+        if (error) {
+          throw new Error(error.message || 'Erro ao processar PDF');
+        }
+
+        if (!data?.success) {
+          throw new Error(data?.error || 'Falha ao extrair transações do PDF');
+        }
+
+        novosLancamentos = (data.transactions || []).map((t: any, i: number) => ({
+          id: `${novoExtrato.id}-l${i}`,
+          extratoId: novoExtrato.id,
+          data: t.date,
+          descricao: t.description,
+          valor: t.amount,
+          tipo: t.type === 'credit' ? 'credito' : 'debito',
+          conciliado: false,
+        }));
+      }
+
+      const numTransacoes = novosLancamentos.length;
       
+      if (numTransacoes === 0) {
+        setExtratosImportados(prev => 
+          prev.map(e => 
+            e.id === novoExtrato.id 
+              ? { ...e, status: "erro", transacoes: 0 }
+              : e
+          )
+        );
+        toast({
+          title: "Nenhuma transação encontrada",
+          description: "O arquivo não contém transações válidas.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
       setExtratosImportados(prev => 
         prev.map(e => 
@@ -241,9 +306,24 @@ export default function FinancialACE() {
       setExtratoSelecionado(novoExtrato.id);
       toast({
         title: "Extrato importado",
-        description: `${file.name} foi processado. ${numTransacoes} lançamentos encontrados.`,
+        description: `${file.name} processado. ${numTransacoes} lançamentos encontrados.`,
       });
-    }, 2000);
+
+    } catch (error) {
+      console.error('Error processing file:', error);
+      setExtratosImportados(prev => 
+        prev.map(e => 
+          e.id === novoExtrato.id 
+            ? { ...e, status: "erro" }
+            : e
+        )
+      );
+      toast({
+        title: "Erro ao processar arquivo",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
 
     // Reset input
     if (fileInputRef.current) {
