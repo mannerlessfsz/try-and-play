@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
-type CardVariant = "magenta" | "cyan" | "orange" | "blue";
+type CardVariant = "magenta" | "cyan" | "orange" | "blue" | "green";
 
 interface FeatureCardProps {
   icon: ReactNode;
@@ -41,6 +41,12 @@ const variantStyles: Record<CardVariant, {
     glow: "group-hover:shadow-[0_0_60px_-10px_hsl(210,100%,55%)]",
     iconBg: "bg-gradient-to-br from-blue to-blue/60",
     hoverBorder: "group-hover:border-blue/60",
+  },
+  green: {
+    gradient: "from-green-500/20 via-green-500/5 to-transparent",
+    glow: "group-hover:shadow-[0_0_60px_-10px_hsl(142,76%,36%)]",
+    iconBg: "bg-gradient-to-br from-green-500 to-green-500/60",
+    hoverBorder: "group-hover:border-green-500/60",
   },
 };
 

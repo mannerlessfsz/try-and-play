@@ -22,7 +22,7 @@ interface RibbonMenuProps {
   activeTab: string;
   onTabChange: (tabId: string) => void;
   title: string;
-  accentColor: "magenta" | "cyan" | "orange" | "blue";
+  accentColor: "magenta" | "cyan" | "orange" | "blue" | "green";
 }
 
 const accentStyles = {
@@ -77,6 +77,19 @@ const accentStyles = {
     activeBg: "bg-blue/20",
     gradient: "from-blue/20 via-blue/5 to-transparent",
     ring: "ring-blue/50",
+  },
+  green: {
+    border: "border-green-500/30",
+    borderActive: "border-green-500",
+    bg: "bg-green-500/10",
+    bgHover: "bg-green-500/5",
+    text: "text-green-500",
+    glow: "shadow-[0_0_30px_rgba(34,197,94,0.4)]",
+    glowSubtle: "shadow-[0_0_15px_rgba(34,197,94,0.2)]",
+    hoverBg: "hover:bg-green-500/20",
+    activeBg: "bg-green-500/20",
+    gradient: "from-green-500/20 via-green-500/5 to-transparent",
+    ring: "ring-green-500/50",
   },
 };
 

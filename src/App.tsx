@@ -7,7 +7,7 @@ import Index from "./pages/Index";
 import TaskVault from "./pages/TaskVault";
 import AjustaSped from "./pages/AjustaSped";
 import ConfereSped from "./pages/ConfereSped";
-import ProjetoVault from "./pages/ProjetoVault";
+import FinancialACE from "./pages/FinancialACE";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,7 +23,7 @@ const App = () => (
           <Route path="/taskvault" element={<TaskVault />} />
           <Route path="/ajustasped" element={<AjustaSped />} />
           <Route path="/conferesped" element={<ConfereSped />} />
-          <Route path="/projetovault" element={<ProjetoVault />} />
+          <Route path="/financialace" element={<FinancialACE />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

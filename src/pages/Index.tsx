@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FileCheck, FolderKanban } from "lucide-react";
+import { CheckSquare, FileText, FileCheck, DollarSign } from "lucide-react";
 import { VaultLogo } from "@/components/VaultLogo";
 import { FeatureCard } from "@/components/FeatureCard";
 import { ParticleField } from "@/components/ParticleField";
@@ -12,11 +12,11 @@ const features = [
     href: "/taskvault",
   },
   {
-    icon: <FileText className="w-7 h-7" />,
-    title: "AJUSTASPED",
-    description: "Sistema inteligente para ajustes e validação automática de arquivos SPED com precisão",
-    variant: "cyan" as const,
-    href: "/ajustasped",
+    icon: <DollarSign className="w-7 h-7" />,
+    title: "FINANCIALACE",
+    description: "Gestão financeira profissional e pessoal com controle de fluxo de caixa e orçamentos",
+    variant: "green" as const,
+    href: "/financialace",
   },
   {
     icon: <FileCheck className="w-7 h-7" />,
@@ -26,11 +26,11 @@ const features = [
     href: "/conferesped",
   },
   {
-    icon: <FolderKanban className="w-7 h-7" />,
-    title: "PROJETOVAULT",
-    description: "Gestão de projetos com visões Kanban, Gantt e colaboração em tempo real",
-    variant: "blue" as const,
-    href: "/projetovault",
+    icon: <FileText className="w-7 h-7" />,
+    title: "AJUSTASPED",
+    description: "Sistema inteligente para ajustes e validação automática de arquivos SPED com precisão",
+    variant: "cyan" as const,
+    href: "/ajustasped",
   },
 ];
 
