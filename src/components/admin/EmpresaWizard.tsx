@@ -143,10 +143,9 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
       const managerId = authData.user?.id;
       if (!managerId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // 2. Add manager role
-      const { error: roleError } = await supabase.from('user_roles').insert({ 
-        user_id: managerId, 
-        role: 'manager' 
+      // 2. Add manager role using security definer function
+      const { error: roleError } = await supabase.rpc('assign_manager_role', { 
+        _user_id: managerId 
       });
       if (roleError) throw roleError;
 

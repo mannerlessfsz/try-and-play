@@ -385,6 +385,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_manager_role: { Args: { _user_id: string }; Returns: undefined }
+      assign_user_role: { Args: { _user_id: string }; Returns: undefined }
       has_empresa_access: {
         Args: { _empresa_id: string; _user_id: string }
         Returns: boolean
