@@ -1,7 +1,11 @@
-import { CheckSquare, FileText, FileCheck, DollarSign } from "lucide-react";
+import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { FeatureCard } from "@/components/FeatureCard";
 import { ParticleField } from "@/components/ParticleField";
+import { useAuth } from "@/contexts/AuthContext";
+import { usePermissions } from "@/hooks/usePermissions";
+import { Button } from "@/components/ui/button";
 
 const features = [
   {
@@ -35,8 +39,23 @@ const features = [
 ];
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
+  const { isAdmin } = usePermissions();
+
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Top bar */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        {isAdmin && (
+          <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="gap-2 text-muted-foreground hover:text-foreground">
+            <Settings className="w-4 h-4" /> Admin
+          </Button>
+        )}
+        <Button variant="ghost" size="sm" onClick={signOut} className="gap-2 text-muted-foreground hover:text-foreground">
+          <LogOut className="w-4 h-4" /> Sair
+        </Button>
+      </div>
       {/* Animated background gradients */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-radial from-magenta/30 via-magenta/10 to-transparent blur-3xl animate-pulse-slow opacity-60" />
