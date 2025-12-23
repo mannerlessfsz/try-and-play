@@ -385,8 +385,36 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_empresa_modulo: {
+        Args: {
+          _ativo?: boolean
+          _empresa_id: string
+          _modo?: string
+          _modulo: Database["public"]["Enums"]["app_module"]
+        }
+        Returns: undefined
+      }
+      add_user_permission: {
+        Args: {
+          _empresa_id: string
+          _is_pro_mode?: boolean
+          _module: Database["public"]["Enums"]["app_module"]
+          _permission: Database["public"]["Enums"]["permission_type"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       assign_manager_role: { Args: { _user_id: string }; Returns: undefined }
       assign_user_role: { Args: { _user_id: string }; Returns: undefined }
+      create_empresa_for_manager: {
+        Args: {
+          _cnpj?: string
+          _manager_id?: string
+          _nome: string
+          _telefone?: string
+        }
+        Returns: string
+      }
       has_empresa_access: {
         Args: { _empresa_id: string; _user_id: string }
         Returns: boolean
@@ -415,6 +443,10 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      link_user_to_empresa: {
+        Args: { _empresa_id: string; _is_owner?: boolean; _user_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_module: "taskvault" | "financialace" | "ajustasped" | "conferesped"
