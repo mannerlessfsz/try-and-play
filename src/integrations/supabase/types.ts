@@ -56,6 +56,91 @@ export type Database = {
           },
         ]
       }
+      contas_bancarias: {
+        Row: {
+          agencia: string | null
+          ativo: boolean
+          banco: string
+          conta: string | null
+          created_at: string
+          empresa_id: string
+          id: string
+          nome: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          agencia?: string | null
+          ativo?: boolean
+          banco: string
+          conta?: string | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          agencia?: string | null
+          ativo?: boolean
+          banco?: string
+          conta?: string | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contas_bancarias_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresa_modulos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          empresa_id: string
+          id: string
+          modo: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id: string
+          id?: string
+          modo?: string
+          modulo: Database["public"]["Enums"]["app_module"]
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          modo?: string
+          modulo?: Database["public"]["Enums"]["app_module"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_modulos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresas: {
         Row: {
           cnpj: string | null
