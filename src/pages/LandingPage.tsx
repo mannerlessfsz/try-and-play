@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { CheckSquare, FileText, FileCheck, DollarSign, ArrowRight, Shield, Zap, Users, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { ParticleField } from "@/components/ParticleField";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
 
 const services = [
   {
@@ -56,6 +58,14 @@ const benefits = [
 
 const LandingPage = () => {
   const navigate = useNavigate();
+  const { user, loading } = useAuth();
+
+  // Redirect to dashboard if already logged in
+  useEffect(() => {
+    if (!loading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, loading, navigate]);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
