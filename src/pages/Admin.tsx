@@ -237,9 +237,9 @@ const Admin: React.FC = () => {
         if (authError) throw new Error(`Erro ao criar gerente: ${authError.message}`);
         managerId = authData.user?.id || null;
         
-        // Add manager role
+        // Add manager role using security definer function
         if (managerId) {
-          await supabase.from('user_roles').insert({ user_id: managerId, role: 'manager' });
+          await supabase.rpc('assign_manager_role', { _user_id: managerId });
         }
       }
 
