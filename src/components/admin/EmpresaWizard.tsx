@@ -123,81 +123,111 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
 
   const createEmpresaMutation = useMutation({
     mutationFn: async () => {
-      // 1. Create manager user
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.gerenteEmail,
-        password: data.gerenteSenha,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: { full_name: data.gerenteNome }
-        }
-      });
+      // Store current master session BEFORE creating new user
+      const { data: currentSession } = await supabase.auth.getSession();
+      const masterSession = currentSession?.session;
       
-      if (authError) {
-        if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-          throw new Error(`O email "${data.gerenteEmail}" já está cadastrado. Use um email diferente.`);
-        }
-        throw new Error(`Erro ao criar usuário: ${authError.message}`);
+      if (!masterSession) {
+        throw new Error('Sessão do usuário master não encontrada. Faça login novamente.');
       }
-      
-      const managerId = authData.user?.id;
-      if (!managerId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // 2. Add manager role using security definer function
-      const { error: roleError } = await supabase.rpc('assign_manager_role', { 
-        _user_id: managerId 
-      });
-      if (roleError) throw roleError;
-
-      // 3. Create empresa using SECURITY DEFINER function (bypasses RLS)
-      const { data: empresaId, error: empresaError } = await supabase.rpc('create_empresa_for_manager', {
-        _nome: data.nome,
-        _cnpj: data.cnpj || null,
-        _telefone: data.telefone || null,
-        _manager_id: managerId,
-      });
-
-      if (empresaError) throw new Error(`Erro ao criar empresa: ${empresaError.message}`);
-      if (!empresaId) throw new Error('Erro ao obter ID da empresa criada');
-
-      // 4. Link manager to empresa using SECURITY DEFINER function
-      const { error: userEmpresaError } = await supabase.rpc('link_user_to_empresa', {
-        _user_id: managerId,
-        _empresa_id: empresaId,
-        _is_owner: true
-      });
-      if (userEmpresaError) throw new Error(`Erro ao vincular gerente: ${userEmpresaError.message}`);
-
-      // 5. Create empresa modulos using SECURITY DEFINER function
-      const modulosAtivos = data.modulos.filter(m => m.ativo);
-      for (const mod of modulosAtivos) {
-        const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
-          _empresa_id: empresaId,
-          _modulo: mod.modulo,
-          _modo: mod.modo,
-          _ativo: true,
+      try {
+        // 1. Create manager user (this will change the session!)
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: data.gerenteEmail,
+          password: data.gerenteSenha,
+          options: {
+            emailRedirectTo: `${window.location.origin}/`,
+            data: { full_name: data.gerenteNome }
+          }
         });
-        if (moduloError) throw new Error(`Erro ao adicionar módulo: ${moduloError.message}`);
-      }
+        
+        if (authError) {
+          if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
+            throw new Error(`O email "${data.gerenteEmail}" já está cadastrado. Use um email diferente.`);
+          }
+          throw new Error(`Erro ao criar usuário: ${authError.message}`);
+        }
+        
+        const managerId = authData.user?.id;
+        if (!managerId) throw new Error('Erro ao obter ID do usuário criado');
 
-      // 6. Create user permissions using SECURITY DEFINER function
-      for (const permConfig of data.permissoes) {
-        const moduloConfig = data.modulos.find(m => m.modulo === permConfig.modulo);
-        if (moduloConfig?.ativo && permConfig.permissions.length > 0) {
-          for (const perm of permConfig.permissions) {
-            const { error: permError } = await supabase.rpc('add_user_permission', {
-              _user_id: managerId,
-              _empresa_id: empresaId,
-              _module: permConfig.modulo,
-              _permission: perm,
-              _is_pro_mode: moduloConfig.modo === 'pro',
-            });
-            if (permError) throw new Error(`Erro ao adicionar permissão: ${permError.message}`);
+        // 2. IMMEDIATELY restore master session before any RPC calls
+        const { error: restoreError } = await supabase.auth.setSession({
+          access_token: masterSession.access_token,
+          refresh_token: masterSession.refresh_token,
+        });
+        
+        if (restoreError) {
+          console.error('Erro ao restaurar sessão master:', restoreError);
+          throw new Error('Erro ao restaurar sessão do administrador. Faça login novamente.');
+        }
+
+        // 3. Add manager role using security definer function
+        const { error: roleError } = await supabase.rpc('assign_manager_role', { 
+          _user_id: managerId 
+        });
+        if (roleError) throw roleError;
+
+        // 4. Create empresa using SECURITY DEFINER function (bypasses RLS)
+        const { data: empresaId, error: empresaError } = await supabase.rpc('create_empresa_for_manager', {
+          _nome: data.nome,
+          _cnpj: data.cnpj || null,
+          _telefone: data.telefone || null,
+          _manager_id: managerId,
+        });
+
+        if (empresaError) throw new Error(`Erro ao criar empresa: ${empresaError.message}`);
+        if (!empresaId) throw new Error('Erro ao obter ID da empresa criada');
+
+        // 5. Link manager to empresa using SECURITY DEFINER function
+        const { error: userEmpresaError } = await supabase.rpc('link_user_to_empresa', {
+          _user_id: managerId,
+          _empresa_id: empresaId,
+          _is_owner: true
+        });
+        if (userEmpresaError) throw new Error(`Erro ao vincular gerente: ${userEmpresaError.message}`);
+
+        // 6. Create empresa modulos using SECURITY DEFINER function
+        const modulosAtivos = data.modulos.filter(m => m.ativo);
+        for (const mod of modulosAtivos) {
+          const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
+            _empresa_id: empresaId,
+            _modulo: mod.modulo,
+            _modo: mod.modo,
+            _ativo: true,
+          });
+          if (moduloError) throw new Error(`Erro ao adicionar módulo: ${moduloError.message}`);
+        }
+
+        // 7. Create user permissions using SECURITY DEFINER function
+        for (const permConfig of data.permissoes) {
+          const moduloConfig = data.modulos.find(m => m.modulo === permConfig.modulo);
+          if (moduloConfig?.ativo && permConfig.permissions.length > 0) {
+            for (const perm of permConfig.permissions) {
+              const { error: permError } = await supabase.rpc('add_user_permission', {
+                _user_id: managerId,
+                _empresa_id: empresaId,
+                _module: permConfig.modulo,
+                _permission: perm,
+                _is_pro_mode: moduloConfig.modo === 'pro',
+              });
+              if (permError) throw new Error(`Erro ao adicionar permissão: ${permError.message}`);
+            }
           }
         }
-      }
 
-      return { id: empresaId, nome: data.nome };
+        return { id: empresaId, nome: data.nome };
+      } catch (error) {
+        // If anything fails, try to restore master session
+        if (masterSession) {
+          await supabase.auth.setSession({
+            access_token: masterSession.access_token,
+            refresh_token: masterSession.refresh_token,
+          });
+        }
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
