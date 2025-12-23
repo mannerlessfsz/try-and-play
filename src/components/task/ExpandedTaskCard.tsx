@@ -45,7 +45,7 @@ export function ExpandedTaskCard({
       novosArquivos.push({
         id: Date.now().toString() + i,
         nome: file.name,
-        tamanho: formatFileSize(file.size),
+        tamanho: file.size,
         tipo: "pdf",
         dataUpload: new Date().toLocaleDateString("pt-BR"),
       });

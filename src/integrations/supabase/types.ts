@@ -14,7 +14,163 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      atividades: {
+        Row: {
+          created_at: string
+          descricao: string
+          empresa_id: string | null
+          id: string
+          tarefa_id: string | null
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          descricao: string
+          empresa_id?: string | null
+          id?: string
+          tarefa_id?: string | null
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string
+          empresa_id?: string | null
+          id?: string
+          tarefa_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "atividades_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "atividades_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresas: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tarefa_arquivos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          tamanho: number
+          tarefa_id: string
+          tipo: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          tamanho: number
+          tarefa_id: string
+          tipo: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          tamanho?: number
+          tarefa_id?: string
+          tipo?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_arquivos_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefas: {
+        Row: {
+          created_at: string
+          data_vencimento: string | null
+          descricao: string | null
+          empresa_id: string | null
+          id: string
+          prioridade: string
+          progresso: number | null
+          responsavel: string | null
+          status: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          prioridade?: string
+          progresso?: number | null
+          responsavel?: string | null
+          status?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_vencimento?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          prioridade?: string
+          progresso?: number | null
+          responsavel?: string | null
+          status?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
