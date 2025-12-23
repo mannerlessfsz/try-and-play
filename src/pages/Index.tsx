@@ -5,44 +5,57 @@ import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { EmpresaCadastroCard } from "@/components/admin/EmpresaCadastroCard";
 import { ParticleField } from "@/components/ParticleField";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions } from "@/hooks/usePermissions";
+import { usePermissions, AppModule } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
 
-const features = [
+interface FeatureConfig {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  variant: "magenta" | "cyan" | "orange" | "blue" | "green";
+  href: string;
+  module: AppModule;
+}
+
+const features: FeatureConfig[] = [
   {
     icon: <CheckSquare className="w-7 h-7" />,
     title: "TASKVAULT",
     description: "Gerencie suas tarefas com prioridades inteligentes e controle total sobre sua produtividade diária",
-    variant: "magenta" as const,
+    variant: "magenta",
     href: "/taskvault",
+    module: "taskvault",
   },
   {
     icon: <DollarSign className="w-7 h-7" />,
     title: "FINANCIALACE",
     description: "Gestão financeira profissional e pessoal com controle de fluxo de caixa e orçamentos",
-    variant: "blue" as const,
+    variant: "blue",
     href: "/financialace",
+    module: "financialace",
   },
   {
     icon: <FileCheck className="w-7 h-7" />,
     title: "CONFERESPED",
     description: "Confira e valide arquivos SPED com precisão e gere relatórios detalhados",
-    variant: "orange" as const,
+    variant: "orange",
     href: "/conferesped",
+    module: "conferesped",
   },
   {
     icon: <FileText className="w-7 h-7" />,
     title: "AJUSTASPED",
     description: "Sistema inteligente para ajustes e validação automática de arquivos SPED com precisão",
-    variant: "cyan" as const,
+    variant: "cyan",
     href: "/ajustasped",
+    module: "ajustasped",
   },
 ];
 
 const Index = () => {
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
-  const { isAdmin } = usePermissions();
+  const { signOut } = useAuth();
+  const { isAdmin, hasModuleAccess } = usePermissions();
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -146,6 +159,7 @@ const Index = () => {
                   description={feature.description}
                   variant={feature.variant}
                   href={feature.href}
+                  disabled={!hasModuleAccess(feature.module)}
                 />
               </div>
             ))}
@@ -155,7 +169,7 @@ const Index = () => {
         {/* Footer hint */}
         <div className="mt-12 text-center">
           <p className="text-sm text-muted-foreground">
-            Selecione uma ferramenta para começar
+            {isAdmin ? 'Você tem acesso total a todos os módulos' : 'Selecione uma ferramenta disponível para começar'}
           </p>
         </div>
       </div>
