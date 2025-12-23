@@ -15,7 +15,7 @@ const features = [
     icon: <DollarSign className="w-7 h-7" />,
     title: "FINANCIALACE",
     description: "Gestão financeira profissional e pessoal com controle de fluxo de caixa e orçamentos",
-    variant: "green" as const,
+    variant: "blue" as const,
     href: "/financialace",
   },
   {
