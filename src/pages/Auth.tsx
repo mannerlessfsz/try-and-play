@@ -5,20 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, Mail, User } from 'lucide-react';
+import { Loader2, Lock, User } from 'lucide-react';
 import { z } from 'zod';
 
-const emailSchema = z.string().email('Email inválido');
+const usernameSchema = z.string().min(3, 'Usuário deve ter pelo menos 3 caracteres');
 const passwordSchema = z.string().min(6, 'Senha deve ter pelo menos 6 caracteres');
 
+// Master user domain for username-based login
+const MASTER_DOMAIN = '@sistema.local';
+
 const Auth: React.FC = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ username?: string; password?: string }>({});
   
   const { signIn, signUp, user, loading } = useAuth();
   const navigate = useNavigate();
@@ -31,12 +32,12 @@ const Auth: React.FC = () => {
   }, [user, loading, navigate]);
 
   const validateForm = (): boolean => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { username?: string; password?: string } = {};
     
     try {
-      emailSchema.parse(email);
+      usernameSchema.parse(username);
     } catch {
-      newErrors.email = 'Email inválido';
+      newErrors.username = 'Usuário deve ter pelo menos 3 caracteres';
     }
     
     try {
@@ -49,11 +50,22 @@ const Auth: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  // Convert username to email format for authentication
+  const getEmailFromUsername = (user: string): string => {
+    // If already has @ it's an email, use as is
+    if (user.includes('@')) {
+      return user;
+    }
+    // Otherwise, append master domain
+    return `${user}${MASTER_DOMAIN}`;
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
     
     setIsLoading(true);
+    const email = getEmailFromUsername(username);
     const { error } = await signIn(email, password);
     setIsLoading(false);
     
@@ -61,7 +73,7 @@ const Auth: React.FC = () => {
       toast({
         title: 'Erro ao entrar',
         description: error.message === 'Invalid login credentials' 
-          ? 'Email ou senha incorretos' 
+          ? 'Usuário ou senha incorretos' 
           : error.message,
         variant: 'destructive'
       });
@@ -74,27 +86,28 @@ const Auth: React.FC = () => {
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Function to create master user (only used once for initial setup)
+  const handleCreateMasterUser = async () => {
     if (!validateForm()) return;
     
     setIsLoading(true);
-    const { error } = await signUp(email, password, fullName);
+    const email = getEmailFromUsername(username);
+    const { error } = await signUp(email, password, 'Administrador Master');
     setIsLoading(false);
     
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {
-        errorMessage = 'Este email já está cadastrado';
+        errorMessage = 'Este usuário já está cadastrado. Tente fazer login.';
       }
       toast({
-        title: 'Erro ao cadastrar',
+        title: 'Erro ao criar usuário',
         description: errorMessage,
         variant: 'destructive'
       });
     } else {
       toast({
-        title: 'Conta criada!',
+        title: 'Usuário master criado!',
         description: 'Você já pode fazer login'
       });
       navigate('/dashboard');
@@ -125,121 +138,61 @@ const Auth: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="login">Entrar</TabsTrigger>
-              <TabsTrigger value="signup">Cadastrar</TabsTrigger>
-            </TabsList>
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="login-username" className="text-foreground">Usuário</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="login-username"
+                  type="text"
+                  placeholder="seu.usuario"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10 bg-muted/50 border-border"
+                />
+              </div>
+              {errors.username && <p className="text-sm text-destructive">{errors.username}</p>}
+            </div>
             
-            <TabsContent value="login">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email" className="text-foreground">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 bg-muted/50 border-border"
-                    />
-                  </div>
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="login-password" className="text-foreground">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 bg-muted/50 border-border"
-                    />
-                  </div>
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary/90"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  Entrar
-                </Button>
-              </form>
-            </TabsContent>
+            <div className="space-y-2">
+              <Label htmlFor="login-password" className="text-foreground">Senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="login-password"
+                  type="password"
+                  placeholder="••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 bg-muted/50 border-border"
+                />
+              </div>
+              {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
+            </div>
             
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name" className="text-foreground">Nome completo</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Seu nome"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="pl-10 bg-muted/50 border-border"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email" className="text-foreground">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 bg-muted/50 border-border"
-                    />
-                  </div>
-                  {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password" className="text-foreground">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 bg-muted/50 border-border"
-                    />
-                  </div>
-                  {errors.password && <p className="text-sm text-destructive">{errors.password}</p>}
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary/90"
-                  disabled={isLoading}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : null}
-                  Criar conta
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+            <Button 
+              type="submit" 
+              className="w-full bg-primary hover:bg-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : null}
+              Entrar
+            </Button>
+
+            {/* Hidden button for initial master user creation - remove after first use */}
+            <Button 
+              type="button"
+              variant="ghost"
+              className="w-full text-xs text-muted-foreground/50 hover:text-muted-foreground"
+              onClick={handleCreateMasterUser}
+              disabled={isLoading}
+            >
+              Criar usuário master (primeira vez)
+            </Button>
+          </form>
         </CardContent>
       </Card>
     </div>
