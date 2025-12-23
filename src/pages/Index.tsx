@@ -1,7 +1,8 @@
 import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
-import { FeatureCard } from "@/components/FeatureCard";
+import { CompactFeatureCard } from "@/components/CompactFeatureCard";
+import { EmpresaCadastroCard } from "@/components/admin/EmpresaCadastroCard";
 import { ParticleField } from "@/components/ParticleField";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -79,10 +80,10 @@ const Index = () => {
       />
 
       {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 py-20 md:py-32">
+      <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
         {/* Header */}
-        <header className="text-center mb-20 md:mb-28">
-          <div className="inline-block mb-6">
+        <header className="text-center mb-12 md:mb-16">
+          <div className="inline-block mb-4">
             <span className="px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase bg-muted/50 text-muted-foreground border border-border/50 backdrop-blur-sm">
               ✨ Plataforma de Produtividade
             </span>
@@ -90,12 +91,12 @@ const Index = () => {
           
           <VaultLogo />
           
-          <p className="mt-8 text-lg md:text-xl text-muted-foreground max-w-xl mx-auto leading-relaxed">
+          <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
             Sua <span className="text-foreground font-semibold">central unificada</span> para 
             transformar a maneira como você trabalha
           </p>
           
-          <div className="mt-6 flex items-center justify-center gap-3 text-sm text-muted-foreground">
+          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-cyan animate-pulse" />
               Rápido
@@ -113,35 +114,49 @@ const Index = () => {
           </div>
         </header>
 
-        {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-5xl mx-auto">
-          {features.map((feature, index) => (
-            <div
-              key={feature.title}
-              className="animate-fade-in"
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              <FeatureCard
-                icon={feature.icon}
-                title={feature.title}
-                description={feature.description}
-                variant={feature.variant}
-                href={feature.href}
-              />
+        {/* Admin Cards Section */}
+        {isAdmin && (
+          <div className="max-w-6xl mx-auto mb-10">
+            <div className="flex items-center gap-2 mb-4">
+              <Settings className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-muted-foreground">Área Administrativa</span>
             </div>
-          ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <EmpresaCadastroCard />
+              {/* Espaço para outros cards de admin no futuro */}
+            </div>
+          </div>
+        )}
+
+        {/* Feature Cards Grid - 4 em uma linha */}
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-sm font-medium text-muted-foreground">Módulos Disponíveis</span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {features.map((feature, index) => (
+              <div
+                key={feature.title}
+                className="animate-fade-in"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <CompactFeatureCard
+                  icon={feature.icon}
+                  title={feature.title}
+                  description={feature.description}
+                  variant={feature.variant}
+                  href={feature.href}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Footer hint */}
-        <div className="mt-20 text-center">
+        <div className="mt-12 text-center">
           <p className="text-sm text-muted-foreground">
             Selecione uma ferramenta para começar
           </p>
-          <div className="mt-4 flex justify-center">
-            <div className="w-6 h-10 rounded-full border-2 border-muted-foreground/30 flex items-start justify-center p-2">
-              <div className="w-1 h-2 bg-muted-foreground/50 rounded-full animate-bounce" />
-            </div>
-          </div>
         </div>
       </div>
     </div>
