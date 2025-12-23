@@ -84,7 +84,12 @@ export function EmpresaCadastroCard() {
             data: { full_name: empresa.gerente.fullName }
           }
         });
-        if (authError) throw new Error(`Erro ao criar gerente: ${authError.message}`);
+        if (authError) {
+          if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
+            throw new Error(`O email "${empresa.gerente.email}" já está cadastrado no sistema. Use um email diferente para o gerente.`);
+          }
+          throw new Error(`Erro ao criar gerente: ${authError.message}`);
+        }
         managerId = authData.user?.id || null;
         
         // Add manager role
