@@ -154,20 +154,20 @@ export default function FinancialACE() {
   // Use real transacoes hook for metrics
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
 
-  const getFilteredTransacoes = () => {
+  const getFilteredMockTransacoes = () => {
     switch (activeFilter) {
       case "receitas":
-        return transacoes.filter(t => t.tipo === "receita");
+        return mockTransacoes.filter(t => t.tipo === "receita");
       case "despesas":
-        return transacoes.filter(t => t.tipo === "despesa");
+        return mockTransacoes.filter(t => t.tipo === "despesa");
       case "pendentes":
-        return transacoes.filter(t => t.status === "pendente");
+        return mockTransacoes.filter(t => t.status === "pendente");
       default:
-        return transacoes;
+        return mockTransacoes;
     }
   };
 
-  const filteredTransacoes = getFilteredTransacoes();
+  const filteredMockTransacoes = getFilteredMockTransacoes();
 
   const handleFilterClick = (filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
@@ -331,7 +331,7 @@ export default function FinancialACE() {
       .filter(l => l.conciliado && l.transacaoVinculadaId)
       .map(l => l.transacaoVinculadaId);
     
-    return transacoes.filter(t => 
+    return mockTransacoes.filter(t => 
       t.tipo === tipoTransacao && 
       !jaVinculadas.includes(t.id)
     );
@@ -341,7 +341,7 @@ export default function FinancialACE() {
   const handleVincular = (transacaoId: string) => {
     if (!lancamentoParaVincular) return;
 
-    const transacao = transacoes.find(t => t.id === transacaoId);
+    const transacao = mockTransacoes.find(t => t.id === transacaoId);
     
     setLancamentosExtrato(prev => 
       prev.map(l => 
@@ -640,7 +640,7 @@ export default function FinancialACE() {
               onClick={() => setActiveTab("transacoes")}
               className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "transacoes" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
             >
-              <Receipt className="w-4 h-4 inline mr-2" />Receitas/Despesas ({filteredTransacoes.length})
+              <Receipt className="w-4 h-4 inline mr-2" />Receitas/Despesas ({transacoes.length})
             </button>
             <button
               onClick={() => setActiveTab("categorias")}
@@ -680,79 +680,16 @@ export default function FinancialACE() {
         </div>
 
         {/* Content */}
-        {activeTab === "transacoes" && (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-blue-500/20 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-blue-500/10 border-b border-blue-500/20">
-                <tr>
-                  <th className="text-left p-3 font-medium text-foreground/80">Descrição</th>
-                  <th className="text-left p-3 font-medium text-foreground/80">Categoria</th>
-                  <th className="text-left p-3 font-medium text-foreground/80">Data</th>
-                  <th className="text-left p-3 font-medium text-foreground/80">Status</th>
-                  <th className="text-right p-3 font-medium text-foreground/80">Valor</th>
-                  <th className="text-center p-3 font-medium text-foreground/80">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-foreground/5">
-                {filteredTransacoes.map(transacao => (
-                  <tr key={transacao.id} className="hover:bg-foreground/5 transition-colors">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${transacao.tipo === "receita" ? "bg-green-500/20" : "bg-red-500/20"}`}>
-                          {transacao.tipo === "receita" ? (
-                            <ArrowUpRight className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <ArrowDownRight className="w-4 h-4 text-red-400" />
-                          )}
-                        </div>
-                        <span className="font-medium text-foreground">{transacao.descricao}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-muted-foreground">{transacao.categoria}</td>
-                    <td className="p-3 text-muted-foreground">{new Date(transacao.data).toLocaleDateString('pt-BR')}</td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        transacao.status === "confirmado" ? "bg-green-500/20 text-green-300" :
-                        transacao.status === "pendente" ? "bg-yellow-500/20 text-yellow-300" :
-                        "bg-red-500/20 text-red-300"
-                      }`}>
-                        {transacao.status}
-                      </span>
-                    </td>
-                    <td className={`p-3 text-right font-semibold ${transacao.tipo === "receita" ? "text-green-400" : "text-red-400"}`}>
-                      {transacao.tipo === "receita" ? "+" : "-"}{formatCurrency(transacao.valor)}
-                    </td>
-                    <td className="p-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors">
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        {activeTab === "transacoes" && empresaAtiva && (
+          <TransacoesManager 
+            empresaId={empresaAtiva.id}
+            tipoFiltro={activeFilter === "receitas" ? "receita" : activeFilter === "despesas" ? "despesa" : undefined}
+            statusFiltro={activeFilter === "pendentes" ? "pendente" : undefined}
+          />
         )}
 
-        {activeTab === "categorias" && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {["Serviços", "Infraestrutura", "Projetos", "Software", "Consultoria", "Marketing", "Impostos", "Outros"].map((cat, i) => (
-              <div key={cat} className="bg-card/30 backdrop-blur-xl rounded-xl border border-blue-500/20 p-4 hover:border-blue-500/40 transition-all cursor-pointer">
-                <div className={`w-10 h-10 rounded-lg mb-3 flex items-center justify-center ${
-                  i % 2 === 0 ? "bg-blue-500/20" : "bg-cyan-500/20"
-                }`}>
-                  <PieChart className={`w-5 h-5 ${i % 2 === 0 ? "text-blue-400" : "text-cyan-400"}`} />
-                </div>
-                <h3 className="font-medium text-foreground">{cat}</h3>
-                <p className="text-xs text-muted-foreground mt-1">{Math.floor(Math.random() * 20) + 1} transações</p>
-              </div>
-            ))}
-          </div>
+        {activeTab === "categorias" && empresaAtiva && (
+          <CategoriasManager empresaId={empresaAtiva.id} />
         )}
 
         {activeTab === "conciliacao" && (
