@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Atividade } from "@/types/task";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { useTransacoes } from "@/hooks/useTransacoes";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
@@ -24,24 +25,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { parseOFX, readFileAsText } from "@/utils/ofxParser";
 import { supabase } from "@/integrations/supabase/client";
-
-// Interfaces for financial data
-interface Transacao {
-  id: string;
-  descricao: string;
-  valor: number;
-  tipo: "receita" | "despesa";
-  categoria: string;
-  data: string;
-  status: "pendente" | "confirmado" | "cancelado";
-}
-
-interface Categoria {
-  id: string;
-  nome: string;
-  tipo: "receita" | "despesa";
-  cor: string;
-}
+import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
+import { CategoriasManager } from "@/components/financial/CategoriasManager";
+import { TransacoesManager } from "@/components/financial/TransacoesManager";
 
 interface ExtratoImportado {
   id: string;
@@ -149,13 +135,14 @@ export default function FinancialACE() {
     { id: "l6", extratoId: "1", data: "2024-12-05", descricao: "DEB AUTO INTERNET TELEFONE", valor: 280, tipo: "debito", conciliado: false },
   ]);
 
-  const [transacoes, setTransacoes] = useState<Transacao[]>([
-    { id: "1", descricao: "Pagamento Cliente ABC", valor: 5000, tipo: "receita", categoria: "Serviços", data: "2024-12-20", status: "confirmado" },
-    { id: "2", descricao: "Aluguel Escritório", valor: 2500, tipo: "despesa", categoria: "Infraestrutura", data: "2024-12-15", status: "confirmado" },
-    { id: "3", descricao: "Projeto Website", valor: 8000, tipo: "receita", categoria: "Projetos", data: "2024-12-18", status: "pendente" },
-    { id: "4", descricao: "Software Contábil", valor: 350, tipo: "despesa", categoria: "Software", data: "2024-12-10", status: "confirmado" },
-    { id: "5", descricao: "Consultoria Fiscal", valor: 3500, tipo: "receita", categoria: "Consultoria", data: "2024-12-22", status: "pendente" },
-    { id: "6", descricao: "Internet + Telefone", valor: 280, tipo: "despesa", categoria: "Infraestrutura", data: "2024-12-05", status: "confirmado" },
+  // Mock transacoes for conciliation (will be replaced with real data later)
+  const [mockTransacoes, setMockTransacoes] = useState([
+    { id: "1", descricao: "Pagamento Cliente ABC", valor: 5000, tipo: "receita" as const, categoria: "Serviços", data: "2024-12-20", status: "confirmado" as const },
+    { id: "2", descricao: "Aluguel Escritório", valor: 2500, tipo: "despesa" as const, categoria: "Infraestrutura", data: "2024-12-15", status: "confirmado" as const },
+    { id: "3", descricao: "Projeto Website", valor: 8000, tipo: "receita" as const, categoria: "Projetos", data: "2024-12-18", status: "pendente" as const },
+    { id: "4", descricao: "Software Contábil", valor: 350, tipo: "despesa" as const, categoria: "Software", data: "2024-12-10", status: "confirmado" as const },
+    { id: "5", descricao: "Consultoria Fiscal", valor: 3500, tipo: "receita" as const, categoria: "Consultoria", data: "2024-12-22", status: "pendente" as const },
+    { id: "6", descricao: "Internet + Telefone", valor: 280, tipo: "despesa" as const, categoria: "Infraestrutura", data: "2024-12-05", status: "confirmado" as const },
   ]);
 
   const [atividades] = useState<Atividade[]>([
@@ -164,11 +151,8 @@ export default function FinancialACE() {
     { id: "3", tipo: "edicao", descricao: "Meta atualizada: Economia mensal", timestamp: "Há 6 horas", usuario: "Carlos" },
   ]);
 
-  // Calculations
-  const totalReceitas = transacoes.filter(t => t.tipo === "receita" && t.status === "confirmado").reduce((acc, t) => acc + t.valor, 0);
-  const totalDespesas = transacoes.filter(t => t.tipo === "despesa" && t.status === "confirmado").reduce((acc, t) => acc + t.valor, 0);
-  const saldo = totalReceitas - totalDespesas;
-  const pendentes = transacoes.filter(t => t.status === "pendente").length;
+  // Use real transacoes hook for metrics
+  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
 
   const getFilteredTransacoes = () => {
     switch (activeFilter) {
@@ -391,17 +375,17 @@ export default function FinancialACE() {
   const handleCriarTransacao = () => {
     if (!lancamentoParaVincular) return;
 
-    const novaTransacao: Transacao = {
+    const novaTransacao = {
       id: `t-${Date.now()}`,
       descricao: lancamentoParaVincular.descricao,
       valor: lancamentoParaVincular.valor,
-      tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa',
+      tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' as const : 'despesa' as const,
       categoria: 'Outros',
       data: lancamentoParaVincular.data,
-      status: 'confirmado',
+      status: 'confirmado' as const,
     };
 
-    setTransacoes(prev => [...prev, novaTransacao]);
+    setMockTransacoes(prev => [...prev, novaTransacao]);
     
     // Now link the lancamento to this new transaction
     setLancamentosExtrato(prev => 
