@@ -1,0 +1,178 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+export interface Transacao {
+  id: string;
+  empresa_id: string;
+  descricao: string;
+  valor: number;
+  tipo: string;
+  status: string;
+  data_transacao: string;
+  data_vencimento: string | null;
+  data_pagamento: string | null;
+  categoria_id: string | null;
+  conta_bancaria_id: string | null;
+  centro_custo_id: string | null;
+  forma_pagamento: string | null;
+  numero_documento: string | null;
+  observacoes: string | null;
+  conciliado: boolean | null;
+  created_at: string;
+  updated_at: string;
+  // Joined fields
+  categoria?: { id: string; nome: string; cor: string | null } | null;
+  conta_bancaria?: { id: string; nome: string; banco: string } | null;
+}
+
+export interface TransacaoInput {
+  empresa_id: string;
+  descricao: string;
+  valor: number;
+  tipo: string;
+  status?: string;
+  data_transacao?: string;
+  data_vencimento?: string;
+  data_pagamento?: string;
+  categoria_id?: string;
+  conta_bancaria_id?: string;
+  centro_custo_id?: string;
+  forma_pagamento?: string;
+  numero_documento?: string;
+  observacoes?: string;
+}
+
+interface UseTransacoesOptions {
+  tipo?: string;
+  status?: string;
+  dataInicio?: string;
+  dataFim?: string;
+}
+
+export function useTransacoes(empresaId: string | undefined, options: UseTransacoesOptions = {}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const query = useQuery({
+    queryKey: ["transacoes", empresaId, options],
+    queryFn: async () => {
+      if (!empresaId) return [];
+      
+      let queryBuilder = supabase
+        .from("transacoes")
+        .select(`
+          *,
+          categoria:categorias_financeiras(id, nome, cor),
+          conta_bancaria:contas_bancarias!transacoes_conta_bancaria_id_fkey(id, nome, banco)
+        `)
+        .eq("empresa_id", empresaId)
+        .order("data_transacao", { ascending: false });
+
+      if (options.tipo) {
+        queryBuilder = queryBuilder.eq("tipo", options.tipo);
+      }
+      if (options.status) {
+        queryBuilder = queryBuilder.eq("status", options.status);
+      }
+      if (options.dataInicio) {
+        queryBuilder = queryBuilder.gte("data_transacao", options.dataInicio);
+      }
+      if (options.dataFim) {
+        queryBuilder = queryBuilder.lte("data_transacao", options.dataFim);
+      }
+
+      const { data, error } = await queryBuilder;
+
+      if (error) throw error;
+      return data as Transacao[];
+    },
+    enabled: !!empresaId,
+  });
+
+  const createMutation = useMutation({
+    mutationFn: async (input: TransacaoInput) => {
+      const { data, error } = await supabase
+        .from("transacoes")
+        .insert(input)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      toast({ title: "Transação criada com sucesso" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao criar transação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, ...input }: Partial<TransacaoInput> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("transacoes")
+        .update(input)
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      toast({ title: "Transação atualizada" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao atualizar transação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("transacoes")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      toast({ title: "Transação removida" });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao remover transação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Calculate totals
+  const transacoes = query.data || [];
+  const totalReceitas = transacoes
+    .filter(t => t.tipo === "receita" && t.status === "pago")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+  const totalDespesas = transacoes
+    .filter(t => t.tipo === "despesa" && t.status === "pago")
+    .reduce((acc, t) => acc + Number(t.valor), 0);
+  const saldo = totalReceitas - totalDespesas;
+  const pendentes = transacoes.filter(t => t.status === "pendente").length;
+
+  return {
+    transacoes,
+    isLoading: query.isLoading,
+    error: query.error,
+    createTransacao: createMutation.mutate,
+    updateTransacao: updateMutation.mutate,
+    deleteTransacao: deleteMutation.mutate,
+    isCreating: createMutation.isPending,
+    isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
+    totalReceitas,
+    totalDespesas,
+    saldo,
+    pendentes,
+  };
+}
