@@ -37,9 +37,20 @@ interface ExtratoImportado {
   nome: string;
   tipo: "pdf" | "ofx";
   dataImportacao: string;
-  status: "processando" | "concluido" | "erro";
+  status: "processando" | "pendente" | "concluido" | "erro";
   transacoes: number;
   conciliadas: number;
+}
+
+interface LancamentoExtrato {
+  id: string;
+  extratoId: string;
+  data: string;
+  descricao: string;
+  valor: number;
+  tipo: "credito" | "debito";
+  conciliado: boolean;
+  transacaoVinculadaId?: string;
 }
 
 const widgetGroups = [
@@ -110,8 +121,19 @@ export default function FinancialACE() {
   const { toast } = useToast();
 
   const [extratosImportados, setExtratosImportados] = useState<ExtratoImportado[]>([
-    { id: "1", nome: "extrato_banco_dez2024.ofx", tipo: "ofx", dataImportacao: "2024-12-20", status: "concluido", transacoes: 45, conciliadas: 42 },
-    { id: "2", nome: "extrato_cartao_dez.pdf", tipo: "pdf", dataImportacao: "2024-12-18", status: "concluido", transacoes: 23, conciliadas: 20 },
+    { id: "1", nome: "extrato_banco_dez2024.ofx", tipo: "ofx", dataImportacao: "2024-12-20", status: "pendente", transacoes: 45, conciliadas: 42 },
+    { id: "2", nome: "extrato_cartao_dez.pdf", tipo: "pdf", dataImportacao: "2024-12-18", status: "concluido", transacoes: 23, conciliadas: 23 },
+  ]);
+
+  const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
+  
+  const [lancamentosExtrato, setLancamentosExtrato] = useState<LancamentoExtrato[]>([
+    { id: "l1", extratoId: "1", data: "2024-12-20", descricao: "TED RECEBIDA - CLIENTE ABC LTDA", valor: 5000, tipo: "credito", conciliado: true, transacaoVinculadaId: "1" },
+    { id: "l2", extratoId: "1", data: "2024-12-15", descricao: "PAG ALUGUEL ESCRITORIO", valor: 2500, tipo: "debito", conciliado: true, transacaoVinculadaId: "2" },
+    { id: "l3", extratoId: "1", data: "2024-12-18", descricao: "PIX RECEBIDO - PROJETO WEB", valor: 8000, tipo: "credito", conciliado: false },
+    { id: "l4", extratoId: "1", data: "2024-12-10", descricao: "DEB AUTO SOFTWARE CONTABIL", valor: 350, tipo: "debito", conciliado: true, transacaoVinculadaId: "4" },
+    { id: "l5", extratoId: "1", data: "2024-12-22", descricao: "TED RECEBIDA - CONSULTORIA", valor: 3500, tipo: "credito", conciliado: false },
+    { id: "l6", extratoId: "1", data: "2024-12-05", descricao: "DEB AUTO INTERNET TELEFONE", valor: 280, tipo: "debito", conciliado: false },
   ]);
 
   const [transacoes, setTransacoes] = useState<Transacao[]>([
@@ -186,18 +208,31 @@ export default function FinancialACE() {
 
     setExtratosImportados(prev => [novoExtrato, ...prev]);
     
-    // Simulate processing
+    // Simulate processing and generate mock transactions
     setTimeout(() => {
+      const numTransacoes = Math.floor(Math.random() * 15) + 5;
+      const novosLancamentos: LancamentoExtrato[] = Array.from({ length: numTransacoes }, (_, i) => ({
+        id: `${novoExtrato.id}-l${i}`,
+        extratoId: novoExtrato.id,
+        data: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        descricao: ["PIX RECEBIDO", "TED RECEBIDA", "DEB AUTO", "PAG BOLETO", "COMPRA CARTAO"][Math.floor(Math.random() * 5)] + ` - ITEM ${i + 1}`,
+        valor: Math.floor(Math.random() * 5000) + 100,
+        tipo: Math.random() > 0.5 ? "credito" : "debito",
+        conciliado: false,
+      }));
+      
+      setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
       setExtratosImportados(prev => 
         prev.map(e => 
           e.id === novoExtrato.id 
-            ? { ...e, status: "concluido", transacoes: Math.floor(Math.random() * 50) + 10, conciliadas: 0 }
+            ? { ...e, status: "pendente", transacoes: numTransacoes, conciliadas: 0 }
             : e
         )
       );
+      setExtratoSelecionado(novoExtrato.id);
       toast({
         title: "Extrato importado",
-        description: `${file.name} foi processado com sucesso.`,
+        description: `${file.name} foi processado. ${numTransacoes} lançamentos encontrados.`,
       });
     }, 2000);
 
@@ -205,6 +240,38 @@ export default function FinancialACE() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleConciliar = (lancamentoId: string) => {
+    setLancamentosExtrato(prev => 
+      prev.map(l => 
+        l.id === lancamentoId ? { ...l, conciliado: true } : l
+      )
+    );
+
+    // Update extrato counters and check if complete
+    const lancamento = lancamentosExtrato.find(l => l.id === lancamentoId);
+    if (lancamento) {
+      setExtratosImportados(prev => 
+        prev.map(e => {
+          if (e.id === lancamento.extratoId) {
+            const newConciliadas = e.conciliadas + 1;
+            const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
+            return { ...e, conciliadas: newConciliadas, status: newStatus };
+          }
+          return e;
+        })
+      );
+    }
+    
+    toast({
+      title: "Lançamento conciliado",
+      description: "O lançamento foi vinculado com sucesso.",
+    });
+  };
+
+  const getLancamentosDoExtrato = (extratoId: string) => {
+    return lancamentosExtrato.filter(l => l.extratoId === extratoId);
   };
 
   // Sidebar content
@@ -470,17 +537,19 @@ export default function FinancialACE() {
         )}
 
         {activeTab === "conciliacao" && (
-          <div className="space-y-6">
-            {/* Upload Area */}
-            <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-blue-500/20 border-dashed p-8">
-              <div className="flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-4">
-                  <Upload className="w-8 h-8 text-blue-500" />
+          <div className="space-y-4">
+            {/* Compact Upload Area */}
+            <div className="bg-card/30 backdrop-blur-xl rounded-xl border border-blue-500/20 p-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                    <Upload className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-foreground">Importar Extrato Bancário</h3>
+                    <p className="text-xs text-muted-foreground">Formatos aceitos: PDF ou OFX</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">Importar Extrato Bancário</h3>
-                <p className="text-sm text-muted-foreground mb-4 max-w-md">
-                  Arraste um arquivo ou clique para selecionar. Formatos aceitos: PDF ou OFX
-                </p>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -491,6 +560,7 @@ export default function FinancialACE() {
                 />
                 <Button 
                   onClick={() => fileInputRef.current?.click()}
+                  size="sm"
                   className="bg-blue-500 hover:bg-blue-600 text-white"
                 >
                   <FileUp className="w-4 h-4 mr-2" />
@@ -498,6 +568,93 @@ export default function FinancialACE() {
                 </Button>
               </div>
             </div>
+
+            {/* Lançamentos do Extrato Selecionado para Conciliação */}
+            {extratoSelecionado && (
+              <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-blue-500/20 overflow-hidden">
+                <div className="p-4 border-b border-blue-500/20 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h3 className="font-semibold text-foreground">Lançamentos para Conciliar</h3>
+                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300">
+                      {extratosImportados.find(e => e.id === extratoSelecionado)?.nome}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {getLancamentosDoExtrato(extratoSelecionado).filter(l => l.conciliado).length}/{getLancamentosDoExtrato(extratoSelecionado).length} conciliados
+                    </span>
+                    <button 
+                      onClick={() => setExtratoSelecionado(null)}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline"
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+                <table className="w-full text-sm">
+                  <thead className="bg-blue-500/10">
+                    <tr>
+                      <th className="text-left p-3 font-medium text-foreground/80">Data</th>
+                      <th className="text-left p-3 font-medium text-foreground/80">Descrição</th>
+                      <th className="text-right p-3 font-medium text-foreground/80">Valor</th>
+                      <th className="text-center p-3 font-medium text-foreground/80">Status</th>
+                      <th className="text-center p-3 font-medium text-foreground/80">Ação</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-foreground/5">
+                    {getLancamentosDoExtrato(extratoSelecionado).map(lancamento => (
+                      <tr key={lancamento.id} className={`hover:bg-foreground/5 transition-colors ${lancamento.conciliado ? 'opacity-60' : ''}`}>
+                        <td className="p-3 text-muted-foreground">
+                          {new Date(lancamento.data).toLocaleDateString('pt-BR')}
+                        </td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-6 h-6 rounded flex items-center justify-center ${
+                              lancamento.tipo === "credito" ? "bg-green-500/20" : "bg-red-500/20"
+                            }`}>
+                              {lancamento.tipo === "credito" ? (
+                                <ArrowUpRight className="w-3 h-3 text-green-400" />
+                              ) : (
+                                <ArrowDownRight className="w-3 h-3 text-red-400" />
+                              )}
+                            </div>
+                            <span className="font-medium text-foreground text-xs">{lancamento.descricao}</span>
+                          </div>
+                        </td>
+                        <td className={`p-3 text-right font-semibold ${lancamento.tipo === "credito" ? "text-green-400" : "text-red-400"}`}>
+                          {lancamento.tipo === "credito" ? "+" : "-"}{formatCurrency(lancamento.valor)}
+                        </td>
+                        <td className="p-3 text-center">
+                          {lancamento.conciliado ? (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-300 flex items-center gap-1 w-fit mx-auto">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Conciliado
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-yellow-500/20 text-yellow-300">
+                              Pendente
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3 text-center">
+                          {!lancamento.conciliado && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleConciliar(lancamento.id)}
+                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                            >
+                              <Link2 className="w-4 h-4 mr-1" />
+                              Vincular
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
 
             {/* Imported Files List */}
             {extratosImportados.length > 0 && (
@@ -510,16 +667,19 @@ export default function FinancialACE() {
                     <tr>
                       <th className="text-left p-3 font-medium text-foreground/80">Arquivo</th>
                       <th className="text-left p-3 font-medium text-foreground/80">Tipo</th>
-                      <th className="text-left p-3 font-medium text-foreground/80">Data Importação</th>
+                      <th className="text-left p-3 font-medium text-foreground/80">Data</th>
                       <th className="text-left p-3 font-medium text-foreground/80">Status</th>
-                      <th className="text-center p-3 font-medium text-foreground/80">Transações</th>
-                      <th className="text-center p-3 font-medium text-foreground/80">Conciliadas</th>
+                      <th className="text-center p-3 font-medium text-foreground/80">Progresso</th>
                       <th className="text-center p-3 font-medium text-foreground/80">Ações</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-foreground/5">
                     {extratosImportados.map(extrato => (
-                      <tr key={extrato.id} className="hover:bg-foreground/5 transition-colors">
+                      <tr 
+                        key={extrato.id} 
+                        className={`hover:bg-foreground/5 transition-colors cursor-pointer ${extratoSelecionado === extrato.id ? 'bg-blue-500/10' : ''}`}
+                        onClick={() => extrato.status !== "processando" && setExtratoSelecionado(extrato.id)}
+                      >
                         <td className="p-3">
                           <div className="flex items-center gap-2">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -527,7 +687,7 @@ export default function FinancialACE() {
                             }`}>
                               <FileText className={`w-4 h-4 ${extrato.tipo === "ofx" ? "text-green-400" : "text-red-400"}`} />
                             </div>
-                            <span className="font-medium text-foreground">{extrato.nome}</span>
+                            <span className="font-medium text-foreground text-sm">{extrato.nome}</span>
                           </div>
                         </td>
                         <td className="p-3">
@@ -537,39 +697,53 @@ export default function FinancialACE() {
                             {extrato.tipo}
                           </span>
                         </td>
-                        <td className="p-3 text-muted-foreground">
+                        <td className="p-3 text-muted-foreground text-sm">
                           {new Date(extrato.dataImportacao).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
                             extrato.status === "concluido" ? "bg-green-500/20 text-green-300" :
-                            extrato.status === "processando" ? "bg-yellow-500/20 text-yellow-300" :
+                            extrato.status === "processando" ? "bg-blue-500/20 text-blue-300" :
+                            extrato.status === "pendente" ? "bg-yellow-500/20 text-yellow-300" :
                             "bg-red-500/20 text-red-300"
                           }`}>
                             {extrato.status === "concluido" && <CheckCircle2 className="w-3 h-3" />}
                             {extrato.status === "processando" && <Clock className="w-3 h-3 animate-spin" />}
+                            {extrato.status === "pendente" && <AlertTriangle className="w-3 h-3" />}
                             {extrato.status === "erro" && <XCircle className="w-3 h-3" />}
-                            {extrato.status}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center font-semibold text-foreground">{extrato.transacoes}</td>
-                        <td className="p-3 text-center">
-                          <span className={`font-semibold ${
-                            extrato.conciliadas === extrato.transacoes ? "text-green-400" : "text-yellow-400"
-                          }`}>
-                            {extrato.conciliadas}/{extrato.transacoes}
+                            {extrato.status === "concluido" ? "Concluído" : extrato.status === "pendente" ? "Pendente" : extrato.status}
                           </span>
                         </td>
                         <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="w-20 h-2 bg-foreground/10 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full rounded-full transition-all ${
+                                  extrato.conciliadas === extrato.transacoes ? "bg-green-500" : "bg-yellow-500"
+                                }`}
+                                style={{ width: `${extrato.transacoes > 0 ? (extrato.conciliadas / extrato.transacoes) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <span className={`text-xs font-semibold ${
+                              extrato.conciliadas === extrato.transacoes ? "text-green-400" : "text-yellow-400"
+                            }`}>
+                              {extrato.conciliadas}/{extrato.transacoes}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-center gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
-                            >
-                              <Link2 className="w-4 h-4 mr-1" />
-                              Conciliar
-                            </Button>
+                            {extrato.status === "pendente" && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => setExtratoSelecionado(extrato.id)}
+                                className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/20"
+                              >
+                                <Link2 className="w-4 h-4 mr-1" />
+                                Conciliar
+                              </Button>
+                            )}
                             <button className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors">
                               <Trash2 className="w-4 h-4" />
                             </button>
