@@ -26,7 +26,7 @@ const Auth: React.FC = () => {
 
   useEffect(() => {
     if (!loading && user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, loading, navigate]);
 
@@ -70,7 +70,7 @@ const Auth: React.FC = () => {
         title: 'Bem-vindo!',
         description: 'Login realizado com sucesso'
       });
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 
@@ -97,7 +97,7 @@ const Auth: React.FC = () => {
         title: 'Conta criada!',
         description: 'Você já pode fazer login'
       });
-      navigate('/');
+      navigate('/dashboard');
     }
   };
 
