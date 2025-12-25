@@ -10,11 +10,18 @@ export interface OFXTransaction {
 
 export interface OFXParseResult {
   bankId?: string;
-  accountId?: string;
+  branchId?: string; // Agência
+  accountId?: string; // Conta
   accountType?: string;
   startDate?: string;
   endDate?: string;
   transactions: OFXTransaction[];
+}
+
+// Normaliza número de conta/agência removendo zeros à esquerda e caracteres especiais
+export function normalizeAccountNumber(value: string | null | undefined): string {
+  if (!value) return '';
+  return value.replace(/[^0-9]/g, '').replace(/^0+/, '') || '0';
 }
 
 export function parseOFX(content: string): OFXParseResult {
@@ -26,6 +33,10 @@ export function parseOFX(content: string): OFXParseResult {
     // Extract bank info
     const bankIdMatch = content.match(/<BANKID>([^<\n]+)/);
     if (bankIdMatch) result.bankId = bankIdMatch[1].trim();
+
+    // Extract branch (agência) - pode estar em BRANCHID ou dentro do BANKID
+    const branchIdMatch = content.match(/<BRANCHID>([^<\n]+)/);
+    if (branchIdMatch) result.branchId = branchIdMatch[1].trim();
 
     const accountIdMatch = content.match(/<ACCTID>([^<\n]+)/);
     if (accountIdMatch) result.accountId = accountIdMatch[1].trim();

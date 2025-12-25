@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { parseOFX, readFileAsText } from "@/utils/ofxParser";
+import { parseOFX, readFileAsText, normalizeAccountNumber } from "@/utils/ofxParser";
 import { supabase } from "@/integrations/supabase/client";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
 import { CategoriasManager } from "@/components/financial/CategoriasManager";
@@ -32,6 +32,7 @@ import { TransacoesManager } from "@/components/financial/TransacoesManager";
 import { UserHeader } from "@/components/financial/UserHeader";
 import { ImportExtratoModal } from "@/components/financial/ImportExtratoModal";
 import { RelatoriosManager } from "@/components/financial/RelatoriosManager";
+import { useContasBancarias } from "@/hooks/useContasBancarias";
 
 interface ExtratoImportado {
   id: string;
@@ -163,6 +164,9 @@ export default function FinancialACE() {
 
   // Use real transacoes hook for metrics
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
+  
+  // Use real bank accounts hook
+  const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaAtiva?.id);
 
   const getFilteredMockTransacoes = () => {
     switch (activeFilter) {
@@ -213,13 +217,24 @@ export default function FinancialACE() {
     }
   };
 
-  const handleFileUpload = async (competencia: { mes: number; ano: number }) => {
+  const handleFileUpload = async (data: { mes: number; ano: number; contaBancariaId: string }) => {
     setImportModalOpen(false);
     
     if (!pendingFile) return;
     const file = pendingFile;
     const extension = file.name.split('.').pop()?.toLowerCase();
     setPendingFile(null);
+
+    // Find the selected bank account
+    const contaSelecionada = contas.find(c => c.id === data.contaBancariaId);
+    if (!contaSelecionada) {
+      toast({
+        title: "Erro",
+        description: "Conta bancária não encontrada.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const novoExtrato: ExtratoImportado = {
       id: Date.now().toString(),
@@ -243,7 +258,59 @@ export default function FinancialACE() {
         
         console.log('OFX parsed:', result);
         
-        novosLancamentos = result.transactions.map((t, i) => ({
+        // Validate bank account matches
+        const ofxConta = normalizeAccountNumber(result.accountId);
+        const cadastroConta = normalizeAccountNumber(contaSelecionada.conta);
+        
+        // If we have account info in OFX, validate it
+        if (ofxConta && cadastroConta && ofxConta !== cadastroConta) {
+          setExtratosImportados(prev => 
+            prev.map(e => 
+              e.id === novoExtrato.id 
+                ? { ...e, status: "erro", transacoes: 0 }
+                : e
+            )
+          );
+          toast({
+            title: "Conta não confere",
+            description: `O extrato é da conta ${result.accountId}, mas você selecionou a conta ${contaSelecionada.conta}. Verifique a conta correta.`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        // Also check branch if available
+        if (result.branchId && contaSelecionada.agencia) {
+          const ofxAgencia = normalizeAccountNumber(result.branchId);
+          const cadastroAgencia = normalizeAccountNumber(contaSelecionada.agencia);
+          
+          if (ofxAgencia !== cadastroAgencia) {
+            setExtratosImportados(prev => 
+              prev.map(e => 
+                e.id === novoExtrato.id 
+                  ? { ...e, status: "erro", transacoes: 0 }
+                  : e
+              )
+            );
+            toast({
+              title: "Agência não confere",
+              description: `O extrato é da agência ${result.branchId}, mas a conta cadastrada é da agência ${contaSelecionada.agencia}.`,
+              variant: "destructive",
+            });
+            return;
+          }
+        }
+
+        // Filter transactions by competência
+        const primeiroDia = new Date(data.ano, data.mes - 1, 1);
+        const ultimoDia = new Date(data.ano, data.mes, 0);
+        
+        const transacoesCompetencia = result.transactions.filter(t => {
+          const dataTransacao = new Date(t.date);
+          return dataTransacao >= primeiroDia && dataTransacao <= ultimoDia;
+        });
+        
+        novosLancamentos = transacoesCompetencia.map((t, i) => ({
           id: `${novoExtrato.id}-l${i}`,
           extratoId: novoExtrato.id,
           data: t.date,
@@ -254,8 +321,8 @@ export default function FinancialACE() {
         }));
 
         toast({
-          title: "OFX processado",
-          description: `Banco: ${result.bankId || 'N/A'} | Conta: ${result.accountId || 'N/A'}`,
+          title: "OFX validado",
+          description: `Conta ${result.accountId || 'N/A'} | ${novosLancamentos.length} lançamentos na competência`,
         });
 
       } else if (extension === 'pdf') {
@@ -268,7 +335,7 @@ export default function FinancialACE() {
         const formData = new FormData();
         formData.append('file', file);
 
-        const { data, error } = await supabase.functions.invoke('parse-pdf-extrato', {
+        const { data: pdfData, error } = await supabase.functions.invoke('parse-pdf-extrato', {
           body: formData,
         });
 
@@ -276,11 +343,20 @@ export default function FinancialACE() {
           throw new Error(error.message || 'Erro ao processar PDF');
         }
 
-        if (!data?.success) {
-          throw new Error(data?.error || 'Falha ao extrair transações do PDF');
+        if (!pdfData?.success) {
+          throw new Error(pdfData?.error || 'Falha ao extrair transações do PDF');
         }
 
-        novosLancamentos = (data.transactions || []).map((t: any, i: number) => ({
+        // Filter by competência
+        const primeiroDia = new Date(data.ano, data.mes - 1, 1);
+        const ultimoDia = new Date(data.ano, data.mes, 0);
+        
+        const transacoesCompetencia = (pdfData.transactions || []).filter((t: any) => {
+          const dataTransacao = new Date(t.date);
+          return dataTransacao >= primeiroDia && dataTransacao <= ultimoDia;
+        });
+
+        novosLancamentos = transacoesCompetencia.map((t: any, i: number) => ({
           id: `${novoExtrato.id}-l${i}`,
           extratoId: novoExtrato.id,
           data: t.date,
@@ -303,25 +379,70 @@ export default function FinancialACE() {
         );
         toast({
           title: "Nenhuma transação encontrada",
-          description: "O arquivo não contém transações válidas.",
+          description: `O arquivo não contém transações válidas para ${data.mes.toString().padStart(2, '0')}/${data.ano}.`,
           variant: "destructive",
         });
         return;
       }
 
+      // === AUTO-RECONCILIATION ===
+      // Try to match statement entries with existing transactions
+      let conciliadasAuto = 0;
+      const transacoesDisponiveis = transacoes.filter(t => !t.conciliado);
+      
+      novosLancamentos = novosLancamentos.map(lancamento => {
+        // Find matching transaction: same type, same value, similar date (±5 days)
+        const tipoTransacao = lancamento.tipo === 'credito' ? 'receita' : 'despesa';
+        const dataLancamento = new Date(lancamento.data);
+        
+        const match = transacoesDisponiveis.find(t => {
+          if (t.tipo !== tipoTransacao) return false;
+          if (Math.abs(Number(t.valor) - lancamento.valor) > 0.01) return false; // Allow small float differences
+          
+          const dataTransacao = new Date(t.data_transacao);
+          const diffDias = Math.abs((dataLancamento.getTime() - dataTransacao.getTime()) / (1000 * 60 * 60 * 24));
+          
+          return diffDias <= 5; // Match within 5 days
+        });
+
+        if (match) {
+          // Remove from available to avoid double-matching
+          const idx = transacoesDisponiveis.findIndex(t => t.id === match.id);
+          if (idx > -1) transacoesDisponiveis.splice(idx, 1);
+          
+          conciliadasAuto++;
+          return { ...lancamento, conciliado: true, transacaoVinculadaId: match.id };
+        }
+        
+        return lancamento;
+      });
+
       setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
       setExtratosImportados(prev => 
         prev.map(e => 
           e.id === novoExtrato.id 
-            ? { ...e, status: "pendente", transacoes: numTransacoes, conciliadas: 0 }
+            ? { 
+                ...e, 
+                status: conciliadasAuto === numTransacoes ? "concluido" : "pendente", 
+                transacoes: numTransacoes, 
+                conciliadas: conciliadasAuto 
+              }
             : e
         )
       );
       setExtratoSelecionado(novoExtrato.id);
-      toast({
-        title: "Extrato importado",
-        description: `${file.name} processado. ${numTransacoes} lançamentos encontrados.`,
-      });
+      
+      if (conciliadasAuto > 0) {
+        toast({
+          title: "Extrato importado com auto-conciliação",
+          description: `${numTransacoes} lançamentos encontrados. ${conciliadasAuto} conciliados automaticamente!`,
+        });
+      } else {
+        toast({
+          title: "Extrato importado",
+          description: `${file.name} processado. ${numTransacoes} lançamentos encontrados.`,
+        });
+      }
 
     } catch (error) {
       console.error('Error processing file:', error);
@@ -1023,12 +1144,14 @@ export default function FinancialACE() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal de Importação com Competência */}
+      {/* Modal de Importação com Competência e Conta */}
       <ImportExtratoModal
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
         onConfirm={handleFileUpload}
         fileName={pendingFile?.name || ''}
+        contas={contas}
+        isLoadingContas={isLoadingContas}
       />
     </div>
   );
