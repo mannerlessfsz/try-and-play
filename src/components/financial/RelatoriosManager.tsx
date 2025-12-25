@@ -80,17 +80,21 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
   const metrics = useMemo(() => {
     const receitas = transacoes.filter(t => t.tipo === "receita");
     const despesas = transacoes.filter(t => t.tipo === "despesa");
-    const receitasPagas = receitas.filter(t => t.status === "pago");
-    const despesasPagas = despesas.filter(t => t.status === "pago");
     
-    const totalReceitas = receitasPagas.reduce((acc, t) => acc + Number(t.valor), 0);
-    const totalDespesas = despesasPagas.reduce((acc, t) => acc + Number(t.valor), 0);
+    // Total geral (todas as transações, independente do status)
+    const totalReceitas = receitas.reduce((acc, t) => acc + Number(t.valor), 0);
+    const totalDespesas = despesas.reduce((acc, t) => acc + Number(t.valor), 0);
     const saldo = totalReceitas - totalDespesas;
     
+    // Totais pagos (confirmados)
+    const receitasPagas = receitas.filter(t => t.status === "pago").reduce((acc, t) => acc + Number(t.valor), 0);
+    const despesasPagas = despesas.filter(t => t.status === "pago").reduce((acc, t) => acc + Number(t.valor), 0);
+    
+    // Pendentes
     const receitasPendentes = receitas.filter(t => t.status === "pendente").reduce((acc, t) => acc + Number(t.valor), 0);
     const despesasPendentes = despesas.filter(t => t.status === "pendente").reduce((acc, t) => acc + Number(t.valor), 0);
 
-    return { totalReceitas, totalDespesas, saldo, receitasPendentes, despesasPendentes, receitas, despesas };
+    return { totalReceitas, totalDespesas, saldo, receitasPagas, despesasPagas, receitasPendentes, despesasPendentes, receitas, despesas };
   }, [transacoes]);
 
   // Categories breakdown
