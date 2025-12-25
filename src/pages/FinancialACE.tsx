@@ -708,9 +708,6 @@ export default function FinancialACE() {
                 <LayoutGrid className="w-4 h-4" />
               </button>
             </div>
-            <Button className="bg-blue-500 hover:bg-blue-600 text-white">
-              <Plus className="w-4 h-4 mr-1" /> Nova Transação
-            </Button>
           </div>
         </div>
 

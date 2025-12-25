@@ -39,25 +39,25 @@ export function MetricCard({ title, value, change, changeType, icon: Icon, color
       className={`
         relative overflow-hidden rounded-xl border bg-gradient-to-br 
         ${isActive ? colorStyle.active : colorStyle.base}
-        p-4 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
+        px-3 py-2 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
         group cursor-pointer
       `}
     >
-      <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
-        <Icon className="w-24 h-24" />
+      <div className="absolute -right-2 -top-2 opacity-10 group-hover:opacity-20 transition-opacity">
+        <Icon className="w-16 h-16" />
       </div>
       <div className="relative z-10">
-        <p className="text-xs font-medium text-muted-foreground mb-1">{title}</p>
-        <p className="text-2xl font-bold text-foreground">{value}</p>
+        <p className="text-[10px] font-medium text-muted-foreground">{title}</p>
+        <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
         {change && (
-          <div className={`flex items-center gap-1 mt-1 text-xs ${changeType === "up" ? "text-green-400" : "text-red-400"}`}>
-            {changeType === "up" ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          <div className={`flex items-center gap-1 text-[10px] ${changeType === "up" ? "text-green-400" : "text-red-400"}`}>
+            {changeType === "up" ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
             <span>{change}</span>
           </div>
         )}
       </div>
       {isActive && (
-        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-current animate-pulse" />
+        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
       )}
     </div>
   );
