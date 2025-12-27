@@ -33,29 +33,16 @@ export const useEmpresaAtivaState = () => {
   const { isAdmin, userEmpresas } = usePermissions();
   const [empresaAtiva, setEmpresaAtivaState] = useState<Empresa | null>(null);
 
-  // Fetch empresas the user has access to
+  // Fetch empresas the user has access to via secure RPC (masks sensitive data for non-owners)
   const { data: empresasDisponiveis = [], isLoading } = useQuery({
     queryKey: ['empresas-disponiveis', user?.id, isAdmin],
     queryFn: async () => {
       if (!user) return [];
       
-      // Admin sees all empresas
-      if (isAdmin) {
-        const { data, error } = await supabase.from('empresas').select('*');
-        if (error) throw error;
-        return data as Empresa[];
-      }
-      
-      // Regular users see only their associated empresas
-      const empresaIds = userEmpresas.map(ue => ue.empresa_id);
-      if (empresaIds.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('empresas')
-        .select('*')
-        .in('id', empresaIds);
+      // Use secure RPC that masks CNPJ/email/telefone for non-admins/non-owners
+      const { data, error } = await supabase.rpc('get_empresas_safe');
       if (error) throw error;
-      return data as Empresa[];
+      return (data || []) as Empresa[];
     },
     enabled: !!user
   });

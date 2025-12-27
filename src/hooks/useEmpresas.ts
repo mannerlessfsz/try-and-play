@@ -10,15 +10,13 @@ export function useEmpresas() {
 
   const fetchEmpresas = async () => {
     try {
-      const { data, error } = await supabase
-        .from("empresas")
-        .select("*")
-        .order("nome", { ascending: true });
+      // Use secure RPC that masks CNPJ/email for non-admins/non-owners
+      const { data, error } = await supabase.rpc('get_empresas_safe');
 
       if (error) throw error;
 
       setEmpresas(
-        (data || []).map((e) => ({
+        (data || []).map((e: any) => ({
           id: e.id,
           nome: e.nome,
           cnpj: e.cnpj || undefined,

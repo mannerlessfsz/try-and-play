@@ -48,13 +48,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "atividades_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "atividades_tarefa_id_fkey"
             columns: ["tarefa_id"]
             isOneToOne: false
@@ -105,13 +98,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "categorias_financeiras_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       centros_custo: {
@@ -148,13 +134,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "centros_custo_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
             referencedColumns: ["id"]
           },
         ]
@@ -210,13 +189,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "contas_bancarias_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       empresa_modulos: {
@@ -253,13 +225,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "empresa_modulos_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
             referencedColumns: ["id"]
           },
         ]
@@ -361,13 +326,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "importacoes_extrato_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       metas_financeiras: {
@@ -431,13 +389,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "metas_financeiras_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       orcamentos: {
@@ -494,13 +445,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamentos_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
             referencedColumns: ["id"]
           },
         ]
@@ -622,13 +566,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "recorrencias_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       tarefa_arquivos: {
@@ -715,13 +652,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "tarefas_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
             referencedColumns: ["id"]
           },
         ]
@@ -882,13 +812,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "transacoes_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_empresas: {
@@ -919,13 +842,6 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_empresas_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
             referencedColumns: ["id"]
           },
         ]
@@ -966,13 +882,6 @@ export type Database = {
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_permissions_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas_view"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -998,39 +907,7 @@ export type Database = {
       }
     }
     Views: {
-      empresas_view: {
-        Row: {
-          cnpj: string | null
-          created_at: string | null
-          email: string | null
-          id: string | null
-          manager_id: string | null
-          nome: string | null
-          telefone: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          cnpj?: never
-          created_at?: string | null
-          email?: never
-          id?: string | null
-          manager_id?: string | null
-          nome?: string | null
-          telefone?: never
-          updated_at?: string | null
-        }
-        Update: {
-          cnpj?: never
-          created_at?: string | null
-          email?: never
-          id?: string | null
-          manager_id?: string | null
-          nome?: string | null
-          telefone?: never
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       add_empresa_modulo: {
@@ -1062,6 +939,19 @@ export type Database = {
           _telefone?: string
         }
         Returns: string
+      }
+      get_empresas_safe: {
+        Args: never
+        Returns: {
+          cnpj: string
+          created_at: string
+          email: string
+          id: string
+          manager_id: string
+          nome: string
+          telefone: string
+          updated_at: string
+        }[]
       }
       has_empresa_access: {
         Args: { _empresa_id: string; _user_id: string }
