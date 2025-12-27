@@ -135,13 +135,13 @@ const Admin: React.FC = () => {
     }
   });
 
-  // Fetch all empresas
+  // Fetch all empresas via secure RPC (admins see full data)
   const { data: empresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['admin-empresas'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('empresas').select('*');
+      const { data, error } = await supabase.rpc('get_empresas_safe');
       if (error) throw error;
-      return data as Empresa[];
+      return (data || []) as Empresa[];
     }
   });
 
