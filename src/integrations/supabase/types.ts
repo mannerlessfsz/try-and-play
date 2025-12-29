@@ -1754,6 +1754,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      inicializar_empresa_config: {
+        Args: {
+          _empresa_id: string
+          _tipo_empresa?: Database["public"]["Enums"]["tipo_empresa"]
+        }
+        Returns: string
+      }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_empresa_owner: {
         Args: { _empresa_id: string; _user_id: string }
