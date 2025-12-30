@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut, Package } from "lucide-react";
+import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
@@ -28,8 +28,8 @@ const features: FeatureConfig[] = [
   },
   {
     icon: <DollarSign className="w-7 h-7" />,
-    title: "FINANCIALACE",
-    description: "Gestão financeira profissional e pessoal com controle de fluxo de caixa e orçamentos",
+    title: "GESTÃO",
+    description: "Sistema integrado de gestão financeira, produtos, clientes, vendas, compras e estoque",
     variant: "blue",
     href: "/financialace",
     module: "financialace",
@@ -49,14 +49,6 @@ const features: FeatureConfig[] = [
     variant: "cyan",
     href: "/ajustasped",
     module: "ajustasped",
-  },
-  {
-    icon: <Package className="w-7 h-7" />,
-    title: "ERP",
-    description: "Sistema integrado para gestão de produtos, clientes, vendas, compras e estoque",
-    variant: "green",
-    href: "/erp",
-    module: "erp",
   },
 ];
 

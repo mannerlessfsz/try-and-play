@@ -9,7 +9,7 @@ import {
   Settings, ArrowUpRight, ArrowDownRight, Zap, Clock, Tag,
   Activity, List, LayoutGrid, Target, AlertTriangle, Upload,
   FileText, CheckCircle2, XCircle, Link2, ChevronDown, Loader2,
-  Landmark
+  Landmark, Package, Users, Truck, ShoppingCart, ShoppingBag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,15 @@ import { UserHeader } from "@/components/financial/UserHeader";
 import { ImportExtratoModal } from "@/components/financial/ImportExtratoModal";
 import { RelatoriosManager } from "@/components/financial/RelatoriosManager";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
+import { ProdutosManager } from "@/components/erp/ProdutosManager";
+import { ClientesManager } from "@/components/erp/ClientesManager";
+import { FornecedoresManager } from "@/components/erp/FornecedoresManager";
+import { VendasManager } from "@/components/erp/VendasManager";
+import { ComprasManager } from "@/components/erp/ComprasManager";
+import { EstoqueManager } from "@/components/erp/EstoqueManager";
+import { useProdutos } from "@/hooks/useProdutos";
+import { useVendas } from "@/hooks/useVendas";
+import { useCompras } from "@/hooks/useCompras";
 
 interface ExtratoImportado {
   id: string;
@@ -115,7 +124,8 @@ type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios">("transacoes");
+  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque">("transacoes");
+  const [activeSection, setActiveSection] = useState<"financeiro" | "gestao">("financeiro");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [modo, setModo] = useState<ModoFinanceiro>("pro");
@@ -167,6 +177,11 @@ export default function FinancialACE() {
   
   // Use real bank accounts hook
   const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaAtiva?.id);
+
+  // ERP hooks
+  const { produtos } = useProdutos(empresaAtiva?.id);
+  const { totalVendas } = useVendas(empresaAtiva?.id);
+  const { totalCompras } = useCompras(empresaAtiva?.id);
 
   const getFilteredMockTransacoes = () => {
     switch (activeFilter) {
@@ -783,40 +798,105 @@ export default function FinancialACE() {
           </div>
         )}
 
-        {/* Tabs & View Toggle */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab("transacoes")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "transacoes" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+        {/* Section Selector */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
+            <button 
+              onClick={() => { setActiveSection("financeiro"); setActiveTab("transacoes"); }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                activeSection === "financeiro" ? "bg-blue-500 text-white" : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <Receipt className="w-4 h-4 inline mr-2" />Receitas/Despesas ({transacoes.length})
+              <Wallet className="w-4 h-4" /> Financeiro
             </button>
-            <button
-              onClick={() => setActiveTab("categorias")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "categorias" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+            <button 
+              onClick={() => { setActiveSection("gestao"); setActiveTab("produtos"); }}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
+                activeSection === "gestao" ? "bg-green-500 text-white" : "text-muted-foreground hover:text-foreground"
+              }`}
             >
-              <PieChart className="w-4 h-4 inline mr-2" />Categorias
+              <Package className="w-4 h-4" /> Gestão
             </button>
-            <button
-              onClick={() => setActiveTab("contas")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "contas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-            >
-              <Landmark className="w-4 h-4 inline mr-2" />Contas Bancárias
-            </button>
-            <button
-              onClick={() => setActiveTab("conciliacao")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "conciliacao" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-            >
-              <Link2 className="w-4 h-4 inline mr-2" />Conciliação
-            </button>
-            {modo === "pro" && (
-              <button
-                onClick={() => setActiveTab("relatorios")}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "relatorios" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-              >
-                <BarChart3 className="w-4 h-4 inline mr-2" />Relatórios
-              </button>
+          </div>
+          
+          <div className="h-6 w-px bg-border" />
+          
+          {/* Dynamic Tabs based on Section */}
+          <div className="flex gap-2 flex-1 overflow-x-auto">
+            {activeSection === "financeiro" ? (
+              <>
+                <button
+                  onClick={() => setActiveTab("transacoes")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "transacoes" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Receipt className="w-4 h-4 inline mr-1" />Transações
+                </button>
+                <button
+                  onClick={() => setActiveTab("categorias")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "categorias" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <PieChart className="w-4 h-4 inline mr-1" />Categorias
+                </button>
+                <button
+                  onClick={() => setActiveTab("contas")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "contas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Landmark className="w-4 h-4 inline mr-1" />Contas
+                </button>
+                <button
+                  onClick={() => setActiveTab("conciliacao")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "conciliacao" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Link2 className="w-4 h-4 inline mr-1" />Conciliação
+                </button>
+                {modo === "pro" && (
+                  <button
+                    onClick={() => setActiveTab("relatorios")}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "relatorios" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                  >
+                    <BarChart3 className="w-4 h-4 inline mr-1" />Relatórios
+                  </button>
+                )}
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setActiveTab("produtos")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "produtos" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Package className="w-4 h-4 inline mr-1" />Produtos
+                </button>
+                <button
+                  onClick={() => setActiveTab("clientes")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "clientes" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Users className="w-4 h-4 inline mr-1" />Clientes
+                </button>
+                <button
+                  onClick={() => setActiveTab("fornecedores")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "fornecedores" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Truck className="w-4 h-4 inline mr-1" />Fornecedores
+                </button>
+                <button
+                  onClick={() => setActiveTab("vendas")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "vendas" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <ShoppingCart className="w-4 h-4 inline mr-1" />Vendas
+                </button>
+                <button
+                  onClick={() => setActiveTab("compras")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "compras" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <ShoppingBag className="w-4 h-4 inline mr-1" />Compras
+                </button>
+                <button
+                  onClick={() => setActiveTab("estoque")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "estoque" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Package className="w-4 h-4 inline mr-1" />Estoque
+                </button>
+              </>
             )}
           </div>
           
@@ -832,7 +912,7 @@ export default function FinancialACE() {
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content - Financeiro */}
         {activeTab === "transacoes" && empresaAtiva && (
           <TransacoesManager 
             empresaId={empresaAtiva.id}
@@ -847,6 +927,31 @@ export default function FinancialACE() {
 
         {activeTab === "contas" && empresaAtiva && (
           <ContasBancariasManager empresaId={empresaAtiva.id} />
+        )}
+
+        {/* Content - Gestão */}
+        {activeTab === "produtos" && empresaAtiva && (
+          <ProdutosManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "clientes" && empresaAtiva && (
+          <ClientesManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "fornecedores" && empresaAtiva && (
+          <FornecedoresManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "vendas" && empresaAtiva && (
+          <VendasManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "compras" && empresaAtiva && (
+          <ComprasManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "estoque" && empresaAtiva && (
+          <EstoqueManager empresaId={empresaAtiva.id} />
         )}
 
         {activeTab === "conciliacao" && (

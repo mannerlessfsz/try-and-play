@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
 export type AppRole = 'admin' | 'manager' | 'user';
-export type AppModule = 'taskvault' | 'financialace' | 'ajustasped' | 'conferesped' | 'erp';
+export type AppModule = 'taskvault' | 'financialace' | 'ajustasped' | 'conferesped';
 export type PermissionType = 'view' | 'create' | 'edit' | 'delete' | 'export';
 
 interface UserRole {
