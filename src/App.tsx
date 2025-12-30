@@ -14,6 +14,7 @@ import TaskVault from "./pages/TaskVault";
 import AjustaSped from "./pages/AjustaSped";
 import ConfereSped from "./pages/ConfereSped";
 import FinancialACE from "./pages/FinancialACE";
+import ERP from "./pages/ERP";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/ajustasped" element={<ProtectedRoute module="ajustasped"><AjustaSped /></ProtectedRoute>} />
               <Route path="/conferesped" element={<ProtectedRoute module="conferesped"><ConfereSped /></ProtectedRoute>} />
               <Route path="/financialace" element={<ProtectedRoute module="financialace"><FinancialACE /></ProtectedRoute>} />
+              <Route path="/erp" element={<ProtectedRoute module="erp"><ERP /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
