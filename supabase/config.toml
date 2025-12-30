@@ -2,3 +2,6 @@ project_id = "mhfuifojswavudhebuwt"
 
 [functions.parse-pdf-extrato]
 verify_jwt = false
+
+[functions.parse-nfe]
+verify_jwt = false
