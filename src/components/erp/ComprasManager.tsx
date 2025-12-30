@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ShoppingBag, FileUp } from "lucide-react";
+import { ImportNFeModal } from "./ImportNFeModal";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ComprasManagerProps {
   empresaId: string;
@@ -23,6 +25,8 @@ const statusColors: Record<string, string> = {
 export function ComprasManager({ empresaId }: ComprasManagerProps) {
   const { compras, isLoading } = useCompras(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -31,6 +35,14 @@ export function ComprasManager({ empresaId }: ComprasManagerProps) {
     c.fornecedor?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.numero?.toString().includes(searchTerm)
   );
+
+  const handleImportComplete = () => {
+    // Invalidate all related queries
+    queryClient.invalidateQueries({ queryKey: ["produtos", empresaId] });
+    queryClient.invalidateQueries({ queryKey: ["fornecedores", empresaId] });
+    queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+    queryClient.invalidateQueries({ queryKey: ["estoque_movimentos", empresaId] });
+  };
 
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Carregando compras...</div>;
@@ -49,7 +61,11 @@ export function ComprasManager({ empresaId }: ComprasManagerProps) {
           />
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="border-orange-500/30 text-orange-500 hover:bg-orange-500/10">
+          <Button 
+            variant="outline" 
+            className="border-green-500/30 text-green-500 hover:bg-green-500/10"
+            onClick={() => setImportModalOpen(true)}
+          >
             <FileUp className="w-4 h-4 mr-2" />
             Importar NF-e
           </Button>
@@ -104,6 +120,13 @@ export function ComprasManager({ empresaId }: ComprasManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      <ImportNFeModal
+        open={importModalOpen}
+        onOpenChange={setImportModalOpen}
+        empresaId={empresaId}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 }
