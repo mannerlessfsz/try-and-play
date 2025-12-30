@@ -39,9 +39,11 @@ import { FornecedoresManager } from "@/components/erp/FornecedoresManager";
 import { VendasManager } from "@/components/erp/VendasManager";
 import { ComprasManager } from "@/components/erp/ComprasManager";
 import { EstoqueManager } from "@/components/erp/EstoqueManager";
+import { OrcamentosManager } from "@/components/erp/OrcamentosManager";
 import { useProdutos } from "@/hooks/useProdutos";
 import { useVendas } from "@/hooks/useVendas";
 import { useCompras } from "@/hooks/useCompras";
+import { useOrcamentos } from "@/hooks/useOrcamentos";
 
 interface ExtratoImportado {
   id: string;
@@ -124,7 +126,7 @@ type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque">("transacoes");
+  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque" | "orcamentos">("transacoes");
   const [activeSection, setActiveSection] = useState<"financeiro" | "gestao">("financeiro");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -182,6 +184,7 @@ export default function FinancialACE() {
   const { produtos } = useProdutos(empresaAtiva?.id);
   const { totalVendas } = useVendas(empresaAtiva?.id);
   const { totalCompras } = useCompras(empresaAtiva?.id);
+  const { orcamentosAbertos } = useOrcamentos(empresaAtiva?.id);
 
   const getFilteredMockTransacoes = () => {
     switch (activeFilter) {
@@ -896,6 +899,12 @@ export default function FinancialACE() {
                 >
                   <Package className="w-4 h-4 inline mr-1" />Estoque
                 </button>
+                <button
+                  onClick={() => setActiveTab("orcamentos")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "orcamentos" ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <FileText className="w-4 h-4 inline mr-1" />Orçamentos
+                </button>
               </>
             )}
           </div>
@@ -952,6 +961,10 @@ export default function FinancialACE() {
 
         {activeTab === "estoque" && empresaAtiva && (
           <EstoqueManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "orcamentos" && empresaAtiva && (
+          <OrcamentosManager empresaId={empresaAtiva.id} />
         )}
 
         {activeTab === "conciliacao" && (
