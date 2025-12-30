@@ -883,6 +883,56 @@ export type Database = {
           },
         ]
       }
+      orcamento_itens: {
+        Row: {
+          created_at: string
+          desconto_percentual: number | null
+          desconto_valor: number | null
+          descricao: string
+          id: string
+          observacao: string | null
+          orcamento_id: string
+          quantidade: number
+          total: number
+          unidade: string | null
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          descricao: string
+          id?: string
+          observacao?: string | null
+          orcamento_id: string
+          quantidade?: number
+          total: number
+          unidade?: string | null
+          valor_unitario: number
+        }
+        Update: {
+          created_at?: string
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          descricao?: string
+          id?: string
+          observacao?: string | null
+          orcamento_id?: string
+          quantidade?: number
+          total?: number
+          unidade?: string | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamento_itens_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos_servico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamentos: {
         Row: {
           ano: number
@@ -934,6 +984,87 @@ export type Database = {
           },
           {
             foreignKeyName: "orcamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos_servico: {
+        Row: {
+          cliente_id: string | null
+          condicao_pagamento: string | null
+          created_at: string
+          created_by: string | null
+          data_orcamento: string
+          data_validade: string | null
+          desconto_percentual: number | null
+          desconto_valor: number | null
+          descricao: string | null
+          empresa_id: string
+          id: string
+          numero: number | null
+          observacoes: string | null
+          observacoes_internas: string | null
+          status: string
+          subtotal: number | null
+          titulo: string
+          total: number | null
+          updated_at: string
+        }
+        Insert: {
+          cliente_id?: string | null
+          condicao_pagamento?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_orcamento?: string
+          data_validade?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          descricao?: string | null
+          empresa_id: string
+          id?: string
+          numero?: number | null
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          status?: string
+          subtotal?: number | null
+          titulo: string
+          total?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string | null
+          condicao_pagamento?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_orcamento?: string
+          data_validade?: string | null
+          desconto_percentual?: number | null
+          desconto_valor?: number | null
+          descricao?: string | null
+          empresa_id?: string
+          id?: string
+          numero?: number | null
+          observacoes?: string | null
+          observacoes_internas?: string | null
+          status?: string
+          subtotal?: number | null
+          titulo?: string
+          total?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_servico_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_servico_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
