@@ -12,9 +12,17 @@ interface Transaction {
   type: "credit" | "debit";
 }
 
+interface BankInfo {
+  banco: string | null;
+  agencia: string | null;
+  conta: string | null;
+  cnpj: string | null;
+}
+
 interface ParseResult {
   success: boolean;
   transactions: Transaction[];
+  bankInfo?: BankInfo;
   error?: string;
 }
 
@@ -66,8 +74,15 @@ Deno.serve(async (req) => {
           {
             role: 'system',
             content: `Você é um especialista em extrair dados de extratos bancários em PDF.
-Analise o documento do extrato bancário e extraia TODAS as transações encontradas.
+Analise o documento do extrato bancário e extraia:
 
+1. INFORMAÇÕES DA CONTA (se disponíveis no cabeçalho do extrato):
+- banco: nome do banco (ex: "Banco do Brasil", "Itaú", "Bradesco", etc.)
+- agencia: número da agência (apenas números, sem traços)
+- conta: número da conta (apenas números, sem traços ou dígito verificador separado)
+- cnpj: CNPJ do titular da conta se aparecer (apenas números)
+
+2. TODAS as transações encontradas:
 Para cada transação, identifique:
 - date: no formato YYYY-MM-DD
 - description: descrição da transação
@@ -78,14 +93,25 @@ REGRAS CRÍTICAS:
 - Valores com sinal negativo ou indicação de D/débito/saída são do tipo "debit"
 - Valores com sinal positivo ou indicação de C/crédito/entrada são do tipo "credit"
 - Retorne SOMENTE o JSON puro, SEM markdown, SEM backticks, SEM explicações
-- Formato exato: {"transactions":[{"date":"YYYY-MM-DD","description":"...","amount":123.45,"type":"credit"}]}`
+- Formato exato:
+{
+  "bankInfo": {
+    "banco": "nome do banco ou null",
+    "agencia": "numero da agencia ou null",
+    "conta": "numero da conta ou null",
+    "cnpj": "cnpj do titular ou null"
+  },
+  "transactions": [
+    {"date":"YYYY-MM-DD","description":"...","amount":123.45,"type":"credit"}
+  ]
+}`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Extraia todas as transações deste extrato bancário. Retorne SOMENTE o JSON puro sem formatação markdown.'
+                text: 'Extraia as informações da conta bancária (banco, agência, conta, CNPJ se houver) e todas as transações deste extrato bancário. Retorne SOMENTE o JSON puro sem formatação markdown.'
               },
               {
                 type: 'image_url',
@@ -118,6 +144,7 @@ REGRAS CRÍTICAS:
 
     // Parse the JSON response from AI
     let transactions: Transaction[] = [];
+    let bankInfo: BankInfo | undefined;
     
     try {
       // Clean the response - remove markdown code blocks if present
@@ -129,10 +156,10 @@ REGRAS CRÍTICAS:
       cleanContent = cleanContent.replace(/\s*```$/i, '');
       cleanContent = cleanContent.trim();
       
-      console.log('Cleaned content (first 200 chars):', cleanContent.substring(0, 200));
+      console.log('Cleaned content (first 300 chars):', cleanContent.substring(0, 300));
       
       // Try to extract JSON from the response
-      const jsonMatch = cleanContent.match(/\{[\s\S]*"transactions"[\s\S]*\}/);
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         // Try to fix common JSON issues - truncated arrays
         let jsonStr = jsonMatch[0];
@@ -161,6 +188,18 @@ REGRAS CRÍTICAS:
         
         console.log('Attempting to parse JSON...');
         const parsed = JSON.parse(jsonStr);
+        
+        // Extract bank info if available
+        if (parsed.bankInfo) {
+          bankInfo = {
+            banco: parsed.bankInfo.banco || null,
+            agencia: parsed.bankInfo.agencia?.toString().replace(/[^\d]/g, '') || null,
+            conta: parsed.bankInfo.conta?.toString().replace(/[^\d]/g, '') || null,
+            cnpj: parsed.bankInfo.cnpj?.toString().replace(/[^\d]/g, '') || null,
+          };
+          console.log('Bank info extracted:', bankInfo);
+        }
+        
         transactions = (parsed.transactions || []).map((t: any, index: number) => ({
           id: `pdf-${Date.now()}-${index}`,
           date: t.date || new Date().toISOString().split('T')[0],
@@ -175,10 +214,14 @@ REGRAS CRÍTICAS:
     }
 
     console.log(`Extracted ${transactions.length} transactions from PDF`);
+    if (bankInfo) {
+      console.log(`Bank info: ${bankInfo.banco} Ag: ${bankInfo.agencia} Cc: ${bankInfo.conta}`);
+    }
 
     const result: ParseResult = {
       success: true,
       transactions,
+      bankInfo,
     };
 
     return new Response(
