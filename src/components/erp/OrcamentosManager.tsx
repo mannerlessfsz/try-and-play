@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useOrcamentos, OrcamentoInput } from "@/hooks/useOrcamentos";
 import { useClientes } from "@/hooks/useClientes";
+import { useProdutos } from "@/hooks/useProdutos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Plus, Search, FileText, Loader2, Edit, Trash2, 
-  CheckCircle2, XCircle, Send, Eye, ArrowRight
+  CheckCircle2, XCircle, Send, Eye, ArrowRight, Package
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,6 +34,7 @@ interface ItemForm {
   unidade: string;
   valor_unitario: number;
   total: number;
+  produto_id?: string;
 }
 
 const statusColors: Record<string, string> = {
@@ -54,8 +58,11 @@ const statusLabels: Record<string, string> = {
 export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
   const { orcamentos, isLoading, addOrcamento, updateStatus, deleteOrcamento } = useOrcamentos(empresaId);
   const { clientes } = useClientes(empresaId);
+  const { produtos } = useProdutos(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  const [produtoSearchOpen, setProdutoSearchOpen] = useState(false);
+  const [produtoSearch, setProdutoSearch] = useState("");
   
   // Form state
   const [formData, setFormData] = useState<Partial<OrcamentoInput>>({
@@ -76,6 +83,30 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
     valor_unitario: 0,
     total: 0,
   });
+
+  // Filtrar produtos na busca
+  const filteredProdutos = useMemo(() => {
+    if (!produtoSearch) return produtos.slice(0, 20);
+    const search = produtoSearch.toLowerCase();
+    return produtos.filter(p => 
+      p.nome.toLowerCase().includes(search) ||
+      p.codigo?.toLowerCase().includes(search)
+    ).slice(0, 20);
+  }, [produtos, produtoSearch]);
+
+  // Handler para selecionar produto
+  const handleSelectProduto = (produto: typeof produtos[0]) => {
+    setNovoItem({
+      descricao: produto.nome,
+      quantidade: 1,
+      unidade: produto.unidade?.codigo || "UN",
+      valor_unitario: produto.preco_venda || 0,
+      total: produto.preco_venda || 0,
+      produto_id: produto.id,
+    });
+    setProdutoSearchOpen(false);
+    setProdutoSearch("");
+  };
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -248,7 +279,52 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
 
               {/* Items Section */}
               <div className="border border-foreground/10 rounded-lg p-4 space-y-4">
-                <h4 className="font-medium text-foreground">Itens do Orçamento</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-foreground">Itens do Orçamento</h4>
+                  <Popover open={produtoSearchOpen} onOpenChange={setProdutoSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="gap-2">
+                        <Package className="w-4 h-4" />
+                        Buscar Produto
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[400px] p-0" align="end">
+                      <Command>
+                        <CommandInput 
+                          placeholder="Buscar por nome ou código..." 
+                          value={produtoSearch}
+                          onValueChange={setProdutoSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
+                          <CommandGroup heading="Produtos">
+                            {filteredProdutos.map((produto) => (
+                              <CommandItem
+                                key={produto.id}
+                                value={produto.nome}
+                                onSelect={() => handleSelectProduto(produto)}
+                                className="cursor-pointer"
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div>
+                                    <p className="font-medium">{produto.nome}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                      {produto.codigo && `Cód: ${produto.codigo} • `}
+                                      Estoque: {produto.estoque_atual || 0} {produto.unidade?.codigo || 'UN'}
+                                    </p>
+                                  </div>
+                                  <span className="text-sm font-semibold text-purple-400">
+                                    {formatCurrency(produto.preco_venda || 0)}
+                                  </span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
                 
                 {/* Add Item Form */}
                 <div className="grid grid-cols-12 gap-2 items-end">
@@ -257,7 +333,7 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
                     <Input
                       placeholder="Serviço ou item"
                       value={novoItem.descricao}
-                      onChange={(e) => setNovoItem({ ...novoItem, descricao: e.target.value })}
+                      onChange={(e) => setNovoItem({ ...novoItem, descricao: e.target.value, produto_id: undefined })}
                     />
                   </div>
                   <div className="col-span-2 space-y-1">
