@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Atividade } from "@/types/task";
+import { useAtividades } from "@/hooks/useAtividades";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTransacoes } from "@/hooks/useTransacoes";
 import { 
@@ -168,11 +168,8 @@ export default function FinancialACE() {
     { id: "6", descricao: "Internet + Telefone", valor: 280, tipo: "despesa" as const, categoria: "Infraestrutura", data: "2024-12-05", status: "confirmado" as const },
   ]);
 
-  const [atividades] = useState<Atividade[]>([
-    { id: "1", tipo: "criacao", descricao: "Nova receita: Pagamento Cliente ABC", timestamp: "Há 2 horas", usuario: "Sistema" },
-    { id: "2", tipo: "conclusao", descricao: "Despesa confirmada: Aluguel", timestamp: "Há 4 horas", usuario: "Ana" },
-    { id: "3", tipo: "edicao", descricao: "Meta atualizada: Economia mensal", timestamp: "Há 6 horas", usuario: "Carlos" },
-  ]);
+  // Use real activities hook
+  const { atividades, loading: atividadesLoading } = useAtividades();
 
   // Use real transacoes hook for metrics
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
@@ -685,9 +682,19 @@ export default function FinancialACE() {
           Atividades Recentes
         </div>
         <div className="space-y-1">
-          {atividades.map(atividade => (
-            <TimelineItem key={atividade.id} atividade={atividade} />
-          ))}
+          {atividadesLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            </div>
+          ) : atividades.length === 0 ? (
+            <div className="text-xs text-muted-foreground text-center py-4">
+              Nenhuma atividade registrada
+            </div>
+          ) : (
+            atividades.slice(0, 20).map(atividade => (
+              <TimelineItem key={atividade.id} atividade={atividade} />
+            ))
+          )}
         </div>
       </div>
     </div>
