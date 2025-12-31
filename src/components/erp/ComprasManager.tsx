@@ -11,6 +11,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 interface ComprasManagerProps {
   empresaId: string;
+  empresaCnpj?: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -22,7 +23,7 @@ const statusColors: Record<string, string> = {
   cancelado: "bg-red-500/20 text-red-400 border-red-500/30",
 };
 
-export function ComprasManager({ empresaId }: ComprasManagerProps) {
+export function ComprasManager({ empresaId, empresaCnpj }: ComprasManagerProps) {
   const { compras, isLoading } = useCompras(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
   const [importModalOpen, setImportModalOpen] = useState(false);
@@ -125,6 +126,7 @@ export function ComprasManager({ empresaId }: ComprasManagerProps) {
         open={importModalOpen}
         onOpenChange={setImportModalOpen}
         empresaId={empresaId}
+        empresaCnpj={empresaCnpj}
         onImportComplete={handleImportComplete}
       />
     </div>

@@ -54,12 +54,19 @@ interface ImportNFeModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   empresaId: string;
+  empresaCnpj?: string | null;
   onImportComplete: () => void;
 }
 
 type ImportStep = "upload" | "preview" | "importing" | "complete";
 
-export function ImportNFeModal({ open, onOpenChange, empresaId, onImportComplete }: ImportNFeModalProps) {
+// Normalize CNPJ for comparison (remove punctuation)
+function normalizeCnpj(cnpj: string | null | undefined): string {
+  if (!cnpj) return '';
+  return cnpj.replace(/[^\d]/g, '');
+}
+
+export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onImportComplete }: ImportNFeModalProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -113,18 +120,35 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, onImportComplete
       if (error) throw new Error(error.message);
       if (!data?.success) throw new Error(data?.error || 'Falha ao processar NF-e');
 
+      const nfeResult = data.data;
+
+      // Validate CNPJ - the NF-e destinatário must match the active company
+      if (empresaCnpj) {
+        const cnpjEmpresa = normalizeCnpj(empresaCnpj);
+        const cnpjDestinatario = normalizeCnpj(nfeResult.destinatario?.cnpj);
+        
+        if (cnpjDestinatario && cnpjEmpresa && cnpjDestinatario !== cnpjEmpresa) {
+          toast({
+            title: "CNPJ não confere",
+            description: `Esta NF-e foi emitida para o CNPJ ${nfeResult.destinatario.cnpj}, mas a empresa ativa possui CNPJ ${empresaCnpj}. Selecione a empresa correta.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       // Add selected flag to products
-      const produtos = (data.data.produtos || []).map((p: any) => ({
+      const produtos = (nfeResult.produtos || []).map((p: any) => ({
         ...p,
         selected: true,
       }));
 
-      setNfeData({ ...data.data, produtos });
+      setNfeData({ ...nfeResult, produtos });
       setStep("preview");
 
       toast({
         title: "NF-e processada",
-        description: `${produtos.length} produtos encontrados na nota ${data.data.numero}`,
+        description: `${produtos.length} produtos encontrados na nota ${nfeResult.numero}`,
       });
     } catch (error) {
       console.error('Error processing NF-e:', error);

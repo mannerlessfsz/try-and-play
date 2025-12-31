@@ -362,6 +362,72 @@ export default function FinancialACE() {
           throw new Error(pdfData?.error || 'Falha ao extrair transações do PDF');
         }
 
+        // Validate bank info from PDF if available
+        if (pdfData.bankInfo) {
+          const pdfAgencia = normalizeAccountNumber(pdfData.bankInfo.agencia);
+          const pdfConta = normalizeAccountNumber(pdfData.bankInfo.conta);
+          const cadastroAgencia = normalizeAccountNumber(contaSelecionada.agencia);
+          const cadastroConta = normalizeAccountNumber(contaSelecionada.conta);
+
+          // Validate account number if extracted
+          if (pdfConta && cadastroConta && pdfConta !== cadastroConta) {
+            setExtratosImportados(prev => 
+              prev.map(e => 
+                e.id === novoExtrato.id 
+                  ? { ...e, status: "erro", transacoes: 0 }
+                  : e
+              )
+            );
+            toast({
+              title: "Conta não confere",
+              description: `O extrato PDF é da conta ${pdfData.bankInfo.conta}, mas você selecionou a conta ${contaSelecionada.conta}. Verifique a conta correta.`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Validate branch if extracted
+          if (pdfAgencia && cadastroAgencia && pdfAgencia !== cadastroAgencia) {
+            setExtratosImportados(prev => 
+              prev.map(e => 
+                e.id === novoExtrato.id 
+                  ? { ...e, status: "erro", transacoes: 0 }
+                  : e
+              )
+            );
+            toast({
+              title: "Agência não confere",
+              description: `O extrato PDF é da agência ${pdfData.bankInfo.agencia}, mas a conta cadastrada é da agência ${contaSelecionada.agencia}.`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Validate CNPJ if extracted and empresa has CNPJ
+          if (pdfData.bankInfo.cnpj && empresaAtiva?.cnpj) {
+            const pdfCnpj = pdfData.bankInfo.cnpj.replace(/[^\d]/g, '');
+            const empresaCnpj = empresaAtiva.cnpj.replace(/[^\d]/g, '');
+            
+            if (pdfCnpj && empresaCnpj && pdfCnpj !== empresaCnpj) {
+              setExtratosImportados(prev => 
+                prev.map(e => 
+                  e.id === novoExtrato.id 
+                    ? { ...e, status: "erro", transacoes: 0 }
+                    : e
+                )
+              );
+              toast({
+                title: "CNPJ não confere",
+                description: `O extrato pertence ao CNPJ ${pdfData.bankInfo.cnpj}, mas a empresa ativa possui CNPJ ${empresaAtiva.cnpj}.`,
+                variant: "destructive",
+              });
+              return;
+            }
+          }
+
+          console.log('PDF bank info validated:', pdfData.bankInfo);
+        }
+
         // Filter by competência
         const primeiroDia = new Date(data.ano, data.mes - 1, 1);
         const ultimoDia = new Date(data.ano, data.mes, 0);
@@ -963,7 +1029,7 @@ export default function FinancialACE() {
         )}
 
         {activeTab === "compras" && empresaAtiva && (
-          <ComprasManager empresaId={empresaAtiva.id} />
+          <ComprasManager empresaId={empresaAtiva.id} empresaCnpj={empresaAtiva.cnpj} />
         )}
 
         {activeTab === "estoque" && empresaAtiva && (
