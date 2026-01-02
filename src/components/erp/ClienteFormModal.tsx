@@ -1,51 +1,98 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useClientes, ClienteInsert } from "@/hooks/useClientes";
+import { useClientes, ClienteInsert, Cliente } from "@/hooks/useClientes";
 import { Loader2, Save, X } from "lucide-react";
 
 interface ClienteFormModalProps {
   open: boolean;
   onClose: () => void;
   empresaId: string;
+  cliente?: Cliente | null;
 }
 
-export function ClienteFormModal({ open, onClose, empresaId }: ClienteFormModalProps) {
-  const { addCliente } = useClientes(empresaId);
+export function ClienteFormModal({ open, onClose, empresaId, cliente }: ClienteFormModalProps) {
+  const { addCliente, updateCliente } = useClientes(empresaId);
   const [formData, setFormData] = useState<Partial<ClienteInsert>>({
     tipo_pessoa: "fisica",
     ativo: true,
   });
+
+  const isEditing = !!cliente;
+
+  useEffect(() => {
+    if (cliente) {
+      setFormData({
+        tipo_pessoa: cliente.tipo_pessoa || "fisica",
+        nome: cliente.nome,
+        nome_fantasia: cliente.nome_fantasia,
+        cpf_cnpj: cliente.cpf_cnpj,
+        rg_ie: cliente.rg_ie,
+        email: cliente.email,
+        telefone: cliente.telefone,
+        celular: cliente.celular,
+        cep: cliente.cep,
+        endereco: cliente.endereco,
+        numero: cliente.numero,
+        bairro: cliente.bairro,
+        cidade: cliente.cidade,
+        estado: cliente.estado,
+        complemento: cliente.complemento,
+        limite_credito: cliente.limite_credito,
+        data_nascimento: cliente.data_nascimento,
+        observacoes: cliente.observacoes,
+        ativo: cliente.ativo ?? true,
+      });
+    } else {
+      setFormData({ tipo_pessoa: "fisica", ativo: true });
+    }
+  }, [cliente, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.nome) return;
 
-    addCliente.mutate(
-      { ...formData, empresa_id: empresaId, nome: formData.nome } as ClienteInsert,
-      {
-        onSuccess: () => {
-          setFormData({ tipo_pessoa: "fisica", ativo: true });
-          onClose();
-        },
-      }
-    );
+    if (isEditing && cliente) {
+      updateCliente.mutate(
+        { id: cliente.id, ...formData },
+        {
+          onSuccess: () => {
+            setFormData({ tipo_pessoa: "fisica", ativo: true });
+            onClose();
+          },
+        }
+      );
+    } else {
+      addCliente.mutate(
+        { ...formData, empresa_id: empresaId, nome: formData.nome } as ClienteInsert,
+        {
+          onSuccess: () => {
+            setFormData({ tipo_pessoa: "fisica", ativo: true });
+            onClose();
+          },
+        }
+      );
+    }
   };
 
   const updateField = (field: keyof ClienteInsert, value: string | number | boolean | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const isPending = addCliente.isPending || updateCliente.isPending;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-green-500">Novo Cliente</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-green-500">
+            {isEditing ? "Editar Cliente" : "Novo Cliente"}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -241,13 +288,13 @@ export function ClienteFormModal({ open, onClose, empresaId }: ClienteFormModalP
               <X className="w-4 h-4 mr-2" />
               Cancelar
             </Button>
-            <Button type="submit" className="bg-green-500 hover:bg-green-600" disabled={addCliente.isPending}>
-              {addCliente.isPending ? (
+            <Button type="submit" className="bg-green-500 hover:bg-green-600" disabled={isPending}>
+              {isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              Salvar Cliente
+              {isEditing ? "Atualizar" : "Salvar"} Cliente
             </Button>
           </div>
         </form>
