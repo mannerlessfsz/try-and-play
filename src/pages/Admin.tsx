@@ -133,10 +133,17 @@ const Admin: React.FC = () => {
   const [editingUser, setEditingUser] = useState<Profile | null>(null);
   const [editUserForm, setEditUserForm] = useState({ full_name: '', email: '' });
 
-  // Fetch all users
+  // Fetch all users (includes automatic sync of missing profiles)
   const { data: users = [], isLoading: usersLoading } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
+      // First, sync any missing profiles from auth.users
+      try {
+        await supabase.rpc('sync_missing_profiles');
+      } catch {
+        // Ignore errors (user may not be admin or function may not exist yet)
+      }
+      
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
       return data as Profile[];
