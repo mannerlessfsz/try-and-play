@@ -48,6 +48,7 @@ export interface TransacaoInput {
   observacoes?: string;
   competencia_ano?: number;
   competencia_mes?: number;
+  conciliado?: boolean;
 }
 
 // Options for filtering transactions
@@ -141,6 +142,48 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
   });
 
+  // Conciliar uma transação (marcar como conciliado)
+  const conciliarMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data, error } = await supabase
+        .from("transacoes")
+        .update({ conciliado: true, data_conciliacao: new Date().toISOString().split('T')[0] })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao conciliar transação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Conciliar várias transações em massa
+  const conciliarEmMassaMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { data, error } = await supabase
+        .from("transacoes")
+        .update({ conciliado: true, data_conciliacao: new Date().toISOString().split('T')[0] })
+        .in("id", ids)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      toast({ title: `${data?.length || 0} transações conciliadas` });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao conciliar transações", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -175,11 +218,17 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     isLoading: query.isLoading,
     error: query.error,
     createTransacao: createMutation.mutate,
+    createTransacaoAsync: createMutation.mutateAsync,
     updateTransacao: updateMutation.mutate,
     deleteTransacao: deleteMutation.mutate,
+    conciliarTransacao: conciliarMutation.mutate,
+    conciliarTransacaoAsync: conciliarMutation.mutateAsync,
+    conciliarEmMassa: conciliarEmMassaMutation.mutate,
+    conciliarEmMassaAsync: conciliarEmMassaMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
+    isConciliando: conciliarMutation.isPending || conciliarEmMassaMutation.isPending,
     totalReceitas,
     totalDespesas,
     saldo,
