@@ -5,7 +5,7 @@ import { useEmpresas } from "@/hooks/useEmpresas";
 import { EmpresaWizard } from "./EmpresaWizard";
 
 export function EmpresaCadastroCard() {
-  const { empresas, loading: isLoading } = useEmpresas();
+  const { empresas, loading: isLoading, refetch } = useEmpresas();
   const [isWizardOpen, setIsWizardOpen] = useState(false);
 
   return (
@@ -33,7 +33,8 @@ export function EmpresaCadastroCard() {
 
       <EmpresaWizard 
         isOpen={isWizardOpen} 
-        onClose={() => setIsWizardOpen(false)} 
+        onClose={() => setIsWizardOpen(false)}
+        onSuccess={() => refetch()}
       />
     </>
   );
