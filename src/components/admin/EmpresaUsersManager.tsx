@@ -7,7 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { 
   MODULE_RESOURCES, 
@@ -21,7 +23,9 @@ import {
   Crown, 
   Loader2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Mail,
+  User
 } from 'lucide-react';
 
 interface Profile {
@@ -57,6 +61,10 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [selectedModule, setSelectedModule] = useState<string>('financialace');
+  const [addMode, setAddMode] = useState<'existing' | 'new'>('existing');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
 
   // Fetch all users
   const { data: allUsers = [] } = useQuery({
@@ -103,12 +111,58 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresa-users', empresaId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setIsOpen(false);
       setSelectedUserId(null);
+      setNewUserEmail('');
+      setNewUserName('');
+      setNewUserPassword('');
+      setAddMode('existing');
       toast({ title: 'Usuário adicionado à empresa' });
     },
     onError: (error) => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  // Create new user and add to empresa
+  const createUserMutation = useMutation({
+    mutationFn: async ({ email, name, password, isOwner }: { email: string; name: string; password: string; isOwner: boolean }) => {
+      // Create user via Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+          },
+        },
+      });
+      
+      if (authError) throw authError;
+      if (!authData.user) throw new Error('Falha ao criar usuário');
+
+      // Link user to empresa
+      const { error: linkError } = await supabase
+        .from('user_empresas')
+        .insert({ user_id: authData.user.id, empresa_id: empresaId, is_owner: isOwner });
+      
+      if (linkError) throw linkError;
+      
+      return authData.user;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['empresa-users', empresaId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setIsOpen(false);
+      setNewUserEmail('');
+      setNewUserName('');
+      setNewUserPassword('');
+      setAddMode('existing');
+      toast({ title: 'Usuário criado e adicionado à empresa' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao criar usuário', description: error.message, variant: 'destructive' });
     },
   });
 
@@ -204,44 +258,122 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
               <UserPlus className="w-4 h-4" /> Adicionar Usuário
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Adicionar Usuário à Empresa</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label>Selecione o usuário</Label>
-                <Select value={selectedUserId || ''} onValueChange={setSelectedUserId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Escolha um usuário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableUsers.map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.full_name || user.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => selectedUserId && addUserMutation.mutate({ userId: selectedUserId, isOwner: false })}
-                  disabled={!selectedUserId || addUserMutation.isPending}
-                  className="flex-1"
-                >
-                  Adicionar como Usuário
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => selectedUserId && addUserMutation.mutate({ userId: selectedUserId, isOwner: true })}
-                  disabled={!selectedUserId || addUserMutation.isPending}
-                  className="flex-1"
-                >
-                  <Crown className="w-4 h-4 mr-1" /> Adicionar como Proprietário
-                </Button>
-              </div>
-            </div>
+            <Tabs value={addMode} onValueChange={(v) => setAddMode(v as 'existing' | 'new')}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="existing" className="gap-2">
+                  <User className="w-4 h-4" /> Existente
+                </TabsTrigger>
+                <TabsTrigger value="new" className="gap-2">
+                  <UserPlus className="w-4 h-4" /> Novo
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="existing" className="space-y-4 mt-4">
+                <div>
+                  <Label>Selecione o usuário</Label>
+                  <Select value={selectedUserId || ''} onValueChange={setSelectedUserId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Escolha um usuário" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableUsers.length === 0 ? (
+                        <div className="p-2 text-sm text-muted-foreground text-center">
+                          Nenhum usuário disponível
+                        </div>
+                      ) : (
+                        availableUsers.map(user => (
+                          <SelectItem key={user.id} value={user.id}>
+                            {user.full_name || user.email}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => selectedUserId && addUserMutation.mutate({ userId: selectedUserId, isOwner: false })}
+                    disabled={!selectedUserId || addUserMutation.isPending}
+                    className="flex-1"
+                  >
+                    {addUserMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Adicionar
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => selectedUserId && addUserMutation.mutate({ userId: selectedUserId, isOwner: true })}
+                    disabled={!selectedUserId || addUserMutation.isPending}
+                    className="flex-1"
+                  >
+                    <Crown className="w-4 h-4 mr-1" /> Como Proprietário
+                  </Button>
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="new" className="space-y-4 mt-4">
+                <div>
+                  <Label htmlFor="newUserName">Nome completo</Label>
+                  <Input
+                    id="newUserName"
+                    placeholder="Nome do usuário"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newUserEmail">E-mail</Label>
+                  <Input
+                    id="newUserEmail"
+                    type="email"
+                    placeholder="email@exemplo.com"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="newUserPassword">Senha</Label>
+                  <Input
+                    id="newUserPassword"
+                    type="password"
+                    placeholder="Mínimo 6 caracteres"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => createUserMutation.mutate({ 
+                      email: newUserEmail, 
+                      name: newUserName, 
+                      password: newUserPassword, 
+                      isOwner: false 
+                    })}
+                    disabled={!newUserEmail || !newUserPassword || newUserPassword.length < 6 || createUserMutation.isPending}
+                    className="flex-1"
+                  >
+                    {createUserMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Criar Usuário
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => createUserMutation.mutate({ 
+                      email: newUserEmail, 
+                      name: newUserName, 
+                      password: newUserPassword, 
+                      isOwner: true 
+                    })}
+                    disabled={!newUserEmail || !newUserPassword || newUserPassword.length < 6 || createUserMutation.isPending}
+                    className="flex-1"
+                  >
+                    <Crown className="w-4 h-4 mr-1" /> Como Proprietário
+                  </Button>
+                </div>
+              </TabsContent>
+            </Tabs>
           </DialogContent>
         </Dialog>
       </div>
