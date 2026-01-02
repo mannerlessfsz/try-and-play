@@ -32,6 +32,7 @@ interface Profile {
   id: string;
   email: string;
   full_name: string | null;
+  ativo: boolean;
 }
 
 interface UserEmpresa {
@@ -96,9 +97,9 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     isUpdating 
   } = useResourcePermissions(empresaId);
 
-  // Get users not yet linked
+  // Get active users not yet linked
   const availableUsers = allUsers.filter(
-    u => !empresaUsers.some(eu => eu.user_id === u.id)
+    u => u.ativo && !empresaUsers.some(eu => eu.user_id === u.id)
   );
 
   // Add user to empresa
@@ -125,9 +126,15 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     },
   });
 
-  // Create new user and add to empresa
+  // Create new user and add to empresa with email validation
   const createUserMutation = useMutation({
     mutationFn: async ({ email, name, password, isOwner }: { email: string; name: string; password: string; isOwner: boolean }) => {
+      // Check if email already exists
+      const existingUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existingUser) {
+        throw new Error('Este e-mail já está cadastrado no sistema. Use a aba "Existente" para adicionar este usuário.');
+      }
+      
       // Create user via Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -139,7 +146,13 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
         },
       });
       
-      if (authError) throw authError;
+      if (authError) {
+        // Check for duplicate email error from Supabase
+        if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
+          throw new Error('Este e-mail já está cadastrado no sistema. Use a aba "Existente" para adicionar este usuário.');
+        }
+        throw authError;
+      }
       if (!authData.user) throw new Error('Falha ao criar usuário');
 
       // Link user to empresa
@@ -282,12 +295,12 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                     <SelectContent>
                       {availableUsers.length === 0 ? (
                         <div className="p-2 text-sm text-muted-foreground text-center">
-                          Nenhum usuário disponível
+                          Nenhum usuário ativo disponível
                         </div>
                       ) : (
                         availableUsers.map(user => (
                           <SelectItem key={user.id} value={user.id}>
-                            {user.full_name || user.email}
+                            {user.full_name || user.email} {!user.ativo && '(Inativo)'}
                           </SelectItem>
                         ))
                       )}
