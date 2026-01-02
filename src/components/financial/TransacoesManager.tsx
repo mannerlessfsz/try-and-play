@@ -47,10 +47,10 @@ const MESES = [
   { value: 12, label: "Dezembro" },
 ];
 
-// Gerar anos disponíveis (ano atual e próximos 2 anos)
+// Gerar anos disponíveis (ano anterior, atual e próximos 2 anos)
 const getAvailableYears = () => {
   const currentYear = new Date().getFullYear();
-  return [currentYear, currentYear + 1, currentYear + 2];
+  return [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
 };
 
 export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: TransacoesManagerProps) {
@@ -87,6 +87,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
   });
 
   // Calcular limites de data baseado na competência selecionada
+  // Permite lançamentos até 1 mês antes da data atual
   const dateLimits = useMemo(() => {
     const ano = formData.competencia_ano || today.getFullYear();
     const mes = formData.competencia_mes || (today.getMonth() + 1);
@@ -94,8 +95,11 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     const firstDay = new Date(ano, mes - 1, 1);
     const lastDay = new Date(ano, mes, 0);
     
-    // Data mínima é o maior entre: primeiro dia da competência e hoje
-    const minDate = firstDay > today ? firstDay : today;
+    // Calcular primeiro dia do mês anterior (limite mínimo permitido)
+    const primeiroDiaMesAnterior = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    
+    // Data mínima é o maior entre: primeiro dia da competência e primeiro dia do mês anterior
+    const minDate = firstDay > primeiroDiaMesAnterior ? firstDay : primeiroDiaMesAnterior;
     
     return {
       min: minDate.toISOString().split('T')[0],
@@ -105,15 +109,16 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     };
   }, [formData.competencia_ano, formData.competencia_mes, today]);
 
-  // Validar se a data está dentro da competência e não é passada
+  // Validar se a data está dentro da competência e não é anterior ao mês passado
   const isDateValid = useMemo(() => {
     if (!formData.data_transacao) return false;
     const selectedDate = new Date(formData.data_transacao + 'T00:00:00');
-    const todayStart = new Date(today.toISOString().split('T')[0] + 'T00:00:00');
+    const primeiroDiaMesAnterior = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const minDate = new Date(dateLimits.firstDay + 'T00:00:00');
     const maxDate = new Date(dateLimits.lastDay + 'T00:00:00');
     
-    return selectedDate >= todayStart && selectedDate >= minDate && selectedDate <= maxDate;
+    // Permite datas a partir do primeiro dia do mês anterior
+    return selectedDate >= primeiroDiaMesAnterior && selectedDate >= minDate && selectedDate <= maxDate;
   }, [formData.data_transacao, dateLimits, today]);
 
   const resetForm = () => {
