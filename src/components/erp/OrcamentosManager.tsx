@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useOrcamentos, OrcamentoInput } from "@/hooks/useOrcamentos";
+import { useOrcamentos, OrcamentoInput, Orcamento, OrcamentoItem } from "@/hooks/useOrcamentos";
 import { useClientes } from "@/hooks/useClientes";
 import { useProdutos } from "@/hooks/useProdutos";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { generateOrcamentoPdf } from "@/utils/generateOrcamentoPdf";
 import { useToast } from "@/hooks/use-toast";
+import { OrcamentoPreviewModal } from "./OrcamentoPreviewModal";
 
 interface OrcamentosManagerProps {
   empresaId: string;
@@ -69,6 +70,8 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
   const [produtoSearchOpen, setProdutoSearchOpen] = useState(false);
   const [produtoSearch, setProdutoSearch] = useState("");
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewOrcamento, setPreviewOrcamento] = useState<(Orcamento & { itens?: OrcamentoItem[] }) | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<Partial<OrcamentoInput>>({
@@ -188,7 +191,7 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
     updateStatus.mutate({ id, status: newStatus });
   };
 
-  const handleGeneratePdf = async (orcamentoId: string) => {
+  const handleGeneratePdf = async (orcamentoId: string, fromPreview = false) => {
     if (!empresaAtiva) {
       toast({ title: "Empresa não selecionada", variant: "destructive" });
       return;
@@ -196,7 +199,9 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
 
     setGeneratingPdf(orcamentoId);
     try {
-      const orcamentoCompleto = await getOrcamentoComItens(orcamentoId);
+      const orcamentoCompleto = fromPreview && previewOrcamento 
+        ? previewOrcamento 
+        : await getOrcamentoComItens(orcamentoId);
       await generateOrcamentoPdf(orcamentoCompleto, {
         nome: empresaAtiva.nome,
         cnpj: empresaAtiva.cnpj,
@@ -208,6 +213,17 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
       toast({ title: "Erro ao gerar PDF", variant: "destructive" });
     } finally {
       setGeneratingPdf(null);
+    }
+  };
+
+  const handleOpenPreview = async (orcamentoId: string) => {
+    try {
+      const orcamentoCompleto = await getOrcamentoComItens(orcamentoId);
+      setPreviewOrcamento(orcamentoCompleto);
+      setPreviewOpen(true);
+    } catch (error) {
+      console.error("Erro ao carregar orçamento:", error);
+      toast({ title: "Erro ao carregar orçamento", variant: "destructive" });
     }
   };
 
@@ -529,6 +545,10 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenPreview(o.id)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Visualizar
+                          </DropdownMenuItem>
                           <DropdownMenuItem 
                             onClick={() => handleGeneratePdf(o.id)}
                             disabled={generatingPdf === o.id}
@@ -572,6 +592,20 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Preview Modal */}
+      <OrcamentoPreviewModal
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        orcamento={previewOrcamento}
+        empresa={{
+          nome: empresaAtiva?.nome || "",
+          cnpj: empresaAtiva?.cnpj,
+          email: empresaAtiva?.email,
+        }}
+        onDownload={() => previewOrcamento && handleGeneratePdf(previewOrcamento.id, true)}
+        isDownloading={!!generatingPdf}
+      />
     </div>
   );
 }

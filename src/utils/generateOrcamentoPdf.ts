@@ -6,6 +6,7 @@ interface EmpresaInfo {
   cnpj?: string | null;
   email?: string | null;
   telefone?: string | null;
+  logo_url?: string | null;
 }
 
 const formatCurrency = (value: number) =>
@@ -13,6 +14,22 @@ const formatCurrency = (value: number) =>
 
 const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString("pt-BR");
+};
+
+// Helper to load image as base64
+const loadImageAsBase64 = async (url: string): Promise<string | null> => {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
 };
 
 export async function generateOrcamentoPdf(
@@ -36,11 +53,26 @@ export async function generateOrcamentoPdf(
   doc.setFillColor(...primaryColor);
   doc.rect(0, 0, pageWidth, 35, "F");
 
+  // Try to load and add logo
+  let logoXOffset = 0;
+  if (empresa.logo_url) {
+    try {
+      const logoBase64 = await loadImageAsBase64(empresa.logo_url);
+      if (logoBase64) {
+        // Add logo on the left side of header
+        doc.addImage(logoBase64, 'PNG', margin, 5, 25, 25);
+        logoXOffset = 30; // Offset company name to the right
+      }
+    } catch (e) {
+      console.warn("Could not load logo:", e);
+    }
+  }
+
   // Company name
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(255, 255, 255);
-  doc.text(empresa.nome.toUpperCase(), margin, 22);
+  doc.text(empresa.nome.toUpperCase(), margin + logoXOffset, 22);
 
   // Company info on header right
   doc.setFontSize(9);
