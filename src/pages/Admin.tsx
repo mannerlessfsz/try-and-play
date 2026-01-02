@@ -92,6 +92,9 @@ interface ContaBancaria {
   ativo: boolean;
 }
 
+// ID do usuário master - nunca pode ter suas permissões alteradas
+const MASTER_USER_ID = 'c84c3e62-f61c-4cc0-8468-b1b5dd652036';
+
 const MODULES: { value: AppModule; label: string }[] = [
   { value: 'taskvault', label: 'TaskVault' },
   { value: 'financialace', label: 'FinancialACE' },
@@ -210,15 +213,21 @@ const Admin: React.FC = () => {
     }
   });
 
-  // Remove role mutation
+  // Remove role mutation (protected for master user)
   const removeRoleMutation = useMutation({
-    mutationFn: async (roleId: string) => {
+    mutationFn: async ({ roleId, userId }: { roleId: string; userId: string }) => {
+      if (userId === MASTER_USER_ID) {
+        throw new Error('Não é possível remover papéis do usuário master');
+      }
       const { error } = await supabase.from('user_roles').delete().eq('id', roleId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-all-roles'] });
       toast({ title: 'Papel removido' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     }
   });
 
@@ -493,17 +502,29 @@ const Admin: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {users.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.full_name || '-'}</TableCell>
+                        <TableRow key={user.id} className={user.id === MASTER_USER_ID ? 'bg-yellow-500/10' : ''}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {user.full_name || '-'}
+                              {user.id === MASTER_USER_ID && (
+                                <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
+                                  <Crown className="w-3 h-3" /> Master
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{user.email}</TableCell>
                           <TableCell>
                             <div className="flex gap-1 flex-wrap">
                               {getUserRoles(user.id).map(role => (
                                 <Badge key={role.id} variant="secondary" className="gap-1">
                                   {ROLES.find(r => r.value === role.role)?.label}
-                                  <button onClick={() => removeRoleMutation.mutate(role.id)}>
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
+                                  {user.id !== MASTER_USER_ID && (
+                                    <button onClick={() => removeRoleMutation.mutate({ roleId: role.id, userId: user.id })}>
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  )}
+                                  {user.id === MASTER_USER_ID && <Crown className="w-3 h-3 text-yellow-500" />}
                                 </Badge>
                               ))}
                               <Dialog>
