@@ -160,7 +160,7 @@ export default function FinancialACE() {
   const { atividades, loading: atividadesLoading } = useAtividades();
 
   // Use real transacoes hook for metrics
-  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes, createTransacao } = useTransacoes(empresaAtiva?.id);
+  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes, createTransacao, createTransacaoAsync, conciliarTransacaoAsync, conciliarEmMassaAsync } = useTransacoes(empresaAtiva?.id);
   
   // Use real bank accounts hook
   const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaAtiva?.id);
@@ -468,6 +468,7 @@ export default function FinancialACE() {
       // Try to match statement entries with existing transactions
       let conciliadasAuto = 0;
       const transacoesDisponiveis = transacoes.filter(t => !t.conciliado);
+      const idsParaConciliar: string[] = [];
       
       novosLancamentos = novosLancamentos.map(lancamento => {
         // Find matching transaction: same type, same value, similar date (±5 days)
@@ -490,11 +491,21 @@ export default function FinancialACE() {
           if (idx > -1) transacoesDisponiveis.splice(idx, 1);
           
           conciliadasAuto++;
+          idsParaConciliar.push(match.id);
           return { ...lancamento, conciliado: true, transacaoVinculadaId: match.id };
         }
         
         return lancamento;
       });
+
+      // Persist reconciliation to database
+      if (idsParaConciliar.length > 0) {
+        try {
+          await conciliarEmMassaAsync(idsParaConciliar);
+        } catch (err) {
+          console.error('Erro ao conciliar em massa:', err);
+        }
+      }
 
       setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
       setExtratosImportados(prev => 
@@ -510,6 +521,7 @@ export default function FinancialACE() {
         )
       );
       setExtratoSelecionado(novoExtrato.id);
+      setActiveTab("conciliacao");
       
       if (conciliadasAuto > 0) {
         toast({
@@ -519,7 +531,7 @@ export default function FinancialACE() {
       } else {
         toast({
           title: "Extrato importado",
-          description: `${file.name} processado. ${numTransacoes} lançamentos encontrados.`,
+          description: `${file.name} processado. ${numTransacoes} lançamentos para conciliar manualmente.`,
         });
       }
 
@@ -566,10 +578,23 @@ export default function FinancialACE() {
   };
 
   // Link the lancamento to a transaction
-  const handleVincular = (transacaoId: string) => {
+  const handleVincular = async (transacaoId: string) => {
     if (!lancamentoParaVincular) return;
 
     const transacao = transacoesParaConciliacao.find(t => t.id === transacaoId);
+    
+    // Persist reconciliation to database
+    try {
+      await conciliarTransacaoAsync(transacaoId);
+    } catch (err) {
+      console.error('Erro ao conciliar:', err);
+      toast({
+        title: "Erro ao conciliar",
+        description: "Não foi possível salvar a conciliação no banco.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLancamentosExtrato(prev => 
       prev.map(l => 
@@ -599,25 +624,31 @@ export default function FinancialACE() {
     });
   };
 
-  // Create new transaction from lancamento
+  // Create new transaction from lancamento (already reconciled)
   const handleCriarTransacao = async () => {
     if (!lancamentoParaVincular || !empresaAtiva?.id) return;
 
     try {
-      await createTransacao({
+      // Create transaction already marked as reconciled
+      const novaTransacao = await createTransacaoAsync({
         empresa_id: empresaAtiva.id,
         descricao: lancamentoParaVincular.descricao,
         valor: lancamentoParaVincular.valor,
         tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa',
         data_transacao: lancamentoParaVincular.data,
-        status: 'confirmado',
+        status: 'pago',
       });
+
+      // Mark the newly created transaction as reconciled
+      if (novaTransacao?.id) {
+        await conciliarTransacaoAsync(novaTransacao.id);
+      }
       
       // Link the lancamento after transaction is created
       setLancamentosExtrato(prev => 
         prev.map(l => 
           l.id === lancamentoParaVincular.id 
-            ? { ...l, conciliado: true } 
+            ? { ...l, conciliado: true, transacaoVinculadaId: novaTransacao?.id } 
             : l
         )
       );
@@ -637,8 +668,8 @@ export default function FinancialACE() {
       setLancamentoParaVincular(null);
       
       toast({
-        title: "Transação criada",
-        description: `Nova transação de ${formatCurrency(lancamentoParaVincular.valor)}`,
+        title: "Transação criada e conciliada",
+        description: `Nova ${lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa'} de ${formatCurrency(lancamentoParaVincular.valor)}`,
       });
     } catch (error) {
       toast({
