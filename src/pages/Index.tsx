@@ -2,12 +2,10 @@ import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut } from "
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
-import { EmpresaCadastroCard } from "@/components/admin/EmpresaCadastroCard";
 import { ParticleField } from "@/components/ParticleField";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, AppModule } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
-
 interface FeatureConfig {
   icon: React.ReactNode;
   title: string;
@@ -127,19 +125,6 @@ const Index = () => {
           </div>
         </header>
 
-        {/* Admin Cards Section */}
-        {isAdmin && (
-          <div className="max-w-6xl mx-auto mb-10">
-            <div className="flex items-center gap-2 mb-4">
-              <Settings className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-muted-foreground">Área Administrativa</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <EmpresaCadastroCard />
-              {/* Espaço para outros cards de admin no futuro */}
-            </div>
-          </div>
-        )}
 
         {/* Feature Cards Grid - 4 em uma linha */}
         <div className="max-w-6xl mx-auto">
