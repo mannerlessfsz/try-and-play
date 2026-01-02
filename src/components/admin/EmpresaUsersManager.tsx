@@ -67,10 +67,17 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
 
-  // Fetch all users
+  // Fetch all users (includes automatic sync of missing profiles)
   const { data: allUsers = [] } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
+      // Sync any missing profiles first
+      try {
+        await supabase.rpc('sync_missing_profiles');
+      } catch {
+        // Ignore errors
+      }
+      
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
       return data as Profile[];

@@ -1963,6 +1963,7 @@ export type Database = {
         Args: { _empresa_id: string; _is_owner?: boolean; _user_id: string }
         Returns: undefined
       }
+      sync_missing_profiles: { Args: never; Returns: number }
     }
     Enums: {
       app_module:
