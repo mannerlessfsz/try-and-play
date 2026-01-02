@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useTransacoes, TransacaoInput } from "@/hooks/useTransacoes";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
+import { useClientes } from "@/hooks/useClientes";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, Edit, Trash2, Receipt, Loader2, ArrowUpRight, ArrowDownRight,
-  Calendar, CreditCard, FileText, AlertCircle
+  Calendar, CreditCard, FileText, AlertCircle, User
 } from "lucide-react";
 
 interface TransacoesManagerProps {
@@ -66,6 +67,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
   });
   const { categorias } = useCategorias(empresaId);
   const { contas } = useContasBancarias(empresaId);
+  const { clientes } = useClientes(empresaId);
   
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -77,6 +79,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     data_transacao: today.toISOString().split('T')[0],
     categoria_id: "",
     conta_bancaria_id: "",
+    cliente_id: "",
     forma_pagamento: "",
     observacoes: "",
     competencia_ano: today.getFullYear(),
@@ -122,6 +125,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       data_transacao: today.toISOString().split('T')[0],
       categoria_id: "",
       conta_bancaria_id: "",
+      cliente_id: "",
       forma_pagamento: "",
       observacoes: "",
       competencia_ano: competenciaAno,
@@ -140,6 +144,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       data_vencimento: transacao.data_vencimento || undefined,
       categoria_id: transacao.categoria_id || "",
       conta_bancaria_id: transacao.conta_bancaria_id || "",
+      cliente_id: transacao.cliente_id || "",
       forma_pagamento: transacao.forma_pagamento || "",
       observacoes: transacao.observacoes || "",
     });
@@ -164,6 +169,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       ...formData,
       categoria_id: formData.categoria_id || undefined,
       conta_bancaria_id: formData.conta_bancaria_id || undefined,
+      cliente_id: formData.cliente_id || undefined,
       competencia_ano: formData.competencia_ano,
       competencia_mes: formData.competencia_mes,
     };
@@ -413,7 +419,33 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                 </div>
               </div>
 
-              {/* Observações */}
+              {/* Cliente (Pessoa Física/Jurídica) */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <User className="w-3 h-3" />
+                  Cliente (CPF/CNPJ)
+                </Label>
+                <Select 
+                  value={formData.cliente_id || ""} 
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, cliente_id: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhum cliente</SelectItem>
+                    {clientes.map(cliente => (
+                      <SelectItem key={cliente.id} value={cliente.id}>
+                        {cliente.nome} {cliente.cpf_cnpj ? `(${cliente.cpf_cnpj})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Vincule a transação a um cliente para controle financeiro pessoal
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label>Observações</Label>
                 <Textarea
@@ -451,6 +483,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
             <thead className="bg-blue-500/10 border-b border-blue-500/20">
               <tr>
                 <th className="text-left p-3 font-medium text-foreground/80">Descrição</th>
+                <th className="text-left p-3 font-medium text-foreground/80">Cliente</th>
                 <th className="text-left p-3 font-medium text-foreground/80">Categoria</th>
                 <th className="text-left p-3 font-medium text-foreground/80">Conta</th>
                 <th className="text-left p-3 font-medium text-foreground/80">Data</th>
@@ -473,6 +506,14 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                       </div>
                       <span className="font-medium text-foreground">{transacao.descricao}</span>
                     </div>
+                  </td>
+                  <td className="p-3 text-muted-foreground text-xs">
+                    {transacao.cliente ? (
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span>{transacao.cliente.nome}</span>
+                      </div>
+                    ) : "-"}
                   </td>
                   <td className="p-3 text-muted-foreground">
                     {transacao.categoria ? (
