@@ -305,93 +305,156 @@ export function PermissionProfilesManager() {
 
                   {isExpanded && (
                     <div className="border-t border-border p-4 space-y-4">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-sm">Configurar Permissões do Perfil</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-primary" />
+                          <span className="font-medium text-sm">Configurar Permissões do Perfil</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Marque as permissões que este perfil terá em cada recurso
+                        </p>
                       </div>
 
                       {/* Module selector */}
                       <div className="flex gap-2 flex-wrap">
-                        {MODULES.map(mod => (
-                          <Button
-                            key={mod.value}
-                            size="sm"
-                            variant={selectedModule === mod.value ? 'default' : 'outline'}
-                            onClick={() => setSelectedModule(mod.value)}
-                          >
-                            {mod.label}
-                          </Button>
-                        ))}
+                        {MODULES.map(mod => {
+                          const modulePermCount = getProfileItems(profile.id).filter(
+                            item => item.module === mod.value
+                          ).reduce((acc, item) => {
+                            return acc + 
+                              (item.can_view ? 1 : 0) + 
+                              (item.can_create ? 1 : 0) + 
+                              (item.can_edit ? 1 : 0) + 
+                              (item.can_delete ? 1 : 0) + 
+                              (item.can_export ? 1 : 0);
+                          }, 0);
+                          
+                          return (
+                            <Button
+                              key={mod.value}
+                              size="sm"
+                              variant={selectedModule === mod.value ? 'default' : 'outline'}
+                              onClick={() => setSelectedModule(mod.value)}
+                              className="relative"
+                            >
+                              {mod.label}
+                              {modulePermCount > 0 && (
+                                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                                  {modulePermCount}
+                                </Badge>
+                              )}
+                            </Button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Bulk actions for module */}
+                      <div className="flex gap-2 items-center">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            MODULE_RESOURCES[selectedModule]?.forEach(resource => {
+                              handleGrantAllForResource(profile.id, selectedModule, resource.value);
+                            });
+                          }}
+                        >
+                          Marcar Todos do Módulo
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            MODULE_RESOURCES[selectedModule]?.forEach(resource => {
+                              handleRevokeAllForResource(profile.id, selectedModule, resource.value);
+                            });
+                          }}
+                        >
+                          Limpar Módulo
+                        </Button>
                       </div>
 
                       {/* Resource permissions table */}
                       {MODULE_RESOURCES[selectedModule] && (
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Recurso</TableHead>
-                              {PERMISSION_ACTIONS.map(action => (
-                                <TableHead key={action.value} className="text-center w-20">
-                                  {action.label}
-                                </TableHead>
-                              ))}
-                              <TableHead className="w-32">Ações</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {MODULE_RESOURCES[selectedModule].map(resource => {
-                              const permission = getProfileItems(profile.id).find(
-                                p => p.module === selectedModule && p.resource === resource.value
-                              );
+                        <div className="rounded-lg border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="min-w-[200px]">Recurso</TableHead>
+                                {PERMISSION_ACTIONS.map(action => (
+                                  <TableHead key={action.value} className="text-center w-24">
+                                    {action.label}
+                                  </TableHead>
+                                ))}
+                                <TableHead className="w-32">Ações</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {MODULE_RESOURCES[selectedModule].map(resource => {
+                                const permission = getProfileItems(profile.id).find(
+                                  p => p.module === selectedModule && p.resource === resource.value
+                                );
+                                const hasAnyPermission = permission && (
+                                  permission.can_view || permission.can_create || 
+                                  permission.can_edit || permission.can_delete || permission.can_export
+                                );
 
-                              return (
-                                <TableRow key={resource.value}>
-                                  <TableCell className="font-medium">{resource.label}</TableCell>
-                                  {PERMISSION_ACTIONS.map(action => (
-                                    <TableCell key={action.value} className="text-center">
-                                      <Checkbox
-                                        checked={permission?.[action.value] ?? false}
-                                        onCheckedChange={() =>
-                                          handleTogglePermission(
-                                            profile.id,
-                                            selectedModule,
-                                            resource.value,
-                                            action.value,
-                                            permission?.[action.value] ?? false
-                                          )
-                                        }
-                                      />
+                                return (
+                                  <TableRow key={resource.value} className={hasAnyPermission ? 'bg-primary/5' : ''}>
+                                    <TableCell>
+                                      <div>
+                                        <span className="font-medium">{resource.label}</span>
+                                        {resource.description && (
+                                          <p className="text-xs text-muted-foreground">{resource.description}</p>
+                                        )}
+                                      </div>
                                     </TableCell>
-                                  ))}
-                                  <TableCell>
-                                    <div className="flex gap-1">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        className="h-7 text-xs"
-                                        onClick={() =>
-                                          handleGrantAllForResource(profile.id, selectedModule, resource.value)
-                                        }
-                                      >
-                                        Todos
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-7 text-xs"
-                                        onClick={() =>
-                                          handleRevokeAllForResource(profile.id, selectedModule, resource.value)
-                                        }
-                                      >
-                                        Limpar
-                                      </Button>
-                                    </div>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
+                                    {PERMISSION_ACTIONS.map(action => (
+                                      <TableCell key={action.value} className="text-center">
+                                        <Checkbox
+                                          checked={permission?.[action.value] ?? false}
+                                          onCheckedChange={() =>
+                                            handleTogglePermission(
+                                              profile.id,
+                                              selectedModule,
+                                              resource.value,
+                                              action.value,
+                                              permission?.[action.value] ?? false
+                                            )
+                                          }
+                                        />
+                                      </TableCell>
+                                    ))}
+                                    <TableCell>
+                                      <div className="flex gap-1">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="h-7 text-xs"
+                                          onClick={() =>
+                                            handleGrantAllForResource(profile.id, selectedModule, resource.value)
+                                          }
+                                        >
+                                          Todos
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          variant="ghost"
+                                          className="h-7 text-xs"
+                                          onClick={() =>
+                                            handleRevokeAllForResource(profile.id, selectedModule, resource.value)
+                                          }
+                                        >
+                                          Limpar
+                                        </Button>
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
                       )}
                     </div>
                   )}
