@@ -71,12 +71,17 @@ export function useVendas(empresaId: string | undefined) {
       subtotal?: number | null;
       desconto_valor?: number | null;
       desconto_percentual?: number | null;
+      frete?: number | null;
+      acrescimo?: number | null;
       total?: number | null;
       forma_pagamento?: string | null;
+      condicao_pagamento?: string | null;
       observacoes?: string | null;
+      observacoes_internas?: string | null;
       vendedor_id?: string | null;
       comissao_percentual?: number | null;
       comissao_valor?: number | null;
+      data_entrega?: string | null;
       itens: {
         produto_id: string;
         quantidade: number;

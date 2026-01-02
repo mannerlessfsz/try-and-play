@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users } from "lucide-react";
+import { ClienteFormModal } from "./ClienteFormModal";
 
 interface ClientesManagerProps {
   empresaId: string;
@@ -14,6 +15,7 @@ interface ClientesManagerProps {
 export function ClientesManager({ empresaId }: ClientesManagerProps) {
   const { clientes, isLoading } = useClientes(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const filteredClientes = clientes.filter(c =>
     c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -37,7 +39,7 @@ export function ClientesManager({ empresaId }: ClientesManagerProps) {
             className="pl-10"
           />
         </div>
-        <Button className="bg-green-500 hover:bg-green-600">
+        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Cliente
         </Button>
@@ -93,6 +95,12 @@ export function ClientesManager({ empresaId }: ClientesManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      <ClienteFormModal 
+        open={showModal} 
+        onClose={() => setShowModal(false)} 
+        empresaId={empresaId} 
+      />
     </div>
   );
 }
