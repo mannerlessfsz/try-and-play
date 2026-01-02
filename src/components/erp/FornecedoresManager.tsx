@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Truck } from "lucide-react";
+import { FornecedorFormModal } from "./FornecedorFormModal";
 
 interface FornecedoresManagerProps {
   empresaId: string;
@@ -14,6 +15,7 @@ interface FornecedoresManagerProps {
 export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
   const { fornecedores, isLoading } = useFornecedores(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const filteredFornecedores = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -36,7 +38,7 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
             className="pl-10"
           />
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600">
+        <Button className="bg-orange-500 hover:bg-orange-600" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Fornecedor
         </Button>
@@ -88,6 +90,12 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      <FornecedorFormModal 
+        open={showModal} 
+        onClose={() => setShowModal(false)} 
+        empresaId={empresaId} 
+      />
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ShoppingCart } from "lucide-react";
+import { VendaFormModal } from "./VendaFormModal";
 
 interface VendasManagerProps {
   empresaId: string;
@@ -23,6 +24,7 @@ const statusColors: Record<string, string> = {
 export function VendasManager({ empresaId }: VendasManagerProps) {
   const { vendas, isLoading } = useVendas(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showModal, setShowModal] = useState(false);
 
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -48,7 +50,7 @@ export function VendasManager({ empresaId }: VendasManagerProps) {
             className="pl-10"
           />
         </div>
-        <Button className="bg-green-500 hover:bg-green-600">
+        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Nova Venda
         </Button>
@@ -98,6 +100,12 @@ export function VendasManager({ empresaId }: VendasManagerProps) {
           )}
         </CardContent>
       </Card>
+
+      <VendaFormModal 
+        open={showModal} 
+        onClose={() => setShowModal(false)} 
+        empresaId={empresaId} 
+      />
     </div>
   );
 }
