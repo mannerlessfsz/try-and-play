@@ -19,11 +19,32 @@ export interface Transacao {
   numero_documento: string | null;
   observacoes: string | null;
   conciliado: boolean | null;
+  competencia_ano: number | null;
+  competencia_mes: number | null;
   created_at: string;
   updated_at: string;
   // Joined fields
   categoria?: { id: string; nome: string; cor: string | null } | null;
   conta_bancaria?: { id: string; nome: string; banco: string } | null;
+}
+
+export interface TransacaoInput {
+  empresa_id: string;
+  descricao: string;
+  valor: number;
+  tipo: string;
+  status?: string;
+  data_transacao?: string;
+  data_vencimento?: string;
+  data_pagamento?: string;
+  categoria_id?: string;
+  conta_bancaria_id?: string;
+  centro_custo_id?: string;
+  forma_pagamento?: string;
+  numero_documento?: string;
+  observacoes?: string;
+  competencia_ano?: number;
+  competencia_mes?: number;
 }
 
 export interface TransacaoInput {

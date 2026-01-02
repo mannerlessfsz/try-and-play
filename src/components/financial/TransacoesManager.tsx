@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useTransacoes, TransacaoInput } from "@/hooks/useTransacoes";
 import { useCategorias } from "@/hooks/useCategorias";
 import { useContasBancarias } from "@/hooks/useContasBancarias";
@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Plus, Edit, Trash2, Receipt, Loader2, ArrowUpRight, ArrowDownRight,
-  Calendar, CreditCard, FileText
+  Calendar, CreditCard, FileText, AlertCircle
 } from "lucide-react";
 
 interface TransacoesManagerProps {
@@ -30,7 +31,35 @@ const FORMAS_PAGAMENTO = [
   "Boleto", "Transferência", "Cheque", "Outro"
 ];
 
+const MESES = [
+  { value: 1, label: "Janeiro" },
+  { value: 2, label: "Fevereiro" },
+  { value: 3, label: "Março" },
+  { value: 4, label: "Abril" },
+  { value: 5, label: "Maio" },
+  { value: 6, label: "Junho" },
+  { value: 7, label: "Julho" },
+  { value: 8, label: "Agosto" },
+  { value: 9, label: "Setembro" },
+  { value: 10, label: "Outubro" },
+  { value: 11, label: "Novembro" },
+  { value: 12, label: "Dezembro" },
+];
+
+// Gerar anos disponíveis (ano atual e próximos 2 anos)
+const getAvailableYears = () => {
+  const currentYear = new Date().getFullYear();
+  return [currentYear, currentYear + 1, currentYear + 2];
+};
+
 export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: TransacoesManagerProps) {
+  const { toast } = useToast();
+  const today = new Date();
+  
+  // Competência padrão: mês/ano atual
+  const [competenciaAno, setCompetenciaAno] = useState(today.getFullYear());
+  const [competenciaMes, setCompetenciaMes] = useState(today.getMonth() + 1);
+  
   const { transacoes, isLoading, createTransacao, updateTransacao, deleteTransacao, isCreating } = useTransacoes(empresaId, {
     tipo: tipoFiltro,
     status: statusFiltro,
@@ -40,17 +69,49 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
   
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<Partial<TransacaoInput>>({
+  const [formData, setFormData] = useState<Partial<TransacaoInput> & { competencia_ano?: number; competencia_mes?: number }>({
     descricao: "",
     valor: 0,
     tipo: "despesa",
     status: "pendente",
-    data_transacao: new Date().toISOString().split('T')[0],
+    data_transacao: today.toISOString().split('T')[0],
     categoria_id: "",
     conta_bancaria_id: "",
     forma_pagamento: "",
     observacoes: "",
+    competencia_ano: today.getFullYear(),
+    competencia_mes: today.getMonth() + 1,
   });
+
+  // Calcular limites de data baseado na competência selecionada
+  const dateLimits = useMemo(() => {
+    const ano = formData.competencia_ano || today.getFullYear();
+    const mes = formData.competencia_mes || (today.getMonth() + 1);
+    
+    const firstDay = new Date(ano, mes - 1, 1);
+    const lastDay = new Date(ano, mes, 0);
+    
+    // Data mínima é o maior entre: primeiro dia da competência e hoje
+    const minDate = firstDay > today ? firstDay : today;
+    
+    return {
+      min: minDate.toISOString().split('T')[0],
+      max: lastDay.toISOString().split('T')[0],
+      firstDay: firstDay.toISOString().split('T')[0],
+      lastDay: lastDay.toISOString().split('T')[0],
+    };
+  }, [formData.competencia_ano, formData.competencia_mes, today]);
+
+  // Validar se a data está dentro da competência e não é passada
+  const isDateValid = useMemo(() => {
+    if (!formData.data_transacao) return false;
+    const selectedDate = new Date(formData.data_transacao + 'T00:00:00');
+    const todayStart = new Date(today.toISOString().split('T')[0] + 'T00:00:00');
+    const minDate = new Date(dateLimits.firstDay + 'T00:00:00');
+    const maxDate = new Date(dateLimits.lastDay + 'T00:00:00');
+    
+    return selectedDate >= todayStart && selectedDate >= minDate && selectedDate <= maxDate;
+  }, [formData.data_transacao, dateLimits, today]);
 
   const resetForm = () => {
     setFormData({
@@ -58,11 +119,13 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       valor: 0,
       tipo: "despesa",
       status: "pendente",
-      data_transacao: new Date().toISOString().split('T')[0],
+      data_transacao: today.toISOString().split('T')[0],
       categoria_id: "",
       conta_bancaria_id: "",
       forma_pagamento: "",
       observacoes: "",
+      competencia_ano: competenciaAno,
+      competencia_mes: competenciaMes,
     });
     setEditingId(null);
   };
@@ -87,10 +150,22 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
   const handleSubmit = () => {
     if (!formData.descricao || !formData.valor) return;
 
+    // Validar data
+    if (!isDateValid && !editingId) {
+      toast({
+        title: "Data inválida",
+        description: `A data deve estar dentro da competência ${String(formData.competencia_mes).padStart(2, '0')}/${formData.competencia_ano} e não pode ser uma data passada.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     const submitData = {
       ...formData,
       categoria_id: formData.categoria_id || undefined,
       conta_bancaria_id: formData.conta_bancaria_id || undefined,
+      competencia_ano: formData.competencia_ano,
+      competencia_mes: formData.competencia_mes,
     };
 
     if (editingId) {
@@ -118,8 +193,40 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          {/* Seletor de Competência */}
+          <div className="flex items-center gap-2 bg-card/50 border border-border/50 rounded-lg px-3 py-2">
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Competência:</span>
+            <Select 
+              value={String(competenciaMes)} 
+              onValueChange={(v) => setCompetenciaMes(parseInt(v))}
+            >
+              <SelectTrigger className="w-32 h-8 border-0 bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MESES.map(mes => (
+                  <SelectItem key={mes.value} value={String(mes.value)}>{mes.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-muted-foreground">/</span>
+            <Select 
+              value={String(competenciaAno)} 
+              onValueChange={(v) => setCompetenciaAno(parseInt(v))}
+            >
+              <SelectTrigger className="w-20 h-8 border-0 bg-transparent">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getAvailableYears().map(ano => (
+                  <SelectItem key={ano} value={String(ano)}>{ano}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <span className="text-sm text-muted-foreground">{transacoes.length} transações</span>
         </div>
         <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
@@ -179,15 +286,62 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                 />
               </div>
 
+              {/* Competência */}
+              <div className="space-y-2">
+                <Label>Competência *</Label>
+                <div className="flex gap-2">
+                  <Select 
+                    value={String(formData.competencia_mes)} 
+                    onValueChange={(v) => {
+                      const newMes = parseInt(v);
+                      setFormData(prev => ({ ...prev, competencia_mes: newMes }));
+                    }}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MESES.map(mes => (
+                        <SelectItem key={mes.value} value={String(mes.value)}>{mes.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Select 
+                    value={String(formData.competencia_ano)} 
+                    onValueChange={(v) => {
+                      const newAno = parseInt(v);
+                      setFormData(prev => ({ ...prev, competencia_ano: newAno }));
+                    }}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableYears().map(ano => (
+                        <SelectItem key={ano} value={String(ano)}>{ano}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {/* Datas */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label>Data *</Label>
+                  <Label>Data * <span className="text-xs text-muted-foreground">(dentro da competência)</span></Label>
                   <Input
                     type="date"
                     value={formData.data_transacao}
+                    min={dateLimits.min}
+                    max={dateLimits.max}
                     onChange={(e) => setFormData(prev => ({ ...prev, data_transacao: e.target.value }))}
                   />
+                  {!isDateValid && formData.data_transacao && !editingId && (
+                    <div className="flex items-center gap-1 text-xs text-red-400">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>Data inválida. Permitido: {new Date(dateLimits.min).toLocaleDateString('pt-BR')} a {new Date(dateLimits.max).toLocaleDateString('pt-BR')}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Vencimento</Label>
