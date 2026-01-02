@@ -42,6 +42,7 @@ interface Profile {
   email: string;
   full_name: string | null;
   created_at: string;
+  ativo: boolean;
 }
 
 interface Empresa {
@@ -291,9 +292,15 @@ const Admin: React.FC = () => {
     }
   });
 
-  // Create new user mutation
+  // Create new user mutation with email validation
   const createUserMutation = useMutation({
     mutationFn: async ({ email, password, fullName }: { email: string; password: string; fullName: string }) => {
+      // Check if email already exists
+      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existingUser) {
+        throw new Error('Este e-mail já está cadastrado no sistema');
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -312,6 +319,24 @@ const Admin: React.FC = () => {
     },
     onError: (error) => {
       toast({ title: 'Erro ao criar usuário', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Toggle user active status
+  const toggleUserActiveMutation = useMutation({
+    mutationFn: async ({ userId, ativo }: { userId: string; ativo: boolean }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ ativo })
+        .eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: (_, { ativo }) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      toast({ title: ativo ? 'Usuário ativado' : 'Usuário inativado' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     }
   });
 
@@ -497,6 +522,7 @@ const Admin: React.FC = () => {
                       <TableRow>
                         <TableHead>Nome</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Status</TableHead>
                         <TableHead>Papéis</TableHead>
                         <TableHead>Empresas</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -504,7 +530,7 @@ const Admin: React.FC = () => {
                     </TableHeader>
                     <TableBody>
                       {users.map((user) => (
-                        <TableRow key={user.id} className={user.id === MASTER_USER_ID ? 'bg-yellow-500/10' : ''}>
+                        <TableRow key={user.id} className={`${user.id === MASTER_USER_ID ? 'bg-yellow-500/10' : ''} ${!user.ativo ? 'opacity-50' : ''}`}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               {user.full_name || '-'}
@@ -516,6 +542,24 @@ const Admin: React.FC = () => {
                             </div>
                           </TableCell>
                           <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={user.ativo}
+                                onCheckedChange={(checked) => {
+                                  if (user.id === MASTER_USER_ID) {
+                                    toast({ title: 'Erro', description: 'Não é possível inativar o usuário master', variant: 'destructive' });
+                                    return;
+                                  }
+                                  toggleUserActiveMutation.mutate({ userId: user.id, ativo: checked });
+                                }}
+                                disabled={user.id === MASTER_USER_ID || toggleUserActiveMutation.isPending}
+                              />
+                              <Badge variant={user.ativo ? 'default' : 'secondary'}>
+                                {user.ativo ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <div className="flex gap-1 flex-wrap">
                               {getUserRoles(user.id).map(role => (
