@@ -10,9 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Plus, Edit, Trash2, Receipt, Loader2, ArrowUpRight, ArrowDownRight,
-  Calendar, CreditCard, FileText, AlertCircle, User
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Receipt,
+  Loader2,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calendar,
+  CreditCard,
+  FileText,
+  AlertCircle,
+  User,
 } from "lucide-react";
 
 interface TransacoesManagerProps {
@@ -28,8 +38,14 @@ const STATUS_OPTIONS = [
 ];
 
 const FORMAS_PAGAMENTO = [
-  "Dinheiro", "PIX", "Cartão de Crédito", "Cartão de Débito", 
-  "Boleto", "Transferência", "Cheque", "Outro"
+  "Dinheiro",
+  "PIX",
+  "Cartão de Crédito",
+  "Cartão de Débito",
+  "Boleto",
+  "Transferência",
+  "Cheque",
+  "Outro",
 ];
 
 const MESES = [
@@ -47,6 +63,23 @@ const MESES = [
   { value: 12, label: "Dezembro" },
 ];
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
+const toDateInputValue = (date: Date) => date.toISOString().split("T")[0];
+
+// Regra de negócio: por padrão, trabalhamos com competência do mês anterior
+const getDefaultCompetencia = () => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - 1);
+  return { ano: d.getFullYear(), mes: d.getMonth() + 1 };
+};
+
+const clampDateToCompetencia = (date: Date, ano: number, mes: number) => {
+  const firstDay = new Date(ano, mes - 1, 1);
+  const lastDay = new Date(ano, mes, 0);
+  const time = Math.min(Math.max(date.getTime(), firstDay.getTime()), lastDay.getTime());
+  return toDateInputValue(new Date(time));
+};
+
 // Gerar anos disponíveis (ano anterior, atual e próximos 2 anos)
 const getAvailableYears = () => {
   const currentYear = new Date().getFullYear();
@@ -56,19 +89,28 @@ const getAvailableYears = () => {
 export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: TransacoesManagerProps) {
   const { toast } = useToast();
   const today = new Date();
-  
-  // Competência padrão: mês/ano atual
-  const [competenciaAno, setCompetenciaAno] = useState(today.getFullYear());
-  const [competenciaMes, setCompetenciaMes] = useState(today.getMonth() + 1);
-  
+
+  const defaultCompetencia = getDefaultCompetencia();
+
+  // Competência padrão: mês anterior (para refletir o fechamento)
+  const [competenciaAno, setCompetenciaAno] = useState(defaultCompetencia.ano);
+  const [competenciaMes, setCompetenciaMes] = useState(defaultCompetencia.mes);
+
+  // Filtrar listagem pela competência selecionada
+  const dataInicio = `${competenciaAno}-${pad2(competenciaMes)}-01`;
+  const lastDayCompetencia = new Date(competenciaAno, competenciaMes, 0).getDate();
+  const dataFim = `${competenciaAno}-${pad2(competenciaMes)}-${pad2(lastDayCompetencia)}`;
+
   const { transacoes, isLoading, createTransacao, updateTransacao, deleteTransacao, isCreating } = useTransacoes(empresaId, {
     tipo: tipoFiltro,
     status: statusFiltro,
+    dataInicio,
+    dataFim,
   });
   const { categorias } = useCategorias(empresaId);
   const { contas } = useContasBancarias(empresaId);
   const { clientes } = useClientes(empresaId);
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<TransacaoInput> & { competencia_ano?: number; competencia_mes?: number }>({
@@ -76,14 +118,14 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     valor: 0,
     tipo: "despesa",
     status: "pendente",
-    data_transacao: today.toISOString().split('T')[0],
+    data_transacao: clampDateToCompetencia(today, defaultCompetencia.ano, defaultCompetencia.mes),
     categoria_id: "",
     conta_bancaria_id: "",
     cliente_id: "",
     forma_pagamento: "",
     observacoes: "",
-    competencia_ano: today.getFullYear(),
-    competencia_mes: today.getMonth() + 1,
+    competencia_ano: defaultCompetencia.ano,
+    competencia_mes: defaultCompetencia.mes,
   });
 
   // Calcular limites de data baseado na competência selecionada
@@ -91,32 +133,32 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
   const dateLimits = useMemo(() => {
     const ano = formData.competencia_ano || today.getFullYear();
     const mes = formData.competencia_mes || (today.getMonth() + 1);
-    
+
     const firstDay = new Date(ano, mes - 1, 1);
     const lastDay = new Date(ano, mes, 0);
-    
+
     // Calcular primeiro dia do mês anterior (limite mínimo permitido)
     const primeiroDiaMesAnterior = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    
+
     // Data mínima é o maior entre: primeiro dia da competência e primeiro dia do mês anterior
     const minDate = firstDay > primeiroDiaMesAnterior ? firstDay : primeiroDiaMesAnterior;
-    
+
     return {
-      min: minDate.toISOString().split('T')[0],
-      max: lastDay.toISOString().split('T')[0],
-      firstDay: firstDay.toISOString().split('T')[0],
-      lastDay: lastDay.toISOString().split('T')[0],
+      min: minDate.toISOString().split("T")[0],
+      max: lastDay.toISOString().split("T")[0],
+      firstDay: firstDay.toISOString().split("T")[0],
+      lastDay: lastDay.toISOString().split("T")[0],
     };
   }, [formData.competencia_ano, formData.competencia_mes, today]);
 
   // Validar se a data está dentro da competência e não é anterior ao mês passado
   const isDateValid = useMemo(() => {
     if (!formData.data_transacao) return false;
-    const selectedDate = new Date(formData.data_transacao + 'T00:00:00');
+    const selectedDate = new Date(formData.data_transacao + "T00:00:00");
     const primeiroDiaMesAnterior = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const minDate = new Date(dateLimits.firstDay + 'T00:00:00');
-    const maxDate = new Date(dateLimits.lastDay + 'T00:00:00');
-    
+    const minDate = new Date(dateLimits.firstDay + "T00:00:00");
+    const maxDate = new Date(dateLimits.lastDay + "T00:00:00");
+
     // Permite datas a partir do primeiro dia do mês anterior
     return selectedDate >= primeiroDiaMesAnterior && selectedDate >= minDate && selectedDate <= maxDate;
   }, [formData.data_transacao, dateLimits, today]);
@@ -127,7 +169,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       valor: 0,
       tipo: "despesa",
       status: "pendente",
-      data_transacao: today.toISOString().split('T')[0],
+      data_transacao: clampDateToCompetencia(today, competenciaAno, competenciaMes),
       categoria_id: "",
       conta_bancaria_id: "",
       cliente_id: "",
@@ -164,7 +206,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     if (!isDateValid && !editingId) {
       toast({
         title: "Data inválida",
-        description: `A data deve estar dentro da competência ${String(formData.competencia_mes).padStart(2, '0')}/${formData.competencia_ano} e não pode ser uma data passada.`,
+        description: `A data deve estar dentro da competência ${String(formData.competencia_mes).padStart(2, "0")}/${formData.competencia_ano} e não pode ser anterior ao mês passado.`,
         variant: "destructive",
       });
       return;
@@ -240,7 +282,15 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
           </div>
           <span className="text-sm text-muted-foreground">{transacoes.length} transações</span>
         </div>
-        <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
+        <Dialog
+          open={isOpen}
+          onOpenChange={(open) => {
+            setIsOpen(open);
+            // Ao abrir "Nova Transação", sincroniza competência/datas com o seletor acima
+            if (open && !editingId) resetForm();
+            if (!open) resetForm();
+          }}
+        >
           <DialogTrigger asChild>
             <Button className="bg-blue-500 hover:bg-blue-600 text-white">
               <Plus className="w-4 h-4 mr-1" /> Nova Transação
