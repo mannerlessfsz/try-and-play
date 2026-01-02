@@ -184,6 +184,28 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
   });
 
+  // Desconciliar várias transações em massa (usado ao deletar extrato)
+  const desconciliarEmMassaMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      if (ids.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from("transacoes")
+        .update({ conciliado: false, data_conciliacao: null })
+        .in("id", ids)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao desconciliar transações", description: error.message, variant: "destructive" });
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -225,6 +247,7 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     conciliarTransacaoAsync: conciliarMutation.mutateAsync,
     conciliarEmMassa: conciliarEmMassaMutation.mutate,
     conciliarEmMassaAsync: conciliarEmMassaMutation.mutateAsync,
+    desconciliarEmMassaAsync: desconciliarEmMassaMutation.mutateAsync,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
