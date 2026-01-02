@@ -39,7 +39,7 @@ interface UserEmpresa {
 
 interface EmpresaUsersManagerProps {
   empresaId: string;
-  empresaNome: string;
+  empresaNome?: string;
 }
 
 const MODULES = [
@@ -197,7 +197,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Usuários de {empresaNome}</h3>
+        {empresaNome && <h3 className="text-lg font-semibold">Usuários de {empresaNome}</h3>}
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2">

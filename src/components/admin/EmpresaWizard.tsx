@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Building2, User, Settings, Check, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,9 +73,10 @@ interface EmpresaWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  editingEmpresa?: { id: string; nome: string; cnpj?: string; email?: string } | null;
 }
 
-export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps) {
+export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: EmpresaWizardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
@@ -100,7 +101,20 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
     })),
   });
 
-  // Check if email already exists in database
+  const isEditMode = !!editingEmpresa;
+
+  // Initialize data when editing
+  useEffect(() => {
+    if (editingEmpresa) {
+      setData(prev => ({
+        ...prev,
+        nome: editingEmpresa.nome,
+        cnpj: editingEmpresa.cnpj || '',
+        telefone: '',
+      }));
+    }
+  }, [editingEmpresa]);
+
   const checkEmailExists = async (email: string) => {
     if (!email || !z.string().email().safeParse(email).success) return;
     
@@ -287,6 +301,39 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
     },
   });
 
+  // Update empresa mutation (edit mode)
+  const updateEmpresaMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingEmpresa) throw new Error('Nenhuma empresa para editar');
+      
+      const { error } = await supabase
+        .from('empresas')
+        .update({
+          nome: data.nome,
+          cnpj: data.cnpj || null,
+          telefone: data.telefone || null,
+        })
+        .eq('id', editingEmpresa.id);
+
+      if (error) throw error;
+      return { id: editingEmpresa.id, nome: data.nome };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+      toast({ title: 'Empresa atualizada com sucesso!' });
+      resetWizard();
+      onClose();
+      onSuccess?.();
+    },
+    onError: (error) => {
+      toast({ 
+        title: 'Erro ao atualizar empresa', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+    },
+  });
+
   const validateStep = (step: number): boolean => {
     setErrors({});
     
@@ -350,8 +397,16 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
   };
 
   const handleSubmit = () => {
-    if (validateStep(3)) {
-      createEmpresaMutation.mutate();
+    if (isEditMode) {
+      // Edit mode: only validate step 1 (empresa data)
+      if (validateStep(1)) {
+        updateEmpresaMutation.mutate();
+      }
+    } else {
+      // Create mode: validate step 3 (all steps)
+      if (validateStep(3)) {
+        createEmpresaMutation.mutate();
+      }
     }
   };
 
@@ -414,40 +469,42 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) { resetWizard(); onClose(); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
-          <DialogTitle>Cadastrar Nova Empresa</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}</DialogTitle>
         </DialogHeader>
 
-        {/* Step indicator */}
-        <div className="flex items-center justify-center gap-2 py-4 border-b border-border/50">
-          {steps.map((step, index) => (
-            <div key={step.number} className="flex items-center">
-              <div 
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                  currentStep === step.number 
-                    ? 'bg-primary text-primary-foreground' 
-                    : currentStep > step.number
-                      ? 'bg-green-500/20 text-green-500'
-                      : 'bg-muted text-muted-foreground'
-                }`}
-              >
-                {currentStep > step.number ? (
-                  <Check className="w-4 h-4" />
-                ) : (
-                  <step.icon className="w-4 h-4" />
+        {/* Step indicator - hide in edit mode */}
+        {!isEditMode && (
+          <div className="flex items-center justify-center gap-2 py-4 border-b border-border/50">
+            {steps.map((step, index) => (
+              <div key={step.number} className="flex items-center">
+                <div 
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                    currentStep === step.number 
+                      ? 'bg-primary text-primary-foreground' 
+                      : currentStep > step.number
+                        ? 'bg-green-500/20 text-green-500'
+                        : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  {currentStep > step.number ? (
+                    <Check className="w-4 h-4" />
+                  ) : (
+                    <step.icon className="w-4 h-4" />
+                  )}
+                  <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
+                </div>
+                {index < steps.length - 1 && (
+                  <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground" />
                 )}
-                <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
               </div>
-              {index < steps.length - 1 && (
-                <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground" />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto py-4 px-1">
           {/* Step 1: Dados da Empresa */}
-          {currentStep === 1 && (
+          {(currentStep === 1 || isEditMode) && (
             <div className="space-y-4">
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold">Dados da Empresa</h3>
@@ -490,8 +547,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
             </div>
           )}
 
-          {/* Step 2: Dados do Gerente */}
-          {currentStep === 2 && (
+          {/* Step 2: Dados do Gerente - only in create mode */}
+          {!isEditMode && currentStep === 2 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold">Dados do Gerente</h3>
@@ -556,8 +613,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
             </div>
           )}
 
-          {/* Step 3: Módulos e Permissões */}
-          {currentStep === 3 && (
+          {/* Step 3: Módulos e Permissões - only in create mode */}
+          {!isEditMode && currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold">Módulos e Permissões</h3>
@@ -682,35 +739,57 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
 
         {/* Navigation buttons */}
         <div className="flex items-center justify-between pt-4 border-t border-border/50">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleBack}
-            disabled={currentStep === 1}
-            className="gap-2"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            Voltar
-          </Button>
-
-          {currentStep < 3 ? (
-            <Button onClick={handleNext} className="gap-2">
-              Próximo
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+          {isEditMode ? (
+            <>
+              <Button type="button" variant="outline" onClick={() => { resetWizard(); onClose(); }}>
+                Cancelar
+              </Button>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={updateEmpresaMutation.isPending}
+                className="gap-2"
+              >
+                {updateEmpresaMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Salvar Alterações
+              </Button>
+            </>
           ) : (
-            <Button 
-              onClick={handleSubmit} 
-              disabled={createEmpresaMutation.isPending}
-              className="gap-2"
-            >
-              {createEmpresaMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleBack}
+                disabled={currentStep === 1}
+                className="gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Voltar
+              </Button>
+
+              {currentStep < 3 ? (
+                <Button onClick={handleNext} className="gap-2">
+                  Próximo
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
               ) : (
-                <Check className="w-4 h-4" />
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={createEmpresaMutation.isPending}
+                  className="gap-2"
+                >
+                  {createEmpresaMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  Cadastrar Empresa
+                </Button>
               )}
-              Cadastrar Empresa
-            </Button>
+            </>
           )}
         </div>
       </DialogContent>
