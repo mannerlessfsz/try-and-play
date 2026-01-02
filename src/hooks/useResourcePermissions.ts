@@ -30,38 +30,48 @@ export interface ResourcePermissionInput {
   can_export?: boolean;
 }
 
-// Recursos por módulo
-export const MODULE_RESOURCES: Record<string, { value: string; label: string }[]> = {
+// Recursos por módulo - completo para controle granular
+export const MODULE_RESOURCES: Record<string, { value: string; label: string; description?: string }[]> = {
   financialace: [
-    { value: 'transacoes', label: 'Transações' },
-    { value: 'categorias', label: 'Categorias' },
-    { value: 'contas_bancarias', label: 'Contas Bancárias' },
-    { value: 'centros_custo', label: 'Centros de Custo' },
-    { value: 'recorrencias', label: 'Recorrências' },
-    { value: 'metas', label: 'Metas Financeiras' },
-    { value: 'relatorios', label: 'Relatórios' },
-    { value: 'importacoes', label: 'Importações' },
+    { value: 'transacoes', label: 'Transações', description: 'Receitas, despesas e transferências' },
+    { value: 'categorias', label: 'Categorias', description: 'Classificação de transações' },
+    { value: 'contas_bancarias', label: 'Contas Bancárias', description: 'Cadastro de contas' },
+    { value: 'centros_custo', label: 'Centros de Custo', description: 'Centros de custo e projetos' },
+    { value: 'recorrencias', label: 'Recorrências', description: 'Transações recorrentes' },
+    { value: 'metas', label: 'Metas Financeiras', description: 'Objetivos e metas' },
+    { value: 'orcamentos', label: 'Orçamentos', description: 'Planejamento orçamentário' },
+    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios e dashboards' },
+    { value: 'importacoes', label: 'Importações', description: 'Importação de extratos' },
+    { value: 'conciliacao', label: 'Conciliação', description: 'Conciliação bancária' },
   ],
   erp: [
-    { value: 'clientes', label: 'Clientes' },
-    { value: 'fornecedores', label: 'Fornecedores' },
-    { value: 'produtos', label: 'Produtos' },
-    { value: 'vendas', label: 'Vendas' },
-    { value: 'compras', label: 'Compras' },
-    { value: 'orcamentos', label: 'Orçamentos' },
-    { value: 'estoque', label: 'Estoque' },
+    { value: 'clientes', label: 'Clientes', description: 'Cadastro de clientes' },
+    { value: 'fornecedores', label: 'Fornecedores', description: 'Cadastro de fornecedores' },
+    { value: 'produtos', label: 'Produtos', description: 'Cadastro de produtos e serviços' },
+    { value: 'categorias_produtos', label: 'Categorias de Produtos', description: 'Classificação de produtos' },
+    { value: 'unidades', label: 'Unidades de Medida', description: 'UN, KG, LT, etc.' },
+    { value: 'vendas', label: 'Vendas', description: 'Pedidos de venda' },
+    { value: 'compras', label: 'Compras', description: 'Pedidos de compra' },
+    { value: 'orcamentos_servico', label: 'Orçamentos de Serviço', description: 'Orçamentos para clientes' },
+    { value: 'estoque', label: 'Estoque', description: 'Movimentações de estoque' },
+    { value: 'nfe', label: 'Notas Fiscais', description: 'Importação e gestão de NF-e' },
   ],
   taskvault: [
-    { value: 'tarefas', label: 'Tarefas' },
-    { value: 'atividades', label: 'Atividades' },
+    { value: 'tarefas', label: 'Tarefas', description: 'Gerenciamento de tarefas' },
+    { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
+    { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
+    { value: 'kanban', label: 'Kanban', description: 'Visualização Kanban' },
   ],
   ajustasped: [
-    { value: 'arquivos', label: 'Arquivos SPED' },
-    { value: 'ajustes', label: 'Ajustes' },
+    { value: 'arquivos', label: 'Arquivos SPED', description: 'Upload e gestão de arquivos' },
+    { value: 'ajustes', label: 'Ajustes', description: 'Correções automáticas' },
+    { value: 'validacoes', label: 'Validações', description: 'Validação de arquivos' },
+    { value: 'download', label: 'Download', description: 'Download de arquivos corrigidos' },
   ],
   conferesped: [
-    { value: 'conferencias', label: 'Conferências' },
-    { value: 'relatorios', label: 'Relatórios' },
+    { value: 'conferencias', label: 'Conferências', description: 'Conferência de arquivos' },
+    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
+    { value: 'divergencias', label: 'Divergências', description: 'Análise de divergências' },
   ],
 };
 
