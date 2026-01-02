@@ -130,6 +130,8 @@ const Admin: React.FC = () => {
   const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
   const [editingEmpresa, setEditingEmpresa] = useState<Empresa | null>(null);
   const [expandedEmpresa, setExpandedEmpresa] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<Profile | null>(null);
+  const [editUserForm, setEditUserForm] = useState({ full_name: '', email: '' });
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({
@@ -340,6 +342,32 @@ const Admin: React.FC = () => {
     }
   });
 
+  // Update user profile mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async ({ userId, full_name, email }: { userId: string; full_name: string; email: string }) => {
+      // Check for duplicate email (excluding current user)
+      const existingUser = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.id !== userId);
+      if (existingUser) {
+        throw new Error('Este e-mail já está em uso por outro usuário');
+      }
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ full_name, email })
+        .eq('id', userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      setEditingUser(null);
+      setEditUserForm({ full_name: '', email: '' });
+      toast({ title: 'Usuário atualizado com sucesso' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar usuário', description: error.message, variant: 'destructive' });
+    }
+  });
+
   // Update empresa mutation
   const updateEmpresaMutation = useMutation({
     mutationFn: async (empresa: Empresa) => {
@@ -510,6 +538,55 @@ const Admin: React.FC = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Edit User Dialog */}
+                <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Editar Usuário</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Nome Completo</Label>
+                        <Input
+                          value={editUserForm.full_name}
+                          onChange={(e) => setEditUserForm(prev => ({ ...prev, full_name: e.target.value }))}
+                          placeholder="Nome do usuário"
+                        />
+                      </div>
+                      <div>
+                        <Label>Email</Label>
+                        <Input
+                          type="email"
+                          value={editUserForm.email}
+                          onChange={(e) => setEditUserForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline"
+                          onClick={() => setEditingUser(null)}
+                          className="flex-1"
+                        >
+                          Cancelar
+                        </Button>
+                        <Button 
+                          onClick={() => editingUser && updateUserMutation.mutate({ 
+                            userId: editingUser.id, 
+                            full_name: editUserForm.full_name,
+                            email: editUserForm.email 
+                          })}
+                          disabled={!editUserForm.email || updateUserMutation.isPending}
+                          className="flex-1"
+                        >
+                          {updateUserMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                          Salvar
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 {usersLoading ? (
@@ -652,9 +729,19 @@ const Admin: React.FC = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setSelectedUser(user)}
+                              onClick={() => {
+                                setEditingUser(user);
+                                setEditUserForm({ full_name: user.full_name || '', email: user.email });
+                              }}
                             >
                               <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setSelectedUser(user)}
+                            >
+                              <Shield className="w-4 h-4" />
                             </Button>
                           </TableCell>
                         </TableRow>
