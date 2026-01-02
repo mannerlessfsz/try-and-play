@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useMemo, useCallback, useEffect } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { MetricCard } from "@/components/task/MetricCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
@@ -44,6 +44,7 @@ import { OrcamentosManager } from "@/components/erp/OrcamentosManager";
 import { CentrosCustoManager } from "@/components/financial/CentrosCustoManager";
 import { MetasFinanceirasManager } from "@/components/financial/MetasFinanceirasManager";
 import { RecorrenciasManager } from "@/components/financial/RecorrenciasManager";
+import { useImportacoesExtrato } from "@/hooks/useImportacoesExtrato";
 import { useProdutos } from "@/hooks/useProdutos";
 import { useVendas } from "@/hooks/useVendas";
 import { useCompras } from "@/hooks/useCompras";
@@ -51,10 +52,12 @@ import { useOrcamentos } from "@/hooks/useOrcamentos";
 
 interface ExtratoImportado {
   id: string;
+  dbId?: string; // ID persistido no banco
+  contaBancariaId?: string;
   nome: string;
   tipo: "pdf" | "ofx";
   dataImportacao: string;
-  status: "processando" | "pendente" | "concluido" | "erro";
+  status: "processando" | "pendente" | "concluido" | "confirmado" | "erro";
   transacoes: number;
   conciliadas: number;
 }
@@ -160,10 +163,19 @@ export default function FinancialACE() {
   const { atividades, loading: atividadesLoading } = useAtividades();
 
   // Use real transacoes hook for metrics
-  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes, createTransacao, createTransacaoAsync, conciliarTransacaoAsync, conciliarEmMassaAsync } = useTransacoes(empresaAtiva?.id);
+  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes, createTransacao, createTransacaoAsync, conciliarTransacaoAsync, conciliarEmMassaAsync, desconciliarEmMassaAsync } = useTransacoes(empresaAtiva?.id);
   
   // Use real bank accounts hook
   const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaAtiva?.id);
+
+  // Use importacoes extrato hook
+  const { 
+    importacoes, 
+    createImportacao, 
+    updateImportacao, 
+    deleteImportacao, 
+    isDeleting: isDeletingImportacao 
+  } = useImportacoesExtrato(empresaAtiva?.id);
 
   // ERP hooks
   const { produtos } = useProdutos(empresaAtiva?.id);
@@ -196,6 +208,30 @@ export default function FinancialACE() {
         return transacoesParaConciliacao;
     }
   }, [activeFilter, transacoesParaConciliacao]);
+
+  // Load persisted extratos from database on mount
+  useEffect(() => {
+    if (importacoes.length > 0) {
+      const extratosFromDb: ExtratoImportado[] = importacoes.map(imp => ({
+        id: imp.id, // Use db id as main id for persisted ones
+        dbId: imp.id,
+        contaBancariaId: imp.conta_bancaria_id,
+        nome: imp.nome_arquivo,
+        tipo: imp.tipo_arquivo as "pdf" | "ofx",
+        dataImportacao: imp.created_at.split('T')[0],
+        status: imp.status as "processando" | "pendente" | "concluido" | "confirmado" | "erro",
+        transacoes: imp.total_transacoes || 0,
+        conciliadas: imp.transacoes_importadas || 0,
+      }));
+      
+      // Merge with local state (avoid duplicates)
+      setExtratosImportados(prev => {
+        const dbIds = new Set(extratosFromDb.map(e => e.dbId));
+        const localOnly = prev.filter(e => !e.dbId || !dbIds.has(e.dbId));
+        return [...localOnly, ...extratosFromDb];
+      });
+    }
+  }, [importacoes]);
 
   const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
@@ -251,6 +287,7 @@ export default function FinancialACE() {
 
     const novoExtrato: ExtratoImportado = {
       id: Date.now().toString(),
+      contaBancariaId: data.contaBancariaId,
       nome: file.name,
       tipo: extension as "pdf" | "ofx",
       dataImportacao: new Date().toISOString().split('T')[0],
@@ -682,6 +719,90 @@ export default function FinancialACE() {
 
   const getLancamentosDoExtrato = (extratoId: string) => {
     return lancamentosExtrato.filter(l => l.extratoId === extratoId);
+  };
+
+  // Confirmar extrato (persistir no banco)
+  const handleConfirmarExtrato = async (extratoId: string) => {
+    const extrato = extratosImportados.find(e => e.id === extratoId);
+    if (!extrato || !empresaAtiva?.id) return;
+
+    try {
+      // Persist to database
+      const dbRecord = await createImportacao({
+        empresa_id: empresaAtiva.id,
+        conta_bancaria_id: extrato.contaBancariaId || '',
+        nome_arquivo: extrato.nome,
+        tipo_arquivo: extrato.tipo,
+        status: 'confirmado',
+        total_transacoes: extrato.transacoes,
+        transacoes_importadas: extrato.conciliadas,
+      });
+
+      // Update local state
+      setExtratosImportados(prev => 
+        prev.map(e => 
+          e.id === extratoId 
+            ? { ...e, status: "confirmado", dbId: dbRecord.id }
+            : e
+        )
+      );
+
+      toast({
+        title: "Extrato confirmado",
+        description: "O extrato foi salvo no banco de dados.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao confirmar extrato",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Deletar extrato e reverter conciliações
+  const handleDeletarExtrato = async (extratoId: string) => {
+    const extrato = extratosImportados.find(e => e.id === extratoId);
+    if (!extrato) return;
+
+    try {
+      // Get all linked transaction IDs from this extrato
+      const lancamentosDoExtrato = getLancamentosDoExtrato(extratoId);
+      const idsVinculados = lancamentosDoExtrato
+        .filter(l => l.conciliado && l.transacaoVinculadaId)
+        .map(l => l.transacaoVinculadaId!)
+        .filter(Boolean);
+
+      // Revert reconciliation for all linked transactions
+      if (idsVinculados.length > 0) {
+        await desconciliarEmMassaAsync(idsVinculados);
+      }
+
+      // Delete from database if persisted
+      if (extrato.dbId) {
+        await deleteImportacao(extrato.dbId);
+      }
+
+      // Remove from local state
+      setExtratosImportados(prev => prev.filter(e => e.id !== extratoId));
+      setLancamentosExtrato(prev => prev.filter(l => l.extratoId !== extratoId));
+      
+      // Clear selection if this was selected
+      if (extratoSelecionado === extratoId) {
+        setExtratoSelecionado(null);
+      }
+
+      toast({
+        title: "Extrato excluído",
+        description: `${idsVinculados.length} transações tiveram a conciliação revertida.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao excluir extrato",
+        description: error instanceof Error ? error.message : "Tente novamente.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Sidebar content
@@ -1270,16 +1391,20 @@ export default function FinancialACE() {
                         </td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
+                            extrato.status === "confirmado" ? "bg-blue-500/20 text-blue-300" :
                             extrato.status === "concluido" ? "bg-green-500/20 text-green-300" :
                             extrato.status === "processando" ? "bg-blue-500/20 text-blue-300" :
                             extrato.status === "pendente" ? "bg-yellow-500/20 text-yellow-300" :
                             "bg-red-500/20 text-red-300"
                           }`}>
+                            {extrato.status === "confirmado" && <CheckCircle2 className="w-3 h-3" />}
                             {extrato.status === "concluido" && <CheckCircle2 className="w-3 h-3" />}
                             {extrato.status === "processando" && <Clock className="w-3 h-3 animate-spin" />}
                             {extrato.status === "pendente" && <AlertTriangle className="w-3 h-3" />}
                             {extrato.status === "erro" && <XCircle className="w-3 h-3" />}
-                            {extrato.status === "concluido" ? "Concluído" : extrato.status === "pendente" ? "Pendente" : extrato.status}
+                            {extrato.status === "confirmado" ? "Confirmado" : 
+                             extrato.status === "concluido" ? "Concluído" : 
+                             extrato.status === "pendente" ? "Pendente" : extrato.status}
                           </span>
                         </td>
                         <td className="p-3 text-center">
@@ -1312,9 +1437,26 @@ export default function FinancialACE() {
                                 Conciliar
                               </Button>
                             )}
-                            <button className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors">
+                            {(extrato.status === "concluido" || extrato.status === "pendente") && !extrato.dbId && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => handleConfirmarExtrato(extrato.id)}
+                                className="text-green-400 hover:text-green-300 hover:bg-green-500/20"
+                              >
+                                <CheckCircle2 className="w-4 h-4 mr-1" />
+                                Confirmar
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeletarExtrato(extrato.id)}
+                              disabled={isDeletingImportacao}
+                              className="text-muted-foreground hover:text-red-400 hover:bg-red-500/20"
+                            >
                               <Trash2 className="w-4 h-4" />
-                            </button>
+                            </Button>
                           </div>
                         </td>
                       </tr>
