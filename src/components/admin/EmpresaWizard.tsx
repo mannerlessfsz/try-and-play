@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Building2, User, Settings, Check, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
+import { Building2, User, Settings, Check, ChevronRight, ChevronLeft, Loader2, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 
@@ -33,9 +33,11 @@ interface WizardData {
   cnpj: string;
   telefone: string;
   // Step 2: Gerente
+  gerenteTipo: 'novo' | 'existente';
   gerenteNome: string;
   gerenteEmail: string;
   gerenteSenha: string;
+  gerenteExistenteId: string;
   // Step 3: Módulos e Permissões
   modulos: ModuloConfig[];
   permissoes: PermissaoConfig[];
@@ -63,10 +65,14 @@ const step1Schema = z.object({
   telefone: z.string().optional(),
 });
 
-const step2Schema = z.object({
+const step2SchemaNew = z.object({
   gerenteNome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
   gerenteEmail: z.string().email('Email inválido'),
   gerenteSenha: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres'),
+});
+
+const step2SchemaExisting = z.object({
+  gerenteExistenteId: z.string().min(1, 'Selecione um usuário'),
 });
 
 interface EmpresaWizardProps {
@@ -87,9 +93,11 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
     nome: '',
     cnpj: '',
     telefone: '',
+    gerenteTipo: 'novo',
     gerenteNome: '',
     gerenteEmail: '',
     gerenteSenha: '',
+    gerenteExistenteId: '',
     modulos: modulosDisponiveis.map(m => ({
       modulo: m.id,
       ativo: false,
@@ -99,6 +107,21 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       modulo: m.id,
       permissions: [],
     })),
+  });
+
+  // Fetch existing users for selection
+  const { data: existingUsers = [] } = useQuery({
+    queryKey: ['admin-users-for-manager'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name, ativo')
+        .eq('ativo', true)
+        .order('full_name');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !editingEmpresa,
   });
 
   const isEditMode = !!editingEmpresa;
@@ -157,9 +180,11 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       nome: '',
       cnpj: '',
       telefone: '',
+      gerenteTipo: 'novo',
       gerenteNome: '',
       gerenteEmail: '',
       gerenteSenha: '',
+      gerenteExistenteId: '',
       modulos: modulosDisponiveis.map(m => ({
         modulo: m.id,
         ativo: false,
@@ -183,44 +208,52 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       }
 
       try {
-        // 1. Create manager user (this will change the session!)
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: data.gerenteEmail,
-          password: data.gerenteSenha,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: { full_name: data.gerenteNome }
-          }
-        });
-        
-        if (authError) {
-          if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-            throw new Error(`O email "${data.gerenteEmail}" já está cadastrado. Use um email diferente.`);
-          }
-          throw new Error(`Erro ao criar usuário: ${authError.message}`);
-        }
-        
-        const managerId = authData.user?.id;
-        if (!managerId) throw new Error('Erro ao obter ID do usuário criado');
+        let managerId: string;
 
-        // 2. IMMEDIATELY restore master session before any RPC calls
-        const { error: restoreError } = await supabase.auth.setSession({
-          access_token: masterSession.access_token,
-          refresh_token: masterSession.refresh_token,
-        });
-        
-        if (restoreError) {
-          console.error('Erro ao restaurar sessão master:', restoreError);
-          throw new Error('Erro ao restaurar sessão do administrador. Faça login novamente.');
+        if (data.gerenteTipo === 'novo') {
+          // Create NEW manager user (this will change the session!)
+          const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: data.gerenteEmail,
+            password: data.gerenteSenha,
+            options: {
+              emailRedirectTo: `${window.location.origin}/`,
+              data: { full_name: data.gerenteNome }
+            }
+          });
+          
+          if (authError) {
+            if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
+              throw new Error(`O email "${data.gerenteEmail}" já está cadastrado. Use um email diferente.`);
+            }
+            throw new Error(`Erro ao criar usuário: ${authError.message}`);
+          }
+          
+          managerId = authData.user?.id || '';
+          if (!managerId) throw new Error('Erro ao obter ID do usuário criado');
+
+          // IMMEDIATELY restore master session before any RPC calls
+          const { error: restoreError } = await supabase.auth.setSession({
+            access_token: masterSession.access_token,
+            refresh_token: masterSession.refresh_token,
+          });
+          
+          if (restoreError) {
+            console.error('Erro ao restaurar sessão master:', restoreError);
+            throw new Error('Erro ao restaurar sessão do administrador. Faça login novamente.');
+          }
+        } else {
+          // Use EXISTING user as manager
+          managerId = data.gerenteExistenteId;
+          if (!managerId) throw new Error('Nenhum usuário selecionado');
         }
 
-        // 3. Add manager role using security definer function
+        // Add manager role using security definer function
         const { error: roleError } = await supabase.rpc('assign_manager_role', { 
           _user_id: managerId 
         });
         if (roleError) throw roleError;
 
-        // 4. Create empresa using SECURITY DEFINER function (bypasses RLS)
+        // Create empresa using SECURITY DEFINER function (bypasses RLS)
         const { data: empresaId, error: empresaError } = await supabase.rpc('create_empresa_for_manager', {
           _nome: data.nome,
           _cnpj: data.cnpj || null,
@@ -231,7 +264,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         if (empresaError) throw new Error(`Erro ao criar empresa: ${empresaError.message}`);
         if (!empresaId) throw new Error('Erro ao obter ID da empresa criada');
 
-        // 5. Link manager to empresa using SECURITY DEFINER function
+        // Link manager to empresa using SECURITY DEFINER function
         const { error: userEmpresaError } = await supabase.rpc('link_user_to_empresa', {
           _user_id: managerId,
           _empresa_id: empresaId,
@@ -239,7 +272,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         });
         if (userEmpresaError) throw new Error(`Erro ao vincular gerente: ${userEmpresaError.message}`);
 
-        // 6. Create empresa modulos using SECURITY DEFINER function
+        // Create empresa modulos using SECURITY DEFINER function
         const modulosAtivos = data.modulos.filter(m => m.ativo);
         for (const mod of modulosAtivos) {
           const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
@@ -251,7 +284,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
           if (moduloError) throw new Error(`Erro ao adicionar módulo: ${moduloError.message}`);
         }
 
-        // 7. Create user permissions using SECURITY DEFINER function
+        // Create user permissions using SECURITY DEFINER function
         for (const permConfig of data.permissoes) {
           const moduloConfig = data.modulos.find(m => m.modulo === permConfig.modulo);
           if (moduloConfig?.ativo && permConfig.permissions.length > 0) {
@@ -350,19 +383,31 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
     }
     
     if (step === 2) {
-      const result = step2Schema.safeParse(data);
-      if (!result.success) {
-        const fieldErrors: Record<string, string> = {};
-        result.error.errors.forEach(err => {
-          if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
-        });
-        setErrors(fieldErrors);
-        return false;
-      }
-      
-      // Check if email already has an error from the async check
-      if (errors.gerenteEmail === 'Este e-mail já está cadastrado no sistema.') {
-        return false;
+      if (data.gerenteTipo === 'novo') {
+        const result = step2SchemaNew.safeParse(data);
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+          result.error.errors.forEach(err => {
+            if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+          });
+          setErrors(fieldErrors);
+          return false;
+        }
+        
+        // Check if email already has an error from the async check
+        if (errors.gerenteEmail === 'Este e-mail já está cadastrado no sistema.') {
+          return false;
+        }
+      } else {
+        const result = step2SchemaExisting.safeParse(data);
+        if (!result.success) {
+          const fieldErrors: Record<string, string> = {};
+          result.error.errors.forEach(err => {
+            if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
+          });
+          setErrors(fieldErrors);
+          return false;
+        }
       }
     }
     
@@ -563,53 +608,114 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="gerenteNome">Nome Completo *</Label>
-                  <Input
-                    id="gerenteNome"
-                    value={data.gerenteNome}
-                    onChange={(e) => setData(prev => ({ ...prev, gerenteNome: e.target.value }))}
-                    placeholder="Nome do gerente"
-                    className={errors.gerenteNome ? 'border-destructive' : ''}
-                  />
-                  {errors.gerenteNome && <p className="text-sm text-destructive mt-1">{errors.gerenteNome}</p>}
-                </div>
+              {/* Toggle between new/existing user */}
+              <div className="flex gap-2 p-1 rounded-lg bg-muted/30 border border-border/50">
+                <Button
+                  type="button"
+                  variant={data.gerenteTipo === 'novo' ? 'default' : 'ghost'}
+                  className="flex-1 gap-2"
+                  onClick={() => setData(prev => ({ ...prev, gerenteTipo: 'novo' }))}
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Criar Novo Usuário
+                </Button>
+                <Button
+                  type="button"
+                  variant={data.gerenteTipo === 'existente' ? 'default' : 'ghost'}
+                  className="flex-1 gap-2"
+                  onClick={() => setData(prev => ({ ...prev, gerenteTipo: 'existente' }))}
+                >
+                  <Users className="w-4 h-4" />
+                  Usuário Existente
+                </Button>
+              </div>
 
-                <div>
-                  <Label htmlFor="gerenteEmail">E-mail de Acesso *</Label>
-                  <div className="relative">
+              {/* New user form */}
+              {data.gerenteTipo === 'novo' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="gerenteNome">Nome Completo *</Label>
                     <Input
-                      id="gerenteEmail"
-                      type="email"
-                      value={data.gerenteEmail}
-                      onChange={(e) => setData(prev => ({ ...prev, gerenteEmail: e.target.value }))}
-                      onBlur={(e) => checkEmailExists(e.target.value)}
-                      placeholder="gerente@empresa.com"
-                      className={errors.gerenteEmail ? 'border-destructive' : ''}
+                      id="gerenteNome"
+                      value={data.gerenteNome}
+                      onChange={(e) => setData(prev => ({ ...prev, gerenteNome: e.target.value }))}
+                      placeholder="Nome do gerente"
+                      className={errors.gerenteNome ? 'border-destructive' : ''}
                     />
-                    {checkingEmail && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      </div>
+                    {errors.gerenteNome && <p className="text-sm text-destructive mt-1">{errors.gerenteNome}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gerenteEmail">E-mail de Acesso *</Label>
+                    <div className="relative">
+                      <Input
+                        id="gerenteEmail"
+                        type="email"
+                        value={data.gerenteEmail}
+                        onChange={(e) => setData(prev => ({ ...prev, gerenteEmail: e.target.value }))}
+                        onBlur={(e) => checkEmailExists(e.target.value)}
+                        placeholder="gerente@empresa.com"
+                        className={errors.gerenteEmail ? 'border-destructive' : ''}
+                      />
+                      {checkingEmail && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    {errors.gerenteEmail && <p className="text-sm text-destructive mt-1">{errors.gerenteEmail}</p>}
+                  </div>
+
+                  <div>
+                    <Label htmlFor="gerenteSenha">Senha Inicial *</Label>
+                    <Input
+                      id="gerenteSenha"
+                      type="password"
+                      value={data.gerenteSenha}
+                      onChange={(e) => setData(prev => ({ ...prev, gerenteSenha: e.target.value }))}
+                      placeholder="Mínimo 6 caracteres"
+                      className={errors.gerenteSenha ? 'border-destructive' : ''}
+                    />
+                    {errors.gerenteSenha && <p className="text-sm text-destructive mt-1">{errors.gerenteSenha}</p>}
+                  </div>
+                </div>
+              )}
+
+              {/* Existing user selection */}
+              {data.gerenteTipo === 'existente' && (
+                <div className="space-y-4">
+                  <div>
+                    <Label>Selecionar Usuário *</Label>
+                    <Select
+                      value={data.gerenteExistenteId}
+                      onValueChange={(value) => setData(prev => ({ ...prev, gerenteExistenteId: value }))}
+                    >
+                      <SelectTrigger className={errors.gerenteExistenteId ? 'border-destructive' : ''}>
+                        <SelectValue placeholder="Escolha um usuário existente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {existingUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            <div className="flex flex-col">
+                              <span>{user.full_name || 'Sem nome'}</span>
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.gerenteExistenteId && (
+                      <p className="text-sm text-destructive mt-1">{errors.gerenteExistenteId}</p>
                     )}
                   </div>
-                  {errors.gerenteEmail && <p className="text-sm text-destructive mt-1">{errors.gerenteEmail}</p>}
-                </div>
 
-                <div>
-                  <Label htmlFor="gerenteSenha">Senha Inicial *</Label>
-                  <Input
-                    id="gerenteSenha"
-                    type="password"
-                    value={data.gerenteSenha}
-                    onChange={(e) => setData(prev => ({ ...prev, gerenteSenha: e.target.value }))}
-                    placeholder="Mínimo 6 caracteres"
-                    className={errors.gerenteSenha ? 'border-destructive' : ''}
-                  />
-                  {errors.gerenteSenha && <p className="text-sm text-destructive mt-1">{errors.gerenteSenha}</p>}
+                  {existingUsers.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground text-sm">
+                      Nenhum usuário disponível. Crie um novo usuário.
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -726,7 +832,13 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                   <h4 className="text-sm font-medium mb-2">Resumo</h4>
                   <div className="text-xs text-muted-foreground space-y-1">
                     <p><strong>Empresa:</strong> {data.nome}</p>
-                    <p><strong>Gerente:</strong> {data.gerenteNome} ({data.gerenteEmail})</p>
+                    <p><strong>Gerente:</strong> {
+                      data.gerenteTipo === 'novo' 
+                        ? `${data.gerenteNome} (${data.gerenteEmail})`
+                        : existingUsers.find(u => u.id === data.gerenteExistenteId)?.full_name || 
+                          existingUsers.find(u => u.id === data.gerenteExistenteId)?.email ||
+                          'Não selecionado'
+                    }</p>
                     <p><strong>Módulos:</strong> {modulosAtivos.map(m => 
                       modulosDisponiveis.find(md => md.id === m.modulo)?.nome
                     ).join(', ')}</p>
