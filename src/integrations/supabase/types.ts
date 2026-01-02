@@ -1658,6 +1658,48 @@ export type Database = {
           },
         ]
       }
+      user_applied_profiles: {
+        Row: {
+          applied_at: string
+          applied_by: string | null
+          empresa_id: string
+          id: string
+          profile_id: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string
+          applied_by?: string | null
+          empresa_id: string
+          id?: string
+          profile_id: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string
+          applied_by?: string | null
+          empresa_id?: string
+          id?: string
+          profile_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_applied_profiles_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_applied_profiles_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "permission_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_empresas: {
         Row: {
           created_at: string

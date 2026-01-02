@@ -212,6 +212,20 @@ export function usePermissionProfiles() {
 
       if (insertError) throw insertError;
 
+      // Register which profile was applied (for auto-sync when profile changes)
+      const { error: trackError } = await fromTable('user_applied_profiles')
+        .upsert({
+          user_id: userId,
+          empresa_id: empresaId,
+          profile_id: profileId,
+          applied_at: new Date().toISOString(),
+        } as any, { onConflict: 'user_id,empresa_id' });
+
+      if (trackError) {
+        console.warn('Erro ao registrar perfil aplicado:', trackError);
+        // Não falhar a operação por causa disso
+      }
+
       // Optionally assign role
       if (assignRole && profile?.role_padrao) {
         const rolePadrao = profile.role_padrao as 'admin' | 'manager' | 'user';
@@ -232,15 +246,16 @@ export function usePermissionProfiles() {
         }
       }
 
-      return { applied: newPermissions.length };
+      return { applied: newPermissions.length, profileName: profile?.nome };
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resource-permissions'] });
       queryClient.invalidateQueries({ queryKey: ['user-resource-permissions'] });
       queryClient.invalidateQueries({ queryKey: ['admin-all-roles'] });
+      queryClient.invalidateQueries({ queryKey: ['user-applied-profiles'] });
       toast({ 
         title: 'Perfil aplicado com sucesso', 
-        description: `${data.applied} permissões configuradas` 
+        description: `${data.applied} permissões configuradas. Alterações no perfil serão sincronizadas automaticamente.` 
       });
     },
     onError: (error) => {
