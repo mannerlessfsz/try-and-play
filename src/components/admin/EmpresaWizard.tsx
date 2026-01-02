@@ -80,6 +80,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [checkingEmail, setCheckingEmail] = useState(false);
   
   const [data, setData] = useState<WizardData>({
     nome: '',
@@ -98,6 +99,42 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
       permissions: [],
     })),
   });
+
+  // Check if email already exists in database
+  const checkEmailExists = async (email: string) => {
+    if (!email || !z.string().email().safeParse(email).success) return;
+    
+    setCheckingEmail(true);
+    try {
+      const { data: existingProfile, error } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .eq('email', email.toLowerCase().trim())
+        .maybeSingle();
+      
+      if (error) {
+        console.error('Erro ao verificar e-mail:', error);
+        return;
+      }
+      
+      if (existingProfile) {
+        setErrors(prev => ({ 
+          ...prev, 
+          gerenteEmail: `Este e-mail já está cadastrado no sistema.` 
+        }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          if (newErrors.gerenteEmail === 'Este e-mail já está cadastrado no sistema.') {
+            delete newErrors.gerenteEmail;
+          }
+          return newErrors;
+        });
+      }
+    } finally {
+      setCheckingEmail(false);
+    }
+  };
 
   const resetWizard = () => {
     setCurrentStep(1);
@@ -273,6 +310,11 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
           if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
         });
         setErrors(fieldErrors);
+        return false;
+      }
+      
+      // Check if email already has an error from the async check
+      if (errors.gerenteEmail === 'Este e-mail já está cadastrado no sistema.') {
         return false;
       }
     }
@@ -479,14 +521,22 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess }: EmpresaWizardProps
 
                 <div>
                   <Label htmlFor="gerenteEmail">E-mail de Acesso *</Label>
-                  <Input
-                    id="gerenteEmail"
-                    type="email"
-                    value={data.gerenteEmail}
-                    onChange={(e) => setData(prev => ({ ...prev, gerenteEmail: e.target.value }))}
-                    placeholder="gerente@empresa.com"
-                    className={errors.gerenteEmail ? 'border-destructive' : ''}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="gerenteEmail"
+                      type="email"
+                      value={data.gerenteEmail}
+                      onChange={(e) => setData(prev => ({ ...prev, gerenteEmail: e.target.value }))}
+                      onBlur={(e) => checkEmailExists(e.target.value)}
+                      placeholder="gerente@empresa.com"
+                      className={errors.gerenteEmail ? 'border-destructive' : ''}
+                    />
+                    {checkingEmail && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
                   {errors.gerenteEmail && <p className="text-sm text-destructive mt-1">{errors.gerenteEmail}</p>}
                 </div>
 
