@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useEstoque } from "@/hooks/useEstoque";
 import { useProdutos } from "@/hooks/useProdutos";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package, ArrowUpRight, ArrowDownRight, AlertTriangle } from "lucide-react";
+import { formatCurrency } from "@/lib/formatters";
 
 interface EstoqueManagerProps {
   empresaId: string;
@@ -18,23 +19,22 @@ export function EstoqueManager({ empresaId }: EstoqueManagerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [view, setView] = useState<"posicao" | "movimentos">("posicao");
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  const produtosComEstoque = useMemo(() => 
+    produtos.filter(p => p.controla_estoque), [produtos]);
+    
+  const produtosAbaixoMinimo = useMemo(() => 
+    produtosComEstoque.filter(p => (p.estoque_atual ?? 0) < (p.estoque_minimo ?? 0)), 
+    [produtosComEstoque]);
 
-  const produtosComEstoque = produtos.filter(p => p.controla_estoque);
-  const produtosAbaixoMinimo = produtosComEstoque.filter(
-    p => (p.estoque_atual ?? 0) < (p.estoque_minimo ?? 0)
-  );
+  const valorTotalEstoque = useMemo(() => 
+    produtosComEstoque.reduce((acc, p) => acc + (p.estoque_atual ?? 0) * (p.preco_custo ?? 0), 0),
+    [produtosComEstoque]);
 
-  const valorTotalEstoque = produtosComEstoque.reduce(
-    (acc, p) => acc + (p.estoque_atual ?? 0) * (p.preco_custo ?? 0),
-    0
-  );
-
-  const filteredProdutos = produtosComEstoque.filter(p =>
-    p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.codigo?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProdutos = useMemo(() => 
+    produtosComEstoque.filter(p =>
+      p.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      p.codigo?.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [produtosComEstoque, searchTerm]);
 
   if (loadingProdutos || loadingMovimentos) {
     return <div className="text-center py-8 text-muted-foreground">Carregando estoque...</div>;

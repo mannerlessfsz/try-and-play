@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useCompras } from "@/hooks/useCompras";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ShoppingBag, FileUp, Package, Calendar, Hash, DollarSign, TrendingUp, Eye } from "lucide-react";
 import { ImportNFeModal } from "./ImportNFeModal";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 
 interface ComprasManagerProps {
   empresaId: string;
@@ -38,16 +39,11 @@ export function ComprasManager({ empresaId, empresaCnpj }: ComprasManagerProps) 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const queryClient = useQueryClient();
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-  const formatDate = (dateString: string) =>
-    new Date(dateString).toLocaleDateString("pt-BR");
-
-  const filteredCompras = compras.filter(c =>
-    c.fornecedor?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.numero?.toString().includes(searchTerm)
-  );
+  const filteredCompras = useMemo(() => 
+    compras.filter(c =>
+      c.fornecedor?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.numero?.toString().includes(searchTerm)
+    ), [compras, searchTerm]);
 
   const handleImportComplete = () => {
     queryClient.invalidateQueries({ queryKey: ["produtos", empresaId] });

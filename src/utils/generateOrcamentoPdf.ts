@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { Orcamento, OrcamentoItem } from "@/hooks/useOrcamentos";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 
 interface EmpresaInfo {
   nome: string;
@@ -8,13 +9,6 @@ interface EmpresaInfo {
   telefone?: string | null;
   logo_url?: string | null;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString("pt-BR");
-};
 
 // Helper to load image as base64
 const loadImageAsBase64 = async (url: string): Promise<string | null> => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useVendas } from "@/hooks/useVendas";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ShoppingCart } from "lucide-react";
 import { VendaFormModal } from "./VendaFormModal";
+import { formatCurrency } from "@/lib/formatters";
 
 interface VendasManagerProps {
   empresaId: string;
@@ -26,13 +27,11 @@ export function VendasManager({ empresaId }: VendasManagerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
 
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-  const filteredVendas = vendas.filter(v =>
-    v.cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    v.numero?.toString().includes(searchTerm)
-  );
+  const filteredVendas = useMemo(() => 
+    vendas.filter(v =>
+      v.cliente?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.numero?.toString().includes(searchTerm)
+    ), [vendas, searchTerm]);
 
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Carregando vendas...</div>;

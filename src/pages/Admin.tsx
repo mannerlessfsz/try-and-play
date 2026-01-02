@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { syncMissingProfiles } from '@/hooks/useSyncProfiles';
 import { usePermissions, AppModule, PermissionType, AppRole } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -138,11 +139,7 @@ const Admin: React.FC = () => {
     queryKey: ['admin-users'],
     queryFn: async () => {
       // First, sync any missing profiles from auth.users
-      try {
-        await supabase.rpc('sync_missing_profiles');
-      } catch {
-        // Ignore errors (user may not be admin or function may not exist yet)
-      }
+      await syncMissingProfiles();
       
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useClientes } from "@/hooks/useClientes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users, Edit, Trash2 } from "lucide-react";
 import { ClienteFormModal } from "./ClienteFormModal";
-import { useToast } from "@/hooks/use-toast";
 
 interface ClientesManagerProps {
   empresaId: string;
@@ -18,29 +17,29 @@ export function ClientesManager({ empresaId }: ClientesManagerProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingCliente, setEditingCliente] = useState<any>(null);
-  const { toast } = useToast();
 
-  const filteredClientes = clientes.filter(c =>
-    c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.cpf_cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredClientes = useMemo(() => 
+    clientes.filter(c =>
+      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.cpf_cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    ), [clientes, searchTerm]);
 
-  const handleEdit = (cliente: any) => {
+  const handleEdit = useCallback((cliente: any) => {
     setEditingCliente(cliente);
     setShowModal(true);
-  };
+  }, []);
 
-  const handleDelete = (id: string, nome: string) => {
+  const handleDelete = useCallback((id: string, nome: string) => {
     if (confirm(`Tem certeza que deseja excluir o cliente "${nome}"?`)) {
       deleteCliente.mutate(id);
     }
-  };
+  }, [deleteCliente]);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setShowModal(false);
     setEditingCliente(null);
-  };
+  }, []);
 
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Carregando clientes...</div>;

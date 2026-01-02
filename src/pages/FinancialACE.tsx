@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo, useCallback } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { MetricCard } from "@/components/task/MetricCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
@@ -25,6 +25,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { parseOFX, readFileAsText, normalizeAccountNumber } from "@/utils/ofxParser";
+import { formatCurrency as formatCurrencyUtil } from "@/lib/formatters";
 import { supabase } from "@/integrations/supabase/client";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
 import { CategoriasManager } from "@/components/financial/CategoriasManager";
@@ -170,18 +171,20 @@ export default function FinancialACE() {
   const { totalCompras } = useCompras(empresaAtiva?.id);
   const { orcamentosAbertos } = useOrcamentos(empresaAtiva?.id);
 
-  // Transações formatadas para conciliação
-  const transacoesParaConciliacao = transacoes.map(t => ({
-    id: t.id,
-    descricao: t.descricao,
-    valor: t.valor,
-    tipo: t.tipo as "receita" | "despesa",
-    categoria: t.categoria?.nome || "Sem categoria",
-    data: t.data_transacao,
-    status: t.status as "pendente" | "confirmado" | "cancelado",
-  }));
+  // Transações formatadas para conciliação - memoized for performance
+  const transacoesParaConciliacao = useMemo(() => 
+    transacoes.map(t => ({
+      id: t.id,
+      descricao: t.descricao,
+      valor: t.valor,
+      tipo: t.tipo as "receita" | "despesa",
+      categoria: t.categoria?.nome || "Sem categoria",
+      data: t.data_transacao,
+      status: t.status as "pendente" | "confirmado" | "cancelado",
+    })), [transacoes]);
 
-  const getFilteredTransacoes = () => {
+  // Filtered transactions - memoized
+  const filteredTransacoes = useMemo(() => {
     switch (activeFilter) {
       case "receitas":
         return transacoesParaConciliacao.filter(t => t.tipo === "receita");
@@ -192,17 +195,14 @@ export default function FinancialACE() {
       default:
         return transacoesParaConciliacao;
     }
-  };
+  }, [activeFilter, transacoesParaConciliacao]);
 
-  const filteredTransacoes = getFilteredTransacoes();
-
-  const handleFilterClick = (filter: FilterType) => {
+  const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
-  };
+  }, []);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
+  // Use shared formatter
+  const formatCurrency = formatCurrencyUtil;
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
