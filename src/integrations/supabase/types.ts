@@ -1501,6 +1501,7 @@ export type Database = {
         Row: {
           categoria_id: string | null
           centro_custo_id: string | null
+          cliente_id: string | null
           competencia_ano: number | null
           competencia_mes: number | null
           conciliado: boolean | null
@@ -1530,6 +1531,7 @@ export type Database = {
         Insert: {
           categoria_id?: string | null
           centro_custo_id?: string | null
+          cliente_id?: string | null
           competencia_ano?: number | null
           competencia_mes?: number | null
           conciliado?: boolean | null
@@ -1559,6 +1561,7 @@ export type Database = {
         Update: {
           categoria_id?: string | null
           centro_custo_id?: string | null
+          cliente_id?: string | null
           competencia_ano?: number | null
           competencia_mes?: number | null
           conciliado?: boolean | null
@@ -1598,6 +1601,13 @@ export type Database = {
             columns: ["centro_custo_id"]
             isOneToOne: false
             referencedRelation: "centros_custo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
             referencedColumns: ["id"]
           },
           {

@@ -15,6 +15,7 @@ export interface Transacao {
   categoria_id: string | null;
   conta_bancaria_id: string | null;
   centro_custo_id: string | null;
+  cliente_id: string | null;
   forma_pagamento: string | null;
   numero_documento: string | null;
   observacoes: string | null;
@@ -26,6 +27,7 @@ export interface Transacao {
   // Joined fields
   categoria?: { id: string; nome: string; cor: string | null } | null;
   conta_bancaria?: { id: string; nome: string; banco: string } | null;
+  cliente?: { id: string; nome: string; cpf_cnpj: string | null; tipo_pessoa: string | null } | null;
 }
 
 export interface TransacaoInput {
@@ -40,6 +42,7 @@ export interface TransacaoInput {
   categoria_id?: string;
   conta_bancaria_id?: string;
   centro_custo_id?: string;
+  cliente_id?: string;
   forma_pagamento?: string;
   numero_documento?: string;
   observacoes?: string;
@@ -47,22 +50,7 @@ export interface TransacaoInput {
   competencia_mes?: number;
 }
 
-export interface TransacaoInput {
-  empresa_id: string;
-  descricao: string;
-  valor: number;
-  tipo: string;
-  status?: string;
-  data_transacao?: string;
-  data_vencimento?: string;
-  data_pagamento?: string;
-  categoria_id?: string;
-  conta_bancaria_id?: string;
-  centro_custo_id?: string;
-  forma_pagamento?: string;
-  numero_documento?: string;
-  observacoes?: string;
-}
+// Options for filtering transactions
 
 interface UseTransacoesOptions {
   tipo?: string;
@@ -85,7 +73,8 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
         .select(`
           *,
           categoria:categorias_financeiras(id, nome, cor),
-          conta_bancaria:contas_bancarias!transacoes_conta_bancaria_id_fkey(id, nome, banco)
+          conta_bancaria:contas_bancarias!transacoes_conta_bancaria_id_fkey(id, nome, banco),
+          cliente:clientes(id, nome, cpf_cnpj, tipo_pessoa)
         `)
         .eq("empresa_id", empresaId)
         .order("data_transacao", { ascending: false });
