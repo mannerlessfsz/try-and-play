@@ -17,8 +17,8 @@ const services = [
   },
   {
     icon: <DollarSign className="w-8 h-8" />,
-    title: "FinancialACE",
-    description: "Gestão financeira profissional e pessoal com controle de fluxo de caixa, categorização e relatórios detalhados.",
+    title: "GESTÃO",
+    description: "Sistema integrado de gestão financeira, produtos, clientes, vendas, compras e estoque.",
     color: "text-blue",
     bgGlow: "from-blue/20"
   },
