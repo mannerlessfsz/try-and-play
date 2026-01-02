@@ -186,6 +186,7 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
     let produtosImportados = 0;
     let fornecedorCriado = false;
     let contaPagarCriada = false;
+    let compraCriada = false;
 
     try {
       // 1. Create or find supplier
@@ -228,9 +229,36 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
         }
       }
 
-      // 2. Create products
+      // 2. Create compra (purchase) record
+      let compraId: string | null = null;
       const selectedProducts = nfeData.produtos.filter(p => p.selected);
-      
+      const subtotal = selectedProducts.reduce((sum, p) => sum + p.valor_total, 0);
+
+      const { data: compraData, error: compraError } = await supabase
+        .from('compras')
+        .insert({
+          empresa_id: empresaId,
+          fornecedor_id: fornecedorId,
+          numero: parseInt(nfeData.numero) || null,
+          data_compra: nfeData.data_emissao || new Date().toISOString().split('T')[0],
+          data_entrega_real: new Date().toISOString().split('T')[0],
+          status: 'concluido',
+          subtotal: subtotal,
+          total: nfeData.total_nfe,
+          forma_pagamento: nfeData.forma_pagamento,
+          observacoes: `Chave de acesso: ${nfeData.chave_acesso || 'N/A'}`,
+        })
+        .select('id')
+        .single();
+
+      if (compraError) {
+        errors.push(`Erro ao criar compra: ${compraError.message}`);
+      } else {
+        compraId = compraData.id;
+        compraCriada = true;
+      }
+
+      // 3. Create products and compra_itens
       for (const produto of selectedProducts) {
         // Check if product already exists by code
         const { data: existingProduto } = await supabase
@@ -240,7 +268,10 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
           .eq('codigo', produto.codigo)
           .maybeSingle();
 
+        let produtoId: string;
+
         if (existingProduto) {
+          produtoId = existingProduto.id;
           // Update stock
           const novoEstoque = (existingProduto.estoque_atual || 0) + produto.quantidade;
           const { error: updateError } = await supabase
@@ -288,7 +319,9 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
 
           if (produtoError) {
             errors.push(`Erro ao criar ${produto.nome}: ${produtoError.message}`);
+            continue;
           } else {
+            produtoId = newProduto.id;
             // Create stock movement
             await supabase.from('estoque_movimentos').insert({
               empresa_id: empresaId,
@@ -305,9 +338,20 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
             produtosImportados++;
           }
         }
+
+        // Create compra_item linking product to compra
+        if (compraId && produtoId!) {
+          await supabase.from('compra_itens').insert({
+            compra_id: compraId,
+            produto_id: produtoId!,
+            quantidade: produto.quantidade,
+            preco_unitario: produto.valor_unitario,
+            total: produto.valor_total,
+          });
+        }
       }
 
-      // 3. Create accounts payable (despesa)
+      // 4. Create accounts payable (despesa)
       if (createContaPagar && nfeData.total_nfe > 0) {
         const { error: transacaoError } = await supabase
           .from('transacoes')
