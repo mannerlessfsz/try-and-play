@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
+import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
 import { 
   ArrowLeft, 
   Users, 
@@ -35,7 +36,8 @@ import {
   ChevronDown,
   ChevronUp,
   Crown,
-  UserCog
+  UserCog,
+  Layers
 } from 'lucide-react';
 
 interface Profile {
@@ -102,6 +104,7 @@ const MASTER_USER_ID = 'ea1c9a69-e436-4de2-953b-432e5fff60ae';
 const MODULES: { value: AppModule; label: string }[] = [
   { value: 'taskvault', label: 'TaskVault' },
   { value: 'financialace', label: 'FinancialACE' },
+  { value: 'erp', label: 'ERP/Gestão' },
   { value: 'ajustasped', label: 'AjustaSped' },
   { value: 'conferesped', label: 'ConfereSped' }
 ];
@@ -480,6 +483,9 @@ const Admin: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="empresas" className="gap-2">
               <Building2 className="w-4 h-4" /> Empresas
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="gap-2">
+              <Layers className="w-4 h-4" /> Perfis
             </TabsTrigger>
             <TabsTrigger value="permissions" className="gap-2">
               <Shield className="w-4 h-4" /> Permissões
@@ -974,6 +980,11 @@ const Admin: React.FC = () => {
                 </Dialog>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Permission Profiles Tab */}
+          <TabsContent value="profiles">
+            <PermissionProfilesManager />
           </TabsContent>
 
           {/* Permissions Tab */}

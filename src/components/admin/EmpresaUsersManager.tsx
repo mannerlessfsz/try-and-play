@@ -17,6 +17,7 @@ import {
   PERMISSION_ACTIONS,
   useResourcePermissions 
 } from '@/hooks/useResourcePermissions';
+import { ApplyProfileToUserModal } from './ApplyProfileToUserModal';
 import { 
   UserPlus, 
   Trash2, 
@@ -26,7 +27,8 @@ import {
   ChevronDown,
   ChevronUp,
   Mail,
-  User
+  User,
+  Wand2
 } from 'lucide-react';
 
 interface Profile {
@@ -67,6 +69,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
+  const [applyProfileUser, setApplyProfileUser] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch all users (includes automatic sync of missing profiles)
   const { data: allUsers = [] } = useQuery({
@@ -453,9 +456,26 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
 
                 {isExpanded && (
                   <div className="mt-4 pt-4 border-t border-border space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-primary" />
-                      <span className="font-medium text-sm">Permissões Granulares por Recurso</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-primary" />
+                        <span className="font-medium text-sm">Permissões Granulares por Recurso</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="gap-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setApplyProfileUser({
+                            id: eu.user_id,
+                            name: user?.full_name || user?.email || 'Usuário',
+                          });
+                        }}
+                      >
+                        <Wand2 className="w-4 h-4" />
+                        Aplicar Perfil
+                      </Button>
                     </div>
 
                     {/* Module selector */}
@@ -540,6 +560,18 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
             );
           })}
         </div>
+      )}
+
+      {/* Apply Profile Modal */}
+      {applyProfileUser && (
+        <ApplyProfileToUserModal
+          isOpen={!!applyProfileUser}
+          onClose={() => setApplyProfileUser(null)}
+          userId={applyProfileUser.id}
+          userName={applyProfileUser.name}
+          empresaId={empresaId}
+          empresaNome={empresaNome || 'Empresa'}
+        />
       )}
     </div>
   );
