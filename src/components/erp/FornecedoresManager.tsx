@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Truck } from "lucide-react";
+import { Plus, Search, Truck, Edit, Trash2 } from "lucide-react";
 import { FornecedorFormModal } from "./FornecedorFormModal";
 
 interface FornecedoresManagerProps {
@@ -13,14 +13,31 @@ interface FornecedoresManagerProps {
 }
 
 export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
-  const { fornecedores, isLoading } = useFornecedores(empresaId);
+  const { fornecedores, isLoading, deleteFornecedor } = useFornecedores(empresaId);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [editingFornecedor, setEditingFornecedor] = useState<any>(null);
 
   const filteredFornecedores = fornecedores.filter(f =>
     f.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.cpf_cnpj?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const handleEdit = (fornecedor: any) => {
+    setEditingFornecedor(fornecedor);
+    setShowModal(true);
+  };
+
+  const handleDelete = (id: string, nome: string) => {
+    if (confirm(`Tem certeza que deseja excluir o fornecedor "${nome}"?`)) {
+      deleteFornecedor.mutate(id);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setEditingFornecedor(null);
+  };
 
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Carregando fornecedores...</div>;
@@ -66,6 +83,7 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
                   <TableHead>Telefone</TableHead>
                   <TableHead>Prazo Entrega</TableHead>
                   <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -83,6 +101,27 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
                         {f.ativo ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(f)}
+                        >
+                          <Edit className="w-4 h-4 text-blue-500" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8"
+                          onClick={() => handleDelete(f.id, f.nome)}
+                          disabled={deleteFornecedor.isPending}
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -93,8 +132,9 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
 
       <FornecedorFormModal 
         open={showModal} 
-        onClose={() => setShowModal(false)} 
-        empresaId={empresaId} 
+        onClose={handleCloseModal} 
+        empresaId={empresaId}
+        fornecedor={editingFornecedor}
       />
     </div>
   );

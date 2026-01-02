@@ -40,6 +40,9 @@ import { VendasManager } from "@/components/erp/VendasManager";
 import { ComprasManager } from "@/components/erp/ComprasManager";
 import { EstoqueManager } from "@/components/erp/EstoqueManager";
 import { OrcamentosManager } from "@/components/erp/OrcamentosManager";
+import { CentrosCustoManager } from "@/components/financial/CentrosCustoManager";
+import { MetasFinanceirasManager } from "@/components/financial/MetasFinanceirasManager";
+import { RecorrenciasManager } from "@/components/financial/RecorrenciasManager";
 import { useProdutos } from "@/hooks/useProdutos";
 import { useVendas } from "@/hooks/useVendas";
 import { useCompras } from "@/hooks/useCompras";
@@ -126,7 +129,7 @@ type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque" | "orcamentos">("transacoes");
+  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque" | "orcamentos" | "centros_custo" | "metas" | "recorrencias">("transacoes");
   const [activeSection, setActiveSection] = useState<"financeiro" | "gestao">("financeiro");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -925,6 +928,24 @@ export default function FinancialACE() {
                 >
                   <Link2 className="w-4 h-4 inline mr-1" />Conciliação
                 </button>
+                <button
+                  onClick={() => setActiveTab("centros_custo")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "centros_custo" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Building2 className="w-4 h-4 inline mr-1" />Centros Custo
+                </button>
+                <button
+                  onClick={() => setActiveTab("metas")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "metas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Target className="w-4 h-4 inline mr-1" />Metas
+                </button>
+                <button
+                  onClick={() => setActiveTab("recorrencias")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "recorrencias" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
+                >
+                  <Clock className="w-4 h-4 inline mr-1" />Recorrências
+                </button>
                 {modo === "pro" && (
                   <button
                     onClick={() => setActiveTab("relatorios")}
@@ -1009,6 +1030,18 @@ export default function FinancialACE() {
 
         {activeTab === "contas" && empresaAtiva && (
           <ContasBancariasManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "centros_custo" && empresaAtiva && (
+          <CentrosCustoManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "metas" && empresaAtiva && (
+          <MetasFinanceirasManager empresaId={empresaAtiva.id} />
+        )}
+
+        {activeTab === "recorrencias" && empresaAtiva && (
+          <RecorrenciasManager empresaId={empresaAtiva.id} />
         )}
 
         {/* Content - Gestão */}
