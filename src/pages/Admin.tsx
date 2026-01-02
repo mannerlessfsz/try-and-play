@@ -93,7 +93,7 @@ interface ContaBancaria {
 }
 
 // ID do usuário master - nunca pode ter suas permissões alteradas
-const MASTER_USER_ID = 'c84c3e62-f61c-4cc0-8468-b1b5dd652036';
+const MASTER_USER_ID = 'ea1c9a69-e436-4de2-953b-432e5fff60ae';
 
 const MODULES: { value: AppModule; label: string }[] = [
   { value: 'taskvault', label: 'TaskVault' },
