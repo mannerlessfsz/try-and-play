@@ -149,30 +149,14 @@ export default function FinancialACE() {
   const [extratoSelecionado, setExtratoSelecionado] = useState<string | null>(null);
   const [lancamentoParaVincular, setLancamentoParaVincular] = useState<LancamentoExtrato | null>(null);
   
-  const [lancamentosExtrato, setLancamentosExtrato] = useState<LancamentoExtrato[]>([
-    { id: "l1", extratoId: "1", data: "2024-12-20", descricao: "TED RECEBIDA - CLIENTE ABC LTDA", valor: 5000, tipo: "credito", conciliado: true, transacaoVinculadaId: "1" },
-    { id: "l2", extratoId: "1", data: "2024-12-15", descricao: "PAG ALUGUEL ESCRITORIO", valor: 2500, tipo: "debito", conciliado: true, transacaoVinculadaId: "2" },
-    { id: "l3", extratoId: "1", data: "2024-12-18", descricao: "PIX RECEBIDO - PROJETO WEB", valor: 8000, tipo: "credito", conciliado: false },
-    { id: "l4", extratoId: "1", data: "2024-12-10", descricao: "DEB AUTO SOFTWARE CONTABIL", valor: 350, tipo: "debito", conciliado: true, transacaoVinculadaId: "4" },
-    { id: "l5", extratoId: "1", data: "2024-12-22", descricao: "TED RECEBIDA - CONSULTORIA", valor: 3500, tipo: "credito", conciliado: false },
-    { id: "l6", extratoId: "1", data: "2024-12-05", descricao: "DEB AUTO INTERNET TELEFONE", valor: 280, tipo: "debito", conciliado: false },
-  ]);
-
-  // Mock transacoes for conciliation (will be replaced with real data later)
-  const [mockTransacoes, setMockTransacoes] = useState([
-    { id: "1", descricao: "Pagamento Cliente ABC", valor: 5000, tipo: "receita" as const, categoria: "Serviços", data: "2024-12-20", status: "confirmado" as const },
-    { id: "2", descricao: "Aluguel Escritório", valor: 2500, tipo: "despesa" as const, categoria: "Infraestrutura", data: "2024-12-15", status: "confirmado" as const },
-    { id: "3", descricao: "Projeto Website", valor: 8000, tipo: "receita" as const, categoria: "Projetos", data: "2024-12-18", status: "pendente" as const },
-    { id: "4", descricao: "Software Contábil", valor: 350, tipo: "despesa" as const, categoria: "Software", data: "2024-12-10", status: "confirmado" as const },
-    { id: "5", descricao: "Consultoria Fiscal", valor: 3500, tipo: "receita" as const, categoria: "Consultoria", data: "2024-12-22", status: "pendente" as const },
-    { id: "6", descricao: "Internet + Telefone", valor: 280, tipo: "despesa" as const, categoria: "Infraestrutura", data: "2024-12-05", status: "confirmado" as const },
-  ]);
+  // Lançamentos de extrato carregados dinamicamente
+  const [lancamentosExtrato, setLancamentosExtrato] = useState<LancamentoExtrato[]>([]);
 
   // Use real activities hook
   const { atividades, loading: atividadesLoading } = useAtividades();
 
   // Use real transacoes hook for metrics
-  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
+  const { totalReceitas, totalDespesas, saldo, pendentes, transacoes, createTransacao } = useTransacoes(empresaAtiva?.id);
   
   // Use real bank accounts hook
   const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaAtiva?.id);
@@ -183,20 +167,31 @@ export default function FinancialACE() {
   const { totalCompras } = useCompras(empresaAtiva?.id);
   const { orcamentosAbertos } = useOrcamentos(empresaAtiva?.id);
 
-  const getFilteredMockTransacoes = () => {
+  // Transações formatadas para conciliação
+  const transacoesParaConciliacao = transacoes.map(t => ({
+    id: t.id,
+    descricao: t.descricao,
+    valor: t.valor,
+    tipo: t.tipo as "receita" | "despesa",
+    categoria: t.categoria?.nome || "Sem categoria",
+    data: t.data_transacao,
+    status: t.status as "pendente" | "confirmado" | "cancelado",
+  }));
+
+  const getFilteredTransacoes = () => {
     switch (activeFilter) {
       case "receitas":
-        return mockTransacoes.filter(t => t.tipo === "receita");
+        return transacoesParaConciliacao.filter(t => t.tipo === "receita");
       case "despesas":
-        return mockTransacoes.filter(t => t.tipo === "despesa");
+        return transacoesParaConciliacao.filter(t => t.tipo === "despesa");
       case "pendentes":
-        return mockTransacoes.filter(t => t.status === "pendente");
+        return transacoesParaConciliacao.filter(t => t.status === "pendente");
       default:
-        return mockTransacoes;
+        return transacoesParaConciliacao;
     }
   };
 
-  const filteredMockTransacoes = getFilteredMockTransacoes();
+  const filteredTransacoes = getFilteredTransacoes();
 
   const handleFilterClick = (filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
@@ -561,7 +556,7 @@ export default function FinancialACE() {
       .filter(l => l.conciliado && l.transacaoVinculadaId)
       .map(l => l.transacaoVinculadaId);
     
-    return mockTransacoes.filter(t => 
+    return transacoesParaConciliacao.filter(t => 
       t.tipo === tipoTransacao && 
       !jaVinculadas.includes(t.id)
     );
@@ -571,7 +566,7 @@ export default function FinancialACE() {
   const handleVincular = (transacaoId: string) => {
     if (!lancamentoParaVincular) return;
 
-    const transacao = mockTransacoes.find(t => t.id === transacaoId);
+    const transacao = transacoesParaConciliacao.find(t => t.id === transacaoId);
     
     setLancamentosExtrato(prev => 
       prev.map(l => 
@@ -602,48 +597,53 @@ export default function FinancialACE() {
   };
 
   // Create new transaction from lancamento
-  const handleCriarTransacao = () => {
-    if (!lancamentoParaVincular) return;
+  const handleCriarTransacao = async () => {
+    if (!lancamentoParaVincular || !empresaAtiva?.id) return;
 
-    const novaTransacao = {
-      id: `t-${Date.now()}`,
-      descricao: lancamentoParaVincular.descricao,
-      valor: lancamentoParaVincular.valor,
-      tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' as const : 'despesa' as const,
-      categoria: 'Outros',
-      data: lancamentoParaVincular.data,
-      status: 'confirmado' as const,
-    };
+    try {
+      await createTransacao({
+        empresa_id: empresaAtiva.id,
+        descricao: lancamentoParaVincular.descricao,
+        valor: lancamentoParaVincular.valor,
+        tipo: lancamentoParaVincular.tipo === 'credito' ? 'receita' : 'despesa',
+        data_transacao: lancamentoParaVincular.data,
+        status: 'confirmado',
+      });
+      
+      // Link the lancamento after transaction is created
+      setLancamentosExtrato(prev => 
+        prev.map(l => 
+          l.id === lancamentoParaVincular.id 
+            ? { ...l, conciliado: true } 
+            : l
+        )
+      );
 
-    setMockTransacoes(prev => [...prev, novaTransacao]);
-    
-    // Now link the lancamento to this new transaction
-    setLancamentosExtrato(prev => 
-      prev.map(l => 
-        l.id === lancamentoParaVincular.id 
-          ? { ...l, conciliado: true, transacaoVinculadaId: novaTransacao.id } 
-          : l
-      )
-    );
+      // Update extrato counters
+      setExtratosImportados(prev => 
+        prev.map(e => {
+          if (e.id === lancamentoParaVincular.extratoId) {
+            const newConciliadas = e.conciliadas + 1;
+            const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
+            return { ...e, conciliadas: newConciliadas, status: newStatus };
+          }
+          return e;
+        })
+      );
 
-    // Update extrato counters
-    setExtratosImportados(prev => 
-      prev.map(e => {
-        if (e.id === lancamentoParaVincular.extratoId) {
-          const newConciliadas = e.conciliadas + 1;
-          const newStatus = newConciliadas >= e.transacoes ? "concluido" : "pendente";
-          return { ...e, conciliadas: newConciliadas, status: newStatus };
-        }
-        return e;
-      })
-    );
-
-    setLancamentoParaVincular(null);
-    
-    toast({
-      title: "Transação criada e vinculada",
-      description: `Nova ${novaTransacao.tipo} de ${formatCurrency(novaTransacao.valor)}`,
-    });
+      setLancamentoParaVincular(null);
+      
+      toast({
+        title: "Transação criada",
+        description: `Nova transação de ${formatCurrency(lancamentoParaVincular.valor)}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível criar a transação",
+        variant: "destructive",
+      });
+    }
   };
 
   const getLancamentosDoExtrato = (extratoId: string) => {
