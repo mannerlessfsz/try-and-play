@@ -1,51 +1,101 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { useFornecedores, FornecedorInsert } from "@/hooks/useFornecedores";
+import { useFornecedores, FornecedorInsert, Fornecedor } from "@/hooks/useFornecedores";
 import { Loader2, Save, X } from "lucide-react";
 
 interface FornecedorFormModalProps {
   open: boolean;
   onClose: () => void;
   empresaId: string;
+  fornecedor?: Fornecedor | null;
 }
 
-export function FornecedorFormModal({ open, onClose, empresaId }: FornecedorFormModalProps) {
-  const { addFornecedor } = useFornecedores(empresaId);
+export function FornecedorFormModal({ open, onClose, empresaId, fornecedor }: FornecedorFormModalProps) {
+  const { addFornecedor, updateFornecedor } = useFornecedores(empresaId);
   const [formData, setFormData] = useState<Partial<FornecedorInsert>>({
     tipo_pessoa: "juridica",
     ativo: true,
   });
+
+  const isEditing = !!fornecedor;
+
+  useEffect(() => {
+    if (fornecedor) {
+      setFormData({
+        tipo_pessoa: fornecedor.tipo_pessoa || "juridica",
+        nome: fornecedor.nome,
+        nome_fantasia: fornecedor.nome_fantasia,
+        cpf_cnpj: fornecedor.cpf_cnpj,
+        rg_ie: fornecedor.rg_ie,
+        email: fornecedor.email,
+        telefone: fornecedor.telefone,
+        celular: fornecedor.celular,
+        contato_nome: fornecedor.contato_nome,
+        contato_telefone: fornecedor.contato_telefone,
+        contato_email: fornecedor.contato_email,
+        cep: fornecedor.cep,
+        endereco: fornecedor.endereco,
+        numero: fornecedor.numero,
+        bairro: fornecedor.bairro,
+        cidade: fornecedor.cidade,
+        estado: fornecedor.estado,
+        complemento: fornecedor.complemento,
+        prazo_entrega_dias: fornecedor.prazo_entrega_dias,
+        condicao_pagamento: fornecedor.condicao_pagamento,
+        observacoes: fornecedor.observacoes,
+        ativo: fornecedor.ativo ?? true,
+      });
+    } else {
+      setFormData({ tipo_pessoa: "juridica", ativo: true });
+    }
+  }, [fornecedor, open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.nome) return;
 
-    addFornecedor.mutate(
-      { ...formData, empresa_id: empresaId, nome: formData.nome } as FornecedorInsert,
-      {
-        onSuccess: () => {
-          setFormData({ tipo_pessoa: "juridica", ativo: true });
-          onClose();
-        },
-      }
-    );
+    if (isEditing && fornecedor) {
+      updateFornecedor.mutate(
+        { id: fornecedor.id, ...formData },
+        {
+          onSuccess: () => {
+            setFormData({ tipo_pessoa: "juridica", ativo: true });
+            onClose();
+          },
+        }
+      );
+    } else {
+      addFornecedor.mutate(
+        { ...formData, empresa_id: empresaId, nome: formData.nome } as FornecedorInsert,
+        {
+          onSuccess: () => {
+            setFormData({ tipo_pessoa: "juridica", ativo: true });
+            onClose();
+          },
+        }
+      );
+    }
   };
 
   const updateField = (field: keyof FornecedorInsert, value: string | number | boolean | null) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const isPending = addFornecedor.isPending || updateFornecedor.isPending;
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-orange-500">Novo Fornecedor</DialogTitle>
+          <DialogTitle className="text-xl font-bold text-orange-500">
+            {isEditing ? "Editar Fornecedor" : "Novo Fornecedor"}
+          </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -257,13 +307,13 @@ export function FornecedorFormModal({ open, onClose, empresaId }: FornecedorForm
               <X className="w-4 h-4 mr-2" />
               Cancelar
             </Button>
-            <Button type="submit" className="bg-orange-500 hover:bg-orange-600" disabled={addFornecedor.isPending}>
-              {addFornecedor.isPending ? (
+            <Button type="submit" className="bg-orange-500 hover:bg-orange-600" disabled={isPending}>
+              {isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <Save className="w-4 h-4 mr-2" />
               )}
-              Salvar Fornecedor
+              {isEditing ? "Atualizar" : "Salvar"} Fornecedor
             </Button>
           </div>
         </form>
