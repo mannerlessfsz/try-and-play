@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
 import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
+import { usePermissionProfiles } from '@/hooks/usePermissionProfiles';
 import { 
   ArrowLeft, 
   Users, 
@@ -122,6 +123,101 @@ const ROLES: { value: AppRole; label: string; color: string }[] = [
   { value: 'manager', label: 'Gerente', color: 'bg-yellow-500' },
   { value: 'user', label: 'Usuário', color: 'bg-blue-500' }
 ];
+
+// Componente inline para aplicar perfis de permissão
+interface ApplyProfileInlineProps {
+  userId: string;
+  userEmpresas: UserEmpresa[];
+  empresas: Empresa[];
+}
+
+function ApplyProfileInline({ userId, userEmpresas, empresas }: ApplyProfileInlineProps) {
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(userEmpresas[0]?.empresa_id || '');
+  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
+  const { profiles, applyProfileToUser, isApplying } = usePermissionProfiles();
+
+  const activeProfiles = profiles.filter(p => p.ativo);
+  const selectedEmpresa = empresas.find(e => e.id === selectedEmpresaId);
+
+  const handleApply = () => {
+    if (!selectedProfileId || !selectedEmpresaId) return;
+    applyProfileToUser({
+      profileId: selectedProfileId,
+      userId,
+      empresaId: selectedEmpresaId,
+      assignRole: true,
+    });
+    setSelectedProfileId('');
+  };
+
+  return (
+    <div className="space-y-4">
+      {userEmpresas.length > 1 && (
+        <div className="space-y-2">
+          <Label>Empresa</Label>
+          <Select value={selectedEmpresaId} onValueChange={setSelectedEmpresaId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Selecione a empresa" />
+            </SelectTrigger>
+            <SelectContent>
+              {userEmpresas.map(ue => {
+                const emp = empresas.find(e => e.id === ue.empresa_id);
+                return (
+                  <SelectItem key={ue.empresa_id} value={ue.empresa_id}>
+                    {emp?.nome || 'Empresa desconhecida'}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      
+      {userEmpresas.length === 1 && (
+        <div className="text-sm text-muted-foreground">
+          Empresa: <span className="font-medium">{selectedEmpresa?.nome}</span>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>Perfil de Permissões</Label>
+        {activeProfiles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhum perfil disponível. Crie perfis na aba "Perfis".</p>
+        ) : (
+          <div className="space-y-2">
+            {activeProfiles.map(profile => (
+              <Button
+                key={profile.id}
+                variant={selectedProfileId === profile.id ? 'default' : 'outline'}
+                className="w-full justify-start"
+                onClick={() => setSelectedProfileId(profile.id)}
+              >
+                <Layers className="w-4 h-4 mr-2" />
+                <div className="flex flex-col items-start">
+                  <span>{profile.nome}</span>
+                  {profile.role_padrao && (
+                    <span className="text-xs opacity-70">Role: {profile.role_padrao}</span>
+                  )}
+                </div>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {selectedProfileId && (
+        <Button 
+          onClick={handleApply} 
+          disabled={isApplying || !selectedEmpresaId}
+          className="w-full"
+        >
+          {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+          Aplicar Perfil
+        </Button>
+      )}
+    </div>
+  );
+}
 
 const Admin: React.FC = () => {
   const navigate = useNavigate();
@@ -666,24 +762,53 @@ const Admin: React.FC = () => {
                                     <Plus className="w-3 h-3" />
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent>
+                                <DialogContent className="max-w-md">
                                   <DialogHeader>
-                                    <DialogTitle>Adicionar papel para {user.full_name || user.email}</DialogTitle>
+                                    <DialogTitle>Configurar {user.full_name || user.email}</DialogTitle>
                                   </DialogHeader>
-                                  <div className="space-y-4">
-                                    {ROLES.map(role => (
-                                      <Button
-                                        key={role.value}
-                                        variant="outline"
-                                        className="w-full justify-start"
-                                        onClick={() => addRoleMutation.mutate({ userId: user.id, role: role.value })}
-                                        disabled={getUserRoles(user.id).some(r => r.role === role.value)}
-                                      >
-                                        <div className={`w-3 h-3 rounded-full ${role.color} mr-2`} />
-                                        {role.label}
-                                      </Button>
-                                    ))}
-                                  </div>
+                                  <Tabs defaultValue="roles" className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                      <TabsTrigger value="roles" className="gap-1">
+                                        <Shield className="w-3 h-3" /> Papéis
+                                      </TabsTrigger>
+                                      <TabsTrigger value="profiles" className="gap-1">
+                                        <Layers className="w-3 h-3" /> Perfis
+                                      </TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="roles" className="space-y-3 mt-4">
+                                      <p className="text-sm text-muted-foreground">
+                                        Papéis definem o nível de acesso global do usuário.
+                                      </p>
+                                      {ROLES.map(role => (
+                                        <Button
+                                          key={role.value}
+                                          variant="outline"
+                                          className="w-full justify-start"
+                                          onClick={() => addRoleMutation.mutate({ userId: user.id, role: role.value })}
+                                          disabled={getUserRoles(user.id).some(r => r.role === role.value)}
+                                        >
+                                          <div className={`w-3 h-3 rounded-full ${role.color} mr-2`} />
+                                          {role.label}
+                                        </Button>
+                                      ))}
+                                    </TabsContent>
+                                    <TabsContent value="profiles" className="space-y-4 mt-4">
+                                      <p className="text-sm text-muted-foreground">
+                                        Perfis aplicam permissões granulares pré-configuradas.
+                                      </p>
+                                      {getUserEmpresas(user.id).length === 0 ? (
+                                        <p className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
+                                          Este usuário não está vinculado a nenhuma empresa. Vincule-o primeiro para aplicar perfis.
+                                        </p>
+                                      ) : (
+                                        <ApplyProfileInline
+                                          userId={user.id}
+                                          userEmpresas={getUserEmpresas(user.id)}
+                                          empresas={empresas}
+                                        />
+                                      )}
+                                    </TabsContent>
+                                  </Tabs>
                                 </DialogContent>
                               </Dialog>
                             </div>
