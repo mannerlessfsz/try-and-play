@@ -1421,6 +1421,8 @@ export type Database = {
         Row: {
           categoria_id: string | null
           centro_custo_id: string | null
+          competencia_ano: number | null
+          competencia_mes: number | null
           conciliado: boolean | null
           conta_bancaria_id: string | null
           conta_destino_id: string | null
@@ -1448,6 +1450,8 @@ export type Database = {
         Insert: {
           categoria_id?: string | null
           centro_custo_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           conciliado?: boolean | null
           conta_bancaria_id?: string | null
           conta_destino_id?: string | null
@@ -1475,6 +1479,8 @@ export type Database = {
         Update: {
           categoria_id?: string | null
           centro_custo_id?: string | null
+          competencia_ano?: number | null
+          competencia_mes?: number | null
           conciliado?: boolean | null
           conta_bancaria_id?: string | null
           conta_destino_id?: string | null
@@ -1635,6 +1641,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_permissions_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_resource_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_export: boolean | null
+          can_view: boolean | null
+          created_at: string
+          empresa_id: string
+          id: string
+          module: string
+          resource: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          empresa_id: string
+          id?: string
+          module: string
+          resource: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          module?: string
+          resource?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_resource_permissions_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"

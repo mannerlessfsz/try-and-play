@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
+import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
 import { 
   ArrowLeft, 
   Users, 
@@ -32,7 +33,8 @@ import {
   Mail,
   ChevronDown,
   ChevronUp,
-  Crown
+  Crown,
+  UserCog
 } from 'lucide-react';
 
 interface Profile {
@@ -767,24 +769,12 @@ const Admin: React.FC = () => {
                                   </div>
                                 )}
 
-                                {/* Usuários vinculados */}
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground mb-2">Usuários vinculados:</p>
-                                  <div className="flex gap-1 flex-wrap">
-                                    {empresaUsers.length === 0 ? (
-                                      <span className="text-xs text-muted-foreground italic">Nenhum usuário</span>
-                                    ) : (
-                                      empresaUsers.map(ue => {
-                                        const user = users.find(u => u.id === ue.user_id);
-                                        return (
-                                          <Badge key={ue.id} variant="secondary" className="text-xs">
-                                            {user?.full_name || user?.email || 'N/A'}
-                                            {ue.is_owner && <Crown className="w-3 h-3 ml-1 text-yellow-500" />}
-                                          </Badge>
-                                        );
-                                      })
-                                    )}
-                                  </div>
+                                {/* Usuários vinculados com gerenciamento completo */}
+                                <div className="pt-2">
+                                  <EmpresaUsersManager 
+                                    empresaId={empresa.id} 
+                                    empresaNome={empresa.nome} 
+                                  />
                                 </div>
                               </div>
                             )}
