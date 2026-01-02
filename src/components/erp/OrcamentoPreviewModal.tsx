@@ -1,7 +1,8 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, X } from "lucide-react";
+import { Download } from "lucide-react";
 import { Orcamento, OrcamentoItem } from "@/hooks/useOrcamentos";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 
 interface EmpresaInfo {
   nome: string;
@@ -19,13 +20,6 @@ interface OrcamentoPreviewModalProps {
   onDownload: () => void;
   isDownloading?: boolean;
 }
-
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
-const formatDate = (dateStr: string) => {
-  return new Date(dateStr).toLocaleDateString("pt-BR");
-};
 
 export function OrcamentoPreviewModal({
   open,
@@ -48,7 +42,7 @@ export function OrcamentoPreviewModal({
             <Button
               onClick={onDownload}
               disabled={isDownloading}
-              className="bg-purple-500 hover:bg-purple-600"
+              className="bg-primary hover:bg-primary/90"
               size="sm"
             >
               <Download className="w-4 h-4 mr-2" />
@@ -61,7 +55,7 @@ export function OrcamentoPreviewModal({
         <div className="flex-1 overflow-auto p-4 bg-muted/30">
           <div className="bg-white text-black rounded-lg shadow-lg max-w-[210mm] mx-auto">
             {/* Header */}
-            <div className="bg-purple-600 text-white p-6 rounded-t-lg flex items-center justify-between">
+            <div className="bg-primary text-primary-foreground p-6 rounded-t-lg flex items-center justify-between">
               <div className="flex items-center gap-4">
                 {empresa.logo_url && (
                   <img 
@@ -82,7 +76,7 @@ export function OrcamentoPreviewModal({
             {/* Orçamento Title Box */}
             <div className="mx-6 mt-6 p-4 bg-gray-100 rounded-lg flex justify-between items-start">
               <div>
-                <h2 className="text-purple-600 font-bold text-lg">ORÇAMENTO DE SERVIÇOS</h2>
+                <h2 className="text-primary font-bold text-lg">ORÇAMENTO DE SERVIÇOS</h2>
                 <p className="text-gray-800 font-medium">Nº {orcamento.numero || "-"}</p>
               </div>
               <div className="text-right text-sm text-gray-600">
@@ -95,7 +89,7 @@ export function OrcamentoPreviewModal({
 
             {/* Client Info */}
             <div className="mx-6 mt-4 p-4 bg-gray-100 rounded-lg">
-              <p className="text-purple-600 font-bold text-xs mb-1">CLIENTE</p>
+              <p className="text-primary font-bold text-xs mb-1">CLIENTE</p>
               {orcamento.cliente ? (
                 <>
                   <p className="text-gray-800 font-medium">{orcamento.cliente.nome}</p>
@@ -111,7 +105,7 @@ export function OrcamentoPreviewModal({
             {/* Description */}
             {(orcamento.titulo || orcamento.descricao) && (
               <div className="mx-6 mt-4 p-4 bg-gray-100 rounded-lg">
-                <p className="text-purple-600 font-bold text-xs mb-1">DESCRIÇÃO</p>
+                <p className="text-primary font-bold text-xs mb-1">DESCRIÇÃO</p>
                 <p className="text-gray-800 font-medium">{orcamento.titulo}</p>
                 {orcamento.descricao && (
                   <p className="text-gray-500 text-sm mt-1">{orcamento.descricao}</p>
@@ -124,7 +118,7 @@ export function OrcamentoPreviewModal({
               <div className="mx-6 mt-6">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-purple-600 text-white">
+                    <tr className="bg-primary text-primary-foreground">
                       <th className="text-left p-2 rounded-tl-lg">DESCRIÇÃO</th>
                       <th className="text-center p-2">QTD</th>
                       <th className="text-right p-2">VALOR UNIT.</th>
@@ -135,7 +129,7 @@ export function OrcamentoPreviewModal({
                     {itens.map((item, index) => (
                       <tr
                         key={item.id || index}
-                        className={index % 2 === 0 ? "bg-purple-50" : "bg-white"}
+                        className={index % 2 === 0 ? "bg-primary/5" : "bg-white"}
                       >
                         <td className="p-2 text-gray-800">{item.descricao}</td>
                         <td className="p-2 text-center text-gray-600">
@@ -168,7 +162,7 @@ export function OrcamentoPreviewModal({
                 )}
 
                 {/* Total */}
-                <div className="mt-2 p-4 bg-purple-600 text-white rounded-lg flex justify-between items-center">
+                <div className="mt-2 p-4 bg-primary text-primary-foreground rounded-lg flex justify-between items-center">
                   <span className="font-bold text-lg">TOTAL</span>
                   <span className="font-bold text-xl">
                     {formatCurrency(orcamento.total || 0)}
@@ -180,7 +174,7 @@ export function OrcamentoPreviewModal({
             {/* Payment Condition */}
             {orcamento.condicao_pagamento && (
               <div className="mx-6 mt-4 p-4 bg-gray-100 rounded-lg">
-                <p className="text-purple-600 font-bold text-xs mb-1">CONDIÇÃO DE PAGAMENTO</p>
+                <p className="text-primary font-bold text-xs mb-1">CONDIÇÃO DE PAGAMENTO</p>
                 <p className="text-gray-800">{orcamento.condicao_pagamento}</p>
               </div>
             )}
@@ -188,7 +182,7 @@ export function OrcamentoPreviewModal({
             {/* Observations */}
             {orcamento.observacoes && (
               <div className="mx-6 mt-4 p-4 bg-gray-100 rounded-lg">
-                <p className="text-purple-600 font-bold text-xs mb-1">OBSERVAÇÕES</p>
+                <p className="text-primary font-bold text-xs mb-1">OBSERVAÇÕES</p>
                 <p className="text-gray-500 text-sm">{orcamento.observacoes}</p>
               </div>
             )}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { syncMissingProfiles } from '@/hooks/useSyncProfiles';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -72,11 +73,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     queryKey: ['admin-users'],
     queryFn: async () => {
       // Sync any missing profiles first
-      try {
-        await supabase.rpc('sync_missing_profiles');
-      } catch {
-        // Ignore errors
-      }
+      await syncMissingProfiles();
       
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;

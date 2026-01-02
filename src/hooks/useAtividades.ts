@@ -56,6 +56,11 @@ export function useAtividades() {
       await fetchAtividades();
     } catch (error) {
       console.error("Error adding atividade:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar a atividade",
+        variant: "destructive",
+      });
     }
   };
 
