@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useOrcamentos, OrcamentoInput } from "@/hooks/useOrcamentos";
 import { useClientes } from "@/hooks/useClientes";
 import { useProdutos } from "@/hooks/useProdutos";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { 
   Plus, Search, FileText, Loader2, Edit, Trash2, 
-  CheckCircle2, XCircle, Send, Eye, ArrowRight, Package
+  CheckCircle2, XCircle, Send, Eye, ArrowRight, Package, Download
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -23,6 +24,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { generateOrcamentoPdf } from "@/utils/generateOrcamentoPdf";
+import { useToast } from "@/hooks/use-toast";
 
 interface OrcamentosManagerProps {
   empresaId: string;
@@ -56,13 +59,16 @@ const statusLabels: Record<string, string> = {
 };
 
 export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
-  const { orcamentos, isLoading, addOrcamento, updateStatus, deleteOrcamento } = useOrcamentos(empresaId);
+  const { orcamentos, isLoading, addOrcamento, updateStatus, deleteOrcamento, getOrcamentoComItens } = useOrcamentos(empresaId);
   const { clientes } = useClientes(empresaId);
   const { produtos } = useProdutos(empresaId);
+  const { empresaAtiva } = useEmpresaAtiva();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [produtoSearchOpen, setProdutoSearchOpen] = useState(false);
   const [produtoSearch, setProdutoSearch] = useState("");
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<Partial<OrcamentoInput>>({
@@ -180,6 +186,29 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
 
   const handleStatusChange = (id: string, newStatus: string) => {
     updateStatus.mutate({ id, status: newStatus });
+  };
+
+  const handleGeneratePdf = async (orcamentoId: string) => {
+    if (!empresaAtiva) {
+      toast({ title: "Empresa não selecionada", variant: "destructive" });
+      return;
+    }
+
+    setGeneratingPdf(orcamentoId);
+    try {
+      const orcamentoCompleto = await getOrcamentoComItens(orcamentoId);
+      await generateOrcamentoPdf(orcamentoCompleto, {
+        nome: empresaAtiva.nome,
+        cnpj: empresaAtiva.cnpj,
+        email: empresaAtiva.email,
+      });
+      toast({ title: "PDF gerado com sucesso!" });
+    } catch (error) {
+      console.error("Erro ao gerar PDF:", error);
+      toast({ title: "Erro ao gerar PDF", variant: "destructive" });
+    } finally {
+      setGeneratingPdf(null);
+    }
   };
 
   if (isLoading) {
@@ -500,6 +529,17 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem 
+                            onClick={() => handleGeneratePdf(o.id)}
+                            disabled={generatingPdf === o.id}
+                          >
+                            {generatingPdf === o.id ? (
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4 mr-2" />
+                            )}
+                            Gerar PDF
+                          </DropdownMenuItem>
                           {o.status === 'rascunho' && (
                             <DropdownMenuItem onClick={() => handleStatusChange(o.id, 'enviado')}>
                               <Send className="w-4 h-4 mr-2" />
