@@ -6,7 +6,9 @@ import {
 import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/formatters";
+import { ParcelasAlertaWidget } from "./ParcelasAlertaWidget";
 import type { Transacao } from "@/hooks/useTransacoes";
+import type { ParcelasAlertaResult } from "@/hooks/useParcelasAlerta";
 
 interface FinancialDashboardProps {
   transacoes: Transacao[];
@@ -14,6 +16,8 @@ interface FinancialDashboardProps {
   totalDespesas: number;
   saldo: number;
   pendentes: number;
+  parcelasAlerta?: ParcelasAlertaResult;
+  onVerTransacoes?: () => void;
 }
 
 const COLORS = [
@@ -30,6 +34,8 @@ export function FinancialDashboard({
   totalDespesas,
   saldo,
   pendentes,
+  parcelasAlerta,
+  onVerTransacoes,
 }: FinancialDashboardProps) {
   // Dados para gráfico de área (últimos 6 meses)
   const monthlyData = useMemo(() => {
@@ -140,6 +146,17 @@ export function FinancialDashboard({
 
   return (
     <div className="space-y-6">
+      {/* Alertas de Parcelas - Exibe antes dos cards se houver alertas */}
+      {parcelasAlerta?.hasAlertas && (
+        <ParcelasAlertaWidget
+          parcelasVencendo={parcelasAlerta.parcelasVencendo}
+          parcelasAtrasadas={parcelasAlerta.parcelasAtrasadas}
+          totalValorVencendo={parcelasAlerta.totalValorVencendo}
+          totalValorAtrasadas={parcelasAlerta.totalValorAtrasadas}
+          onVerTransacoes={onVerTransacoes}
+        />
+      )}
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">

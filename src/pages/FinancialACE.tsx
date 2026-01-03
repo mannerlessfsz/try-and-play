@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { 
   TrendingUp, TrendingDown,
   Wallet, Building2,
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useAtividades } from "@/hooks/useAtividades";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTransacoes } from "@/hooks/useTransacoes";
+import { useParcelasAlerta } from "@/hooks/useParcelasAlerta";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/formatters";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
@@ -47,6 +48,8 @@ export default function FinancialACE() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [modo, setModo] = useState<ModoFinanceiro>("pro");
   const { empresaAtiva, empresasDisponiveis, setEmpresaAtiva, loading: empresaLoading } = useEmpresaAtiva();
+  const { toast } = useToast();
+  const alertaShown = useRef(false);
 
   // Use real activities hook
   const { atividades, loading: atividadesLoading } = useAtividades();
@@ -54,11 +57,39 @@ export default function FinancialACE() {
   // Use real transacoes hook for metrics
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
   
+  // Hook para alertas de parcelas
+  const parcelasAlerta = useParcelasAlerta(empresaAtiva?.id);
+  
   // ERP hooks
   const { produtos } = useProdutos(empresaAtiva?.id);
   const { totalVendas } = useVendas(empresaAtiva?.id);
   const { totalCompras } = useCompras(empresaAtiva?.id);
   const { orcamentosAbertos } = useOrcamentos(empresaAtiva?.id);
+
+  // Alerta ao entrar no módulo
+  useEffect(() => {
+    if (alertaShown.current) return;
+    if (parcelasAlerta.loading || !parcelasAlerta.hasAlertas) return;
+    
+    alertaShown.current = true;
+    
+    const { totalAtrasadas, totalVencendo, totalValorAtrasadas, totalValorVencendo } = parcelasAlerta;
+    
+    if (totalAtrasadas > 0) {
+      toast({
+        title: `⚠️ ${totalAtrasadas} parcela${totalAtrasadas > 1 ? 's' : ''} atrasada${totalAtrasadas > 1 ? 's' : ''}`,
+        description: `Total em atraso: ${formatCurrencyUtil(totalValorAtrasadas)}`,
+        variant: "destructive",
+        duration: 8000,
+      });
+    } else if (totalVencendo > 0) {
+      toast({
+        title: `📅 ${totalVencendo} parcela${totalVencendo > 1 ? 's' : ''} vencendo em breve`,
+        description: `Total: ${formatCurrencyUtil(totalValorVencendo)} nos próximos 7 dias`,
+        duration: 6000,
+      });
+    }
+  }, [parcelasAlerta.loading, parcelasAlerta.hasAlertas, parcelasAlerta.totalAtrasadas, parcelasAlerta.totalVencendo, toast]);
 
   const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
@@ -268,6 +299,11 @@ export default function FinancialACE() {
               totalDespesas={totalDespesas}
               saldo={saldo}
               pendentes={pendentes}
+              parcelasAlerta={parcelasAlerta}
+              onVerTransacoes={() => {
+                setActiveTab("transacoes");
+                setActiveFilter("pendentes");
+              }}
             />
           )}
 
