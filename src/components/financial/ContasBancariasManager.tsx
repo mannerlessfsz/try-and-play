@@ -8,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown, AlertCircle, ChevronDown, FileText, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown, AlertCircle, ChevronDown, FileText, Calendar, CheckCircle2, Clock, XCircle, Download } from "lucide-react";
+import { useTransacoes } from "@/hooks/useTransacoes";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -35,6 +37,8 @@ const CORES = [
 
 export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProps) {
   const { contas, isLoading, createConta, updateConta, deleteConta, isCreating } = useContasBancarias(empresaId);
+  const { transacoes } = useTransacoes(empresaId);
+  const { toast } = useToast();
   const { saldos, saldoTotal, isLoading: isLoadingSaldos } = useSaldoContas(empresaId);
   const { importacoes, isLoading: isLoadingImportacoes } = useImportacoesExtrato(empresaId);
   const [isOpen, setIsOpen] = useState(false);
@@ -140,6 +144,69 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
       case 'erro': return 'Erro';
       default: return status;
     }
+  };
+
+  const formatCurrencyForExport = (value: number) => {
+    return value.toFixed(2).replace('.', ',');
+  };
+
+  const handleExportarExtrato = (extrato: typeof importacoes[0], contaNome: string) => {
+    if (!extrato.data_inicio || !extrato.data_fim) {
+      toast({
+        title: 'Não é possível exportar',
+        description: 'Este extrato não possui período definido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Filter transactions by date range and bank account
+    const dataInicio = new Date(extrato.data_inicio + 'T00:00:00');
+    const dataFim = new Date(extrato.data_fim + 'T23:59:59');
+    
+    const transacoesExtrato = transacoes.filter(t => {
+      if (t.conta_bancaria_id !== extrato.conta_bancaria_id) return false;
+      const dataTransacao = new Date(t.data_transacao);
+      return dataTransacao >= dataInicio && dataTransacao <= dataFim;
+    }).sort((a, b) => new Date(a.data_transacao).getTime() - new Date(b.data_transacao).getTime());
+
+    if (transacoesExtrato.length === 0) {
+      toast({
+        title: 'Nenhuma transação encontrada',
+        description: 'Não há transações no período deste extrato.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Create CSV content
+    const headers = ['Data', 'Descrição', 'Tipo', 'Valor', 'Status', 'Conciliado'];
+    const rows = transacoesExtrato.map(t => [
+      format(new Date(t.data_transacao), 'dd/MM/yyyy'),
+      `"${t.descricao.replace(/"/g, '""')}"`,
+      t.tipo === 'receita' ? 'Crédito' : 'Débito',
+      t.tipo === 'receita' ? formatCurrencyForExport(Number(t.valor)) : `-${formatCurrencyForExport(Number(t.valor))}`,
+      t.status === 'pago' ? 'Pago' : t.status === 'pendente' ? 'Pendente' : t.status,
+      t.conciliado ? 'Sim' : 'Não',
+    ]);
+
+    const csvContent = [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+    
+    // Download file
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `extrato_${contaNome.replace(/\s+/g, '_')}_${format(dataInicio, 'MM-yyyy')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Extrato exportado',
+      description: `${transacoesExtrato.length} transações exportadas com sucesso.`,
+    });
   };
 
   if (isLoading || isLoadingSaldos) {
@@ -417,7 +484,21 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
                               <span className="font-medium text-foreground truncate flex-1 mr-2">
                                 {extrato.nome_arquivo}
                               </span>
-                              {getStatusIcon(extrato.status)}
+                              <div className="flex items-center gap-1">
+                                {extrato.data_inicio && extrato.data_fim && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleExportarExtrato(extrato, conta.nome);
+                                    }}
+                                    className="p-1 rounded hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                                    title="Exportar extrato"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                                {getStatusIcon(extrato.status)}
+                              </div>
                             </div>
                             <div className="flex items-center justify-between text-muted-foreground">
                               <span className="flex items-center gap-1">
