@@ -23,6 +23,7 @@ import {
   FileText,
   AlertCircle,
   User,
+  Copy,
 } from "lucide-react";
 
 interface TransacoesManagerProps {
@@ -197,6 +198,26 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
       observacoes: transacao.observacoes || "",
     });
     setEditingId(transacao.id);
+    setIsOpen(true);
+  };
+
+  const handleCopyTransacao = (transacao: typeof transacoes[0]) => {
+    setFormData({
+      descricao: transacao.descricao,
+      valor: transacao.valor,
+      tipo: transacao.tipo,
+      status: "pendente",
+      data_transacao: clampDateToCompetencia(today, competenciaAno, competenciaMes),
+      data_vencimento: undefined,
+      categoria_id: transacao.categoria_id || "",
+      conta_bancaria_id: transacao.conta_bancaria_id || "",
+      cliente_id: transacao.cliente_id || "",
+      forma_pagamento: transacao.forma_pagamento || "",
+      observacoes: transacao.observacoes || "",
+      competencia_ano: competenciaAno,
+      competencia_mes: competenciaMes,
+    });
+    setEditingId(null);
     setIsOpen(true);
   };
 
@@ -603,14 +624,23 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                   <td className="p-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button 
+                        onClick={() => handleCopyTransacao(transacao)}
+                        className="p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Copiar lançamento"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                      <button 
                         onClick={() => handleOpenEdit(transacao)}
                         className="p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Editar lançamento"
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => deleteTransacao(transacao.id)}
                         className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                        title="Excluir lançamento"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
