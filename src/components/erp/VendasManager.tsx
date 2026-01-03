@@ -82,7 +82,7 @@ export function VendasManager({ empresaId }: VendasManagerProps) {
                 {filteredVendas.map((v) => (
                   <TableRow key={v.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono">#{v.numero || "-"}</TableCell>
-                    <TableCell>{new Date(v.data_venda).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>{new Date(v.data_venda + 'T12:00:00').toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-medium">{v.cliente?.nome || "-"}</TableCell>
                     <TableCell className="text-right font-semibold text-green-500">
                       {formatCurrency(v.total || 0)}

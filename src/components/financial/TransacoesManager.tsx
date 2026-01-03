@@ -401,7 +401,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                   {!isDateValid && formData.data_transacao && !editingId && (
                     <div className="flex items-center gap-1 text-xs text-red-400">
                       <AlertCircle className="w-3 h-3" />
-                      <span>Data inválida. Permitido: {new Date(dateLimits.min).toLocaleDateString('pt-BR')} a {new Date(dateLimits.max).toLocaleDateString('pt-BR')}</span>
+                      <span>Data inválida. Permitido: {new Date(dateLimits.min + 'T12:00:00').toLocaleDateString('pt-BR')} a {new Date(dateLimits.max + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                     </div>
                   )}
                 </div>

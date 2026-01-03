@@ -1294,7 +1294,7 @@ export default function FinancialACE() {
                     {getLancamentosDoExtrato(extratoSelecionado).map(lancamento => (
                       <tr key={lancamento.id} className={`hover:bg-foreground/5 transition-colors ${lancamento.conciliado ? 'opacity-60' : ''}`}>
                         <td className="p-3 text-muted-foreground">
-                          {new Date(lancamento.data).toLocaleDateString('pt-BR')}
+                          {new Date(lancamento.data + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2">
@@ -1387,7 +1387,7 @@ export default function FinancialACE() {
                           </span>
                         </td>
                         <td className="p-3 text-muted-foreground text-sm">
-                          {new Date(extrato.dataImportacao).toLocaleDateString('pt-BR')}
+                          {new Date(extrato.dataImportacao + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </td>
                         <td className="p-3">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1 w-fit ${
