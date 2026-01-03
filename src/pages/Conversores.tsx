@@ -6,9 +6,11 @@ import {
   FileText, 
   Receipt, 
   Calculator,
-  Upload,
-  Download,
-  RefreshCw
+  RefreshCw,
+  Zap,
+  FileUp,
+  Home,
+  Crown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,13 +19,17 @@ import { ConversorFiscal } from "@/components/conversores/ConversorFiscal";
 import { ConversorExtrato } from "@/components/conversores/ConversorExtrato";
 import { ConversorDocumentos } from "@/components/conversores/ConversorDocumentos";
 import { ConversorContabil } from "@/components/conversores/ConversorContabil";
+import { AjustaSpedTab } from "@/components/conversores/AjustaSpedTab";
+import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
+import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
+import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
 
 const conversores = [
   {
     id: "fiscal",
     icon: Receipt,
     title: "Arquivos Fiscais",
-    description: "XML de NF-e, SPED, CT-e para outros formatos",
+    description: "XML de NF-e, SPED, CT-e",
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
   },
@@ -31,7 +37,7 @@ const conversores = [
     id: "extrato",
     icon: FileSpreadsheet,
     title: "Extratos Bancários",
-    description: "OFX, PDF de extrato para CSV, Excel",
+    description: "OFX, PDF para CSV/Excel",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
@@ -39,7 +45,7 @@ const conversores = [
     id: "documentos",
     icon: FileText,
     title: "Documentos Gerais",
-    description: "PDF para texto, imagens, planilhas",
+    description: "PDF, texto, planilhas",
     color: "text-green-500",
     bgColor: "bg-green-500/10",
   },
@@ -50,6 +56,38 @@ const conversores = [
     description: "Balancete, DRE, plano de contas",
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
+  },
+  {
+    id: "ajustasped",
+    icon: Zap,
+    title: "Ajusta SPED",
+    description: "Correção de arquivos SPED",
+    color: "text-cyan-500",
+    bgColor: "bg-cyan-500/10",
+  },
+  {
+    id: "lancaapae",
+    icon: FileUp,
+    title: "Lança APAE",
+    description: "Importação de arquivos APAE",
+    color: "text-indigo-500",
+    bgColor: "bg-indigo-500/10",
+  },
+  {
+    id: "casa",
+    icon: Home,
+    title: "Conversor CASA",
+    description: "Arquivos do sistema CASA",
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
+  },
+  {
+    id: "lider",
+    icon: Crown,
+    title: "Conversor LÍDER",
+    description: "Arquivos do sistema LÍDER",
+    color: "text-violet-500",
+    bgColor: "bg-violet-500/10",
   },
 ];
 
@@ -87,8 +125,8 @@ const Conversores = () => {
       {/* Content */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          {/* Tab Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Tab Cards - 2 rows */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
             {conversores.map((conversor) => {
               const Icon = conversor.icon;
               const isActive = activeTab === conversor.id;
@@ -103,14 +141,14 @@ const Conversores = () => {
                   }`}
                   onClick={() => setActiveTab(conversor.id)}
                 >
-                  <CardHeader className="pb-2">
-                    <div className={`w-12 h-12 rounded-xl ${conversor.bgColor} flex items-center justify-center mb-2`}>
-                      <Icon className={`w-6 h-6 ${conversor.color}`} />
+                  <CardHeader className="p-3 pb-1">
+                    <div className={`w-10 h-10 rounded-lg ${conversor.bgColor} flex items-center justify-center mb-1`}>
+                      <Icon className={`w-5 h-5 ${conversor.color}`} />
                     </div>
-                    <CardTitle className="text-base">{conversor.title}</CardTitle>
+                    <CardTitle className="text-xs font-medium leading-tight">{conversor.title}</CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <CardDescription className="text-xs">
+                  <CardContent className="p-3 pt-0">
+                    <CardDescription className="text-[10px] line-clamp-2">
                       {conversor.description}
                     </CardDescription>
                   </CardContent>
@@ -134,6 +172,22 @@ const Conversores = () => {
           
           <TabsContent value="contabil" className="mt-6">
             <ConversorContabil />
+          </TabsContent>
+
+          <TabsContent value="ajustasped" className="mt-6">
+            <AjustaSpedTab />
+          </TabsContent>
+
+          <TabsContent value="lancaapae" className="mt-6">
+            <LancaApaeTab />
+          </TabsContent>
+
+          <TabsContent value="casa" className="mt-6">
+            <ConversorCasaTab />
+          </TabsContent>
+
+          <TabsContent value="lider" className="mt-6">
+            <ConversorLiderTab />
           </TabsContent>
         </Tabs>
       </div>
