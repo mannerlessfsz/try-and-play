@@ -593,41 +593,6 @@ export default function FinancialACE() {
         }
       }
 
-      // === CREATE TRANSACTIONS FOR NON-RECONCILED ENTRIES ===
-      // These will be created as pending transactions for user to review/edit
-      const lancamentosNaoConciliados = novosLancamentos.filter(l => !l.conciliado);
-      let transacoesCriadas = 0;
-      
-      for (const lancamento of lancamentosNaoConciliados) {
-        try {
-          const novaTransacao = await createTransacaoAsync({
-            empresa_id: empresaAtiva!.id,
-            descricao: lancamento.descricao,
-            valor: lancamento.valor,
-            tipo: lancamento.tipo === 'credito' ? 'receita' : 'despesa',
-            data_transacao: lancamento.data,
-            data_vencimento: lancamento.data,
-            status: 'pago',
-            conta_bancaria_id: data.contaBancariaId,
-            conciliado: false, // Start as NOT reconciled - user needs to review/categorize
-          });
-
-          if (novaTransacao?.id) {
-            // Link the lancamento to the newly created transaction
-            const idx = novosLancamentos.findIndex(l => l.id === lancamento.id);
-            if (idx > -1) {
-              novosLancamentos[idx] = { 
-                ...novosLancamentos[idx], 
-                transacaoVinculadaId: novaTransacao.id 
-              };
-            }
-            transacoesCriadas++;
-          }
-        } catch (err) {
-          console.error('Erro ao criar transação para lancamento:', lancamento.id, err);
-        }
-      }
-
       setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
       setExtratosImportados(prev => 
         prev.map(e => 
@@ -644,19 +609,15 @@ export default function FinancialACE() {
       setExtratoSelecionado(novoExtrato.id);
       setActiveTab("conciliacao");
       
-      const msgTransacoesCriadas = transacoesCriadas > 0 
-        ? ` ${transacoesCriadas} transações criadas para revisão.` 
-        : '';
-      
       if (conciliadasAuto > 0) {
         toast({
           title: "Extrato importado com auto-conciliação",
-          description: `${numTransacoes} lançamentos. ${conciliadasAuto} conciliados automaticamente.${msgTransacoesCriadas}`,
+          description: `${numTransacoes} lançamentos encontrados. ${conciliadasAuto} conciliados automaticamente!`,
         });
       } else {
         toast({
           title: "Extrato importado",
-          description: `${file.name}: ${numTransacoes} lançamentos.${msgTransacoesCriadas}`,
+          description: `${file.name} processado. ${numTransacoes} lançamentos para conciliar manualmente.`,
         });
       }
 
