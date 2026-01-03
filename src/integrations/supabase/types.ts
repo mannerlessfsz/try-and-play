@@ -1517,8 +1517,10 @@ export type Database = {
           empresa_id: string
           forma_pagamento: string | null
           id: string
+          importacao_extrato_id: string | null
           numero_documento: string | null
           observacoes: string | null
+          origem_extrato: boolean | null
           parcela_numero: number | null
           parcela_total: number | null
           parcelamento_id: string | null
@@ -1547,8 +1549,10 @@ export type Database = {
           empresa_id: string
           forma_pagamento?: string | null
           id?: string
+          importacao_extrato_id?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          origem_extrato?: boolean | null
           parcela_numero?: number | null
           parcela_total?: number | null
           parcelamento_id?: string | null
@@ -1577,8 +1581,10 @@ export type Database = {
           empresa_id?: string
           forma_pagamento?: string | null
           id?: string
+          importacao_extrato_id?: string | null
           numero_documento?: string | null
           observacoes?: string | null
+          origem_extrato?: boolean | null
           parcela_numero?: number | null
           parcela_total?: number | null
           parcelamento_id?: string | null
@@ -1629,6 +1635,13 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transacoes_importacao_extrato_id_fkey"
+            columns: ["importacao_extrato_id"]
+            isOneToOne: false
+            referencedRelation: "importacoes_extrato"
             referencedColumns: ["id"]
           },
         ]
