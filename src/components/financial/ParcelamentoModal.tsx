@@ -308,14 +308,14 @@ export function ParcelamentoModal({
             <div className="space-y-2">
               <Label>Categoria</Label>
               <Select 
-                value={formData.categoria_id} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, categoria_id: v }))}
+                value={formData.categoria_id || "__none__"} 
+                onValueChange={(v) => setFormData(prev => ({ ...prev, categoria_id: v === "__none__" ? "" : v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma</SelectItem>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
                   {categoriasDoTipo.map(cat => (
                     <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                   ))}
@@ -325,14 +325,14 @@ export function ParcelamentoModal({
             <div className="space-y-2">
               <Label>Conta Bancária</Label>
               <Select 
-                value={formData.conta_bancaria_id} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, conta_bancaria_id: v }))}
+                value={formData.conta_bancaria_id || "__none__"} 
+                onValueChange={(v) => setFormData(prev => ({ ...prev, conta_bancaria_id: v === "__none__" ? "" : v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhuma</SelectItem>
+                  <SelectItem value="__none__">Nenhuma</SelectItem>
                   {contas.map(conta => (
                     <SelectItem key={conta.id} value={conta.id}>{conta.nome}</SelectItem>
                   ))}
@@ -346,14 +346,14 @@ export function ParcelamentoModal({
             <div className="space-y-2">
               <Label>Cliente</Label>
               <Select 
-                value={formData.cliente_id} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, cliente_id: v }))}
+                value={formData.cliente_id || "__none__"} 
+                onValueChange={(v) => setFormData(prev => ({ ...prev, cliente_id: v === "__none__" ? "" : v }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="__none__">Nenhum</SelectItem>
                   {clientes.map(cliente => (
                     <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome}</SelectItem>
                   ))}
