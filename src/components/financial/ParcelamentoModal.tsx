@@ -267,31 +267,39 @@ export function ParcelamentoModal({
 
           {/* Primeira Parcela */}
           <div className="space-y-2">
-            <Label>Primeira Parcela</Label>
-            <div className="flex gap-2">
+            <Label className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              Primeira Parcela
+            </Label>
+            <div className="flex items-center gap-1 bg-card/50 rounded-lg border border-border p-1">
               <Select 
                 value={String(formData.primeiraParcela_mes)} 
                 onValueChange={(v) => setFormData(prev => ({ ...prev, primeiraParcela_mes: parseInt(v) }))}
               >
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 border-0 bg-transparent shadow-none focus:ring-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {MESES.map(mes => (
-                    <SelectItem key={mes.value} value={String(mes.value)}>{mes.label}</SelectItem>
+                    <SelectItem key={mes.value} value={String(mes.value)}>
+                      {mes.label}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <span className="text-muted-foreground font-medium">/</span>
               <Select 
                 value={String(formData.primeiraParcela_ano)} 
                 onValueChange={(v) => setFormData(prev => ({ ...prev, primeiraParcela_ano: parseInt(v) }))}
               >
-                <SelectTrigger className="w-24">
+                <SelectTrigger className="w-[100px] border-0 bg-transparent shadow-none focus:ring-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {getAvailableYears().map(ano => (
-                    <SelectItem key={ano} value={String(ano)}>{ano}</SelectItem>
+                    <SelectItem key={ano} value={String(ano)}>
+                      {ano}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
