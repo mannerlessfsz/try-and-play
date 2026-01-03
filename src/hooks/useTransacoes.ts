@@ -20,6 +20,8 @@ export interface Transacao {
   numero_documento: string | null;
   observacoes: string | null;
   conciliado: boolean | null;
+  origem_extrato: boolean | null;
+  importacao_extrato_id: string | null;
   competencia_ano: number | null;
   competencia_mes: number | null;
   created_at: string;
@@ -49,6 +51,8 @@ export interface TransacaoInput {
   competencia_ano?: number;
   competencia_mes?: number;
   conciliado?: boolean;
+  origem_extrato?: boolean;
+  importacao_extrato_id?: string;
 }
 
 // Options for filtering transactions
@@ -148,10 +152,14 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
 
   // Conciliar uma transação (marcar como conciliado)
   const conciliarMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, origemExtrato = false }: { id: string; origemExtrato?: boolean }) => {
       const { data, error } = await supabase
         .from("transacoes")
-        .update({ conciliado: true, data_conciliacao: new Date().toISOString().split('T')[0] })
+        .update({ 
+          conciliado: true, 
+          data_conciliacao: new Date().toISOString().split('T')[0],
+          origem_extrato: origemExtrato || undefined,
+        })
         .eq("id", id)
         .select()
         .single();
@@ -169,10 +177,14 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
 
   // Conciliar várias transações em massa
   const conciliarEmMassaMutation = useMutation({
-    mutationFn: async (ids: string[]) => {
+    mutationFn: async ({ ids, origemExtrato = false }: { ids: string[]; origemExtrato?: boolean }) => {
       const { data, error } = await supabase
         .from("transacoes")
-        .update({ conciliado: true, data_conciliacao: new Date().toISOString().split('T')[0] })
+        .update({ 
+          conciliado: true, 
+          data_conciliacao: new Date().toISOString().split('T')[0],
+          origem_extrato: origemExtrato || undefined,
+        })
         .in("id", ids)
         .select();
 
@@ -195,7 +207,7 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
       
       const { data, error } = await supabase
         .from("transacoes")
-        .update({ conciliado: false, data_conciliacao: null })
+        .update({ conciliado: false, data_conciliacao: null, origem_extrato: false })
         .in("id", ids)
         .select();
 
