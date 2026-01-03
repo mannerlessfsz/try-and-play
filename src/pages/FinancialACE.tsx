@@ -1,27 +1,15 @@
 import { useState, useRef, useMemo, useCallback, useEffect } from "react";
-import { WidgetRibbon } from "@/components/WidgetRibbon";
-import { MetricCard } from "@/components/task/MetricCard";
-import { TimelineItem } from "@/components/task/TimelineItem";
 import { 
-  DollarSign, Plus, Edit, Trash2, TrendingUp, TrendingDown,
-  CreditCard, Receipt, PieChart, BarChart3, Wallet, Building2,
-  User, Calendar, Filter, SortAsc, Search, FileDown, FileUp,
-  Settings, ArrowUpRight, ArrowDownRight, Zap, Clock, Tag,
-  Activity, List, LayoutGrid, Target, AlertTriangle, Upload,
-  FileText, CheckCircle2, XCircle, Link2, ChevronDown, Loader2,
-  Landmark, Package, Users, Truck, ShoppingCart, ShoppingBag
+  Plus, Trash2, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+  Wallet, Building2, FileUp, Link2, Clock,
+  AlertTriangle, Upload, CheckCircle2, XCircle,
+  Loader2, Package, ShoppingCart, ShoppingBag, FileText
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useAtividades } from "@/hooks/useAtividades";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTransacoes } from "@/hooks/useTransacoes";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { parseOFX, readFileAsText, normalizeAccountNumber } from "@/utils/ofxParser";
@@ -49,10 +37,14 @@ import { useProdutos } from "@/hooks/useProdutos";
 import { useVendas } from "@/hooks/useVendas";
 import { useCompras } from "@/hooks/useCompras";
 import { useOrcamentos } from "@/hooks/useOrcamentos";
+import { ModernSidebar } from "@/components/gestao/ModernSidebar";
+import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
+import { PageHeader } from "@/components/gestao/PageHeader";
+import type { Atividade } from "@/types/task";
 
 interface ExtratoImportado {
   id: string;
-  dbId?: string; // ID persistido no banco
+  dbId?: string;
   contaBancariaId?: string;
   nome: string;
   tipo: "pdf" | "ofx";
@@ -73,61 +65,6 @@ interface LancamentoExtrato {
   transacaoVinculadaId?: string;
 }
 
-const widgetGroups = [
-  {
-    id: "actions",
-    label: "Ações Rápidas",
-    icon: <Zap className="w-5 h-5" />,
-    items: [
-      { id: "new-receita", label: "Nova Receita", icon: <ArrowUpRight className="w-5 h-5" />, badge: "+" },
-      { id: "new-despesa", label: "Nova Despesa", icon: <ArrowDownRight className="w-5 h-5" /> },
-      { id: "edit", label: "Editar", icon: <Edit className="w-5 h-5" /> },
-      { id: "delete", label: "Excluir", icon: <Trash2 className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "view",
-    label: "Visualização",
-    icon: <Filter className="w-5 h-5" />,
-    items: [
-      { id: "filter", label: "Filtrar", icon: <Filter className="w-5 h-5" /> },
-      { id: "sort", label: "Ordenar", icon: <SortAsc className="w-5 h-5" /> },
-      { id: "search", label: "Buscar", icon: <Search className="w-5 h-5" /> },
-      { id: "calendar", label: "Agenda", icon: <Calendar className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "organize",
-    label: "Organizar",
-    icon: <Tag className="w-5 h-5" />,
-    items: [
-      { id: "categories", label: "Categorias", icon: <PieChart className="w-5 h-5" />, badge: 8 },
-      { id: "tags", label: "Tags", icon: <Tag className="w-5 h-5" /> },
-      { id: "recurring", label: "Recorrentes", icon: <Clock className="w-5 h-5" /> },
-      { id: "goals", label: "Metas", icon: <Target className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "reports",
-    label: "Relatórios",
-    icon: <BarChart3 className="w-5 h-5" />,
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: <LayoutGrid className="w-5 h-5" /> },
-      { id: "charts", label: "Gráficos", icon: <BarChart3 className="w-5 h-5" /> },
-      { id: "cashflow", label: "Fluxo Caixa", icon: <TrendingUp className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "extras",
-    label: "Extras",
-    icon: <Settings className="w-5 h-5" />,
-    items: [
-      { id: "export", label: "Exportar", icon: <FileDown className="w-5 h-5" /> },
-      { id: "import", label: "Importar", icon: <FileUp className="w-5 h-5" /> },
-      { id: "settings", label: "Config", icon: <Settings className="w-5 h-5" /> },
-    ],
-  },
-];
 
 type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
@@ -909,121 +846,30 @@ export default function FinancialACE() {
     }
   };
 
-  // Sidebar content
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      {/* Empresa Selector */}
-      <div className="p-3 border-b border-blue-500/20">
-        <div className="text-xs font-bold text-blue-400 mb-3">Empresa Ativa</div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full justify-between text-xs bg-card/50 border-blue-500/30"
-            >
-              <div className="flex items-center gap-2 truncate">
-                <Building2 className="w-3 h-3 text-blue-400 flex-shrink-0" />
-                <span className="truncate">{empresaAtiva?.nome || 'Selecione'}</span>
-              </div>
-              <ChevronDown className="w-3 h-3 flex-shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            {empresasDisponiveis.map(empresa => (
-              <DropdownMenuItem 
-                key={empresa.id}
-                onClick={() => setEmpresaAtiva(empresa)}
-                className="flex flex-col items-start"
-              >
-                <span className="font-medium">{empresa.nome}</span>
-                {empresa.cnpj && (
-                  <span className="text-xs text-muted-foreground">{empresa.cnpj}</span>
-                )}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-        {empresaAtiva?.cnpj && (
-          <p className="text-xs text-muted-foreground mt-2">CNPJ: {empresaAtiva.cnpj}</p>
-        )}
-      </div>
+  // Convert atividades to proper type for sidebar
+  const atividadesForSidebar: Atividade[] = atividades;
 
-      {/* Mode Toggle */}
-      <div className="p-3 border-b border-blue-500/20">
-        <div className="text-xs font-bold text-blue-400 mb-3">Modo</div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setModo("pro")}
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              modo === "pro" 
-                ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" 
-                : "bg-card/50 text-muted-foreground hover:bg-card"
-            }`}
-          >
-            <Building2 className="w-3 h-3 inline mr-1" />
-            Pro
-          </button>
-          <button
-            onClick={() => setModo("basico")}
-            className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
-              modo === "basico" 
-                ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" 
-                : "bg-card/50 text-muted-foreground hover:bg-card"
-            }`}
-          >
-            <User className="w-3 h-3 inline mr-1" />
-            Básico
-          </button>
-        </div>
-      </div>
-
-      {/* Filters Section */}
-      <div className="p-3 border-b border-blue-500/20">
-        <div className="text-xs font-bold text-blue-400 mb-3">Filtros Rápidos</div>
-        <div className="space-y-2">
-          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
-            <option>Todas Categorias</option>
-            <option>Serviços</option>
-            <option>Infraestrutura</option>
-            <option>Projetos</option>
-          </select>
-          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
-            <option>Todos Status</option>
-            <option>Confirmado</option>
-            <option>Pendente</option>
-            <option>Cancelado</option>
-          </select>
-          <input 
-            type="month" 
-            className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80"
-          />
-        </div>
-      </div>
-
-      {/* Timeline Section */}
-      <div className="flex-1 p-3 overflow-y-auto">
-        <div className="text-xs font-bold text-blue-400 mb-3 flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5" />
-          Atividades Recentes
-        </div>
-        <div className="space-y-1">
-          {atividadesLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-            </div>
-          ) : atividades.length === 0 ? (
-            <div className="text-xs text-muted-foreground text-center py-4">
-              Nenhuma atividade registrada
-            </div>
-          ) : (
-            atividades.slice(0, 20).map(atividade => (
-              <TimelineItem key={atividade.id} atividade={atividade} />
-            ))
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  // Get current tab label for breadcrumb
+  const getTabLabel = () => {
+    const tabLabels: Record<string, string> = {
+      transacoes: "Transações",
+      categorias: "Categorias",
+      contas: "Contas Bancárias",
+      conciliacao: "Conciliação",
+      centros_custo: "Centros de Custo",
+      metas: "Metas Financeiras",
+      recorrencias: "Recorrências",
+      relatorios: "Relatórios",
+      produtos: "Produtos",
+      clientes: "Clientes",
+      fornecedores: "Fornecedores",
+      vendas: "Vendas",
+      compras: "Compras",
+      estoque: "Estoque",
+      orcamentos: "Orçamentos",
+    };
+    return tabLabels[activeTab] || activeTab;
+  };
 
   // Show message if no empresa selected
   if (!empresaLoading && !empresaAtiva) {
@@ -1036,7 +882,7 @@ export default function FinancialACE() {
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">Nenhuma empresa selecionada</h2>
             <p className="text-muted-foreground mb-6">
-              Para usar o FinancialACE, você precisa estar vinculado a uma empresa. 
+              Para usar o GESTÃO, você precisa estar vinculado a uma empresa. 
               Entre em contato com o administrador para associar seu usuário a uma empresa.
             </p>
             {empresasDisponiveis.length > 0 && (
@@ -1063,213 +909,133 @@ export default function FinancialACE() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-24">
+    <div className="min-h-screen bg-background">
       <UserHeader />
-      <WidgetRibbon 
-        groups={widgetGroups} 
-        title={`FinancialACE ${modo === "pro" ? "Pro" : "Básico"} - ${empresaAtiva?.nome || ''}`}
-        accentColor="blue" 
-        sidebarContent={sidebarContent}
+      
+      {/* Modern Sidebar */}
+      <ModernSidebar
+        empresaAtiva={empresaAtiva}
+        empresasDisponiveis={empresasDisponiveis}
+        onEmpresaChange={setEmpresaAtiva}
+        modo={modo}
+        onModoChange={setModo}
+        atividades={atividadesForSidebar}
+        atividadesLoading={atividadesLoading}
+        activeSection={activeSection}
+        activeTab={activeTab}
+        onTabChange={setActiveTab as (tab: string) => void}
+        onSectionChange={setActiveSection}
       />
       
-      <div className="p-4 pr-72">
-        {/* Dashboard Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <MetricCard 
-            title="Saldo Atual" 
-            value={formatCurrency(saldo)} 
-            change={saldo >= 0 ? "+12% este mês" : "-8% este mês"} 
-            changeType={saldo >= 0 ? "up" : "down"} 
-            icon={Wallet} 
-            color={saldo >= 0 ? "green" : "red"}
-            isActive={activeFilter === "all"}
-            onClick={() => handleFilterClick("all")}
-          />
-          <MetricCard 
-            title="Receitas" 
-            value={formatCurrency(totalReceitas)} 
-            change="+15% este mês" 
-            changeType="up" 
-            icon={TrendingUp} 
-            color="green"
-            isActive={activeFilter === "receitas"}
-            onClick={() => handleFilterClick("receitas")}
-          />
-          <MetricCard 
-            title="Despesas" 
-            value={formatCurrency(totalDespesas)} 
-            change="+5% este mês" 
-            changeType="down" 
-            icon={TrendingDown} 
-            color="red"
-            isActive={activeFilter === "despesas"}
-            onClick={() => handleFilterClick("despesas")}
-          />
-          <MetricCard 
-            title="Pendentes" 
-            value={pendentes} 
-            change="Atenção!" 
-            changeType="down" 
-            icon={AlertTriangle} 
-            color="yellow"
-            isActive={activeFilter === "pendentes"}
-            onClick={() => handleFilterClick("pendentes")}
-          />
-        </div>
+      {/* Main Content */}
+      <div className="pt-16 pr-64 pb-8 pl-4">
+        {/* Page Header with Breadcrumbs */}
+        <PageHeader
+          title={getTabLabel()}
+          subtitle={empresaAtiva?.nome}
+          breadcrumbs={[
+            { label: "GESTÃO" },
+            { label: activeSection === "financeiro" ? "Financeiro" : "Gestão" },
+            { label: getTabLabel() },
+          ]}
+          accentColor={activeSection === "financeiro" ? "blue" : "emerald"}
+        />
+
+        {/* Dashboard Metrics - Only show on main tabs */}
+        {(activeTab === "transacoes" || activeTab === "produtos") && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {activeSection === "financeiro" ? (
+              <>
+                <ModernMetricCard 
+                  title="Saldo Atual" 
+                  value={formatCurrency(saldo)} 
+                  change={saldo >= 0 ? "+12% este mês" : "-8% este mês"} 
+                  changeType={saldo >= 0 ? "up" : "down"} 
+                  icon={Wallet} 
+                  color={saldo >= 0 ? "green" : "red"}
+                  isActive={activeFilter === "all"}
+                  onClick={() => handleFilterClick("all")}
+                />
+                <ModernMetricCard 
+                  title="Receitas" 
+                  value={formatCurrency(totalReceitas)} 
+                  change="+15% este mês" 
+                  changeType="up" 
+                  icon={TrendingUp} 
+                  color="green"
+                  isActive={activeFilter === "receitas"}
+                  onClick={() => handleFilterClick("receitas")}
+                />
+                <ModernMetricCard 
+                  title="Despesas" 
+                  value={formatCurrency(totalDespesas)} 
+                  change="+5% este mês" 
+                  changeType="down" 
+                  icon={TrendingDown} 
+                  color="red"
+                  isActive={activeFilter === "despesas"}
+                  onClick={() => handleFilterClick("despesas")}
+                />
+                <ModernMetricCard 
+                  title="Pendentes" 
+                  value={String(pendentes)} 
+                  subtitle="Transações aguardando" 
+                  icon={AlertTriangle} 
+                  color="yellow"
+                  isActive={activeFilter === "pendentes"}
+                  onClick={() => handleFilterClick("pendentes")}
+                />
+              </>
+            ) : (
+              <>
+                <ModernMetricCard 
+                  title="Produtos" 
+                  value={String(produtos?.length || 0)} 
+                  subtitle="cadastrados"
+                  icon={Package} 
+                  color="emerald"
+                />
+                <ModernMetricCard 
+                  title="Vendas" 
+                  value={formatCurrency(totalVendas || 0)} 
+                  subtitle="no período"
+                  icon={ShoppingCart} 
+                  color="blue"
+                />
+                <ModernMetricCard 
+                  title="Compras" 
+                  value={formatCurrency(totalCompras || 0)} 
+                  subtitle="no período"
+                  icon={ShoppingBag} 
+                  color="purple"
+                />
+                <ModernMetricCard 
+                  title="Orçamentos" 
+                  value={String(orcamentosAbertos || 0)} 
+                  subtitle="em aberto"
+                  icon={FileText} 
+                  color="yellow"
+                />
+              </>
+            )}
+          </div>
+        )}
 
         {/* Filter indicator */}
-        {activeFilter !== "all" && (
+        {activeFilter !== "all" && activeSection === "financeiro" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
               {activeFilter === "receitas" ? "Receitas" : activeFilter === "despesas" ? "Despesas" : "Pendentes"}
             </span>
             <button 
               onClick={() => setActiveFilter("all")}
               className="text-xs text-blue-400 hover:text-blue-300 underline"
             >
-              Limpar
+              Limpar filtro
             </button>
           </div>
         )}
-
-        {/* Section Selector */}
-        <div className="flex items-center gap-4 mb-4">
-          <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-            <button 
-              onClick={() => { setActiveSection("financeiro"); setActiveTab("transacoes"); }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-                activeSection === "financeiro" ? "bg-blue-500 text-white" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Wallet className="w-4 h-4" /> Financeiro
-            </button>
-            <button 
-              onClick={() => { setActiveSection("gestao"); setActiveTab("produtos"); }}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${
-                activeSection === "gestao" ? "bg-green-500 text-white" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Package className="w-4 h-4" /> Gestão
-            </button>
-          </div>
-          
-          <div className="h-6 w-px bg-border" />
-          
-          {/* Dynamic Tabs based on Section */}
-          <div className="flex gap-2 flex-1 overflow-x-auto">
-            {activeSection === "financeiro" ? (
-              <>
-                <button
-                  onClick={() => setActiveTab("transacoes")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "transacoes" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Receipt className="w-4 h-4 inline mr-1" />Transações
-                </button>
-                <button
-                  onClick={() => setActiveTab("categorias")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "categorias" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <PieChart className="w-4 h-4 inline mr-1" />Categorias
-                </button>
-                <button
-                  onClick={() => setActiveTab("contas")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "contas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Landmark className="w-4 h-4 inline mr-1" />Contas
-                </button>
-                <button
-                  onClick={() => setActiveTab("conciliacao")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "conciliacao" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Link2 className="w-4 h-4 inline mr-1" />Conciliação
-                </button>
-                <button
-                  onClick={() => setActiveTab("centros_custo")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "centros_custo" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Building2 className="w-4 h-4 inline mr-1" />Centros Custo
-                </button>
-                <button
-                  onClick={() => setActiveTab("metas")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "metas" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Target className="w-4 h-4 inline mr-1" />Metas
-                </button>
-                <button
-                  onClick={() => setActiveTab("recorrencias")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "recorrencias" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Clock className="w-4 h-4 inline mr-1" />Recorrências
-                </button>
-                {modo === "pro" && (
-                  <button
-                    onClick={() => setActiveTab("relatorios")}
-                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "relatorios" ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                  >
-                    <BarChart3 className="w-4 h-4 inline mr-1" />Relatórios
-                  </button>
-                )}
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setActiveTab("produtos")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "produtos" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Package className="w-4 h-4 inline mr-1" />Produtos
-                </button>
-                <button
-                  onClick={() => setActiveTab("clientes")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "clientes" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Users className="w-4 h-4 inline mr-1" />Clientes
-                </button>
-                <button
-                  onClick={() => setActiveTab("fornecedores")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "fornecedores" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Truck className="w-4 h-4 inline mr-1" />Fornecedores
-                </button>
-                <button
-                  onClick={() => setActiveTab("vendas")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "vendas" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <ShoppingCart className="w-4 h-4 inline mr-1" />Vendas
-                </button>
-                <button
-                  onClick={() => setActiveTab("compras")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "compras" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <ShoppingBag className="w-4 h-4 inline mr-1" />Compras
-                </button>
-                <button
-                  onClick={() => setActiveTab("estoque")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "estoque" ? "bg-green-500 text-white shadow-lg shadow-green-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <Package className="w-4 h-4 inline mr-1" />Estoque
-                </button>
-                <button
-                  onClick={() => setActiveTab("orcamentos")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === "orcamentos" ? "bg-purple-500 text-white shadow-lg shadow-purple-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-                >
-                  <FileText className="w-4 h-4 inline mr-1" />Orçamentos
-                </button>
-              </>
-            )}
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-              <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-blue-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <List className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewMode("grid")} className={`p-2 rounded-md transition-all ${viewMode === "grid" ? "bg-blue-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <LayoutGrid className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Content - Financeiro */}
         {activeTab === "transacoes" && empresaAtiva && (
