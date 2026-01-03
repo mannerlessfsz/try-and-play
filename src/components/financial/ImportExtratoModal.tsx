@@ -10,9 +10,11 @@ interface ImportExtratoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConfirm: (data: { mes: number; ano: number; contaBancariaId: string }) => void;
-  fileName: string;
+  fileName?: string;
   contas: ContaBancaria[];
   isLoadingContas?: boolean;
+  defaultMes?: number;
+  defaultAno?: number;
 }
 
 const MESES = [
@@ -30,10 +32,10 @@ const MESES = [
   { value: 12, label: "Dezembro" },
 ];
 
-export function ImportExtratoModal({ open, onOpenChange, onConfirm, fileName, contas, isLoadingContas }: ImportExtratoModalProps) {
+export function ImportExtratoModal({ open, onOpenChange, onConfirm, fileName, contas, isLoadingContas, defaultMes, defaultAno }: ImportExtratoModalProps) {
   const currentDate = new Date();
-  const [mes, setMes] = useState<number>(currentDate.getMonth() + 1);
-  const [ano, setAno] = useState<number>(currentDate.getFullYear());
+  const [mes, setMes] = useState<number>(defaultMes ?? (currentDate.getMonth() + 1));
+  const [ano, setAno] = useState<number>(defaultAno ?? currentDate.getFullYear());
   const [contaBancariaId, setContaBancariaId] = useState<string>("");
 
   const anos = Array.from({ length: 5 }, (_, i) => currentDate.getFullYear() - i);
@@ -63,10 +65,12 @@ export function ImportExtratoModal({ open, onOpenChange, onConfirm, fileName, co
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          <div className="p-3 bg-muted/50 rounded-lg">
-            <p className="text-sm text-muted-foreground">Arquivo selecionado:</p>
-            <p className="font-medium text-foreground">{fileName}</p>
-          </div>
+          {fileName && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <p className="text-sm text-muted-foreground">Arquivo selecionado:</p>
+              <p className="font-medium text-foreground">{fileName}</p>
+            </div>
+          )}
 
           {/* Conta Bancária Selector */}
           <div className="space-y-3">

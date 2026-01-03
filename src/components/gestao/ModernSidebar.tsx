@@ -49,7 +49,6 @@ const financeiroTabs: TabItem[] = [
   { id: "transacoes", label: "Transações", icon: Receipt },
   { id: "categorias", label: "Categorias", icon: PieChart },
   { id: "contas", label: "Contas", icon: Landmark },
-  { id: "conciliacao", label: "Conciliação", icon: Link2 },
   { id: "centros_custo", label: "Centros Custo", icon: Building2 },
   { id: "metas", label: "Metas", icon: Target },
   { id: "recorrencias", label: "Recorrências", icon: Clock },
