@@ -53,6 +53,9 @@ export interface TransacaoInput {
   conciliado?: boolean;
   origem_extrato?: boolean;
   importacao_extrato_id?: string;
+  parcela_numero?: number;
+  parcela_total?: number;
+  parcelamento_id?: string;
 }
 
 // Options for filtering transactions
@@ -124,6 +127,27 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
     onError: (error) => {
       toast({ title: "Erro ao criar transação", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Criar múltiplas transações em massa (para parcelamento)
+  const createBulkMutation = useMutation({
+    mutationFn: async (inputs: TransacaoInput[]) => {
+      const { data, error } = await supabase
+        .from("transacoes")
+        .insert(inputs)
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      queryClient.invalidateQueries({ queryKey: ["transacoes-conciliadas-saldo", empresaId] });
+      toast({ title: `${data?.length || 0} parcelas criadas com sucesso` });
+    },
+    onError: (error) => {
+      toast({ title: "Erro ao criar parcelas", description: error.message, variant: "destructive" });
     },
   });
 
@@ -259,6 +283,8 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     error: query.error,
     createTransacao: createMutation.mutate,
     createTransacaoAsync: createMutation.mutateAsync,
+    createBulkTransacoes: createBulkMutation.mutate,
+    createBulkTransacoesAsync: createBulkMutation.mutateAsync,
     updateTransacao: updateMutation.mutate,
     deleteTransacao: deleteMutation.mutate,
     conciliarTransacao: conciliarMutation.mutate,
@@ -266,7 +292,7 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     conciliarEmMassa: conciliarEmMassaMutation.mutate,
     conciliarEmMassaAsync: conciliarEmMassaMutation.mutateAsync,
     desconciliarEmMassaAsync: desconciliarEmMassaMutation.mutateAsync,
-    isCreating: createMutation.isPending,
+    isCreating: createMutation.isPending || createBulkMutation.isPending,
     isUpdating: updateMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isConciliando: conciliarMutation.isPending || conciliarEmMassaMutation.isPending,
