@@ -5,10 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowUpRight, ArrowDownRight, CreditCard, Loader2, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { ArrowUpRight, ArrowDownRight, CreditCard, Loader2, Calendar, ChevronDown, ChevronUp, Check, ChevronsUpDown } from "lucide-react";
 import { formatCurrency } from "@/lib/formatters";
 import { motion, AnimatePresence } from "framer-motion";
-
+import { cn } from "@/lib/utils";
 interface ParcelamentoModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -69,6 +71,11 @@ export function ParcelamentoModal({
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showParcelas, setShowParcelas] = useState(false);
+  
+  // Combobox open states
+  const [categoriaOpen, setCategoriaOpen] = useState(false);
+  const [contaOpen, setContaOpen] = useState(false);
+  const [clienteOpen, setClienteOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     descricao: "",
@@ -307,37 +314,105 @@ export function ParcelamentoModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Categoria</Label>
-              <Select 
-                value={formData.categoria_id || "__none__"} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, categoria_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {categoriasDoTipo.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={categoriaOpen} onOpenChange={setCategoriaOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={categoriaOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.categoria_id
+                      ? categoriasDoTipo.find(c => c.id === formData.categoria_id)?.nome
+                      : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar categoria..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma categoria encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__nenhuma__"
+                          onSelect={() => {
+                            setFormData(prev => ({ ...prev, categoria_id: "" }));
+                            setCategoriaOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", !formData.categoria_id ? "opacity-100" : "opacity-0")} />
+                          Nenhuma
+                        </CommandItem>
+                        {categoriasDoTipo.map(cat => (
+                          <CommandItem
+                            key={cat.id}
+                            value={cat.nome}
+                            onSelect={() => {
+                              setFormData(prev => ({ ...prev, categoria_id: cat.id }));
+                              setCategoriaOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", formData.categoria_id === cat.id ? "opacity-100" : "opacity-0")} />
+                            {cat.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Conta Bancária</Label>
-              <Select 
-                value={formData.conta_bancaria_id || "__none__"} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, conta_bancaria_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhuma</SelectItem>
-                  {contas.map(conta => (
-                    <SelectItem key={conta.id} value={conta.id}>{conta.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={contaOpen} onOpenChange={setContaOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={contaOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.conta_bancaria_id
+                      ? contas.find(c => c.id === formData.conta_bancaria_id)?.nome
+                      : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar conta..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhuma conta encontrada.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__nenhuma__"
+                          onSelect={() => {
+                            setFormData(prev => ({ ...prev, conta_bancaria_id: "" }));
+                            setContaOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", !formData.conta_bancaria_id ? "opacity-100" : "opacity-0")} />
+                          Nenhuma
+                        </CommandItem>
+                        {contas.map(conta => (
+                          <CommandItem
+                            key={conta.id}
+                            value={conta.nome}
+                            onSelect={() => {
+                              setFormData(prev => ({ ...prev, conta_bancaria_id: conta.id }));
+                              setContaOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", formData.conta_bancaria_id === conta.id ? "opacity-100" : "opacity-0")} />
+                            {conta.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 
@@ -345,20 +420,54 @@ export function ParcelamentoModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label>Cliente</Label>
-              <Select 
-                value={formData.cliente_id || "__none__"} 
-                onValueChange={(v) => setFormData(prev => ({ ...prev, cliente_id: v === "__none__" ? "" : v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Nenhum</SelectItem>
-                  {clientes.map(cliente => (
-                    <SelectItem key={cliente.id} value={cliente.id}>{cliente.nome}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={clienteOpen} onOpenChange={setClienteOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clienteOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {formData.cliente_id
+                      ? clientes.find(c => c.id === formData.cliente_id)?.nome
+                      : "Selecione..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[200px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar cliente..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="__nenhum__"
+                          onSelect={() => {
+                            setFormData(prev => ({ ...prev, cliente_id: "" }));
+                            setClienteOpen(false);
+                          }}
+                        >
+                          <Check className={cn("mr-2 h-4 w-4", !formData.cliente_id ? "opacity-100" : "opacity-0")} />
+                          Nenhum
+                        </CommandItem>
+                        {clientes.map(cliente => (
+                          <CommandItem
+                            key={cliente.id}
+                            value={cliente.nome}
+                            onSelect={() => {
+                              setFormData(prev => ({ ...prev, cliente_id: cliente.id }));
+                              setClienteOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", formData.cliente_id === cliente.id ? "opacity-100" : "opacity-0")} />
+                            {cliente.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
             <div className="space-y-2">
               <Label>Forma de Pagamento</Label>
