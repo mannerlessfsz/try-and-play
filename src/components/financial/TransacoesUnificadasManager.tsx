@@ -16,6 +16,7 @@ import { parseOFX, readFileAsText, normalizeAccountNumber } from "@/utils/ofxPar
 import { formatCurrency } from "@/lib/formatters";
 import { useImportacoesExtrato } from "@/hooks/useImportacoesExtrato";
 import { ImportExtratoModal } from "./ImportExtratoModal";
+import { ParcelamentoModal, ParcelaGerada } from "./ParcelamentoModal";
 import {
   Plus,
   Edit,
@@ -37,6 +38,7 @@ import {
   ChevronDown,
   ChevronUp,
   Ban,
+  CreditCard,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -133,6 +135,9 @@ export function TransacoesUnificadasManager({
   // Import modal state
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  
+  // Parcelamento modal state
+  const [parcelamentoModalOpen, setParcelamentoModalOpen] = useState(false);
 
   // Extrato state
   const [extratosImportados, setExtratosImportados] = useState<ExtratoImportado[]>([]);
@@ -167,6 +172,7 @@ export function TransacoesUnificadasManager({
     isLoading, 
     createTransacao, 
     createTransacaoAsync,
+    createBulkTransacoesAsync,
     updateTransacao, 
     deleteTransacao, 
     isCreating,
@@ -309,6 +315,31 @@ export function TransacoesUnificadasManager({
   };
 
   const categoriasDoTipo = categorias.filter(c => c.tipo === formData.tipo);
+
+  // Handler para criação de parcelas
+  const handleCriarParcelas = async (parcelas: ParcelaGerada[]) => {
+    const transacoesParaInserir = parcelas.map(p => ({
+      empresa_id: empresaId,
+      descricao: p.descricao,
+      valor: p.valor,
+      tipo: p.tipo,
+      status: p.status,
+      data_transacao: p.data_transacao,
+      data_vencimento: p.data_vencimento,
+      categoria_id: p.categoria_id,
+      conta_bancaria_id: p.conta_bancaria_id,
+      cliente_id: p.cliente_id,
+      forma_pagamento: p.forma_pagamento,
+      observacoes: p.observacoes,
+      competencia_ano: p.competencia_ano,
+      competencia_mes: p.competencia_mes,
+      parcela_numero: p.parcela_numero,
+      parcela_total: p.parcela_total,
+      parcelamento_id: p.parcelamento_id,
+    }));
+
+    await createBulkTransacoesAsync(transacoesParaInserir);
+  };
 
   // ==== EXTRATO / CONCILIAÇÃO ====
   
@@ -740,6 +771,17 @@ export function TransacoesUnificadasManager({
           >
             <FileUp className="w-4 h-4 mr-1" />
             Importar Extrato
+          </Button>
+
+          {/* Parcelamento */}
+          <Button 
+            variant="outline"
+            size="sm"
+            onClick={() => setParcelamentoModalOpen(true)}
+            className="border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+          >
+            <CreditCard className="w-4 h-4 mr-1" />
+            Parcelado
           </Button>
 
           {/* Nova Transação */}
@@ -1243,6 +1285,16 @@ export function TransacoesUnificadasManager({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Modal de Parcelamento */}
+      <ParcelamentoModal
+        open={parcelamentoModalOpen}
+        onOpenChange={setParcelamentoModalOpen}
+        onConfirm={handleCriarParcelas}
+        categorias={categorias}
+        contas={contas}
+        clientes={clientes}
+      />
     </div>
   );
 }
