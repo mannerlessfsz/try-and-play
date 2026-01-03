@@ -467,7 +467,7 @@ export function TransacoesUnificadasManager({
       });
 
       if (idsParaConciliar.length > 0) {
-        await conciliarEmMassaAsync(idsParaConciliar);
+        await conciliarEmMassaAsync({ ids: idsParaConciliar, origemExtrato: true });
       }
 
       setLancamentosExtrato(prev => [...prev, ...novosLancamentos]);
@@ -497,7 +497,7 @@ export function TransacoesUnificadasManager({
     if (!lancamentoParaVincular) return;
 
     try {
-      await conciliarTransacaoAsync(transacaoId);
+      await conciliarTransacaoAsync({ id: transacaoId, origemExtrato: true });
       
       setLancamentosExtrato(prev => 
         prev.map(l => l.id === lancamentoParaVincular.id ? { ...l, conciliado: true, transacaoVinculadaId: transacaoId } : l)
@@ -533,10 +533,11 @@ export function TransacoesUnificadasManager({
         data_transacao: lancamento.data,
         status: 'pago',
         conta_bancaria_id: extrato?.contaBancariaId,
+        origem_extrato: true,
       });
 
       if (novaTransacao?.id) {
-        await conciliarTransacaoAsync(novaTransacao.id);
+        await conciliarTransacaoAsync({ id: novaTransacao.id, origemExtrato: true });
       }
       
       setLancamentosExtrato(prev => 
@@ -644,6 +645,7 @@ export function TransacoesUnificadasManager({
           status: 'pago',
           conta_bancaria_id: extrato.contaBancariaId,
           conciliado: true,
+          origem_extrato: true,
         });
 
         if (novaTransacao?.id) {
@@ -1135,9 +1137,18 @@ export function TransacoesUnificadasManager({
                     </td>
                     <td className="p-3 text-center">
                       {transacao.conciliado ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400 mx-auto" />
+                        transacao.origem_extrato ? (
+                          <div className="flex items-center justify-center gap-1 cursor-help" title="Conciliado por importação de extrato">
+                            <FileText className="w-3 h-3 text-blue-400" />
+                            <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                          </div>
+                        ) : (
+                          <div className="cursor-help" title="Conciliado manualmente">
+                            <CheckCircle2 className="w-4 h-4 text-green-400 mx-auto" />
+                          </div>
+                        )
                       ) : (
-                        <span className="w-4 h-4 block mx-auto rounded-full border-2 border-muted-foreground/30" />
+                        <span className="w-4 h-4 block mx-auto rounded-full border-2 border-muted-foreground/30 cursor-help" title="Não conciliado" />
                       )}
                     </td>
                     <td className="p-3">
