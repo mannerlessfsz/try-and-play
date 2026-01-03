@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useContasBancarias, ContaBancariaInput } from "@/hooks/useContasBancarias";
 import { useSaldoContas } from "@/hooks/useSaldoContas";
+import { useImportacoesExtrato } from "@/hooks/useImportacoesExtrato";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown, AlertCircle, ChevronDown, FileText, Calendar, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 interface ContasBancariasManagerProps {
   empresaId: string;
@@ -32,8 +36,10 @@ const CORES = [
 export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProps) {
   const { contas, isLoading, createConta, updateConta, deleteConta, isCreating } = useContasBancarias(empresaId);
   const { saldos, saldoTotal, isLoading: isLoadingSaldos } = useSaldoContas(empresaId);
+  const { importacoes, isLoading: isLoadingImportacoes } = useImportacoesExtrato(empresaId);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedContas, setExpandedContas] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState<Partial<ContaBancariaInput>>({
     nome: "",
     banco: "",
@@ -85,6 +91,55 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
+
+  const toggleExpandConta = (contaId: string) => {
+    setExpandedContas(prev => {
+      const next = new Set(prev);
+      if (next.has(contaId)) {
+        next.delete(contaId);
+      } else {
+        next.add(contaId);
+      }
+      return next;
+    });
+  };
+
+  // Agrupar importações por conta bancária e mês
+  const importacoesPorConta = useMemo(() => {
+    const grouped = new Map<string, typeof importacoes>();
+    importacoes.forEach(imp => {
+      const list = grouped.get(imp.conta_bancaria_id) || [];
+      list.push(imp);
+      grouped.set(imp.conta_bancaria_id, list);
+    });
+    return grouped;
+  }, [importacoes]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'concluido':
+      case 'confirmado':
+        return <CheckCircle2 className="w-4 h-4 text-green-400" />;
+      case 'pendente':
+      case 'processando':
+        return <Clock className="w-4 h-4 text-amber-400" />;
+      case 'erro':
+        return <XCircle className="w-4 h-4 text-red-400" />;
+      default:
+        return <FileText className="w-4 h-4 text-muted-foreground" />;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'concluido': return 'Concluído';
+      case 'confirmado': return 'Confirmado';
+      case 'pendente': return 'Pendente';
+      case 'processando': return 'Processando';
+      case 'erro': return 'Erro';
+      default: return status;
+    }
   };
 
   if (isLoading || isLoadingSaldos) {
@@ -244,91 +299,158 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {contas.map(conta => (
-            <div 
-              key={conta.id} 
-              className="bg-card/30 backdrop-blur-xl rounded-xl border border-blue-500/20 p-4 hover:border-blue-500/40 transition-all"
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-10 h-10 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${conta.cor}20` }}
-                  >
-                    <Wallet className="w-5 h-5" style={{ color: conta.cor || "#3b82f6" }} />
+          {contas.map(conta => {
+            const extratosContaRaw = importacoesPorConta.get(conta.id) || [];
+            const extratosConta = extratosContaRaw.sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            const isExpanded = expandedContas.has(conta.id);
+            
+            return (
+              <div 
+                key={conta.id} 
+                className="bg-card/30 backdrop-blur-xl rounded-xl border border-blue-500/20 p-4 hover:border-blue-500/40 transition-all"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-10 h-10 rounded-lg flex items-center justify-center"
+                      style={{ backgroundColor: `${conta.cor}20` }}
+                    >
+                      <Wallet className="w-5 h-5" style={{ color: conta.cor || "#3b82f6" }} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">{conta.nome}</h4>
+                      <p className="text-xs text-muted-foreground">{conta.banco}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground">{conta.nome}</h4>
-                    <p className="text-xs text-muted-foreground">{conta.banco}</p>
+                  <div className="flex gap-1">
+                    <button 
+                      onClick={() => handleOpenEdit(conta)}
+                      className="p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => deleteConta(conta.id)}
+                      className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button 
-                    onClick={() => handleOpenEdit(conta)}
-                    className="p-1.5 rounded-md hover:bg-foreground/10 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => deleteConta(conta.id)}
-                    className="p-1.5 rounded-md hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="text-xs text-muted-foreground space-y-1">
+                  {conta.agencia && <p>Agência: {conta.agencia}</p>}
+                  {conta.conta && <p>Conta: {conta.conta}</p>}
+                  <p className="capitalize">Tipo: {conta.tipo}</p>
                 </div>
-              </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                {conta.agencia && <p>Agência: {conta.agencia}</p>}
-                {conta.conta && <p>Conta: {conta.conta}</p>}
-                <p className="capitalize">Tipo: {conta.tipo}</p>
-              </div>
-              <div className="mt-3 pt-3 border-t border-foreground/10 space-y-2">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">Saldo Inicial</span>
-                  <span className="text-foreground">{formatCurrency(conta.saldo_inicial || 0)}</span>
-                </div>
-                {(() => {
-                  const saldo = getSaldoConta(conta.id);
-                  if (!saldo) return null;
-                  
-                  // If no confirmed extrato, show warning
-                  if (!saldo.temExtratoConfirmado) {
-                    return (
-                      <div className="flex items-center gap-2 text-amber-400 text-xs">
-                        <AlertCircle className="w-4 h-4" />
-                        <span>Sem extrato confirmado</span>
-                      </div>
-                    );
-                  }
-                  
-                  return (
-                    <>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-green-400 flex items-center gap-1">
-                          <TrendingUp className="w-3 h-3" /> Entradas
-                        </span>
-                        <span className="text-green-400">+{formatCurrency(saldo.totalReceitas)}</span>
-                      </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-red-400 flex items-center gap-1">
-                          <TrendingDown className="w-3 h-3" /> Saídas
-                        </span>
-                        <span className="text-red-400">-{formatCurrency(saldo.totalDespesas)}</span>
-                      </div>
-                      <div className="pt-2 border-t border-foreground/10">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-muted-foreground">Saldo Atual</span>
-                          <span className={`text-lg font-bold ${saldo.saldoAtual >= 0 ? 'text-foreground' : 'text-red-400'}`}>
-                            {formatCurrency(saldo.saldoAtual)}
-                          </span>
+                <div className="mt-3 pt-3 border-t border-foreground/10 space-y-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Saldo Inicial</span>
+                    <span className="text-foreground">{formatCurrency(conta.saldo_inicial || 0)}</span>
+                  </div>
+                  {(() => {
+                    const saldo = getSaldoConta(conta.id);
+                    if (!saldo) return null;
+                    
+                    // If no confirmed extrato, show warning
+                    if (!saldo.temExtratoConfirmado) {
+                      return (
+                        <div className="flex items-center gap-2 text-amber-400 text-xs">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Sem extrato confirmado</span>
                         </div>
-                      </div>
-                    </>
-                  );
-                })()}
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-green-400 flex items-center gap-1">
+                            <TrendingUp className="w-3 h-3" /> Entradas
+                          </span>
+                          <span className="text-green-400">+{formatCurrency(saldo.totalReceitas)}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-red-400 flex items-center gap-1">
+                            <TrendingDown className="w-3 h-3" /> Saídas
+                          </span>
+                          <span className="text-red-400">-{formatCurrency(saldo.totalDespesas)}</span>
+                        </div>
+                        <div className="pt-2 border-t border-foreground/10">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs text-muted-foreground">Saldo Atual</span>
+                            <span className={`text-lg font-bold ${saldo.saldoAtual >= 0 ? 'text-foreground' : 'text-red-400'}`}>
+                              {formatCurrency(saldo.saldoAtual)}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Extratos Importados */}
+                <Collapsible open={isExpanded} onOpenChange={() => toggleExpandConta(conta.id)}>
+                  <CollapsibleTrigger asChild>
+                    <button className="w-full mt-3 pt-3 border-t border-foreground/10 flex items-center justify-between text-xs text-muted-foreground hover:text-foreground transition-colors">
+                      <span className="flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Extratos Importados ({extratosConta.length})
+                      </span>
+                      <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-3 space-y-2">
+                      {extratosConta.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          Nenhum extrato importado
+                        </p>
+                      ) : (
+                        extratosConta.map(extrato => (
+                          <div 
+                            key={extrato.id}
+                            className="bg-background/50 rounded-lg p-2 text-xs"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-medium text-foreground truncate flex-1 mr-2">
+                                {extrato.nome_arquivo}
+                              </span>
+                              {getStatusIcon(extrato.status)}
+                            </div>
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3" />
+                                {extrato.data_inicio && extrato.data_fim 
+                                  ? `${format(new Date(extrato.data_inicio + 'T00:00:00'), 'MMM/yy', { locale: ptBR })}`
+                                  : format(new Date(extrato.created_at), 'dd/MM/yy', { locale: ptBR })
+                                }
+                              </span>
+                              <span>
+                                {extrato.transacoes_importadas || extrato.total_transacoes || 0} transações
+                              </span>
+                            </div>
+                            <div className="text-muted-foreground mt-1">
+                              Status: <span className={
+                                extrato.status === 'concluido' || extrato.status === 'confirmado' 
+                                  ? 'text-green-400' 
+                                  : extrato.status === 'erro' 
+                                    ? 'text-red-400' 
+                                    : 'text-amber-400'
+                              }>
+                                {getStatusLabel(extrato.status)}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
