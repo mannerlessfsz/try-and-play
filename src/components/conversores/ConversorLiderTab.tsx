@@ -48,6 +48,7 @@ export function ConversorLiderTab() {
   const [tipoExportacao, setTipoExportacao] = useState<string>("csv");
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewArquivo, setPreviewArquivo] = useState<ArquivoProcessado | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -56,18 +57,44 @@ export function ConversorLiderTab() {
     }
   };
 
-  const handleProcessar = async () => {
-    if (!selectedFile) {
-      toast({ title: "Selecione um arquivo TXT", variant: "destructive" });
-      return;
-    }
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
 
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.name.toLowerCase().endsWith('.txt')) {
+        setSelectedFile(file);
+      } else {
+        toast({ 
+          title: "Formato inválido", 
+          description: "Por favor, selecione um arquivo TXT.",
+          variant: "destructive" 
+        });
+      }
+    }
+  };
+
+  const processarArquivo = async (file: File) => {
     const arquivoId = Date.now().toString();
     
-    // Adiciona como processando
     setArquivos(prev => [...prev, {
       id: arquivoId,
-      nome: selectedFile.name,
+      nome: file.name,
       status: "processando",
       dataProcessamento: new Date().toISOString()
     }]);
@@ -75,7 +102,7 @@ export function ConversorLiderTab() {
     setIsProcessing(true);
 
     try {
-      const content = await readFileAsText(selectedFile);
+      const content = await readFileAsText(file);
       const resultado = transformarLancamentos(content);
       
       setArquivos(prev => prev.map(a => 
@@ -87,14 +114,34 @@ export function ConversorLiderTab() {
       const errosCount = resultado.erros.length;
       const warningsCount = resultado.warnings.length;
       
-      toast({ 
-        title: "Processamento concluído!", 
-        description: `${resultado.totalLancamentos} lançamentos processados. ${resultado.outputRows.length} linhas geradas.${errosCount > 0 ? ` ${errosCount} erros.` : ''}${warningsCount > 0 ? ` ${warningsCount} avisos.` : ''}`
-      });
+      if (errosCount > 0) {
+        toast({ 
+          title: "Processamento com erros", 
+          description: `${resultado.totalLancamentos} lançamentos. ${errosCount} erros encontrados - clique em 'visualizar' para detalhes.`,
+          variant: "destructive"
+        });
+      } else {
+        toast({ 
+          title: "Processamento concluído!", 
+          description: `${resultado.totalLancamentos} lançamentos processados. ${resultado.outputRows.length} linhas geradas.${warningsCount > 0 ? ` ${warningsCount} avisos.` : ''}`
+        });
+      }
     } catch (error) {
       setArquivos(prev => prev.map(a => 
         a.id === arquivoId 
-          ? { ...a, status: "erro" as const }
+          ? { 
+              ...a, 
+              status: "erro" as const,
+              resultado: {
+                outputRows: [],
+                outputLines: [],
+                totalLancamentos: 0,
+                totalLinhas: 0,
+                header0100: null,
+                erros: [error instanceof Error ? error.message : "Erro desconhecido ao processar arquivo"],
+                warnings: []
+              }
+            }
           : a
       ));
       
@@ -106,10 +153,17 @@ export function ConversorLiderTab() {
     } finally {
       setIsProcessing(false);
       setSelectedFile(null);
-      // Reset input
       const input = document.getElementById('lider-file') as HTMLInputElement;
       if (input) input.value = '';
     }
+  };
+
+  const handleProcessar = async () => {
+    if (!selectedFile) {
+      toast({ title: "Selecione um arquivo TXT", variant: "destructive" });
+      return;
+    }
+    await processarArquivo(selectedFile);
   };
 
   const handleExportar = (arquivo: ArquivoProcessado) => {
@@ -193,16 +247,34 @@ export function ConversorLiderTab() {
             </div>
           </div>
 
-          {/* Upload Area */}
-          <div className="border-2 border-dashed rounded-lg p-6 text-center">
-            <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground mb-1">
-              Selecione um arquivo TXT com lançamentos (formato 0100/0200/0300)
+          {/* Upload Area with Drag & Drop */}
+          <div 
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 cursor-pointer ${
+              isDragging 
+                ? "border-violet-500 bg-violet-500/10 scale-[1.02]" 
+                : "border-muted-foreground/30 hover:border-violet-500/50 hover:bg-muted/30"
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => !isProcessing && document.getElementById('lider-file')?.click()}
+          >
+            <Upload className={`w-10 h-10 mx-auto mb-3 transition-colors ${
+              isDragging ? "text-violet-500" : "text-muted-foreground"
+            }`} />
+            <p className={`text-sm mb-1 transition-colors ${
+              isDragging ? "text-violet-500 font-medium" : "text-muted-foreground"
+            }`}>
+              {isDragging 
+                ? "Solte o arquivo aqui..." 
+                : "Arraste e solte um arquivo TXT ou clique para selecionar"
+              }
             </p>
             <p className="text-xs text-muted-foreground mb-3">
-              O sistema agrupa automaticamente PAGTO + TARIFA e gera linhas de crédito consolidadas
+              Formato aceito: 0100/0200/0300 - Agrupa PAGTO + TARIFA automaticamente
             </p>
-            <div className="flex items-center justify-center gap-4">
+            
+            <div className="flex items-center justify-center gap-4" onClick={(e) => e.stopPropagation()}>
               <div>
                 <Label htmlFor="lider-file" className="sr-only">Arquivo TXT</Label>
                 <Input 
@@ -236,7 +308,9 @@ export function ConversorLiderTab() {
               </Button>
             </div>
             {selectedFile && (
-              <p className="text-sm text-violet-500 mt-2">Arquivo selecionado: {selectedFile.name}</p>
+              <p className="text-sm text-violet-500 mt-3 font-medium">
+                ✓ Arquivo selecionado: {selectedFile.name}
+              </p>
             )}
           </div>
 
@@ -309,7 +383,7 @@ export function ConversorLiderTab() {
                             size="icon" 
                             className="h-8 w-8"
                             onClick={() => setPreviewArquivo(arquivo)}
-                            disabled={arquivo.status !== "sucesso"}
+                            disabled={arquivo.status === "processando"}
                           >
                             <Eye className="w-4 h-4" />
                           </Button>
