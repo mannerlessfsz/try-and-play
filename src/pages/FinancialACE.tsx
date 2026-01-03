@@ -41,6 +41,7 @@ import { ModernSidebar } from "@/components/gestao/ModernSidebar";
 import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
 import { PageHeader } from "@/components/gestao/PageHeader";
 import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
+import { FinancialDashboard } from "@/components/gestao/FinancialDashboard";
 import type { Atividade } from "@/types/task";
 
 interface ExtratoImportado {
@@ -71,7 +72,7 @@ type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 type ModoFinanceiro = "pro" | "basico";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState<"transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque" | "orcamentos" | "centros_custo" | "metas" | "recorrencias">("transacoes");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "transacoes" | "categorias" | "contas" | "conciliacao" | "relatorios" | "produtos" | "clientes" | "fornecedores" | "vendas" | "compras" | "estoque" | "orcamentos" | "centros_custo" | "metas" | "recorrencias">("dashboard");
   const [activeSection, setActiveSection] = useState<"financeiro" | "gestao">("financeiro");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
@@ -853,6 +854,7 @@ export default function FinancialACE() {
   // Get current tab label for breadcrumb
   const getTabLabel = () => {
     const tabLabels: Record<string, string> = {
+      dashboard: "Dashboard",
       transacoes: "Transações",
       categorias: "Categorias",
       contas: "Contas Bancárias",
@@ -942,7 +944,7 @@ export default function FinancialACE() {
           accentColor={activeSection === "financeiro" ? "blue" : "emerald"}
         />
 
-        {/* Dashboard Metrics - Only show on main tabs */}
+        {/* Dashboard Metrics - Only show on transacoes or produtos tabs */}
         {(activeTab === "transacoes" || activeTab === "produtos") && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             {activeSection === "financeiro" ? (
@@ -1023,7 +1025,7 @@ export default function FinancialACE() {
         )}
 
         {/* Filter indicator */}
-        {activeFilter !== "all" && activeSection === "financeiro" && (
+        {activeFilter !== "all" && activeSection === "financeiro" && activeTab !== "dashboard" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
             <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
@@ -1040,6 +1042,17 @@ export default function FinancialACE() {
 
         {/* Content - with animated transitions */}
         <AnimatedTabContent tabKey={activeTab}>
+          {/* Dashboard */}
+          {activeTab === "dashboard" && empresaAtiva && (
+            <FinancialDashboard
+              transacoes={transacoes}
+              totalReceitas={totalReceitas}
+              totalDespesas={totalDespesas}
+              saldo={saldo}
+              pendentes={pendentes}
+            />
+          )}
+
           {/* Content - Financeiro */}
           {activeTab === "transacoes" && empresaAtiva && (
             <TransacoesManager 
