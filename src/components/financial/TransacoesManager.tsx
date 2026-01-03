@@ -64,7 +64,8 @@ const MESES = [
 ];
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
-const toDateInputValue = (date: Date) => date.toISOString().split("T")[0];
+const toDateInputValue = (date: Date) => 
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
 // Regra de negócio: por padrão, trabalhamos com competência do mês anterior
 const getDefaultCompetencia = () => {
