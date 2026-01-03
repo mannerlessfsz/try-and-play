@@ -195,7 +195,7 @@ export function EstoqueManager({ empresaId }: EstoqueManagerProps) {
                 <TableBody>
                   {movimentos.slice(0, 50).map((m) => (
                     <TableRow key={m.id}>
-                      <TableCell>{new Date(m.created_at).toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>{new Date(m.created_at.split('T')[0] + 'T12:00:00').toLocaleDateString("pt-BR")}</TableCell>
                       <TableCell>
                         <Badge
                           className={

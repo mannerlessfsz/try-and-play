@@ -462,7 +462,7 @@ export function ImportNFeModal({ open, onOpenChange, empresaId, empresaCnpj, onI
               <div>
                 <p className="text-xs text-muted-foreground">Data Emissão</p>
                 <p className="font-semibold text-foreground">
-                  {nfeData.data_emissao ? new Date(nfeData.data_emissao).toLocaleDateString('pt-BR') : '-'}
+                  {nfeData.data_emissao ? new Date(nfeData.data_emissao.split('T')[0] + 'T12:00:00').toLocaleDateString('pt-BR') : '-'}
                 </p>
               </div>
               <div className="col-span-2">

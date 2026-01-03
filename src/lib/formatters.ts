@@ -14,17 +14,36 @@ export function formatCurrency(value: number): string {
 }
 
 /**
+ * Parse a date string safely, avoiding timezone issues.
+ * For date-only strings (YYYY-MM-DD), adds T12:00:00 to avoid UTC midnight conversion issues.
+ */
+function parseDateSafe(dateStr: string): Date {
+  // If it's a date-only string (YYYY-MM-DD), add time to avoid timezone issues
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return new Date(dateStr + 'T12:00:00');
+  }
+  return new Date(dateStr);
+}
+
+/**
  * Format a date string to Brazilian locale (dd/mm/yyyy)
  */
 export function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR');
+  return parseDateSafe(dateStr).toLocaleDateString('pt-BR');
+}
+
+/**
+ * Format a date string to Brazilian locale short (dd/mm)
+ */
+export function formatDateShort(dateStr: string): string {
+  return parseDateSafe(dateStr).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
 /**
  * Format a date string to Brazilian locale with time (dd/mm/yyyy HH:mm)
  */
 export function formatDateTime(dateStr: string): string {
-  const date = new Date(dateStr);
+  const date = parseDateSafe(dateStr);
   return `${date.toLocaleDateString('pt-BR')} ${date.toLocaleTimeString('pt-BR', { 
     hour: '2-digit', 
     minute: '2-digit' 

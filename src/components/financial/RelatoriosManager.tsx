@@ -156,7 +156,7 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
     return Object.entries(porDia)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([data, values]) => ({
-        data: new Date(data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+        data: new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
         receitas: values.receitas,
         despesas: values.despesas,
         saldo: values.receitas - values.despesas,
@@ -454,7 +454,7 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
                         <tr key={t.id} className="hover:bg-muted/20">
                           <td className="p-3">{t.descricao}</td>
                           <td className="p-3 text-muted-foreground">
-                            {new Date(t.data_vencimento || t.data_transacao).toLocaleDateString('pt-BR')}
+                            {new Date((t.data_vencimento || t.data_transacao) + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </td>
                           <td className="p-3">
                             <span className={`px-2 py-1 rounded-full text-xs ${t.tipo === 'receita' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>

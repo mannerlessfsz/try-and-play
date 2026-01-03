@@ -526,7 +526,7 @@ export function OrcamentosManager({ empresaId }: OrcamentosManagerProps) {
                 {filteredOrcamentos.map((o) => (
                   <TableRow key={o.id} className="hover:bg-muted/50">
                     <TableCell className="font-mono">#{o.numero || "-"}</TableCell>
-                    <TableCell>{new Date(o.data_orcamento).toLocaleDateString("pt-BR")}</TableCell>
+                    <TableCell>{new Date(o.data_orcamento + 'T12:00:00').toLocaleDateString("pt-BR")}</TableCell>
                     <TableCell className="font-medium">{o.titulo}</TableCell>
                     <TableCell>{o.cliente?.nome || "-"}</TableCell>
                     <TableCell className="text-right font-semibold text-purple-400">
