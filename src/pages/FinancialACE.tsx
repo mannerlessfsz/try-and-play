@@ -34,7 +34,7 @@ import { useCompras } from "@/hooks/useCompras";
 import { useOrcamentos } from "@/hooks/useOrcamentos";
 import { ModernSidebar } from "@/components/gestao/ModernSidebar";
 import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
-import { PageHeader } from "@/components/gestao/PageHeader";
+
 import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
 import { FinancialDashboard } from "@/components/gestao/FinancialDashboard";
 import type { Atividade } from "@/types/task";
@@ -101,27 +101,6 @@ export default function FinancialACE() {
   // Convert atividades to proper type for sidebar
   const atividadesForSidebar: Atividade[] = atividades;
 
-  // Get current tab label for breadcrumb
-  const getTabLabel = () => {
-    const tabLabels: Record<string, string> = {
-      dashboard: "Dashboard",
-      transacoes: "Transações",
-      categorias: "Categorias",
-      contas: "Contas Bancárias",
-      centros_custo: "Centros de Custo",
-      metas: "Metas Financeiras",
-      recorrencias: "Recorrências",
-      relatorios: "Relatórios",
-      produtos: "Produtos",
-      clientes: "Clientes",
-      fornecedores: "Fornecedores",
-      vendas: "Vendas",
-      compras: "Compras",
-      estoque: "Estoque",
-      orcamentos: "Orçamentos",
-    };
-    return tabLabels[activeTab] || activeTab;
-  };
 
   // Show message if no empresa selected
   if (!empresaLoading && !empresaAtiva) {
@@ -180,18 +159,7 @@ export default function FinancialACE() {
       />
       
       {/* Main Content */}
-      <div className="pt-16 pr-64 pb-8 pl-4">
-        {/* Page Header with Breadcrumbs */}
-        <PageHeader
-          title={getTabLabel()}
-          subtitle={empresaAtiva?.nome}
-          breadcrumbs={[
-            { label: "GESTÃO" },
-            { label: activeSection === "financeiro" ? "Financeiro" : "Gestão" },
-            { label: getTabLabel() },
-          ]}
-          accentColor={activeSection === "financeiro" ? "blue" : "emerald"}
-        />
+      <div className="pt-4 pr-64 pb-8 pl-4">
 
         {/* Dashboard Metrics - Only show on transacoes or produtos tabs */}
         {(activeTab === "transacoes" || activeTab === "produtos") && (

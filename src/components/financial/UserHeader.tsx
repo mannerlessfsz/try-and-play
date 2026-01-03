@@ -1,4 +1,5 @@
-import { User, LogOut, ChevronDown } from "lucide-react";
+import { LogOut, ChevronDown, Home } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
 
 export function UserHeader() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -24,7 +26,17 @@ export function UserHeader() {
     .slice(0, 2);
 
   return (
-    <div className="fixed top-0 right-0 z-50 p-2">
+    <div className="fixed top-0 right-0 z-50 p-2 flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => navigate('/')}
+        className="w-8 h-8 bg-card/50 border border-border/30 hover:bg-card"
+        title="Ir para Home"
+      >
+        <Home className="w-4 h-4 text-muted-foreground" />
+      </Button>
+      
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
