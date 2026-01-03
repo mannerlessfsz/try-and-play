@@ -9,12 +9,31 @@ export interface SaldoConta {
   totalReceitas: number;
   totalDespesas: number;
   saldoAtual: number;
+  temExtratoConfirmado: boolean;
 }
 
 export function useSaldoContas(empresaId: string | undefined) {
   const { contas, isLoading: isLoadingContas } = useContasBancarias(empresaId);
 
-  // Fetch all reconciled transactions for this empresa
+  // Fetch confirmed bank statements (extratos) for this empresa
+  const { data: extratosConfirmados, isLoading: isLoadingExtratos } = useQuery({
+    queryKey: ["extratos-confirmados", empresaId],
+    queryFn: async () => {
+      if (!empresaId) return [];
+      
+      const { data, error } = await supabase
+        .from("importacoes_extrato")
+        .select("id, conta_bancaria_id, status")
+        .eq("empresa_id", empresaId)
+        .eq("status", "concluido");
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!empresaId,
+  });
+
+  // Fetch all paid transactions for this empresa
   const { data: transacoes, isLoading: isLoadingTransacoes } = useQuery({
     queryKey: ["transacoes-conciliadas-saldo", empresaId],
     queryFn: async () => {
@@ -33,12 +52,29 @@ export function useSaldoContas(empresaId: string | undefined) {
     enabled: !!empresaId,
   });
 
-  // Calculate balance for each account
+  // Calculate balance for each account - only if it has confirmed statement
   const saldos = useMemo((): SaldoConta[] => {
-    if (!contas || !transacoes) return [];
+    if (!contas) return [];
 
     return contas.map(conta => {
-      const transacoesDaConta = transacoes.filter(t => t.conta_bancaria_id === conta.id);
+      // Check if this account has at least one confirmed extrato
+      const temExtratoConfirmado = (extratosConfirmados || []).some(
+        e => e.conta_bancaria_id === conta.id
+      );
+
+      // If no confirmed extrato, return zero balance
+      if (!temExtratoConfirmado) {
+        return {
+          conta,
+          saldoInicial: conta.saldo_inicial || 0,
+          totalReceitas: 0,
+          totalDespesas: 0,
+          saldoAtual: 0,
+          temExtratoConfirmado: false,
+        };
+      }
+
+      const transacoesDaConta = (transacoes || []).filter(t => t.conta_bancaria_id === conta.id);
       
       const totalReceitas = transacoesDaConta
         .filter(t => t.tipo === "receita")
@@ -57,24 +93,27 @@ export function useSaldoContas(empresaId: string | undefined) {
         totalReceitas,
         totalDespesas,
         saldoAtual,
+        temExtratoConfirmado: true,
       };
     });
-  }, [contas, transacoes]);
+  }, [contas, transacoes, extratosConfirmados]);
 
   // Get saldo for a specific account
   const getSaldoConta = (contaId: string): SaldoConta | undefined => {
     return saldos.find(s => s.conta.id === contaId);
   };
 
-  // Get total balance across all accounts
+  // Get total balance across all accounts (only those with confirmed statements)
   const saldoTotal = useMemo(() => {
-    return saldos.reduce((acc, s) => acc + s.saldoAtual, 0);
+    return saldos
+      .filter(s => s.temExtratoConfirmado)
+      .reduce((acc, s) => acc + s.saldoAtual, 0);
   }, [saldos]);
 
   return {
     saldos,
     getSaldoConta,
     saldoTotal,
-    isLoading: isLoadingContas || isLoadingTransacoes,
+    isLoading: isLoadingContas || isLoadingTransacoes || isLoadingExtratos,
   };
 }

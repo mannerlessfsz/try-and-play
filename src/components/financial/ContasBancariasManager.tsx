@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown, AlertCircle } from "lucide-react";
 
 interface ContasBancariasManagerProps {
   empresaId: string;
@@ -100,7 +100,7 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
   return (
     <div className="space-y-4">
       {/* Summary Card */}
-      {saldos.length > 0 && (
+      {saldos.some(s => s.temExtratoConfirmado) && (
         <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 backdrop-blur-xl rounded-xl border border-blue-500/30 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -118,13 +118,13 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Entradas</p>
                 <p className="text-green-400 font-semibold">
-                  +{formatCurrency(saldos.reduce((acc, s) => acc + s.totalReceitas, 0))}
+                  +{formatCurrency(saldos.filter(s => s.temExtratoConfirmado).reduce((acc, s) => acc + s.totalReceitas, 0))}
                 </p>
               </div>
               <div className="text-right">
                 <p className="text-xs text-muted-foreground">Saídas</p>
                 <p className="text-red-400 font-semibold">
-                  -{formatCurrency(saldos.reduce((acc, s) => acc + s.totalDespesas, 0))}
+                  -{formatCurrency(saldos.filter(s => s.temExtratoConfirmado).reduce((acc, s) => acc + s.totalDespesas, 0))}
                 </p>
               </div>
             </div>
@@ -290,6 +290,17 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
                 {(() => {
                   const saldo = getSaldoConta(conta.id);
                   if (!saldo) return null;
+                  
+                  // If no confirmed extrato, show warning
+                  if (!saldo.temExtratoConfirmado) {
+                    return (
+                      <div className="flex items-center gap-2 text-amber-400 text-xs">
+                        <AlertCircle className="w-4 h-4" />
+                        <span>Sem extrato confirmado</span>
+                      </div>
+                    );
+                  }
+                  
                   return (
                     <>
                       <div className="flex justify-between items-center text-xs">
