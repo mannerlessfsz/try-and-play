@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useContasBancarias, ContaBancariaInput } from "@/hooks/useContasBancarias";
+import { useSaldoContas } from "@/hooks/useSaldoContas";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Edit, Trash2, Building2, Wallet, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Building2, Wallet, Loader2, TrendingUp, TrendingDown } from "lucide-react";
 
 interface ContasBancariasManagerProps {
   empresaId: string;
@@ -30,6 +31,7 @@ const CORES = [
 
 export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProps) {
   const { contas, isLoading, createConta, updateConta, deleteConta, isCreating } = useContasBancarias(empresaId);
+  const { saldos, saldoTotal, isLoading: isLoadingSaldos } = useSaldoContas(empresaId);
   const [isOpen, setIsOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<ContaBancariaInput>>({
@@ -85,7 +87,7 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingSaldos) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
@@ -93,8 +95,43 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
     );
   }
 
+  const getSaldoConta = (contaId: string) => saldos.find(s => s.conta.id === contaId);
+
   return (
     <div className="space-y-4">
+      {/* Summary Card */}
+      {saldos.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 backdrop-blur-xl rounded-xl border border-blue-500/30 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Saldo Total Consolidado</p>
+                <p className={`text-2xl font-bold ${saldoTotal >= 0 ? 'text-foreground' : 'text-red-400'}`}>
+                  {formatCurrency(saldoTotal)}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 text-sm">
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Entradas</p>
+                <p className="text-green-400 font-semibold">
+                  +{formatCurrency(saldos.reduce((acc, s) => acc + s.totalReceitas, 0))}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">Saídas</p>
+                <p className="text-red-400 font-semibold">
+                  -{formatCurrency(saldos.reduce((acc, s) => acc + s.totalDespesas, 0))}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-semibold text-foreground">Contas Bancárias</h3>
         <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); if (!open) resetForm(); }}>
@@ -245,9 +282,39 @@ export function ContasBancariasManager({ empresaId }: ContasBancariasManagerProp
                 {conta.conta && <p>Conta: {conta.conta}</p>}
                 <p className="capitalize">Tipo: {conta.tipo}</p>
               </div>
-              <div className="mt-3 pt-3 border-t border-foreground/10">
-                <p className="text-xs text-muted-foreground">Saldo Inicial</p>
-                <p className="text-lg font-bold text-foreground">{formatCurrency(conta.saldo_inicial || 0)}</p>
+              <div className="mt-3 pt-3 border-t border-foreground/10 space-y-2">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="text-muted-foreground">Saldo Inicial</span>
+                  <span className="text-foreground">{formatCurrency(conta.saldo_inicial || 0)}</span>
+                </div>
+                {(() => {
+                  const saldo = getSaldoConta(conta.id);
+                  if (!saldo) return null;
+                  return (
+                    <>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-green-400 flex items-center gap-1">
+                          <TrendingUp className="w-3 h-3" /> Entradas
+                        </span>
+                        <span className="text-green-400">+{formatCurrency(saldo.totalReceitas)}</span>
+                      </div>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-red-400 flex items-center gap-1">
+                          <TrendingDown className="w-3 h-3" /> Saídas
+                        </span>
+                        <span className="text-red-400">-{formatCurrency(saldo.totalDespesas)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-foreground/10">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-muted-foreground">Saldo Atual</span>
+                          <span className={`text-lg font-bold ${saldo.saldoAtual >= 0 ? 'text-foreground' : 'text-red-400'}`}>
+                            {formatCurrency(saldo.saldoAtual)}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           ))}

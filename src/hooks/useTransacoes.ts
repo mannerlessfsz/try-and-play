@@ -114,6 +114,8 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      // Also invalidate saldo queries since balance may have changed
+      queryClient.invalidateQueries({ queryKey: ["transacoes-conciliadas-saldo", empresaId] });
       toast({ title: "Transação criada com sucesso" });
     },
     onError: (error) => {
@@ -135,6 +137,8 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      // Also invalidate saldo queries since balance may have changed
+      queryClient.invalidateQueries({ queryKey: ["transacoes-conciliadas-saldo", empresaId] });
       toast({ title: "Transação atualizada" });
     },
     onError: (error) => {
@@ -217,6 +221,8 @@ export function useTransacoes(empresaId: string | undefined, options: UseTransac
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transacoes", empresaId] });
+      // Also invalidate saldo queries since balance may have changed
+      queryClient.invalidateQueries({ queryKey: ["transacoes-conciliadas-saldo", empresaId] });
       toast({ title: "Transação removida" });
     },
     onError: (error) => {
