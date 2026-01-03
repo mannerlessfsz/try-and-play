@@ -721,37 +721,92 @@ export default function FinancialACE() {
     return lancamentosExtrato.filter(l => l.extratoId === extratoId);
   };
 
-  // Confirmar extrato (persistir no banco)
+  // Confirmar extrato (persistir no banco e criar transações para não conciliados)
   const handleConfirmarExtrato = async (extratoId: string) => {
     const extrato = extratosImportados.find(e => e.id === extratoId);
     if (!extrato || !empresaAtiva?.id) return;
 
+    // Verificar se tem conta bancária selecionada
+    if (!extrato.contaBancariaId) {
+      toast({
+        title: "Conta bancária não selecionada",
+        description: "Selecione uma conta bancária para confirmar o extrato.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
+      // Get all lancamentos of this extrato
+      const lancamentosDoExtrato = getLancamentosDoExtrato(extratoId);
+      const lancamentosNaoConciliados = lancamentosDoExtrato.filter(l => !l.conciliado);
+
+      // Create transactions for non-reconciled entries
+      let transacoesCriadas = 0;
+      for (const lancamento of lancamentosNaoConciliados) {
+        try {
+          const novaTransacao = await createTransacaoAsync({
+            empresa_id: empresaAtiva.id,
+            descricao: lancamento.descricao,
+            valor: lancamento.valor,
+            tipo: lancamento.tipo === 'credito' ? 'receita' : 'despesa',
+            data_transacao: lancamento.data,
+            data_vencimento: lancamento.data,
+            status: 'pago',
+            conta_bancaria_id: extrato.contaBancariaId,
+            conciliado: true,
+          });
+
+          if (novaTransacao?.id) {
+            // Update lancamento as conciliado
+            setLancamentosExtrato(prev => 
+              prev.map(l => 
+                l.id === lancamento.id 
+                  ? { ...l, conciliado: true, transacaoVinculadaId: novaTransacao.id } 
+                  : l
+              )
+            );
+            transacoesCriadas++;
+          }
+        } catch (err) {
+          console.error('Erro ao criar transação para lancamento:', lancamento.id, err);
+        }
+      }
+
+      // Calculate final dates from lancamentos
+      const allDates = lancamentosDoExtrato.map(l => new Date(l.data + 'T12:00:00'));
+      const dataInicio = allDates.length > 0 ? new Date(Math.min(...allDates.map(d => d.getTime()))) : null;
+      const dataFim = allDates.length > 0 ? new Date(Math.max(...allDates.map(d => d.getTime()))) : null;
+
       // Persist to database
       const dbRecord = await createImportacao({
         empresa_id: empresaAtiva.id,
-        conta_bancaria_id: extrato.contaBancariaId || '',
+        conta_bancaria_id: extrato.contaBancariaId,
         nome_arquivo: extrato.nome,
         tipo_arquivo: extrato.tipo,
         status: 'confirmado',
         total_transacoes: extrato.transacoes,
-        transacoes_importadas: extrato.conciliadas,
+        transacoes_importadas: extrato.transacoes, // All are now imported/reconciled
+        transacoes_duplicadas: 0,
+        data_inicio: dataInicio ? dataInicio.toISOString().split('T')[0] : undefined,
+        data_fim: dataFim ? dataFim.toISOString().split('T')[0] : undefined,
       });
 
       // Update local state
       setExtratosImportados(prev => 
         prev.map(e => 
           e.id === extratoId 
-            ? { ...e, status: "confirmado", dbId: dbRecord.id }
+            ? { ...e, status: "confirmado", dbId: dbRecord.id, conciliadas: e.transacoes }
             : e
         )
       );
 
       toast({
         title: "Extrato confirmado",
-        description: "O extrato foi salvo no banco de dados.",
+        description: `${transacoesCriadas > 0 ? `${transacoesCriadas} transações criadas. ` : ''}Extrato salvo no banco de dados.`,
       });
     } catch (error) {
+      console.error('Erro ao confirmar extrato:', error);
       toast({
         title: "Erro ao confirmar extrato",
         description: error instanceof Error ? error.message : "Tente novamente.",
@@ -1376,7 +1431,14 @@ export default function FinancialACE() {
                             }`}>
                               <FileText className={`w-4 h-4 ${extrato.tipo === "ofx" ? "text-green-400" : "text-red-400"}`} />
                             </div>
-                            <span className="font-medium text-foreground text-sm">{extrato.nome}</span>
+                            <div>
+                              <span className="font-medium text-foreground text-sm">{extrato.nome}</span>
+                              {extrato.contaBancariaId && (
+                                <div className="text-xs text-muted-foreground">
+                                  {contas.find(c => c.id === extrato.contaBancariaId)?.nome || 'Conta desconhecida'}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td className="p-3">
