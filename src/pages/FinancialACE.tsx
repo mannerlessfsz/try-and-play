@@ -40,6 +40,7 @@ import { useOrcamentos } from "@/hooks/useOrcamentos";
 import { ModernSidebar } from "@/components/gestao/ModernSidebar";
 import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
 import { PageHeader } from "@/components/gestao/PageHeader";
+import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
 import type { Atividade } from "@/types/task";
 
 interface ExtratoImportado {
@@ -1037,63 +1038,66 @@ export default function FinancialACE() {
           </div>
         )}
 
-        {/* Content - Financeiro */}
-        {activeTab === "transacoes" && empresaAtiva && (
-          <TransacoesManager 
-            empresaId={empresaAtiva.id}
-            tipoFiltro={activeFilter === "receitas" ? "receita" : activeFilter === "despesas" ? "despesa" : undefined}
-            statusFiltro={activeFilter === "pendentes" ? "pendente" : undefined}
-          />
-        )}
+        {/* Content - with animated transitions */}
+        <AnimatedTabContent tabKey={activeTab}>
+          {/* Content - Financeiro */}
+          {activeTab === "transacoes" && empresaAtiva && (
+            <TransacoesManager 
+              empresaId={empresaAtiva.id}
+              tipoFiltro={activeFilter === "receitas" ? "receita" : activeFilter === "despesas" ? "despesa" : undefined}
+              statusFiltro={activeFilter === "pendentes" ? "pendente" : undefined}
+            />
+          )}
 
-        {activeTab === "categorias" && empresaAtiva && (
-          <CategoriasManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "categorias" && empresaAtiva && (
+            <CategoriasManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "contas" && empresaAtiva && (
-          <ContasBancariasManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "contas" && empresaAtiva && (
+            <ContasBancariasManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "centros_custo" && empresaAtiva && (
-          <CentrosCustoManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "centros_custo" && empresaAtiva && (
+            <CentrosCustoManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "metas" && empresaAtiva && (
-          <MetasFinanceirasManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "metas" && empresaAtiva && (
+            <MetasFinanceirasManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "recorrencias" && empresaAtiva && (
-          <RecorrenciasManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "recorrencias" && empresaAtiva && (
+            <RecorrenciasManager empresaId={empresaAtiva.id} />
+          )}
 
-        {/* Content - Gestão */}
-        {activeTab === "produtos" && empresaAtiva && (
-          <ProdutosManager empresaId={empresaAtiva.id} />
-        )}
+          {/* Content - Gestão */}
+          {activeTab === "produtos" && empresaAtiva && (
+            <ProdutosManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "clientes" && empresaAtiva && (
-          <ClientesManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "clientes" && empresaAtiva && (
+            <ClientesManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "fornecedores" && empresaAtiva && (
-          <FornecedoresManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "fornecedores" && empresaAtiva && (
+            <FornecedoresManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "vendas" && empresaAtiva && (
-          <VendasManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "vendas" && empresaAtiva && (
+            <VendasManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "compras" && empresaAtiva && (
-          <ComprasManager empresaId={empresaAtiva.id} empresaCnpj={empresaAtiva.cnpj} />
-        )}
+          {activeTab === "compras" && empresaAtiva && (
+            <ComprasManager empresaId={empresaAtiva.id} empresaCnpj={empresaAtiva.cnpj} />
+          )}
 
-        {activeTab === "estoque" && empresaAtiva && (
-          <EstoqueManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "estoque" && empresaAtiva && (
+            <EstoqueManager empresaId={empresaAtiva.id} />
+          )}
 
-        {activeTab === "orcamentos" && empresaAtiva && (
-          <OrcamentosManager empresaId={empresaAtiva.id} />
-        )}
+          {activeTab === "orcamentos" && empresaAtiva && (
+            <OrcamentosManager empresaId={empresaAtiva.id} />
+          )}
+        </AnimatedTabContent>
 
         {activeTab === "conciliacao" && (
           <div className="space-y-4">
