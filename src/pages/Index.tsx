@@ -1,4 +1,4 @@
-import { CheckSquare, FileText, FileCheck, DollarSign, Settings, LogOut, RefreshCw } from "lucide-react";
+import { CheckSquare, FileCheck, DollarSign, Settings, LogOut, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
@@ -41,17 +41,9 @@ const features: FeatureConfig[] = [
     module: "conferesped",
   },
   {
-    icon: <FileText className="w-7 h-7" />,
-    title: "AJUSTASPED",
-    description: "Sistema inteligente para ajustes e validação automática de arquivos SPED com precisão",
-    variant: "cyan",
-    href: "/ajustasped",
-    module: "ajustasped",
-  },
-  {
     icon: <RefreshCw className="w-7 h-7" />,
     title: "CONVERSORES",
-    description: "Converta arquivos fiscais, extratos bancários, documentos e dados contábeis",
+    description: "Converta arquivos fiscais, extratos, SPED, APAE, CASA e LÍDER",
     variant: "green",
     href: "/conversores",
     module: "conversores",
