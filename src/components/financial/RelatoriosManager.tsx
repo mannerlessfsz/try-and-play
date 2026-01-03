@@ -97,23 +97,37 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
     return { totalReceitas, totalDespesas, saldo, receitasPagas, despesasPagas, receitasPendentes, despesasPendentes, receitas, despesas };
   }, [transacoes]);
 
-  // Categories breakdown
+  // Categories breakdown - include all transactions regardless of status
   const categoriaData = useMemo(() => {
-    const receitasPorCategoria: Record<string, number> = {};
-    const despesasPorCategoria: Record<string, number> = {};
+    const receitasPorCategoria: Record<string, { total: number; transacoes: Transacao[] }> = {};
+    const despesasPorCategoria: Record<string, { total: number; transacoes: Transacao[] }> = {};
 
     transacoes.forEach(t => {
       const catNome = t.categoria?.nome || "Sem categoria";
-      if (t.tipo === "receita" && t.status === "pago") {
-        receitasPorCategoria[catNome] = (receitasPorCategoria[catNome] || 0) + Number(t.valor);
-      } else if (t.tipo === "despesa" && t.status === "pago") {
-        despesasPorCategoria[catNome] = (despesasPorCategoria[catNome] || 0) + Number(t.valor);
+      if (t.tipo === "receita") {
+        if (!receitasPorCategoria[catNome]) {
+          receitasPorCategoria[catNome] = { total: 0, transacoes: [] };
+        }
+        receitasPorCategoria[catNome].total += Number(t.valor);
+        receitasPorCategoria[catNome].transacoes.push(t);
+      } else if (t.tipo === "despesa") {
+        if (!despesasPorCategoria[catNome]) {
+          despesasPorCategoria[catNome] = { total: 0, transacoes: [] };
+        }
+        despesasPorCategoria[catNome].total += Number(t.valor);
+        despesasPorCategoria[catNome].transacoes.push(t);
       }
     });
 
     return {
-      receitas: Object.entries(receitasPorCategoria).map(([name, value]) => ({ name, value })),
-      despesas: Object.entries(despesasPorCategoria).map(([name, value]) => ({ name, value })),
+      receitas: Object.entries(receitasPorCategoria)
+        .map(([name, data]) => ({ name, value: data.total, count: data.transacoes.length }))
+        .sort((a, b) => b.value - a.value),
+      despesas: Object.entries(despesasPorCategoria)
+        .map(([name, data]) => ({ name, value: data.total, count: data.transacoes.length }))
+        .sort((a, b) => b.value - a.value),
+      receitasDetalhado: receitasPorCategoria,
+      despesasDetalhado: despesasPorCategoria,
     };
   }, [transacoes]);
 
@@ -309,75 +323,174 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
         )}
 
         {selectedReport === "categorias" && (
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="border-border/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <ArrowUpRight className="w-4 h-4 text-green-400" />
-                  Receitas por Categoria
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {categoriaData.receitas.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={categoriaData.receitas}
-                        cx="50%" cy="50%"
-                        innerRadius={40} outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        labelLine={false}
-                      >
-                        {categoriaData.receitas.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                    Nenhuma receita no período
+          <div className="space-y-6">
+            {/* Summary cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-green-500/30 border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-green-400 mb-2">
+                    <ArrowUpRight className="w-4 h-4" />
+                    <span className="text-xs font-medium">Total Receitas</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-            <Card className="border-border/30">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <ArrowDownRight className="w-4 h-4 text-red-400" />
-                  Despesas por Categoria
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {categoriaData.despesas.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <RechartsPieChart>
-                      <Pie
-                        data={categoriaData.despesas}
-                        cx="50%" cy="50%"
-                        innerRadius={40} outerRadius={70}
-                        paddingAngle={2}
-                        dataKey="value"
-                        label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                        labelLine={false}
-                      >
-                        {categoriaData.despesas.map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                    </RechartsPieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-                    Nenhuma despesa no período
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalReceitas)}</p>
+                  <p className="text-xs text-muted-foreground">{categoriaData.receitas.length} categorias</p>
+                </CardContent>
+              </Card>
+              <Card className="border-red-500/30 border">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 text-red-400 mb-2">
+                    <ArrowDownRight className="w-4 h-4" />
+                    <span className="text-xs font-medium">Total Despesas</span>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                  <p className="text-2xl font-bold text-foreground">{formatCurrency(metrics.totalDespesas)}</p>
+                  <p className="text-xs text-muted-foreground">{categoriaData.despesas.length} categorias</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Pie Charts */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-border/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ArrowUpRight className="w-4 h-4 text-green-400" />
+                    Receitas por Categoria
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {categoriaData.receitas.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <RechartsPieChart>
+                        <Pie
+                          data={categoriaData.receitas}
+                          cx="50%" cy="50%"
+                          innerRadius={35} outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {categoriaData.receitas.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+                      Nenhuma receita no período
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card className="border-border/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <ArrowDownRight className="w-4 h-4 text-red-400" />
+                    Despesas por Categoria
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {categoriaData.despesas.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <RechartsPieChart>
+                        <Pie
+                          data={categoriaData.despesas}
+                          cx="50%" cy="50%"
+                          innerRadius={35} outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {categoriaData.despesas.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+                      Nenhuma despesa no período
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Detailed tables */}
+            <div className="grid grid-cols-2 gap-4">
+              <Card className="border-border/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-green-400">Detalhamento de Receitas</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {categoriaData.receitas.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr>
+                          <th className="text-left p-2 font-medium">Categoria</th>
+                          <th className="text-center p-2 font-medium">Qtd</th>
+                          <th className="text-right p-2 font-medium">Valor</th>
+                          <th className="text-right p-2 font-medium">%</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {categoriaData.receitas.map((cat, idx) => (
+                          <tr key={cat.name} className="hover:bg-muted/20">
+                            <td className="p-2 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                              {cat.name}
+                            </td>
+                            <td className="p-2 text-center text-muted-foreground">{cat.count}</td>
+                            <td className="p-2 text-right text-green-400">{formatCurrency(cat.value)}</td>
+                            <td className="p-2 text-right text-muted-foreground">
+                              {metrics.totalReceitas > 0 ? ((cat.value / metrics.totalReceitas) * 100).toFixed(1) : 0}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-4 text-center text-muted-foreground">Nenhuma receita</div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card className="border-border/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-red-400">Detalhamento de Despesas</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {categoriaData.despesas.length > 0 ? (
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/30">
+                        <tr>
+                          <th className="text-left p-2 font-medium">Categoria</th>
+                          <th className="text-center p-2 font-medium">Qtd</th>
+                          <th className="text-right p-2 font-medium">Valor</th>
+                          <th className="text-right p-2 font-medium">%</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/30">
+                        {categoriaData.despesas.map((cat, idx) => (
+                          <tr key={cat.name} className="hover:bg-muted/20">
+                            <td className="p-2 flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
+                              {cat.name}
+                            </td>
+                            <td className="p-2 text-center text-muted-foreground">{cat.count}</td>
+                            <td className="p-2 text-right text-red-400">{formatCurrency(cat.value)}</td>
+                            <td className="p-2 text-right text-muted-foreground">
+                              {metrics.totalDespesas > 0 ? ((cat.value / metrics.totalDespesas) * 100).toFixed(1) : 0}%
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-4 text-center text-muted-foreground">Nenhuma despesa</div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </div>
         )}
 

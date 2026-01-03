@@ -233,6 +233,55 @@ export default function FinancialACE() {
     }
   }, [importacoes]);
 
+  // Sync extrato lancamentos status based on linked transactions
+  useEffect(() => {
+    if (transacoes.length === 0 || lancamentosExtrato.length === 0) return;
+
+    // Build a map of transaction IDs to their conciliado status
+    const transacaoConciliadoMap = new Map<string, boolean>();
+    transacoes.forEach(t => {
+      transacaoConciliadoMap.set(t.id, t.conciliado === true);
+    });
+
+    // Update lancamentos if their linked transaction status changed
+    setLancamentosExtrato(prev => {
+      let hasChanges = false;
+      const updated = prev.map(lancamento => {
+        if (lancamento.transacaoVinculadaId) {
+          const transacaoConciliada = transacaoConciliadoMap.get(lancamento.transacaoVinculadaId);
+          // If transaction exists and its conciliado status differs from lancamento
+          if (transacaoConciliada !== undefined && lancamento.conciliado !== transacaoConciliada) {
+            hasChanges = true;
+            return { ...lancamento, conciliado: transacaoConciliada };
+          }
+        }
+        return lancamento;
+      });
+      return hasChanges ? updated : prev;
+    });
+
+    // Update extrato counts
+    setExtratosImportados(prev => {
+      let hasChanges = false;
+      const updated = prev.map(extrato => {
+        const lancamentosDoExtrato = lancamentosExtrato.filter(l => l.extratoId === extrato.id);
+        const conciliados = lancamentosDoExtrato.filter(l => {
+          if (l.transacaoVinculadaId) {
+            return transacaoConciliadoMap.get(l.transacaoVinculadaId) === true;
+          }
+          return l.conciliado;
+        }).length;
+        
+        if (extrato.conciliadas !== conciliados) {
+          hasChanges = true;
+          return { ...extrato, conciliadas: conciliados };
+        }
+        return extrato;
+      });
+      return hasChanges ? updated : prev;
+    });
+  }, [transacoes, lancamentosExtrato]);
+
   const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
   }, []);
