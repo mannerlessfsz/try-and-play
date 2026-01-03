@@ -587,7 +587,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
                   <td className="p-3 text-muted-foreground text-xs">
                     {transacao.conta_bancaria ? transacao.conta_bancaria.nome : "-"}
                   </td>
-                  <td className="p-3 text-muted-foreground">{new Date(transacao.data_transacao).toLocaleDateString('pt-BR')}</td>
+                  <td className="p-3 text-muted-foreground">{new Date(transacao.data_transacao + 'T12:00:00').toLocaleDateString('pt-BR')}</td>
                   <td className="p-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       transacao.status === "pago" ? "bg-green-500/20 text-green-300" :
