@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { 
   Building2, ChevronDown, ChevronRight, User, Activity, Loader2,
   Wallet, Package, Receipt, PieChart, Landmark, Link2, Target,
   Clock, BarChart3, Users, Truck, ShoppingCart, ShoppingBag, FileText,
-  LucideIcon
+  LayoutDashboard, LucideIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -44,6 +45,7 @@ interface ModernSidebarProps {
 }
 
 const financeiroTabs: TabItem[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "transacoes", label: "Transações", icon: Receipt },
   { id: "categorias", label: "Categorias", icon: PieChart },
   { id: "contas", label: "Contas", icon: Landmark },
@@ -85,12 +87,33 @@ export function ModernSidebar({
       setFinanceiroExpanded(true);
       setGestaoExpanded(false);
       onSectionChange("financeiro");
-      onTabChange("transacoes");
+      onTabChange("dashboard");
     } else {
       setGestaoExpanded(true);
       setFinanceiroExpanded(false);
       onSectionChange("gestao");
       onTabChange("produtos");
+    }
+  };
+
+  // Animation variants for menu items
+  const itemVariants = {
+    initial: { opacity: 0, x: -10 },
+    animate: { opacity: 1, x: 0 },
+    hover: { 
+      x: 4, 
+      backgroundColor: "hsl(var(--muted) / 0.5)",
+      transition: { duration: 0.2 }
+    }
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.05
+      }
     }
   };
 
@@ -164,31 +187,46 @@ export function ModernSidebar({
           </button>
           
           {financeiroExpanded && (
-            <div className="mt-1 ml-4 pl-4 border-l border-foreground/5 space-y-0.5">
+            <motion.div 
+              className="mt-1 ml-4 pl-4 border-l border-foreground/5 space-y-0.5"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+            >
               {financeiroTabs
                 .filter(tab => !tab.proOnly || modo === "pro")
-                .map(tab => (
-                  <button
+                .map((tab, index) => (
+                  <motion.button
                     key={tab.id}
+                    variants={itemVariants}
+                    initial="initial"
+                    animate="animate"
+                    whileHover="hover"
+                    transition={{ delay: index * 0.03 }}
                     onClick={() => {
                       onSectionChange("financeiro");
                       onTabChange(tab.id);
                     }}
                     className={cn(
-                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all",
+                      "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm",
                       activeTab === tab.id && activeSection === "financeiro"
                         ? "bg-blue-500/20 text-blue-300 font-medium"
-                        : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                        : "text-muted-foreground"
                     )}
                   >
-                    <tab.icon className="w-4 h-4" />
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                    </motion.div>
                     {tab.label}
                     {tab.proOnly && (
                       <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400">PRO</span>
                     )}
-                  </button>
+                  </motion.button>
                 ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
@@ -221,26 +259,41 @@ export function ModernSidebar({
           </button>
           
           {gestaoExpanded && (
-            <div className="mt-1 ml-4 pl-4 border-l border-foreground/5 space-y-0.5">
-              {gestaoTabs.map(tab => (
-                <button
+            <motion.div 
+              className="mt-1 ml-4 pl-4 border-l border-foreground/5 space-y-0.5"
+              variants={containerVariants}
+              initial="hidden"
+              animate="show"
+            >
+              {gestaoTabs.map((tab, index) => (
+                <motion.button
                   key={tab.id}
+                  variants={itemVariants}
+                  initial="initial"
+                  animate="animate"
+                  whileHover="hover"
+                  transition={{ delay: index * 0.03 }}
                   onClick={() => {
                     onSectionChange("gestao");
                     onTabChange(tab.id);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all",
+                    "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm",
                     activeTab === tab.id && activeSection === "gestao"
                       ? "bg-emerald-500/20 text-emerald-300 font-medium"
-                      : "text-muted-foreground hover:bg-card/60 hover:text-foreground"
+                      : "text-muted-foreground"
                   )}
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                  >
+                    <tab.icon className="w-4 h-4" />
+                  </motion.div>
                   {tab.label}
-                </button>
+                </motion.button>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
