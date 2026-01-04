@@ -22,6 +22,7 @@ import { PermissionProfilesManager } from '@/components/admin/PermissionProfiles
 import { PermissionReportExporter } from '@/components/admin/PermissionReportExporter';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
+import SystemArchitectureViewer from '@/components/admin/SystemArchitectureViewer';
 import { usePermissionProfiles } from '@/hooks/usePermissionProfiles';
 import { 
   ArrowLeft, 
@@ -44,7 +45,8 @@ import {
   Layers,
   LayoutDashboard,
   FileDown,
-  History
+  History,
+  Workflow
 } from 'lucide-react';
 
 interface Profile {
@@ -599,6 +601,9 @@ const Admin: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-2">
               <History className="w-4 h-4" /> Auditoria
+            </TabsTrigger>
+            <TabsTrigger value="architecture" className="gap-2">
+              <Workflow className="w-4 h-4" /> Arquitetura
             </TabsTrigger>
           </TabsList>
 
@@ -1219,6 +1224,11 @@ const Admin: React.FC = () => {
           {/* Audit Tab */}
           <TabsContent value="audit">
             <AuditLogViewer />
+          </TabsContent>
+
+          {/* Architecture Tab */}
+          <TabsContent value="architecture">
+            <SystemArchitectureViewer />
           </TabsContent>
         </Tabs>
       </main>
