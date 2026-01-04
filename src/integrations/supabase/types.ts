@@ -472,6 +472,68 @@ export type Database = {
           },
         ]
       }
+      conversoes_arquivos: {
+        Row: {
+          arquivo_convertido_url: string | null
+          arquivo_original_url: string | null
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          id: string
+          linhas_erro: number | null
+          linhas_processadas: number | null
+          mensagem_erro: string | null
+          metadados: Json | null
+          modulo: string
+          nome_arquivo_convertido: string | null
+          nome_arquivo_original: string
+          status: string
+          total_linhas: number | null
+        }
+        Insert: {
+          arquivo_convertido_url?: string | null
+          arquivo_original_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          id?: string
+          linhas_erro?: number | null
+          linhas_processadas?: number | null
+          mensagem_erro?: string | null
+          metadados?: Json | null
+          modulo: string
+          nome_arquivo_convertido?: string | null
+          nome_arquivo_original: string
+          status?: string
+          total_linhas?: number | null
+        }
+        Update: {
+          arquivo_convertido_url?: string | null
+          arquivo_original_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          id?: string
+          linhas_erro?: number | null
+          linhas_processadas?: number | null
+          mensagem_erro?: string | null
+          metadados?: Json | null
+          modulo?: string
+          nome_arquivo_convertido?: string | null
+          nome_arquivo_original?: string
+          status?: string
+          total_linhas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversoes_arquivos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresa_config: {
         Row: {
           campos_customizados: Json | null
