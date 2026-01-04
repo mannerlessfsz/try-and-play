@@ -8,39 +8,24 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-interface TaskNotificationRequest {
+interface Arquivo {
+  nome: string;
+  url: string;
+  tipo: string;
+}
+
+interface TaskCompletionRequest {
   contatoNome: string;
   contatoEmail: string;
   tarefaTitulo: string;
   tarefaDescricao?: string;
   empresaNome: string;
   departamento?: string;
-  prioridade: string;
-  dataVencimento?: string;
+  arquivos: Arquivo[];
 }
 
-const getPrioridadeLabel = (prioridade: string): string => {
-  const labels: Record<string, string> = {
-    baixa: "Baixa",
-    media: "Média",
-    alta: "Alta",
-    urgente: "Urgente"
-  };
-  return labels[prioridade] || prioridade;
-};
-
-const getPrioridadeColor = (prioridade: string): string => {
-  const colors: Record<string, string> = {
-    baixa: "#22c55e",
-    media: "#eab308",
-    alta: "#f97316",
-    urgente: "#ef4444"
-  };
-  return colors[prioridade] || "#6b7280";
-};
-
 const handler = async (req: Request): Promise<Response> => {
-  console.log("Task notification function called");
+  console.log("Task completion notification function called");
 
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -54,14 +39,21 @@ const handler = async (req: Request): Promise<Response> => {
       tarefaDescricao,
       empresaNome,
       departamento,
-      prioridade,
-      dataVencimento
-    }: TaskNotificationRequest = await req.json();
+      arquivos
+    }: TaskCompletionRequest = await req.json();
 
-    console.log(`Sending notification to: ${contatoEmail} for task: ${tarefaTitulo}`);
+    console.log(`Sending completion notification to: ${contatoEmail} for task: ${tarefaTitulo}`);
+    console.log(`Number of attachments: ${arquivos.length}`);
 
-    const prioridadeLabel = getPrioridadeLabel(prioridade);
-    const prioridadeColor = getPrioridadeColor(prioridade);
+    const arquivosHtml = arquivos.map(arq => `
+      <tr>
+        <td style="padding: 12px 16px; border-bottom: 1px solid #e5e7eb;">
+          <a href="${arq.url}" target="_blank" style="color: #3b82f6; text-decoration: none; font-size: 14px; font-weight: 500;">
+            📎 ${arq.nome}
+          </a>
+        </td>
+      </tr>
+    `).join('');
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -77,9 +69,9 @@ const handler = async (req: Request): Promise<Response> => {
                 <table width="100%" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
                   <!-- Header -->
                   <tr>
-                    <td style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 32px 40px;">
+                    <td style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 32px 40px;">
                       <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                        📋 Nova Tarefa Atribuída
+                        ✅ Tarefa Concluída
                       </h1>
                     </td>
                   </tr>
@@ -92,7 +84,7 @@ const handler = async (req: Request): Promise<Response> => {
                       </p>
                       
                       <p style="margin: 0 0 24px; color: #374151; font-size: 16px; line-height: 1.6;">
-                        Uma nova tarefa foi atribuída a você pela empresa <strong>${empresaNome}</strong>.
+                        A tarefa abaixo foi concluída pela empresa <strong>${empresaNome}</strong> e os documentos estão disponíveis para download.
                       </p>
                       
                       <!-- Task Card -->
@@ -107,31 +99,20 @@ const handler = async (req: Request): Promise<Response> => {
                           </p>
                         ` : ''}
                         
-                        <table width="100%" cellpadding="0" cellspacing="0">
-                          <tr>
-                            <td style="padding: 8px 0;">
-                              <span style="color: #6b7280; font-size: 14px;">Prioridade:</span>
-                              <span style="display: inline-block; margin-left: 8px; padding: 4px 12px; background-color: ${prioridadeColor}; color: #ffffff; border-radius: 9999px; font-size: 12px; font-weight: 600;">
-                                ${prioridadeLabel}
-                              </span>
-                            </td>
-                          </tr>
-                          ${departamento ? `
-                            <tr>
-                              <td style="padding: 8px 0;">
-                                <span style="color: #6b7280; font-size: 14px;">Departamento:</span>
-                                <span style="margin-left: 8px; color: #374151; font-size: 14px; font-weight: 500;">${departamento}</span>
-                              </td>
-                            </tr>
-                          ` : ''}
-                          ${dataVencimento ? `
-                            <tr>
-                              <td style="padding: 8px 0;">
-                                <span style="color: #6b7280; font-size: 14px;">Vencimento:</span>
-                                <span style="margin-left: 8px; color: #374151; font-size: 14px; font-weight: 500;">${dataVencimento}</span>
-                              </td>
-                            </tr>
-                          ` : ''}
+                        ${departamento ? `
+                          <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                            <strong>Departamento:</strong> ${departamento}
+                          </p>
+                        ` : ''}
+                      </div>
+                      
+                      <!-- Attachments -->
+                      <div style="margin-bottom: 24px;">
+                        <h3 style="margin: 0 0 16px; color: #111827; font-size: 16px; font-weight: 600;">
+                          📁 Documentos Anexados (${arquivos.length})
+                        </h3>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                          ${arquivosHtml}
                         </table>
                       </div>
                       
@@ -160,7 +141,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: "VAULT <onboarding@resend.dev>",
       to: [contatoEmail],
-      subject: `Nova Tarefa: ${tarefaTitulo}`,
+      subject: `Tarefa Concluída: ${tarefaTitulo}`,
       html: emailHtml,
     });
 
