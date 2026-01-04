@@ -11,7 +11,8 @@ import {
   FileUp,
   Home,
   Crown,
-  Sparkles
+  Sparkles,
+  Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,9 @@ import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
 import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
 import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
 import { motion, AnimatePresence } from "framer-motion";
+import { useMyResourcePermissions } from "@/hooks/useResourcePermissions";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const conversores = [
   {
@@ -112,6 +116,20 @@ const conversores = [
 const Conversores = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("");
+  const { empresaAtiva } = useEmpresaAtiva();
+  const { isAdmin } = usePermissions();
+  const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(empresaAtiva?.id);
+
+  // Função para verificar se usuário tem acesso a um conversor
+  const hasConversorAccess = (conversorId: string): boolean => {
+    if (isAdmin) return true;
+    if (!empresaAtiva?.id) return false;
+    return hasResourcePermission('conversores', conversorId, 'can_view');
+  };
+
+  // Filtrar conversores disponíveis para o usuário
+  const conversoresDisponiveis = conversores.filter(c => hasConversorAccess(c.id));
+  const conversoresBloqueados = conversores.filter(c => !hasConversorAccess(c.id));
 
   return (
     <div className="min-h-screen bg-background">
@@ -162,40 +180,84 @@ const Conversores = () => {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Cards Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {conversores.map((conversor, index) => {
-                  const Icon = conversor.icon;
-                  
-                  return (
-                    <motion.div
-                      key={conversor.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card 
-                        className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group border ${conversor.borderColor} hover:border-current`}
-                        onClick={() => setActiveTab(conversor.id)}
+              {/* Cards Grid - Disponíveis */}
+              {conversoresDisponiveis.length > 0 && (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {conversoresDisponiveis.map((conversor, index) => {
+                    const Icon = conversor.icon;
+                    
+                    return (
+                      <motion.div
+                        key={conversor.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
                       >
-                        <CardHeader className="p-3 pb-2">
-                          <div className={`w-10 h-10 rounded-lg ${conversor.bgColor} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
-                            <Icon className={`w-5 h-5 ${conversor.color}`} />
-                          </div>
-                          <CardTitle className="text-sm font-semibold leading-tight">
-                            {conversor.title}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0">
-                          <CardDescription className="text-xs line-clamp-2">
-                            {conversor.description}
-                          </CardDescription>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </div>
+                        <Card 
+                          className={`cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] group border ${conversor.borderColor} hover:border-current`}
+                          onClick={() => setActiveTab(conversor.id)}
+                        >
+                          <CardHeader className="p-3 pb-2">
+                            <div className={`w-10 h-10 rounded-lg ${conversor.bgColor} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
+                              <Icon className={`w-5 h-5 ${conversor.color}`} />
+                            </div>
+                            <CardTitle className="text-sm font-semibold leading-tight">
+                              {conversor.title}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="p-3 pt-0">
+                            <CardDescription className="text-xs line-clamp-2">
+                              {conversor.description}
+                            </CardDescription>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Cards Grid - Bloqueados */}
+              {conversoresBloqueados.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                    <Lock className="w-4 h-4" />
+                    Sem acesso
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {conversoresBloqueados.map((conversor, index) => {
+                      const Icon = conversor.icon;
+                      
+                      return (
+                        <motion.div
+                          key={conversor.id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: (conversoresDisponiveis.length + index) * 0.05 }}
+                        >
+                          <Card 
+                            className="cursor-not-allowed opacity-50 grayscale border border-muted"
+                          >
+                            <CardHeader className="p-3 pb-2">
+                              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-2">
+                                <Lock className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                              <CardTitle className="text-sm font-semibold leading-tight text-muted-foreground">
+                                {conversor.title}
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 pt-0">
+                              <CardDescription className="text-xs line-clamp-2">
+                                {conversor.description}
+                              </CardDescription>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Info Banner */}
               <motion.div 
