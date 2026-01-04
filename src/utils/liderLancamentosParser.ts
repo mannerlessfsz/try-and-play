@@ -582,7 +582,7 @@ export function gerarCSV(rows: OutputRow[]): string {
       loteNumero++;
     }
     const loteOutput = row.loteFlag ? String(loteNumero) : '';
-    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico};${loteOutput}`;
+    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico.toUpperCase()};${loteOutput}`;
   });
   return [header, ...lines].join('\n');
 }
