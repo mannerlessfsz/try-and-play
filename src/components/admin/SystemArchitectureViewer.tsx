@@ -11,6 +11,7 @@ import {
   type AppModule 
 } from '@/constants/modules';
 import { SYSTEM_ROUTES, type RouteType } from '@/constants/routes';
+import DatabaseRelationshipsDiagram from './DatabaseRelationshipsDiagram';
 import { 
   Layers, 
   Users, 
@@ -78,10 +79,14 @@ const SystemArchitectureViewer = () => {
       </div>
 
       <Tabs defaultValue="navigation" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="navigation" className="flex items-center gap-2">
             <Workflow className="w-4 h-4" />
             <span className="hidden sm:inline">Navegação</span>
+          </TabsTrigger>
+          <TabsTrigger value="database" className="flex items-center gap-2">
+            <Database className="w-4 h-4" />
+            <span className="hidden sm:inline">Banco</span>
           </TabsTrigger>
           <TabsTrigger value="modules" className="flex items-center gap-2">
             <Layers className="w-4 h-4" />
@@ -108,6 +113,11 @@ const SystemArchitectureViewer = () => {
         {/* Navigation Flow Tab */}
         <TabsContent value="navigation" className="space-y-4 mt-4">
           <NavigationFlowDiagram />
+        </TabsContent>
+
+        {/* Database Tab */}
+        <TabsContent value="database" className="space-y-4 mt-4">
+          <DatabaseRelationshipsDiagram />
         </TabsContent>
 
         {/* Módulos Tab */}
