@@ -110,15 +110,6 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     description: 'Conferência de SPED',
     module: 'conferesped',
   },
-  // Redirects (rotas legadas)
-  {
-    path: '/ajustasped',
-    name: 'Ajusta SPED (Legado)',
-    type: 'redirect',
-    requires: '-',
-    description: 'Redireciona para /conversores',
-    redirectTo: '/conversores',
-  },
 ];
 
 // ============================================================================

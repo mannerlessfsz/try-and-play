@@ -312,12 +312,12 @@ export function AdminDashboard() {
       
       const moduleLabels: Record<string, string> = {
         gestao: 'GESTÃO',
-        financialace: 'GESTÃO', // Legado
-        erp: 'GESTÃO', // Legado
+        financialace: 'GESTÃO',
+        erp: 'GESTÃO',
         taskvault: 'TaskVault',
         conversores: 'Conversores',
         conferesped: 'ConfereSped',
-        ajustasped: 'Conversores', // Legado
+        ajustasped: 'Conversores',
       };
       
       return Object.entries(counts).map(([key, value]) => ({

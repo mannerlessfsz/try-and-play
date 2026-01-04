@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { FileSpreadsheet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
+import { toast } from "@/hooks/use-toast";
 import { parseOFX, readFileAsText, OFXTransaction } from "@/utils/ofxParser";
 import { ConversorBase, type ConvertedFile } from "./ConversorBase";
 import { useConversoes } from "@/hooks/useConversoes";
@@ -95,7 +95,7 @@ export const ConversorExtrato = () => {
             const parsed = parseOFX(content);
             
             if (parsed.transactions.length === 0) {
-              toast.warning(`Arquivo ${file.name} não contém transações.`);
+              toast({ title: "Aviso", description: `Arquivo ${file.name} não contém transações.`, variant: "destructive" });
               if (conversaoId && empresaAtiva?.id) {
                 await atualizarConversao.mutateAsync({
                   id: conversaoId,
@@ -161,7 +161,7 @@ export const ConversorExtrato = () => {
               });
             }
           } else {
-            toast.warning(`Formato de ${file.name} não suportado. Use arquivos OFX.`);
+            toast({ title: "Aviso", description: `Formato de ${file.name} não suportado. Use arquivos OFX.`, variant: "destructive" });
             if (conversaoId && empresaAtiva?.id) {
               await atualizarConversao.mutateAsync({
                 id: conversaoId,
@@ -185,7 +185,7 @@ export const ConversorExtrato = () => {
       setConvertedFiles(results);
       
       if (results.length > 0) {
-        toast.success(`${results.length} arquivo(s) convertido(s) com sucesso!`);
+        toast({ title: "Sucesso", description: `${results.length} arquivo(s) convertido(s) com sucesso!` });
         setFiles([]);
       }
     } catch (err) {
