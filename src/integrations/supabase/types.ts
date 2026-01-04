@@ -2415,6 +2415,7 @@ export type Database = {
           id: string
           manager_id: string
           nome: string
+          regime_tributario: Database["public"]["Enums"]["regime_tributario"]
           telefone: string
           updated_at: string
         }[]

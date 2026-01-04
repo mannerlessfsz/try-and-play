@@ -21,6 +21,9 @@ export function useEmpresas() {
           nome: e.nome,
           cnpj: e.cnpj || undefined,
           email: e.email || undefined,
+          telefone: e.telefone || undefined,
+          manager_id: e.manager_id || undefined,
+          regime_tributario: e.regime_tributario || null,
         }))
       );
     } catch (error) {
