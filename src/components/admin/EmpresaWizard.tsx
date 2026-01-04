@@ -426,27 +426,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         if (moduloError) console.error('Erro ao adicionar módulo:', moduloError);
       }
       
-      // Auto-generate tasks if regime was just set (was null/undefined, now has value)
-      if (!previousRegime && newRegime) {
-        const now = new Date();
-        const mes = now.getMonth() + 1;
-        const ano = now.getFullYear();
-        
-        const { data: count, error: genError } = await supabase.rpc('gerar_tarefas_empresa', {
-          p_empresa_id: editingEmpresa.id,
-          p_mes: mes,
-          p_ano: ano,
-        });
-        
-        if (genError) {
-          console.error('Erro ao gerar tarefas:', genError);
-        } else if (count && count > 0) {
-          toast({ 
-            title: 'Tarefas geradas automaticamente!', 
-            description: `${count} tarefa(s) criada(s) para ${data.nome}.`
-          });
-        }
-      }
+      // Tarefas são geradas automaticamente via trigger do banco de dados
+      // quando o regime_tributario é alterado
       
       return { id: editingEmpresa.id, nome: data.nome };
     },
