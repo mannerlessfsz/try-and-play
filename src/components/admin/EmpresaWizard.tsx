@@ -83,7 +83,7 @@ interface EmpresaWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  editingEmpresa?: { id: string; nome: string; cnpj?: string; email?: string; telefone?: string; regime_tributario?: RegimeTributario | null } | null;
+  editingEmpresa?: { id: string; nome: string; cnpj?: string; email?: string; telefone?: string; regime_tributario?: RegimeTributario | null; manager_id?: string | null } | null;
 }
 
 export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: EmpresaWizardProps) {
@@ -126,7 +126,22 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       if (error) throw error;
       return data || [];
     },
-    enabled: isOpen && !editingEmpresa,
+    enabled: isOpen,
+  });
+
+  // Fetch current empresa modules when editing
+  const { data: currentModulos = [] } = useQuery({
+    queryKey: ['empresa-modulos-edit', editingEmpresa?.id],
+    queryFn: async () => {
+      if (!editingEmpresa?.id) return [];
+      const { data, error } = await supabase
+        .from('empresa_modulos')
+        .select('*')
+        .eq('empresa_id', editingEmpresa.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isOpen && !!editingEmpresa?.id,
   });
 
   const isEditMode = !!editingEmpresa;
@@ -140,9 +155,28 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         cnpj: editingEmpresa.cnpj || '',
         telefone: editingEmpresa.telefone || '',
         regimeTributario: editingEmpresa.regime_tributario || '',
+        gerenteTipo: 'existente',
+        gerenteExistenteId: editingEmpresa.manager_id || '',
       }));
     }
   }, [editingEmpresa]);
+
+  // Initialize modules when editing
+  useEffect(() => {
+    if (editingEmpresa && currentModulos.length > 0) {
+      setData(prev => ({
+        ...prev,
+        modulos: modulosDisponiveis.map(m => {
+          const existing = currentModulos.find(cm => cm.modulo === m.id);
+          return {
+            modulo: m.id,
+            ativo: existing?.ativo || false,
+            modo: (existing?.modo as 'basico' | 'pro') || 'basico',
+          };
+        }),
+      }));
+    }
+  }, [editingEmpresa, currentModulos]);
 
   const checkEmailExists = async (email: string) => {
     if (!email || !z.string().email().safeParse(email).success) return;
@@ -357,7 +391,9 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       
       const previousRegime = editingEmpresa.regime_tributario;
       const newRegime = data.regimeTributario || null;
+      const newManagerId = data.gerenteExistenteId || null;
       
+      // Update empresa basic data
       const { error } = await supabase
         .from('empresas')
         .update({
@@ -365,10 +401,30 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
           cnpj: data.cnpj || null,
           telefone: data.telefone || null,
           regime_tributario: newRegime,
+          manager_id: newManagerId,
         })
         .eq('id', editingEmpresa.id);
 
       if (error) throw error;
+
+      // Update empresa modules
+      // First delete existing modules
+      await supabase
+        .from('empresa_modulos')
+        .delete()
+        .eq('empresa_id', editingEmpresa.id);
+
+      // Then insert new modules
+      const modulosAtivos = data.modulos.filter(m => m.ativo);
+      for (const mod of modulosAtivos) {
+        const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
+          _empresa_id: editingEmpresa.id,
+          _modulo: mod.modulo,
+          _modo: mod.modo,
+          _ativo: true,
+        });
+        if (moduloError) console.error('Erro ao adicionar módulo:', moduloError);
+      }
       
       // Auto-generate tasks if regime was just set (was null/undefined, now has value)
       if (!previousRegime && newRegime) {
@@ -462,12 +518,14 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         return false;
       }
       
-      // Check if at least one permission is selected for each active module
-      for (const mod of modulosAtivos) {
-        const permConfig = data.permissoes.find(p => p.modulo === mod.modulo);
-        if (!permConfig || permConfig.permissions.length === 0) {
-          setErrors({ permissoes: `Selecione pelo menos uma permissão para ${modulosDisponiveis.find(m => m.id === mod.modulo)?.nome}` });
-          return false;
+      // Check if at least one permission is selected for each active module (only for create mode)
+      if (!isEditMode) {
+        for (const mod of modulosAtivos) {
+          const permConfig = data.permissoes.find(p => p.modulo === mod.modulo);
+          if (!permConfig || permConfig.permissions.length === 0) {
+            setErrors({ permissoes: `Selecione pelo menos uma permissão para ${modulosDisponiveis.find(m => m.id === mod.modulo)?.nome}` });
+            return false;
+          }
         }
       }
     }
@@ -477,18 +535,28 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 3));
+      // In edit mode, skip step 2 (manager is selected directly, no new user creation)
+      if (isEditMode && currentStep === 1) {
+        setCurrentStep(3);
+      } else {
+        setCurrentStep(prev => Math.min(prev + 1, 3));
+      }
     }
   };
 
   const handleBack = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
+    // In edit mode, skip step 2
+    if (isEditMode && currentStep === 3) {
+      setCurrentStep(1);
+    } else {
+      setCurrentStep(prev => Math.max(prev - 1, 1));
+    }
   };
 
   const handleSubmit = () => {
     if (isEditMode) {
-      // Edit mode: only validate step 1 (empresa data)
-      if (validateStep(1)) {
+      // Edit mode: validate current step (should be step 3 - modules)
+      if (validateStep(3)) {
         updateEmpresaMutation.mutate();
       }
     } else {
@@ -546,11 +614,19 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
     }));
   };
 
-  const steps = [
+  // Steps configuration - in edit mode, skip step 2 (manager selection is simpler)
+  const editSteps = [
+    { number: 1, title: 'Empresa', icon: Building2 },
+    { number: 3, title: 'Módulos', icon: Settings },
+  ];
+  
+  const createSteps = [
     { number: 1, title: 'Empresa', icon: Building2 },
     { number: 2, title: 'Gerente', icon: User },
     { number: 3, title: 'Módulos', icon: Settings },
   ];
+  
+  const steps = isEditMode ? editSteps : createSteps;
 
   const modulosAtivos = data.modulos.filter(m => m.ativo);
 
@@ -561,39 +637,37 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
           <DialogTitle>{isEditMode ? 'Editar Empresa' : 'Cadastrar Nova Empresa'}</DialogTitle>
         </DialogHeader>
 
-        {/* Step indicator - hide in edit mode */}
-        {!isEditMode && (
-          <div className="flex items-center justify-center gap-2 py-4 border-b border-border/50">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center">
-                <div 
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-                    currentStep === step.number 
-                      ? 'bg-primary text-primary-foreground' 
-                      : currentStep > step.number
-                        ? 'bg-green-500/20 text-green-500'
-                        : 'bg-muted text-muted-foreground'
-                  }`}
-                >
-                  {currentStep > step.number ? (
-                    <Check className="w-4 h-4" />
-                  ) : (
-                    <step.icon className="w-4 h-4" />
-                  )}
-                  <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
-                </div>
-                {index < steps.length - 1 && (
-                  <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground" />
+        {/* Step indicator */}
+        <div className="flex items-center justify-center gap-2 py-4 border-b border-border/50">
+          {steps.map((step, index) => (
+            <div key={step.number} className="flex items-center">
+              <div 
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                  currentStep === step.number 
+                    ? 'bg-primary text-primary-foreground' 
+                    : currentStep > step.number
+                      ? 'bg-green-500/20 text-green-500'
+                      : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {currentStep > step.number ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <step.icon className="w-4 h-4" />
                 )}
+                <span className="text-sm font-medium hidden sm:inline">{step.title}</span>
               </div>
-            ))}
-          </div>
-        )}
+              {index < steps.length - 1 && (
+                <ChevronRight className="w-4 h-4 mx-1 text-muted-foreground" />
+              )}
+            </div>
+          ))}
+        </div>
 
         {/* Step content */}
         <div className="flex-1 overflow-y-auto py-4 px-1">
           {/* Step 1: Dados da Empresa */}
-          {(currentStep === 1 || isEditMode) && (
+          {currentStep === 1 && (
             <div className="space-y-4">
               <div className="text-center mb-6">
                 <h3 className="text-lg font-semibold">Dados da Empresa</h3>
@@ -650,6 +724,31 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                   </Select>
                   {errors.regimeTributario && <p className="text-sm text-destructive mt-1">{errors.regimeTributario}</p>}
                 </div>
+
+                {/* Manager selector - only in edit mode */}
+                {isEditMode && (
+                  <div>
+                    <Label>Gerente Responsável</Label>
+                    <Select
+                      value={data.gerenteExistenteId}
+                      onValueChange={(value) => setData(prev => ({ ...prev, gerenteExistenteId: value }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o gerente responsável" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {existingUsers.map((user) => (
+                          <SelectItem key={user.id} value={user.id}>
+                            <div className="flex flex-col">
+                              <span>{user.full_name || 'Sem nome'}</span>
+                              <span className="text-xs text-muted-foreground">{user.email}</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -781,13 +880,13 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
             </div>
           )}
 
-          {/* Step 3: Módulos e Permissões - only in create mode */}
-          {!isEditMode && currentStep === 3 && (
+          {/* Step 3: Módulos e Permissões */}
+          {currentStep === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
-                <h3 className="text-lg font-semibold">Módulos e Permissões</h3>
+                <h3 className="text-lg font-semibold">{isEditMode ? 'Módulos da Empresa' : 'Módulos e Permissões'}</h3>
                 <p className="text-sm text-muted-foreground">
-                  Selecione os módulos e permissões do gerente
+                  {isEditMode ? 'Configure os módulos habilitados para esta empresa' : 'Selecione os módulos e permissões do gerente'}
                 </p>
               </div>
 
@@ -844,8 +943,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                         )}
                       </div>
 
-                      {/* Permissions */}
-                      {isAtivo && (
+                      {/* Permissions - only show in create mode */}
+                      {!isEditMode && isAtivo && (
                         <div className="px-4 pb-4 pt-0">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-medium text-muted-foreground">Permissões:</span>
@@ -888,8 +987,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                 })}
               </div>
 
-              {/* Summary */}
-              {modulosAtivos.length > 0 && (
+              {/* Summary - only in create mode */}
+              {!isEditMode && modulosAtivos.length > 0 && (
                 <div className="p-4 rounded-lg bg-muted/30 border border-border/50">
                   <h4 className="text-sm font-medium mb-2">Resumo</h4>
                   <div className="text-xs text-muted-foreground space-y-1">
@@ -913,57 +1012,40 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
 
         {/* Navigation buttons */}
         <div className="flex items-center justify-between pt-4 border-t border-border/50">
-          {isEditMode ? (
-            <>
-              <Button type="button" variant="outline" onClick={() => { resetWizard(); onClose(); }}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleSubmit} 
-                disabled={updateEmpresaMutation.isPending}
-                className="gap-2"
-              >
-                {updateEmpresaMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-                Salvar Alterações
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleBack}
-                disabled={currentStep === 1}
-                className="gap-2"
-              >
+          <Button
+            type="button"
+            variant="outline"
+            onClick={currentStep === 1 ? () => { resetWizard(); onClose(); } : handleBack}
+            className="gap-2"
+          >
+            {currentStep === 1 ? (
+              'Cancelar'
+            ) : (
+              <>
                 <ChevronLeft className="w-4 h-4" />
                 Voltar
-              </Button>
+              </>
+            )}
+          </Button>
 
-              {currentStep < 3 ? (
-                <Button onClick={handleNext} className="gap-2">
-                  Próximo
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
+          {currentStep < 3 ? (
+            <Button onClick={handleNext} className="gap-2">
+              Próximo
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmit} 
+              disabled={isEditMode ? updateEmpresaMutation.isPending : createEmpresaMutation.isPending}
+              className="gap-2"
+            >
+              {(isEditMode ? updateEmpresaMutation.isPending : createEmpresaMutation.isPending) ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <Button 
-                  onClick={handleSubmit} 
-                  disabled={createEmpresaMutation.isPending}
-                  className="gap-2"
-                >
-                  {createEmpresaMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Check className="w-4 h-4" />
-                  )}
-                  Cadastrar Empresa
-                </Button>
+                <Check className="w-4 h-4" />
               )}
-            </>
+              {isEditMode ? 'Salvar Alterações' : 'Cadastrar Empresa'}
+            </Button>
           )}
         </div>
       </DialogContent>
