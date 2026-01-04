@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { MetricCard } from "@/components/task/MetricCard";
 import { KanbanCard } from "@/components/task/KanbanCard";
@@ -42,7 +42,8 @@ export default function TaskVault() {
     updateTarefa, 
     deleteTarefa: deleteTarefaDB,
     uploadArquivo,
-    deleteArquivo
+    deleteArquivo,
+    refetch: refetchTarefas
   } = useTarefas();
 
   // Use persistent activities hook
@@ -52,6 +53,11 @@ export default function TaskVault() {
   const { tarefasModelo, gerarTarefas, isGenerating } = useTarefasModelo();
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
+
+  // Refetch tarefas when component mounts or empresas change
+  useEffect(() => {
+    refetchTarefas();
+  }, [empresasDisponiveis]);
 
   // Filter tarefas by selected empresa
   const tarefasFiltradas = selectedEmpresaId === "all" 
