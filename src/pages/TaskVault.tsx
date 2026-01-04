@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Tarefa, Empresa, Atividade, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
+import { Tarefa, Empresa, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
+import { useAtividades } from "@/hooks/useAtividades";
 
 const widgetGroups = [
   {
@@ -95,12 +96,8 @@ export default function TaskVault() {
     { id: "6", titulo: "Calcular ICMS ST", descricao: "Cálculo substituição tributária", empresaId: "3", prioridade: "alta", status: "pendente", dataVencimento: "2024-12-21", progresso: 10, criadoEm: "2024-12-17" },
   ]);
 
-  const [atividades, setAtividades] = useState<Atividade[]>([
-    { id: "1", tipo: "criacao", descricao: "Nova tarefa criada: Conferir SPED Fiscal", timestamp: "Há 2 horas", usuario: "Sistema" },
-    { id: "2", tipo: "conclusao", descricao: "Tarefa concluída: Importar NF-e", timestamp: "Há 4 horas", usuario: "Ana Silva" },
-    { id: "3", tipo: "comentario", descricao: "Comentário em: Ajustar EFD", timestamp: "Há 6 horas", usuario: "Carlos" },
-    { id: "4", tipo: "edicao", descricao: "Prioridade alterada: Calcular ICMS", timestamp: "Há 1 dia", usuario: "Maria" },
-  ]);
+  // Use persistent activities hook
+  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("taskvault");
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
   const [novaEmpresa, setNovaEmpresa] = useState<Partial<Empresa>>({});
@@ -130,18 +127,11 @@ export default function TaskVault() {
     setActiveFilter(prev => prev === filter ? "all" : filter);
   };
 
-  const addAtividade = (tipo: Atividade["tipo"], descricao: string) => {
-    const nova: Atividade = {
-      id: Date.now().toString(),
-      tipo,
-      descricao,
-      timestamp: "Agora",
-      usuario: "Você",
-    };
-    setAtividades(prev => [nova, ...prev]);
+  const logAtividade = async (tipo: "criacao" | "conclusao" | "comentario" | "edicao", descricao: string, tarefaId?: string) => {
+    await addAtividade(tipo, descricao, { tarefaId });
   };
 
-  const handleSaveTarefa = () => {
+  const handleSaveTarefa = async () => {
     if (!novaTarefa.titulo || !novaTarefa.empresaId) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
@@ -158,13 +148,13 @@ export default function TaskVault() {
       criadoEm: new Date().toISOString().split("T")[0],
     };
     setTarefas(prev => [...prev, tarefa]);
-    addAtividade("criacao", `Nova tarefa criada: ${tarefa.titulo}`);
+    await logAtividade("criacao", `Nova tarefa criada: ${tarefa.titulo}`, tarefa.id);
     setNovaTarefa({ prioridade: "media", status: "pendente" });
     setShowModal(null);
     toast({ title: "Tarefa criada com sucesso!" });
   };
 
-  const handleSaveEmpresa = () => {
+  const handleSaveEmpresa = async () => {
     if (!novaEmpresa.nome || !novaEmpresa.cnpj) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
@@ -176,33 +166,33 @@ export default function TaskVault() {
       email: novaEmpresa.email || "",
     };
     setEmpresas(prev => [...prev, empresa]);
-    addAtividade("criacao", `Nova empresa: ${empresa.nome}`);
+    await logAtividade("criacao", `Nova empresa: ${empresa.nome}`);
     setNovaEmpresa({});
     setShowModal(null);
     toast({ title: "Empresa criada com sucesso!" });
   };
 
-  const deleteTarefa = (id: string) => {
+  const deleteTarefa = async (id: string) => {
     const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.filter(t => t.id !== id));
-    if (tarefa) addAtividade("edicao", `Tarefa excluída: ${tarefa.titulo}`);
+    if (tarefa) await logAtividade("edicao", `Tarefa excluída: ${tarefa.titulo}`, id);
     toast({ title: "Tarefa excluída" });
   };
 
-  const deleteEmpresa = (id: string) => {
+  const deleteEmpresa = async (id: string) => {
     const empresa = empresas.find(e => e.id === id);
     setEmpresas(prev => prev.filter(e => e.id !== id));
-    if (empresa) addAtividade("edicao", `Empresa excluída: ${empresa.nome}`);
+    if (empresa) await logAtividade("edicao", `Empresa excluída: ${empresa.nome}`);
     toast({ title: "Empresa excluída" });
   };
 
-  const updateTarefaStatus = (id: string, status: Tarefa["status"]) => {
+  const updateTarefaStatus = async (id: string, status: Tarefa["status"]) => {
     const tarefa = tarefas.find(t => t.id === id);
     setTarefas(prev => prev.map(t => 
       t.id === id ? { ...t, status, progresso: status === "concluida" ? 100 : status === "em_andamento" ? 50 : t.progresso } : t
     ));
     if (tarefa && status === "concluida") {
-      addAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`);
+      await logAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`, id);
     }
   };
 

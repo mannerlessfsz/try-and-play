@@ -51,8 +51,8 @@ export default function FinancialACE() {
   const { toast } = useToast();
   const alertaShown = useRef(false);
 
-  // Use real activities hook
-  const { atividades, loading: atividadesLoading } = useAtividades();
+  // Use real activities hook with module filter
+  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("gestao", empresaAtiva?.id);
 
   // Use real transacoes hook for metrics
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);

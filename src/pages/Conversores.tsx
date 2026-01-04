@@ -39,6 +39,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useConversoes } from "@/hooks/useConversoes";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAtividades } from "@/hooks/useAtividades";
 
 const conversores = [
   {
@@ -162,21 +163,14 @@ const Conversores = () => {
   const { isAdmin } = usePermissions();
   const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(empresaAtiva?.id);
   const { conversoes } = useConversoes(empresaAtiva?.id);
-
+  
+  // Use persistent activities hook
+  const { atividades, loading: atividadesLoading } = useAtividades("conversores", empresaAtiva?.id);
   // Stats from conversoes
   const totalConversoes = conversoes?.length || 0;
   const conversoesSucesso = conversoes?.filter(c => c.status === 'sucesso').length || 0;
   const conversoesPendentes = conversoes?.filter(c => c.status === 'pendente' || c.status === 'processando').length || 0;
   const conversoesErro = conversoes?.filter(c => c.status === 'erro').length || 0;
-
-  // Recent activities from conversoes
-  const recentActivities = conversoes?.slice(0, 5).map(c => ({
-    id: c.id,
-    tipo: c.status === 'sucesso' ? 'conclusao' : c.status === 'erro' ? 'edicao' : 'criacao',
-    descricao: `${c.modulo}: ${c.nome_arquivo_original}`,
-    timestamp: new Date(c.created_at).toLocaleDateString('pt-BR'),
-    usuario: 'Sistema',
-  })) || [];
 
   // Função para verificar se usuário tem acesso a um conversor
   const hasConversorAccess = (conversorId: string): boolean => {
@@ -234,9 +228,9 @@ const Conversores = () => {
           Atividades Recentes
         </div>
         <div className="space-y-1">
-          {recentActivities.length > 0 ? (
-            recentActivities.map(atividade => (
-              <TimelineItem key={atividade.id} atividade={atividade as any} />
+          {atividades.length > 0 ? (
+            atividades.map(atividade => (
+              <TimelineItem key={atividade.id} atividade={atividade} />
             ))
           ) : (
             <p className="text-xs text-muted-foreground">Nenhuma atividade recente</p>
