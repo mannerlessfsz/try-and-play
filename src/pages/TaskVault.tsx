@@ -1,19 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { MetricCard } from "@/components/task/MetricCard";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
-import { TarefasModeloManager } from "@/components/admin/TarefasModeloManager";
+import { TaskSettingsModal } from "@/components/task/TaskSettingsModal";
 import { 
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
-  AlertTriangle, Activity, List, Columns, Loader2, FileText
+  AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
@@ -22,69 +21,15 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
 
-const widgetGroups = [
-  {
-    id: "actions",
-    label: "Ações Rápidas",
-    icon: <Zap className="w-5 h-5" />,
-    items: [
-      { id: "new-task", label: "Nova Tarefa", icon: <Plus className="w-5 h-5" />, badge: "+" },
-      { id: "edit", label: "Editar", icon: <Edit className="w-5 h-5" /> },
-      { id: "delete", label: "Excluir", icon: <Trash2 className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "view",
-    label: "Visualização",
-    icon: <Filter className="w-5 h-5" />,
-    items: [
-      { id: "filter", label: "Filtrar", icon: <Filter className="w-5 h-5" /> },
-      { id: "sort", label: "Ordenar", icon: <SortAsc className="w-5 h-5" /> },
-      { id: "search", label: "Buscar", icon: <Search className="w-5 h-5" /> },
-      { id: "calendar", label: "Agenda", icon: <Calendar className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "organize",
-    label: "Organizar",
-    icon: <Tag className="w-5 h-5" />,
-    items: [
-      { id: "tags", label: "Tags", icon: <Tag className="w-5 h-5" />, badge: 5 },
-      { id: "priority", label: "Prioridade", icon: <Flag className="w-5 h-5" /> },
-      { id: "deadline", label: "Prazo", icon: <Clock className="w-5 h-5" /> },
-      { id: "assign", label: "Atribuir", icon: <Users className="w-5 h-5" /> },
-    ],
-  },
-  {
-    id: "status",
-    label: "Status",
-    icon: <CheckSquare className="w-5 h-5" />,
-    items: [
-      { id: "complete", label: "Concluir", icon: <CheckSquare className="w-5 h-5" /> },
-      { id: "favorite", label: "Favoritos", icon: <Star className="w-5 h-5" />, badge: 3 },
-      { id: "notify", label: "Alertas", icon: <Bell className="w-5 h-5" />, badge: 2 },
-    ],
-  },
-  {
-    id: "extras",
-    label: "Extras",
-    icon: <Settings className="w-5 h-5" />,
-    items: [
-      { id: "export", label: "Exportar", icon: <FileDown className="w-5 h-5" /> },
-      { id: "import", label: "Importar", icon: <FileUp className="w-5 h-5" /> },
-      { id: "settings", label: "Config", icon: <Settings className="w-5 h-5" /> },
-    ],
-  },
-];
-
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
   const [showModal, setShowModal] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<string>("modelos");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"tarefas" | "modelos">("tarefas");
   
   // Use empresas from system
   const { empresasDisponiveis, loading: empresasLoading } = useEmpresaAtiva();
@@ -104,7 +49,7 @@ export default function TaskVault() {
   const { atividades, addAtividade } = useAtividades("taskvault");
 
   // Use tarefas modelo hook for generating tasks
-  const { gerarTarefas, isGenerating } = useTarefasModelo();
+  const { tarefasModelo, gerarTarefas, isGenerating } = useTarefasModelo();
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
 
@@ -284,6 +229,62 @@ export default function TaskVault() {
 
   const isLoading = empresasLoading || tarefasLoading;
 
+  // Widget groups with actions
+  const widgetGroups = useMemo(() => [
+    {
+      id: "actions",
+      label: "Ações Rápidas",
+      icon: <Zap className="w-5 h-5" />,
+      items: [
+        { id: "new-task", label: "Nova Tarefa", icon: <Plus className="w-5 h-5" />, badge: "+", onClick: () => setShowModal(true) },
+        { id: "generate", label: "Gerar Mês", icon: <Calendar className="w-5 h-5" />, onClick: handleGerarTarefasMes },
+      ],
+    },
+    {
+      id: "view",
+      label: "Visualização",
+      icon: <Filter className="w-5 h-5" />,
+      items: [
+        { id: "filter", label: "Filtrar", icon: <Filter className="w-5 h-5" /> },
+        { id: "sort", label: "Ordenar", icon: <SortAsc className="w-5 h-5" /> },
+        { id: "search", label: "Buscar", icon: <Search className="w-5 h-5" /> },
+        { id: "calendar", label: "Agenda", icon: <Calendar className="w-5 h-5" /> },
+      ],
+    },
+    {
+      id: "organize",
+      label: "Organizar",
+      icon: <Tag className="w-5 h-5" />,
+      items: [
+        { id: "tags", label: "Tags", icon: <Tag className="w-5 h-5" /> },
+        { id: "priority", label: "Prioridade", icon: <Flag className="w-5 h-5" /> },
+        { id: "deadline", label: "Prazo", icon: <Clock className="w-5 h-5" /> },
+        { id: "assign", label: "Atribuir", icon: <Users className="w-5 h-5" /> },
+      ],
+    },
+    {
+      id: "status",
+      label: "Status",
+      icon: <CheckSquare className="w-5 h-5" />,
+      items: [
+        { id: "complete", label: "Concluir", icon: <CheckSquare className="w-5 h-5" /> },
+        { id: "favorite", label: "Favoritos", icon: <Star className="w-5 h-5" /> },
+        { id: "notify", label: "Alertas", icon: <Bell className="w-5 h-5" /> },
+      ],
+    },
+    {
+      id: "config",
+      label: "Configurações",
+      icon: <Settings className="w-5 h-5" />,
+      items: [
+        { id: "modelos", label: "Modelos", icon: <FileText className="w-5 h-5" />, badge: tarefasModelo.length || undefined, onClick: () => { setSettingsInitialTab("modelos"); setShowSettingsModal(true); } },
+        { id: "regimes", label: "Regimes", icon: <Building2 className="w-5 h-5" />, onClick: () => { setSettingsInitialTab("regimes"); setShowSettingsModal(true); } },
+        { id: "departamentos", label: "Deptos", icon: <Briefcase className="w-5 h-5" />, onClick: () => { setSettingsInitialTab("departamentos"); setShowSettingsModal(true); } },
+        { id: "export", label: "Exportar", icon: <FileDown className="w-5 h-5" /> },
+      ],
+    },
+  ], [tarefasModelo.length]);
+
   // Sidebar content with filters and timeline
   const sidebarContent = (
     <div className="flex flex-col h-full">
@@ -349,54 +350,52 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Dashboard Metrics - Only show on Tarefas tab */}
-        {activeTab === "tarefas" && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <MetricCard 
-              title="Total de Tarefas" 
-              value={totalTarefas} 
-              change="+12% este mês" 
-              changeType="up" 
-              icon={ListTodo} 
-              color="red"
-              isActive={activeFilter === "all"}
-              onClick={() => handleFilterClick("all")}
-            />
-            <MetricCard 
-              title="Em Andamento" 
-              value={tarefasEmAndamento} 
-              change="+3 novas" 
-              changeType="up" 
-              icon={Activity} 
-              color="blue"
-              isActive={activeFilter === "em_andamento"}
-              onClick={() => handleFilterClick("em_andamento")}
-            />
-            <MetricCard 
-              title="Concluídas" 
-              value={tarefasConcluidas} 
-              change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
-              changeType="up" 
-              icon={CheckSquare} 
-              color="green"
-              isActive={activeFilter === "concluida"}
-              onClick={() => handleFilterClick("concluida")}
-            />
-            <MetricCard 
-              title="Urgentes" 
-              value={tarefasUrgentes} 
-              change="Atenção!" 
-              changeType="down" 
-              icon={AlertTriangle} 
-              color="yellow"
-              isActive={activeFilter === "urgente"}
-              onClick={() => handleFilterClick("urgente")}
-            />
-          </div>
-        )}
+        {/* Dashboard Metrics */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+          <MetricCard 
+            title="Total de Tarefas" 
+            value={totalTarefas} 
+            change="+12% este mês" 
+            changeType="up" 
+            icon={ListTodo} 
+            color="red"
+            isActive={activeFilter === "all"}
+            onClick={() => handleFilterClick("all")}
+          />
+          <MetricCard 
+            title="Em Andamento" 
+            value={tarefasEmAndamento} 
+            change="+3 novas" 
+            changeType="up" 
+            icon={Activity} 
+            color="blue"
+            isActive={activeFilter === "em_andamento"}
+            onClick={() => handleFilterClick("em_andamento")}
+          />
+          <MetricCard 
+            title="Concluídas" 
+            value={tarefasConcluidas} 
+            change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
+            changeType="up" 
+            icon={CheckSquare} 
+            color="green"
+            isActive={activeFilter === "concluida"}
+            onClick={() => handleFilterClick("concluida")}
+          />
+          <MetricCard 
+            title="Urgentes" 
+            value={tarefasUrgentes} 
+            change="Atenção!" 
+            changeType="down" 
+            icon={AlertTriangle} 
+            color="yellow"
+            isActive={activeFilter === "urgente"}
+            onClick={() => handleFilterClick("urgente")}
+          />
+        </div>
 
-        {/* Filter indicator - Only show on Tarefas tab */}
-        {activeTab === "tarefas" && activeFilter !== "all" && (
+        {/* Filter indicator */}
+        {activeFilter !== "all" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
@@ -411,8 +410,8 @@ export default function TaskVault() {
           </div>
         )}
 
-        {/* Selected empresa indicator - Only show on Tarefas tab */}
-        {activeTab === "tarefas" && selectedEmpresaId !== "all" && (
+        {/* Selected empresa indicator */}
+        {selectedEmpresaId !== "all" && (
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Empresa:</span>
@@ -428,59 +427,40 @@ export default function TaskVault() {
           </div>
         )}
 
-        {/* Main Tabs */}
+        {/* Header with view controls */}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex gap-2">
-            <button 
-              onClick={() => setActiveTab("tarefas")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === "tarefas" 
-                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30" 
-                  : "bg-card/50 text-muted-foreground hover:text-foreground border border-foreground/10"
-              }`}
-            >
-              <ListTodo className="w-4 h-4 inline mr-2" />Tarefas ({filteredTarefas.length})
-            </button>
-            <button 
-              onClick={() => setActiveTab("modelos")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                activeTab === "modelos" 
-                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30" 
-                  : "bg-card/50 text-muted-foreground hover:text-foreground border border-foreground/10"
-              }`}
-            >
-              <FileText className="w-4 h-4 inline mr-2" />Modelos
-            </button>
+          <div className="flex items-center gap-2">
+            <ListTodo className="w-5 h-5 text-red-500" />
+            <h2 className="text-lg font-semibold text-foreground">Tarefas</h2>
+            <span className="text-sm text-muted-foreground">({filteredTarefas.length})</span>
           </div>
           
-          {activeTab === "tarefas" && (
-            <div className="flex items-center gap-2">
-              <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-                <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                  <Columns className="w-4 h-4" />
-                </button>
-                <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-              <Button 
-                onClick={handleGerarTarefasMes} 
-                variant="outline"
-                disabled={isGenerating || empresasDisponiveis.length === 0}
-                className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-              >
-                {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
-                Gerar Tarefas do Mês
-              </Button>
-              <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
-                <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
-              </Button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
+              <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                <Columns className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                <List className="w-4 h-4" />
+              </button>
             </div>
-          )}
+            <Button 
+              onClick={handleGerarTarefasMes} 
+              variant="outline"
+              disabled={isGenerating || empresasDisponiveis.length === 0}
+              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
+              Gerar Tarefas do Mês
+            </Button>
+            <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
+              <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
+            </Button>
+          </div>
         </div>
 
-        {/* Content based on active tab */}
-        {activeTab === "tarefas" && viewMode === "kanban" ? (
+        {/* Content based on view mode */}
+        {viewMode === "kanban" ? (
           <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
             {activeFilter === "all" ? (
               // Show all 3 columns when "all" filter is active
@@ -542,7 +522,7 @@ export default function TaskVault() {
               </div>
             )}
           </div>
-        ) : activeTab === "tarefas" && viewMode === "lista" ? (
+        ) : (
           <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
             <table className="w-full">
               <thead className="bg-red-950/50 border-b border-red-500/20">
@@ -583,11 +563,6 @@ export default function TaskVault() {
               </tbody>
             </table>
           </div>
-        ) : (
-          // Modelos Tab
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/10 p-6">
-            <TarefasModeloManager />
-          </div>
         )}
       </div>
 
@@ -600,6 +575,12 @@ export default function TaskVault() {
           onClose={() => setShowModal(false)} 
         />
       )}
+
+      <TaskSettingsModal 
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        initialTab={settingsInitialTab}
+      />
     </div>
   );
 }
