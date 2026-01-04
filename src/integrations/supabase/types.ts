@@ -1649,13 +1649,18 @@ export type Database = {
         Row: {
           contato_id: string | null
           created_at: string
+          data_envio_automatico: string | null
           data_vencimento: string | null
           departamento: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao: string | null
           empresa_id: string | null
+          envio_automatico: boolean | null
           id: string
+          justificativa: string | null
+          prazo_entrega: string | null
           prioridade: string
           progresso: number | null
+          requer_anexo: boolean | null
           responsavel: string | null
           status: string
           titulo: string
@@ -1664,13 +1669,18 @@ export type Database = {
         Insert: {
           contato_id?: string | null
           created_at?: string
+          data_envio_automatico?: string | null
           data_vencimento?: string | null
           departamento?: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao?: string | null
           empresa_id?: string | null
+          envio_automatico?: boolean | null
           id?: string
+          justificativa?: string | null
+          prazo_entrega?: string | null
           prioridade?: string
           progresso?: number | null
+          requer_anexo?: boolean | null
           responsavel?: string | null
           status?: string
           titulo: string
@@ -1679,13 +1689,18 @@ export type Database = {
         Update: {
           contato_id?: string | null
           created_at?: string
+          data_envio_automatico?: string | null
           data_vencimento?: string | null
           departamento?: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao?: string | null
           empresa_id?: string | null
+          envio_automatico?: boolean | null
           id?: string
+          justificativa?: string | null
+          prazo_entrega?: string | null
           prioridade?: string
           progresso?: number | null
+          requer_anexo?: boolean | null
           responsavel?: string | null
           status?: string
           titulo?: string

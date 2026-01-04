@@ -24,6 +24,11 @@ export interface Tarefa {
   prioridade: "baixa" | "media" | "alta" | "urgente";
   status: "pendente" | "em_andamento" | "concluida";
   dataVencimento?: string;
+  prazoEntrega?: string;
+  requerAnexo?: boolean;
+  justificativa?: string;
+  envioAutomatico?: boolean;
+  dataEnvioAutomatico?: string;
   progresso?: number;
   responsavel?: string;
   criadoEm?: string;

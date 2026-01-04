@@ -34,6 +34,11 @@ export function useTarefas() {
         status: t.status as Tarefa["status"],
         prioridade: t.prioridade as Tarefa["prioridade"],
         dataVencimento: t.data_vencimento || undefined,
+        prazoEntrega: t.prazo_entrega || undefined,
+        requerAnexo: t.requer_anexo ?? false,
+        justificativa: t.justificativa || undefined,
+        envioAutomatico: t.envio_automatico ?? false,
+        dataEnvioAutomatico: t.data_envio_automatico || undefined,
         progresso: t.progresso || 0,
         responsavel: t.responsavel || undefined,
         departamento: t.departamento as Tarefa["departamento"] || undefined,
@@ -73,6 +78,11 @@ export function useTarefas() {
           status: tarefa.status,
           prioridade: tarefa.prioridade,
           data_vencimento: tarefa.dataVencimento || null,
+          prazo_entrega: tarefa.prazoEntrega || null,
+          requer_anexo: tarefa.requerAnexo ?? false,
+          justificativa: tarefa.justificativa || null,
+          envio_automatico: tarefa.envioAutomatico ?? false,
+          data_envio_automatico: tarefa.dataEnvioAutomatico || null,
           progresso: tarefa.progresso || 0,
           responsavel: tarefa.responsavel || null,
           departamento: tarefa.departamento || null,
@@ -98,20 +108,27 @@ export function useTarefas() {
 
   const updateTarefa = async (id: string, updates: Partial<Tarefa>) => {
     try {
+      const updateData: Record<string, unknown> = {};
+      
+      if (updates.titulo !== undefined) updateData.titulo = updates.titulo;
+      if (updates.descricao !== undefined) updateData.descricao = updates.descricao;
+      if (updates.empresaId !== undefined) updateData.empresa_id = updates.empresaId || null;
+      if (updates.status !== undefined) updateData.status = updates.status;
+      if (updates.prioridade !== undefined) updateData.prioridade = updates.prioridade;
+      if (updates.dataVencimento !== undefined) updateData.data_vencimento = updates.dataVencimento || null;
+      if (updates.prazoEntrega !== undefined) updateData.prazo_entrega = updates.prazoEntrega || null;
+      if (updates.requerAnexo !== undefined) updateData.requer_anexo = updates.requerAnexo;
+      if (updates.justificativa !== undefined) updateData.justificativa = updates.justificativa || null;
+      if (updates.envioAutomatico !== undefined) updateData.envio_automatico = updates.envioAutomatico;
+      if (updates.dataEnvioAutomatico !== undefined) updateData.data_envio_automatico = updates.dataEnvioAutomatico || null;
+      if (updates.progresso !== undefined) updateData.progresso = updates.progresso;
+      if (updates.responsavel !== undefined) updateData.responsavel = updates.responsavel || null;
+      if (updates.departamento !== undefined) updateData.departamento = updates.departamento || null;
+      if (updates.contatoId !== undefined) updateData.contato_id = updates.contatoId || null;
+
       const { error } = await supabase
         .from("tarefas")
-        .update({
-          titulo: updates.titulo,
-          descricao: updates.descricao,
-          empresa_id: updates.empresaId || null,
-          status: updates.status,
-          prioridade: updates.prioridade,
-          data_vencimento: updates.dataVencimento || null,
-          progresso: updates.progresso,
-          responsavel: updates.responsavel || null,
-          departamento: updates.departamento || null,
-          contato_id: updates.contatoId || null,
-        })
+        .update(updateData)
         .eq("id", id);
 
       if (error) throw error;
