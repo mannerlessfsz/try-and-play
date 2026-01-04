@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_notifications: {
+        Row: {
+          created_at: string
+          dados: Json | null
+          empresa_id: string | null
+          id: string
+          lida: boolean | null
+          lida_em: string | null
+          lida_por: string | null
+          mensagem: string
+          tipo: string
+          titulo: string
+        }
+        Insert: {
+          created_at?: string
+          dados?: Json | null
+          empresa_id?: string | null
+          id?: string
+          lida?: boolean | null
+          lida_em?: string | null
+          lida_por?: string | null
+          mensagem: string
+          tipo: string
+          titulo: string
+        }
+        Update: {
+          created_at?: string
+          dados?: Json | null
+          empresa_id?: string | null
+          id?: string
+          lida?: boolean | null
+          lida_em?: string | null
+          lida_por?: string | null
+          mensagem?: string
+          tipo?: string
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atividades: {
         Row: {
           created_at: string
@@ -55,6 +102,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          created_at: string
+          details: string | null
+          id: string
+          ip_address: string | null
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          details?: string | null
+          id?: string
+          ip_address?: string | null
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       categorias_financeiras: {
         Row: {

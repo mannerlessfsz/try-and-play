@@ -21,6 +21,7 @@ import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
 import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
 import { PermissionReportExporter } from '@/components/admin/PermissionReportExporter';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
+import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import { usePermissionProfiles } from '@/hooks/usePermissionProfiles';
 import { 
   ArrowLeft, 
@@ -42,7 +43,8 @@ import {
   UserCog,
   Layers,
   LayoutDashboard,
-  FileDown
+  FileDown,
+  History
 } from 'lucide-react';
 
 interface Profile {
@@ -595,6 +597,9 @@ const Admin: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="reports" className="gap-2">
               <FileDown className="w-4 h-4" /> Relatórios
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-2">
+              <History className="w-4 h-4" /> Auditoria
             </TabsTrigger>
           </TabsList>
 
@@ -1210,6 +1215,11 @@ const Admin: React.FC = () => {
           {/* Reports Tab */}
           <TabsContent value="reports">
             <PermissionReportExporter />
+          </TabsContent>
+
+          {/* Audit Tab */}
+          <TabsContent value="audit">
+            <AuditLogViewer />
           </TabsContent>
         </Tabs>
       </main>

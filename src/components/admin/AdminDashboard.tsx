@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Users, 
   Building2, 
@@ -17,9 +20,13 @@ import {
   Loader2,
   Activity,
   BarChart3,
-  PieChart
+  PieChart,
+  Filter,
+  RefreshCw,
+  Calendar
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/formatters';
+import { NotificationCenter } from './NotificationCenter';
 import {
   AreaChart,
   Area,
@@ -46,9 +53,52 @@ interface DashboardMetric {
   color: string;
 }
 
+type PeriodFilter = 'this_month' | 'last_month' | 'last_3_months' | 'last_6_months' | 'this_year' | 'custom';
+
+const getPeriodDates = (period: PeriodFilter, customStart?: string, customEnd?: string) => {
+  const now = new Date();
+  let startDate: Date;
+  let endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  
+  switch (period) {
+    case 'last_month':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+      break;
+    case 'last_3_months':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      break;
+    case 'last_6_months':
+      startDate = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      break;
+    case 'this_year':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      break;
+    case 'custom':
+      startDate = customStart ? new Date(customStart) : new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = customEnd ? new Date(customEnd) : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      break;
+    default: // this_month
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+  
+  return {
+    startDate: startDate.toISOString().split('T')[0],
+    endDate: endDate.toISOString().split('T')[0]
+  };
+};
+
 export function AdminDashboard() {
+  const [period, setPeriod] = useState<PeriodFilter>('this_month');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [selectedEmpresa, setSelectedEmpresa] = useState<string>('all');
+  const [showFilters, setShowFilters] = useState(false);
+
+  const { startDate, endDate } = getPeriodDates(period, customStartDate, customEndDate);
+
   // Users count
-  const { data: usersData } = useQuery({
+  const { data: usersData, refetch: refetchUsers } = useQuery({
     queryKey: ['admin-dashboard-users'],
     queryFn: async () => {
       const { count: total } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
@@ -57,8 +107,18 @@ export function AdminDashboard() {
     }
   });
 
+  // Empresas list for filter
+  const { data: empresasList = [] } = useQuery({
+    queryKey: ['admin-dashboard-empresas-list'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('get_empresas_safe');
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   // Empresas count
-  const { data: empresasData } = useQuery({
+  const { data: empresasData, refetch: refetchEmpresas } = useQuery({
     queryKey: ['admin-dashboard-empresas'],
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_empresas_safe');
@@ -67,19 +127,21 @@ export function AdminDashboard() {
     }
   });
 
-  // Financial summary (all companies)
-  const { data: financialData } = useQuery({
-    queryKey: ['admin-dashboard-financial'],
+  // Financial summary (filtered)
+  const { data: financialData, refetch: refetchFinancial } = useQuery({
+    queryKey: ['admin-dashboard-financial', startDate, endDate, selectedEmpresa],
     queryFn: async () => {
-      const currentMonth = new Date();
-      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).toISOString().split('T')[0];
-      
-      const { data: transacoes } = await supabase
+      let query = supabase
         .from('transacoes')
-        .select('tipo, valor, status')
-        .gte('data_transacao', firstDay)
-        .lte('data_transacao', lastDay);
+        .select('tipo, valor, status, empresa_id')
+        .gte('data_transacao', startDate)
+        .lte('data_transacao', endDate);
+      
+      if (selectedEmpresa !== 'all') {
+        query = query.eq('empresa_id', selectedEmpresa);
+      }
+      
+      const { data: transacoes } = await query;
       
       let receitas = 0;
       let despesas = 0;
@@ -101,31 +163,43 @@ export function AdminDashboard() {
   });
 
   // Products and stock
-  const { data: productsData } = useQuery({
-    queryKey: ['admin-dashboard-products'],
+  const { data: productsData, refetch: refetchProducts } = useQuery({
+    queryKey: ['admin-dashboard-products', selectedEmpresa],
     queryFn: async () => {
-      const { count: total } = await supabase.from('produtos').select('*', { count: 'exact', head: true });
-      const { data: lowStock } = await supabase
+      let countQuery = supabase.from('produtos').select('*', { count: 'exact', head: true });
+      let lowStockQuery = supabase
         .from('produtos')
         .select('id')
         .lt('estoque_atual', 10)
         .eq('controla_estoque', true);
+      
+      if (selectedEmpresa !== 'all') {
+        countQuery = countQuery.eq('empresa_id', selectedEmpresa);
+        lowStockQuery = lowStockQuery.eq('empresa_id', selectedEmpresa);
+      }
+      
+      const { count: total } = await countQuery;
+      const { data: lowStock } = await lowStockQuery;
       
       return { total: total || 0, lowStock: (lowStock || []).length };
     }
   });
 
   // Sales data
-  const { data: salesData } = useQuery({
-    queryKey: ['admin-dashboard-sales'],
+  const { data: salesData, refetch: refetchSales } = useQuery({
+    queryKey: ['admin-dashboard-sales', startDate, endDate, selectedEmpresa],
     queryFn: async () => {
-      const currentMonth = new Date();
-      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).toISOString().split('T')[0];
-      
-      const { data: vendas } = await supabase
+      let query = supabase
         .from('vendas')
         .select('total, status')
-        .gte('data_venda', firstDay);
+        .gte('data_venda', startDate)
+        .lte('data_venda', endDate);
+      
+      if (selectedEmpresa !== 'all') {
+        query = query.eq('empresa_id', selectedEmpresa);
+      }
+      
+      const { data: vendas } = await query;
       
       let totalVendas = 0;
       let countVendas = 0;
@@ -312,19 +386,109 @@ export function AdminDashboard() {
     }
   ];
 
+  const handleRefreshAll = () => {
+    refetchUsers();
+    refetchEmpresas();
+    refetchFinancial();
+    refetchProducts();
+    refetchSales();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">Dashboard Administrativo</h2>
           <p className="text-muted-foreground">Visão geral de todos os módulos do sistema</p>
         </div>
-        <Badge variant="outline" className="gap-1">
-          <Activity className="w-3 h-3" />
-          Atualizado agora
-        </Badge>
+        <div className="flex items-center gap-2">
+          <NotificationCenter />
+          <Button variant="outline" size="icon" onClick={handleRefreshAll}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFilters(!showFilters)}
+            className="gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filtros
+          </Button>
+        </div>
       </div>
+
+      {/* Filters Panel */}
+      {showFilters && (
+        <Card>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Período</label>
+                <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="this_month">Este mês</SelectItem>
+                    <SelectItem value="last_month">Mês passado</SelectItem>
+                    <SelectItem value="last_3_months">Últimos 3 meses</SelectItem>
+                    <SelectItem value="last_6_months">Últimos 6 meses</SelectItem>
+                    <SelectItem value="this_year">Este ano</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Empresa</label>
+                <Select value={selectedEmpresa} onValueChange={setSelectedEmpresa}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as empresas</SelectItem>
+                    {empresasList.map((e: { id: string; nome: string }) => (
+                      <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {period === 'custom' && (
+                <>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data inicial</label>
+                    <Input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Data final</label>
+                    <Input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>Período: {startDate} até {endDate}</span>
+              {selectedEmpresa !== 'all' && (
+                <Badge variant="secondary" className="ml-2">
+                  {empresasList.find((e: { id: string }) => e.id === selectedEmpresa)?.nome}
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
