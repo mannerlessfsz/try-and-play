@@ -45,9 +45,9 @@ interface WizardData {
 
 const modulosDisponiveis: { id: AppModule; nome: string; descricao: string }[] = [
   { id: 'taskvault', nome: 'TaskVault', descricao: 'Gestão de tarefas e projetos' },
-  { id: 'financialace', nome: 'FinancialACE', descricao: 'Gestão financeira e conciliação' },
+  { id: 'financialace', nome: 'GESTÃO', descricao: 'Sistema integrado financeiro e ERP' },
+  { id: 'conversores', nome: 'Conversores', descricao: 'Conversão de arquivos fiscais e documentos' },
   { id: 'conferesped', nome: 'ConfereSped', descricao: 'Conferência de arquivos SPED' },
-  { id: 'ajustasped', nome: 'AjustaSped', descricao: 'Ajuste de arquivos SPED' },
 ];
 
 const permissoesDisponiveis: { id: PermissionType; nome: string }[] = [

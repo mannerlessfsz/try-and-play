@@ -51,10 +51,9 @@ interface EmpresaUsersManagerProps {
 }
 
 const MODULES = [
-  { value: 'financialace', label: 'FinancialACE' },
-  { value: 'erp', label: 'ERP/Gestão' },
+  { value: 'gestao', label: 'GESTÃO' },
   { value: 'taskvault', label: 'TaskVault' },
-  { value: 'ajustasped', label: 'AjustaSped' },
+  { value: 'conversores', label: 'Conversores' },
   { value: 'conferesped', label: 'ConfereSped' },
 ];
 

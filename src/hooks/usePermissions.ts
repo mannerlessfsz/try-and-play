@@ -1,10 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { 
+  AppRole, 
+  AppModule, 
+  PermissionType,
+  normalizeModuleName,
+  LEGACY_MODULE_MAP
+} from '@/constants/modules';
 
-export type AppRole = 'admin' | 'manager' | 'user';
-export type AppModule = 'taskvault' | 'financialace' | 'ajustasped' | 'conferesped' | 'erp' | 'conversores';
-export type PermissionType = 'view' | 'create' | 'edit' | 'delete' | 'export';
+// Re-export types for backward compatibility
+export type { AppRole, AppModule, PermissionType };
 
 interface UserRole {
   id: string;
@@ -16,7 +22,7 @@ interface UserPermission {
   id: string;
   user_id: string;
   empresa_id: string | null;
-  module: AppModule;
+  module: string; // Can be legacy module name
   permission: PermissionType;
   is_pro_mode: boolean;
 }
@@ -32,7 +38,7 @@ interface UserResourcePermission {
   id: string;
   user_id: string;
   empresa_id: string;
-  module: string;
+  module: string; // Can be legacy module name
   resource: string;
   can_view: boolean;
   can_create: boolean;
@@ -108,12 +114,21 @@ export const usePermissions = () => {
     return roles.some(r => r.role === role);
   };
 
+  /**
+   * Check permission considering both current and legacy module names
+   */
   const hasPermission = (module: AppModule, permission: PermissionType, empresaId?: string): boolean => {
     if (isAdmin) return true;
     
+    // Get all possible module names (current + legacy that map to this module)
+    const moduleNames: string[] = [module];
+    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
+      if (current === module) moduleNames.push(legacy);
+    });
+    
     // Check user_permissions table
     const hasDirectPermission = permissions.some(p => 
-      p.module === module && 
+      moduleNames.includes(p.module) && 
       p.permission === permission &&
       (p.empresa_id === null || p.empresa_id === empresaId)
     );
@@ -130,7 +145,7 @@ export const usePermissions = () => {
     };
     
     const hasResourcePermission = resourcePermissions.some(p => 
-      p.module === module && 
+      moduleNames.includes(p.module) && 
       p[permissionMap[permission]] === true &&
       (!empresaId || p.empresa_id === empresaId)
     );
@@ -138,21 +153,41 @@ export const usePermissions = () => {
     return hasResourcePermission;
   };
 
+  /**
+   * Check module access considering both current and legacy module names
+   */
   const hasModuleAccess = (module: AppModule): boolean => {
     if (isAdmin) return true;
     
+    // Get all possible module names (current + legacy that map to this module)
+    const moduleNames: string[] = [module];
+    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
+      if (current === module) moduleNames.push(legacy);
+    });
+    
     // Check user_permissions for view access
-    const hasDirectAccess = permissions.some(p => p.module === module && p.permission === 'view');
+    const hasDirectAccess = permissions.some(p => 
+      moduleNames.includes(p.module) && p.permission === 'view'
+    );
     if (hasDirectAccess) return true;
     
     // Check user_resource_permissions - if user has any can_view permission for this module
-    const hasResourceAccess = resourcePermissions.some(p => p.module === module && p.can_view === true);
+    const hasResourceAccess = resourcePermissions.some(p => 
+      moduleNames.includes(p.module) && p.can_view === true
+    );
     return hasResourceAccess;
   };
 
   const hasProMode = (module: AppModule): boolean => {
     if (isAdmin) return true;
-    return permissions.some(p => p.module === module && p.is_pro_mode);
+    
+    // Get all possible module names
+    const moduleNames: string[] = [module];
+    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
+      if (current === module) moduleNames.push(legacy);
+    });
+    
+    return permissions.some(p => moduleNames.includes(p.module) && p.is_pro_mode);
   };
 
   const hasEmpresaAccess = (empresaId: string): boolean => {

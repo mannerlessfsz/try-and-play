@@ -36,7 +36,7 @@ const App = () => (
               <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
               <Route path="/ajustasped" element={<Navigate to="/conversores" replace />} />
               <Route path="/conferesped" element={<ProtectedRoute module="conferesped"><ConfereSped /></ProtectedRoute>} />
-              <Route path="/gestao" element={<ProtectedRoute module="financialace"><FinancialACE /></ProtectedRoute>} />
+              <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
               <Route path="/conversores" element={<ProtectedRoute module="conversores"><Conversores /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -74,7 +74,7 @@ interface UserPermission {
   id: string;
   user_id: string;
   empresa_id: string | null;
-  module: AppModule;
+  module: string; // Usa string para compatibilidade com banco (pode ter valores legados)
   permission: PermissionType;
   is_pro_mode: boolean;
 }
@@ -108,12 +108,11 @@ interface ContaBancaria {
 // ID do usuário master - nunca pode ter suas permissões alteradas
 const MASTER_USER_ID = 'ea1c9a69-e436-4de2-953b-432e5fff60ae';
 
-const MODULES: { value: AppModule; label: string }[] = [
+const MODULES: { value: string; label: string }[] = [
   { value: 'taskvault', label: 'TaskVault' },
-  { value: 'financialace', label: 'FinancialACE' },
-  { value: 'erp', label: 'ERP/Gestão' },
-  { value: 'ajustasped', label: 'AjustaSped' },
-  { value: 'conferesped', label: 'ConfereSped' }
+  { value: 'gestao', label: 'GESTÃO' },
+  { value: 'conversores', label: 'Conversores' },
+  { value: 'conferesped', label: 'ConfereSped' },
 ];
 
 const PERMISSIONS: { value: PermissionType; label: string }[] = [
@@ -348,7 +347,7 @@ const Admin: React.FC = () => {
   // Add permission mutation
   const addPermissionMutation = useMutation({
     mutationFn: async (permission: Omit<UserPermission, 'id'>) => {
-      const { error } = await supabase.from('user_permissions').insert(permission);
+      const { error } = await supabase.from('user_permissions').insert(permission as any);
       if (error) throw error;
     },
     onSuccess: () => {
