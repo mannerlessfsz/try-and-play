@@ -575,10 +575,15 @@ export function transformarLancamentos(content: string): TransformResult {
 // -------------------------
 
 export function gerarCSV(rows: OutputRow[]): string {
-  const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Novo Lote";
-  const lines = rows.map(row => 
-    `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico};${row.loteFlag ? 'S' : 'N'}`
-  );
+  const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote";
+  let loteNumero = 0;
+  const lines = rows.map(row => {
+    if (row.loteFlag) {
+      loteNumero++;
+    }
+    const loteOutput = row.loteFlag ? String(loteNumero) : '';
+    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico};${loteOutput}`;
+  });
   return [header, ...lines].join('\n');
 }
 
