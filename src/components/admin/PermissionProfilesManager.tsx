@@ -30,10 +30,10 @@ const ROLES = [
 ];
 
 const MODULES = [
-  { value: 'financialace', label: 'FinancialACE' },
-  { value: 'erp', label: 'ERP/Gestão' },
+  { value: 'gestao', label: 'GESTÃO' },
   { value: 'taskvault', label: 'TaskVault' },
   { value: 'conversores', label: 'Conversores' },
+  { value: 'conferesped', label: 'ConfereSped' },
 ];
 
 export function PermissionProfilesManager() {

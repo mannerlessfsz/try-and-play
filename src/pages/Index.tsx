@@ -30,7 +30,7 @@ const features: FeatureConfig[] = [
     description: "Sistema integrado de gestão financeira, produtos, clientes, vendas, compras e estoque",
     variant: "blue",
     href: "/gestao",
-    module: "financialace",
+    module: "gestao",
   },
   {
     icon: <FileCheck className="w-7 h-7" />,

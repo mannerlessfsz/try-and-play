@@ -311,10 +311,13 @@ export function AdminDashboard() {
       });
       
       const moduleLabels: Record<string, string> = {
-        financialace: 'Financeiro',
-        erp: 'ERP/Gestão',
+        gestao: 'GESTÃO',
+        financialace: 'GESTÃO', // Legado
+        erp: 'GESTÃO', // Legado
         taskvault: 'TaskVault',
-        conversores: 'Conversores'
+        conversores: 'Conversores',
+        conferesped: 'ConfereSped',
+        ajustasped: 'Conversores', // Legado
       };
       
       return Object.entries(counts).map(([key, value]) => ({
