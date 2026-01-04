@@ -18,6 +18,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
+import { EmpresaContatosManager } from '@/components/admin/EmpresaContatosManager';
 import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
 import { PermissionReportExporter } from '@/components/admin/PermissionReportExporter';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
@@ -1031,6 +1032,11 @@ const Admin: React.FC = () => {
                                     </div>
                                   </div>
                                 )}
+
+                                {/* Contatos da empresa */}
+                                <div className="pt-2">
+                                  <EmpresaContatosManager empresaId={empresa.id} />
+                                </div>
 
                                 {/* Usuários vinculados com gerenciamento completo */}
                                 <div className="pt-2">

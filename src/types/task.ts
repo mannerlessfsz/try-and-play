@@ -14,6 +14,8 @@ export interface TarefaArquivo {
   dataUpload?: string;
 }
 
+export type DepartamentoTipo = "fiscal" | "contabil" | "departamento_pessoal";
+
 export interface Tarefa {
   id: string;
   titulo: string;
@@ -26,6 +28,8 @@ export interface Tarefa {
   responsavel?: string;
   criadoEm?: string;
   arquivos?: TarefaArquivo[];
+  departamento?: DepartamentoTipo;
+  contatoId?: string;
 }
 
 export interface Atividade {
