@@ -17,6 +17,7 @@ import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
 import { useTarefas } from "@/hooks/useTarefas";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
 
 const widgetGroups = [
@@ -98,6 +99,9 @@ export default function TaskVault() {
 
   // Use persistent activities hook
   const { atividades, addAtividade } = useAtividades("taskvault");
+
+  // Use tarefas modelo hook for generating tasks
+  const { gerarTarefas, isGenerating } = useTarefasModelo();
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
 
@@ -250,6 +254,21 @@ export default function TaskVault() {
 
   const handleDeleteArquivo = async (arquivoId: string, url?: string) => {
     await deleteArquivo(arquivoId, url);
+  };
+
+  const handleGerarTarefasMes = () => {
+    const now = new Date();
+    const mes = now.getMonth() + 1;
+    const ano = now.getFullYear();
+    
+    // Generate for all available companies or selected company
+    const empresasParaGerar = selectedEmpresaId === "all" 
+      ? empresasDisponiveis 
+      : empresasDisponiveis.filter(e => e.id === selectedEmpresaId);
+    
+    empresasParaGerar.forEach(empresa => {
+      gerarTarefas({ empresaId: empresa.id, mes, ano });
+    });
   };
 
   const getEmpresaNome = (id: string) => empresasDisponiveis.find(e => e.id === id)?.nome || "-";
@@ -421,6 +440,15 @@ export default function TaskVault() {
                 <List className="w-4 h-4" />
               </button>
             </div>
+            <Button 
+              onClick={handleGerarTarefasMes} 
+              variant="outline"
+              disabled={isGenerating || empresasDisponiveis.length === 0}
+              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
+              Gerar Tarefas do Mês
+            </Button>
             <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
             </Button>
