@@ -355,21 +355,48 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
     mutationFn: async () => {
       if (!editingEmpresa) throw new Error('Nenhuma empresa para editar');
       
+      const previousRegime = editingEmpresa.regime_tributario;
+      const newRegime = data.regimeTributario || null;
+      
       const { error } = await supabase
         .from('empresas')
         .update({
           nome: data.nome,
           cnpj: data.cnpj || null,
           telefone: data.telefone || null,
-          regime_tributario: data.regimeTributario || null,
+          regime_tributario: newRegime,
         })
         .eq('id', editingEmpresa.id);
 
       if (error) throw error;
+      
+      // Auto-generate tasks if regime was just set (was null/undefined, now has value)
+      if (!previousRegime && newRegime) {
+        const now = new Date();
+        const mes = now.getMonth() + 1;
+        const ano = now.getFullYear();
+        
+        const { data: count, error: genError } = await supabase.rpc('gerar_tarefas_empresa', {
+          p_empresa_id: editingEmpresa.id,
+          p_mes: mes,
+          p_ano: ano,
+        });
+        
+        if (genError) {
+          console.error('Erro ao gerar tarefas:', genError);
+        } else if (count && count > 0) {
+          toast({ 
+            title: 'Tarefas geradas automaticamente!', 
+            description: `${count} tarefa(s) criada(s) para ${data.nome}.`
+          });
+        }
+      }
+      
       return { id: editingEmpresa.id, nome: data.nome };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+      queryClient.invalidateQueries({ queryKey: ['tarefas'] });
       toast({ title: 'Empresa atualizada com sucesso!' });
       resetWizard();
       onClose();

@@ -21,7 +21,7 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
 
-type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
+type FilterType = "all" | "pendente" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
@@ -59,6 +59,7 @@ export default function TaskVault() {
     : tarefas.filter(t => t.empresaId === selectedEmpresaId);
 
   const totalTarefas = tarefasFiltradas.length;
+  const tarefasPendentes = tarefasFiltradas.filter(t => t.status === "pendente").length;
   const tarefasEmAndamento = tarefasFiltradas.filter(t => t.status === "em_andamento").length;
   const tarefasConcluidas = tarefasFiltradas.filter(t => t.status === "concluida").length;
   const tarefasUrgentes = tarefasFiltradas.filter(t => t.prioridade === "alta" && t.status !== "concluida").length;
@@ -66,6 +67,8 @@ export default function TaskVault() {
   // Filter tasks based on active filter
   const getFilteredTarefas = () => {
     switch (activeFilter) {
+      case "pendente":
+        return tarefasFiltradas.filter(t => t.status === "pendente");
       case "em_andamento":
         return tarefasFiltradas.filter(t => t.status === "em_andamento");
       case "concluida":
@@ -351,7 +354,7 @@ export default function TaskVault() {
       
       <div className="p-4 pr-72">
         {/* Dashboard Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
           <MetricCard 
             title="Total de Tarefas" 
             value={totalTarefas} 
@@ -363,9 +366,19 @@ export default function TaskVault() {
             onClick={() => handleFilterClick("all")}
           />
           <MetricCard 
+            title="Pendentes" 
+            value={tarefasPendentes} 
+            change="Aguardando" 
+            changeType="down" 
+            icon={Clock} 
+            color="orange"
+            isActive={activeFilter === "pendente"}
+            onClick={() => handleFilterClick("pendente")}
+          />
+          <MetricCard 
             title="Em Andamento" 
             value={tarefasEmAndamento} 
-            change="+3 novas" 
+            change="Em progresso" 
             changeType="up" 
             icon={Activity} 
             color="blue"
@@ -399,7 +412,7 @@ export default function TaskVault() {
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
-              {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Urgentes"}
+              {activeFilter === "pendente" ? "Pendentes" : activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Urgentes"}
             </span>
             <button 
               onClick={() => setActiveFilter("all")}
