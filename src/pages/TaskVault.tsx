@@ -17,6 +17,7 @@ import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
 import { useTarefas } from "@/hooks/useTarefas";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { supabase } from "@/integrations/supabase/client";
 
 const widgetGroups = [
   {
@@ -167,6 +168,69 @@ export default function TaskVault() {
     toast({ title: "Tarefa excluída" });
   };
 
+  const sendCompletionEmail = async (tarefa: Tarefa) => {
+    if (!tarefa.contatoId || !tarefa.arquivos || tarefa.arquivos.length === 0) {
+      return;
+    }
+
+    try {
+      // Fetch contato info
+      const { data: contato } = await supabase
+        .from('empresa_contatos')
+        .select('nome, email')
+        .eq('id', tarefa.contatoId)
+        .single();
+
+      if (!contato) {
+        console.log("Contato não encontrado para envio de e-mail");
+        return;
+      }
+
+      const empresa = empresasDisponiveis.find(e => e.id === tarefa.empresaId);
+      
+      const getDepartamentoLabel = (dep: string) => {
+        const labels: Record<string, string> = {
+          fiscal: "Fiscal",
+          contabil: "Contábil",
+          departamento_pessoal: "Depto. Pessoal"
+        };
+        return labels[dep] || dep;
+      };
+
+      const { data, error } = await supabase.functions.invoke('send-task-notification', {
+        body: {
+          contatoNome: contato.nome,
+          contatoEmail: contato.email,
+          tarefaTitulo: tarefa.titulo,
+          tarefaDescricao: tarefa.descricao,
+          empresaNome: empresa?.nome || "Empresa",
+          departamento: tarefa.departamento ? getDepartamentoLabel(tarefa.departamento) : undefined,
+          arquivos: tarefa.arquivos.map(a => ({
+            nome: a.nome,
+            url: a.url || '',
+            tipo: a.tipo
+          }))
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "E-mail enviado",
+          description: `Notificação enviada para ${contato.email} com ${tarefa.arquivos.length} documento(s)`,
+        });
+      }
+    } catch (error: any) {
+      console.error("Erro ao enviar e-mail de conclusão:", error);
+      toast({
+        title: "Aviso",
+        description: "Tarefa concluída, mas não foi possível enviar o e-mail",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUpdateTarefaStatus = async (id: string, status: Tarefa["status"]) => {
     const tarefa = tarefas.find(t => t.id === id);
     await updateTarefa(id, { 
@@ -175,6 +239,8 @@ export default function TaskVault() {
     });
     if (tarefa && status === "concluida") {
       await logAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`, id);
+      // Enviar e-mail se tiver contato e arquivos
+      await sendCompletionEmail(tarefa);
     }
   };
 
