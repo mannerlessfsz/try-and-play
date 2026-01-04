@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.parse-nfe]
 verify_jwt = false
+
+[functions.send-task-notification]
+verify_jwt = false
