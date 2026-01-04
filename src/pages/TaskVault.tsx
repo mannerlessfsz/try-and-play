@@ -10,7 +10,7 @@ import {
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
-  AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase
+  AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -213,7 +213,7 @@ export default function TaskVault() {
     await deleteArquivo(arquivoId, url);
   };
 
-  const handleGerarTarefasMes = () => {
+  const handleGerarTarefasMes = async () => {
     const now = new Date();
     const mes = now.getMonth() + 1;
     const ano = now.getFullYear();
@@ -223,9 +223,34 @@ export default function TaskVault() {
       ? empresasDisponiveis 
       : empresasDisponiveis.filter(e => e.id === selectedEmpresaId);
     
-    empresasParaGerar.forEach(empresa => {
-      gerarTarefas({ empresaId: empresa.id, mes, ano });
-    });
+    let totalGeradas = 0;
+    for (const empresa of empresasParaGerar) {
+      try {
+        const { data, error } = await supabase.rpc('gerar_tarefas_empresa', {
+          p_empresa_id: empresa.id,
+          p_mes: mes,
+          p_ano: ano
+        });
+        if (!error && data) {
+          totalGeradas += data;
+        }
+      } catch (err) {
+        console.error(`Erro ao gerar tarefas para ${empresa.nome}:`, err);
+      }
+    }
+    
+    if (totalGeradas > 0) {
+      toast({ 
+        title: "Tarefas geradas", 
+        description: `${totalGeradas} nova(s) tarefa(s) criada(s)` 
+      });
+      refetchTarefas();
+    } else {
+      toast({ 
+        title: "Nenhuma tarefa nova", 
+        description: "Todas as tarefas do mês já existem" 
+      });
+    }
   };
 
   const getEmpresaNome = (id: string) => empresasDisponiveis.find(e => e.id === id)?.nome || "-";
@@ -247,6 +272,7 @@ export default function TaskVault() {
       items: [
         { id: "new-task", label: "Nova Tarefa", icon: <Plus className="w-5 h-5" />, badge: "+", onClick: () => setShowModal(true) },
         { id: "generate", label: "Gerar Mês", icon: <Calendar className="w-5 h-5" />, onClick: handleGerarTarefasMes },
+        { id: "sync", label: "Sincronizar", icon: <RefreshCw className="w-5 h-5" />, onClick: () => refetchTarefas() },
       ],
     },
     {
