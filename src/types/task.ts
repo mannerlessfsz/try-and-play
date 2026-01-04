@@ -35,6 +35,8 @@ export interface Atividade {
   data?: string;
   timestamp?: string;
   usuario?: string;
+  modulo?: string;
+  empresaId?: string;
 }
 
 export const prioridadeColors = {

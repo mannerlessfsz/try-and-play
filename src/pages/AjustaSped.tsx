@@ -10,7 +10,7 @@ import {
   XCircle, CheckSquare, FileWarning, Plus, Edit, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Atividade } from "@/types/task";
+import { useAtividades } from "@/hooks/useAtividades";
 
 interface ArquivoSped {
   id: string;
@@ -94,12 +94,8 @@ export default function AjustaSped() {
     { id: "5", nome: "EFD_ICMS_112024.txt", tipo: "EFD_ICMS", competencia: "11/2024", status: "ajustado", erros: 0, ajustes: 18, dataUpload: "2024-12-15" },
   ]);
 
-  const [atividades] = useState<Atividade[]>([
-    { id: "1", tipo: "criacao", descricao: "Arquivo importado: EFD_ICMS_122024.txt", timestamp: "Há 1 hora", usuario: "Sistema" },
-    { id: "2", tipo: "conclusao", descricao: "Ajuste concluído: ECF_2024.txt", timestamp: "Há 3 horas", usuario: "Ana" },
-    { id: "3", tipo: "edicao", descricao: "Processando: EFD_CONTRIB_122024.txt", timestamp: "Há 5 horas", usuario: "Sistema" },
-    { id: "4", tipo: "comentario", descricao: "Erro detectado: ECD_2024.txt", timestamp: "Há 1 dia", usuario: "Carlos" },
-  ]);
+  // Use persistent activities hook
+  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("ajustasped");
 
   // Calculations
   const totalArquivos = arquivos.length;

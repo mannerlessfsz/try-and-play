@@ -67,24 +67,33 @@ export type Database = {
           descricao: string
           empresa_id: string | null
           id: string
+          metadados: Json | null
+          modulo: string | null
           tarefa_id: string | null
           tipo: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
           descricao: string
           empresa_id?: string | null
           id?: string
+          metadados?: Json | null
+          modulo?: string | null
           tarefa_id?: string | null
           tipo: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
           descricao?: string
           empresa_id?: string | null
           id?: string
+          metadados?: Json | null
+          modulo?: string | null
           tarefa_id?: string | null
           tipo?: string
+          user_id?: string | null
         }
         Relationships: [
           {

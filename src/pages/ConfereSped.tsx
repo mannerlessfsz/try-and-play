@@ -10,7 +10,7 @@ import {
   List, LayoutGrid, FileSearch, Plus, Edit, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Atividade } from "@/types/task";
+import { useAtividades } from "@/hooks/useAtividades";
 
 interface Conferencia {
   id: string;
@@ -92,12 +92,8 @@ export default function ConfereSped() {
     { id: "5", arquivo: "EFD_CONTRIB_112024.txt", tipo: "PIS_COFINS", competencia: "11/2024", status: "divergente", divergencias: 5, totalRegistros: 780, dataConferencia: "2024-12-16" },
   ]);
 
-  const [atividades] = useState<Atividade[]>([
-    { id: "1", tipo: "criacao", descricao: "Nova conferência: ICMS x NF-e", timestamp: "Há 1 hora", usuario: "Sistema" },
-    { id: "2", tipo: "conclusao", descricao: "Conferência OK: Bloco H 11/2024", timestamp: "Há 3 horas", usuario: "Ana" },
-    { id: "3", tipo: "comentario", descricao: "Divergência encontrada: PIS/COFINS", timestamp: "Há 5 horas", usuario: "Carlos" },
-    { id: "4", tipo: "edicao", descricao: "Relatório gerado: Resumo mensal", timestamp: "Há 1 dia", usuario: "Maria" },
-  ]);
+  // Use persistent activities hook
+  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("conferesped");
 
   // Calculations
   const totalConferencias = conferencias.length;
