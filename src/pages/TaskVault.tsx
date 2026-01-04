@@ -5,13 +5,15 @@ import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
+import { TarefasModeloManager } from "@/components/admin/TarefasModeloManager";
 import { 
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
-  AlertTriangle, Activity, List, Columns, Loader2
+  AlertTriangle, Activity, List, Columns, Loader2, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/hooks/use-toast";
 import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
@@ -82,6 +84,7 @@ export default function TaskVault() {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<"tarefas" | "modelos">("tarefas");
   
   // Use empresas from system
   const { empresasDisponiveis, loading: empresasLoading } = useEmpresaAtiva();
@@ -346,52 +349,54 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Dashboard Metrics - Now clickable filters */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <MetricCard 
-            title="Total de Tarefas" 
-            value={totalTarefas} 
-            change="+12% este mês" 
-            changeType="up" 
-            icon={ListTodo} 
-            color="red"
-            isActive={activeFilter === "all"}
-            onClick={() => handleFilterClick("all")}
-          />
-          <MetricCard 
-            title="Em Andamento" 
-            value={tarefasEmAndamento} 
-            change="+3 novas" 
-            changeType="up" 
-            icon={Activity} 
-            color="blue"
-            isActive={activeFilter === "em_andamento"}
-            onClick={() => handleFilterClick("em_andamento")}
-          />
-          <MetricCard 
-            title="Concluídas" 
-            value={tarefasConcluidas} 
-            change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
-            changeType="up" 
-            icon={CheckSquare} 
-            color="green"
-            isActive={activeFilter === "concluida"}
-            onClick={() => handleFilterClick("concluida")}
-          />
-          <MetricCard 
-            title="Urgentes" 
-            value={tarefasUrgentes} 
-            change="Atenção!" 
-            changeType="down" 
-            icon={AlertTriangle} 
-            color="yellow"
-            isActive={activeFilter === "urgente"}
-            onClick={() => handleFilterClick("urgente")}
-          />
-        </div>
+        {/* Dashboard Metrics - Only show on Tarefas tab */}
+        {activeTab === "tarefas" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+            <MetricCard 
+              title="Total de Tarefas" 
+              value={totalTarefas} 
+              change="+12% este mês" 
+              changeType="up" 
+              icon={ListTodo} 
+              color="red"
+              isActive={activeFilter === "all"}
+              onClick={() => handleFilterClick("all")}
+            />
+            <MetricCard 
+              title="Em Andamento" 
+              value={tarefasEmAndamento} 
+              change="+3 novas" 
+              changeType="up" 
+              icon={Activity} 
+              color="blue"
+              isActive={activeFilter === "em_andamento"}
+              onClick={() => handleFilterClick("em_andamento")}
+            />
+            <MetricCard 
+              title="Concluídas" 
+              value={tarefasConcluidas} 
+              change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
+              changeType="up" 
+              icon={CheckSquare} 
+              color="green"
+              isActive={activeFilter === "concluida"}
+              onClick={() => handleFilterClick("concluida")}
+            />
+            <MetricCard 
+              title="Urgentes" 
+              value={tarefasUrgentes} 
+              change="Atenção!" 
+              changeType="down" 
+              icon={AlertTriangle} 
+              color="yellow"
+              isActive={activeFilter === "urgente"}
+              onClick={() => handleFilterClick("urgente")}
+            />
+          </div>
+        )}
 
-        {/* Filter indicator */}
-        {activeFilter !== "all" && (
+        {/* Filter indicator - Only show on Tarefas tab */}
+        {activeTab === "tarefas" && activeFilter !== "all" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
@@ -406,8 +411,8 @@ export default function TaskVault() {
           </div>
         )}
 
-        {/* Selected empresa indicator */}
-        {selectedEmpresaId !== "all" && (
+        {/* Selected empresa indicator - Only show on Tarefas tab */}
+        {activeTab === "tarefas" && selectedEmpresaId !== "all" && (
           <div className="mb-4 flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Empresa:</span>
@@ -423,40 +428,59 @@ export default function TaskVault() {
           </div>
         )}
 
-        {/* Tabs & View Toggle */}
+        {/* Main Tabs */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-2">
-            <div className="px-4 py-2 rounded-lg font-medium bg-red-500 text-white shadow-lg shadow-red-500/30">
+            <button 
+              onClick={() => setActiveTab("tarefas")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                activeTab === "tarefas" 
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30" 
+                  : "bg-card/50 text-muted-foreground hover:text-foreground border border-foreground/10"
+              }`}
+            >
               <ListTodo className="w-4 h-4 inline mr-2" />Tarefas ({filteredTarefas.length})
-            </div>
+            </button>
+            <button 
+              onClick={() => setActiveTab("modelos")}
+              className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                activeTab === "modelos" 
+                  ? "bg-red-500 text-white shadow-lg shadow-red-500/30" 
+                  : "bg-card/50 text-muted-foreground hover:text-foreground border border-foreground/10"
+              }`}
+            >
+              <FileText className="w-4 h-4 inline mr-2" />Modelos
+            </button>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-              <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <Columns className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <List className="w-4 h-4" />
-              </button>
+          {activeTab === "tarefas" && (
+            <div className="flex items-center gap-2">
+              <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
+                <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                  <Columns className="w-4 h-4" />
+                </button>
+                <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                  <List className="w-4 h-4" />
+                </button>
+              </div>
+              <Button 
+                onClick={handleGerarTarefasMes} 
+                variant="outline"
+                disabled={isGenerating || empresasDisponiveis.length === 0}
+                className="border-red-500/50 text-red-500 hover:bg-red-500/10"
+              >
+                {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
+                Gerar Tarefas do Mês
+              </Button>
+              <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
+                <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
+              </Button>
             </div>
-            <Button 
-              onClick={handleGerarTarefasMes} 
-              variant="outline"
-              disabled={isGenerating || empresasDisponiveis.length === 0}
-              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-            >
-              {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
-              Gerar Tarefas do Mês
-            </Button>
-            <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
-              <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
-            </Button>
-          </div>
+          )}
         </div>
 
-        {/* Content - Dynamic Kanban based on filter */}
-        {viewMode === "kanban" ? (
+        {/* Content based on active tab */}
+        {activeTab === "tarefas" && viewMode === "kanban" ? (
           <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
             {activeFilter === "all" ? (
               // Show all 3 columns when "all" filter is active
@@ -518,7 +542,7 @@ export default function TaskVault() {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === "tarefas" && viewMode === "lista" ? (
           <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
             <table className="w-full">
               <thead className="bg-red-950/50 border-b border-red-500/20">
@@ -558,6 +582,11 @@ export default function TaskVault() {
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : (
+          // Modelos Tab
+          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/10 p-6">
+            <TarefasModeloManager />
           </div>
         )}
       </div>

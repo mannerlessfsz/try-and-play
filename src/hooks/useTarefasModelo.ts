@@ -6,6 +6,8 @@ import { Database } from '@/integrations/supabase/types';
 type DepartamentoTipo = Database['public']['Enums']['departamento_tipo'];
 type RegimeTributario = Database['public']['Enums']['regime_tributario'];
 
+export type PeriodicidadeTipo = 'mensal' | 'trimestral' | 'semestral' | 'anual';
+
 export interface TarefaModelo {
   id: string;
   titulo: string;
@@ -17,6 +19,7 @@ export interface TarefaModelo {
   requer_anexo: boolean | null;
   justificativa: string | null;
   ativo: boolean | null;
+  periodicidade: PeriodicidadeTipo;
   created_at: string;
   updated_at: string;
   regimes?: RegimeTributario[];
@@ -31,6 +34,7 @@ export interface TarefaModeloFormData {
   prazo_dias?: number;
   requer_anexo?: boolean;
   justificativa?: string;
+  periodicidade: PeriodicidadeTipo;
   regimes: RegimeTributario[];
 }
 
@@ -83,6 +87,7 @@ export function useTarefasModelo() {
           prazo_dias: formData.prazo_dias || null,
           requer_anexo: formData.requer_anexo || false,
           justificativa: formData.justificativa || null,
+          periodicidade: formData.periodicidade,
         })
         .select()
         .single();
@@ -133,6 +138,7 @@ export function useTarefasModelo() {
           prazo_dias: formData.prazo_dias || null,
           requer_anexo: formData.requer_anexo || false,
           justificativa: formData.justificativa || null,
+          periodicidade: formData.periodicidade,
         })
         .eq('id', id);
 
@@ -268,4 +274,11 @@ export const DEPARTAMENTOS: { value: DepartamentoTipo; label: string }[] = [
   { value: 'fiscal', label: 'Fiscal' },
   { value: 'contabil', label: 'Contábil' },
   { value: 'departamento_pessoal', label: 'Departamento Pessoal' },
+];
+
+export const PERIODICIDADES: { value: PeriodicidadeTipo; label: string }[] = [
+  { value: 'mensal', label: 'Mensal' },
+  { value: 'trimestral', label: 'Trimestral' },
+  { value: 'semestral', label: 'Semestral' },
+  { value: 'anual', label: 'Anual' },
 ];

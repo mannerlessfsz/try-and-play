@@ -19,7 +19,9 @@ import {
   TarefaModelo, 
   TarefaModeloFormData,
   REGIMES_TRIBUTARIOS,
-  DEPARTAMENTOS 
+  DEPARTAMENTOS,
+  PERIODICIDADES,
+  PeriodicidadeTipo
 } from '@/hooks/useTarefasModelo';
 import { Database } from '@/integrations/supabase/types';
 
@@ -65,6 +67,7 @@ export function TarefasModeloManager() {
     prazo_dias: undefined,
     requer_anexo: false,
     justificativa: '',
+    periodicidade: 'mensal',
     regimes: [],
   });
 
@@ -78,6 +81,7 @@ export function TarefasModeloManager() {
       prazo_dias: undefined,
       requer_anexo: false,
       justificativa: '',
+      periodicidade: 'mensal',
       regimes: [],
     });
     setEditingModelo(null);
@@ -95,6 +99,7 @@ export function TarefasModeloManager() {
         prazo_dias: modelo.prazo_dias || undefined,
         requer_anexo: modelo.requer_anexo || false,
         justificativa: modelo.justificativa || '',
+        periodicidade: modelo.periodicidade || 'mensal',
         regimes: modelo.regimes || [],
       });
     } else {
@@ -206,6 +211,7 @@ export function TarefasModeloManager() {
                   <TableRow>
                     <TableHead>Título</TableHead>
                     <TableHead>Prioridade</TableHead>
+                    <TableHead>Periodicidade</TableHead>
                     <TableHead>Vencimento</TableHead>
                     <TableHead>Prazo</TableHead>
                     <TableHead>Regimes</TableHead>
@@ -233,6 +239,11 @@ export function TarefasModeloManager() {
                         </TableCell>
                         <TableCell>
                           <Badge className={prioridade?.color}>{prioridade?.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">
+                            {PERIODICIDADES.find(p => p.value === modelo.periodicidade)?.label || 'Mensal'}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           {modelo.dia_vencimento ? (
@@ -385,6 +396,23 @@ export function TarefasModeloManager() {
                   <SelectContent>
                     {PRIORIDADES.map(prio => (
                       <SelectItem key={prio.value} value={prio.value}>{prio.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Periodicidade *</Label>
+                <Select
+                  value={formData.periodicidade}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, periodicidade: value as PeriodicidadeTipo }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PERIODICIDADES.map(per => (
+                      <SelectItem key={per.value} value={per.value}>{per.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -1770,6 +1770,7 @@ export type Database = {
           dia_vencimento: number | null
           id: string
           justificativa: string | null
+          periodicidade: string
           prazo_dias: number | null
           prioridade: string
           requer_anexo: boolean | null
@@ -1784,6 +1785,7 @@ export type Database = {
           dia_vencimento?: number | null
           id?: string
           justificativa?: string | null
+          periodicidade?: string
           prazo_dias?: number | null
           prioridade?: string
           requer_anexo?: boolean | null
@@ -1798,6 +1800,7 @@ export type Database = {
           dia_vencimento?: number | null
           id?: string
           justificativa?: string | null
+          periodicidade?: string
           prazo_dias?: number | null
           prioridade?: string
           requer_anexo?: boolean | null
