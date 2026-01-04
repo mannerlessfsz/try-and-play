@@ -2266,6 +2266,7 @@ export type Database = {
         | "conferesped"
         | "erp"
         | "conversores"
+        | "gestao"
       app_role: "admin" | "manager" | "user"
       permission_type: "view" | "create" | "edit" | "delete" | "export"
       status_pedido:
@@ -2411,6 +2412,7 @@ export const Constants = {
         "conferesped",
         "erp",
         "conversores",
+        "gestao",
       ],
       app_role: ["admin", "manager", "user"],
       permission_type: ["view", "create", "edit", "delete", "export"],
