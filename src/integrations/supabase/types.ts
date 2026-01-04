@@ -792,6 +792,9 @@ export type Database = {
           id: string
           manager_id: string | null
           nome: string
+          regime_tributario:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
           telefone: string | null
           updated_at: string
         }
@@ -802,6 +805,9 @@ export type Database = {
           id?: string
           manager_id?: string | null
           nome: string
+          regime_tributario?:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
           telefone?: string | null
           updated_at?: string
         }
@@ -812,6 +818,9 @@ export type Database = {
           id?: string
           manager_id?: string | null
           nome?: string
+          regime_tributario?:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
           telefone?: string | null
           updated_at?: string
         }
@@ -1645,6 +1654,35 @@ export type Database = {
           },
         ]
       }
+      tarefa_modelo_regimes: {
+        Row: {
+          created_at: string
+          id: string
+          regime_tributario: Database["public"]["Enums"]["regime_tributario"]
+          tarefa_modelo_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          regime_tributario: Database["public"]["Enums"]["regime_tributario"]
+          tarefa_modelo_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          regime_tributario?: Database["public"]["Enums"]["regime_tributario"]
+          tarefa_modelo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_modelo_regimes_tarefa_modelo_id_fkey"
+            columns: ["tarefa_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas_modelo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarefas: {
         Row: {
           contato_id: string | null
@@ -1722,6 +1760,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tarefas_modelo: {
+        Row: {
+          ativo: boolean | null
+          created_at: string
+          departamento: Database["public"]["Enums"]["departamento_tipo"]
+          descricao: string | null
+          dia_vencimento: number | null
+          id: string
+          justificativa: string | null
+          prazo_dias: number | null
+          prioridade: string
+          requer_anexo: boolean | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string
+          departamento: Database["public"]["Enums"]["departamento_tipo"]
+          descricao?: string | null
+          dia_vencimento?: number | null
+          id?: string
+          justificativa?: string | null
+          prazo_dias?: number | null
+          prioridade?: string
+          requer_anexo?: boolean | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string
+          departamento?: Database["public"]["Enums"]["departamento_tipo"]
+          descricao?: string | null
+          dia_vencimento?: number | null
+          id?: string
+          justificativa?: string | null
+          prazo_dias?: number | null
+          prioridade?: string
+          requer_anexo?: boolean | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       transacao_anexos: {
         Row: {
@@ -2316,6 +2399,10 @@ export type Database = {
         }
         Returns: string
       }
+      gerar_tarefas_empresa: {
+        Args: { p_ano: number; p_empresa_id: string; p_mes: number }
+        Returns: number
+      }
       get_empresas_safe: {
         Args: never
         Returns: {
@@ -2386,6 +2473,12 @@ export type Database = {
       app_role: "admin" | "manager" | "user"
       departamento_tipo: "fiscal" | "contabil" | "departamento_pessoal"
       permission_type: "view" | "create" | "edit" | "delete" | "export"
+      regime_tributario:
+        | "nano_empreendedor"
+        | "mei"
+        | "simples_nacional"
+        | "lucro_presumido"
+        | "lucro_real"
       status_pedido:
         | "rascunho"
         | "pendente"
@@ -2534,6 +2627,13 @@ export const Constants = {
       app_role: ["admin", "manager", "user"],
       departamento_tipo: ["fiscal", "contabil", "departamento_pessoal"],
       permission_type: ["view", "create", "edit", "delete", "export"],
+      regime_tributario: [
+        "nano_empreendedor",
+        "mei",
+        "simples_nacional",
+        "lucro_presumido",
+        "lucro_real",
+      ],
       status_pedido: [
         "rascunho",
         "pendente",
