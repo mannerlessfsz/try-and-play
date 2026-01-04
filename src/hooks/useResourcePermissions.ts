@@ -73,6 +73,16 @@ export const MODULE_RESOURCES: Record<string, { value: string; label: string; de
     { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
     { value: 'divergencias', label: 'Divergências', description: 'Análise de divergências' },
   ],
+  conversores: [
+    { value: 'fiscal', label: 'Arquivos Fiscais', description: 'XML de NF-e, SPED, CT-e' },
+    { value: 'extrato', label: 'Extratos Bancários', description: 'OFX, PDF para CSV/Excel' },
+    { value: 'documentos', label: 'Documentos Gerais', description: 'PDF, texto, planilhas' },
+    { value: 'contabil', label: 'Dados Contábeis', description: 'Balancete, DRE, plano de contas' },
+    { value: 'ajustasped', label: 'Ajusta SPED', description: 'Correção de arquivos SPED' },
+    { value: 'lancaapae', label: 'Lança APAE', description: 'Importação de arquivos APAE' },
+    { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
+    { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
+  ],
 };
 
 export const PERMISSION_ACTIONS = [
