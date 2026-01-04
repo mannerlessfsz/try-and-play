@@ -19,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
 import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
+import { PermissionReportExporter } from '@/components/admin/PermissionReportExporter';
+import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { usePermissionProfiles } from '@/hooks/usePermissionProfiles';
 import { 
   ArrowLeft, 
@@ -38,7 +40,9 @@ import {
   ChevronUp,
   Crown,
   UserCog,
-  Layers
+  Layers,
+  LayoutDashboard,
+  FileDown
 } from 'lucide-react';
 
 interface Profile {
@@ -572,8 +576,11 @@ const Admin: React.FC = () => {
 
       {/* Content */}
       <main className="container mx-auto px-4 py-6">
-        <Tabs defaultValue="empresas" className="space-y-6">
-          <TabsList className="bg-muted/50">
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="bg-muted/50 flex-wrap h-auto gap-1 p-1">
+            <TabsTrigger value="dashboard" className="gap-2">
+              <LayoutDashboard className="w-4 h-4" /> Dashboard
+            </TabsTrigger>
             <TabsTrigger value="users" className="gap-2">
               <Users className="w-4 h-4" /> Usuários
             </TabsTrigger>
@@ -586,7 +593,15 @@ const Admin: React.FC = () => {
             <TabsTrigger value="permissions" className="gap-2">
               <Shield className="w-4 h-4" /> Permissões
             </TabsTrigger>
+            <TabsTrigger value="reports" className="gap-2">
+              <FileDown className="w-4 h-4" /> Relatórios
+            </TabsTrigger>
           </TabsList>
+
+          {/* Dashboard Tab */}
+          <TabsContent value="dashboard">
+            <AdminDashboard />
+          </TabsContent>
 
           {/* Users Tab */}
           <TabsContent value="users">
@@ -1190,6 +1205,11 @@ const Admin: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Reports Tab */}
+          <TabsContent value="reports">
+            <PermissionReportExporter />
           </TabsContent>
         </Tabs>
       </main>
