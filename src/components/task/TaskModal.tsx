@@ -1,8 +1,9 @@
-import { X, Save } from "lucide-react";
+import { X, Save, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,6 +14,8 @@ import {
 import { Tarefa, Empresa, DepartamentoTipo } from "@/types/task";
 import { useEmpresaContatos, EmpresaContato } from "@/hooks/useEmpresaContatos";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface TaskModalProps {
   novaTarefa: Partial<Tarefa>;
@@ -30,11 +33,17 @@ const DEPARTAMENTOS: { id: DepartamentoTipo; label: string }[] = [
 
 export function TaskModal({ novaTarefa, setNovaTarefa, empresas, onSave, onClose }: TaskModalProps) {
   const { contatos, loading: contatosLoading } = useEmpresaContatos(novaTarefa.empresaId);
+  const [notificarContato, setNotificarContato] = useState(false);
+  const [enviandoEmail, setEnviandoEmail] = useState(false);
+  const { toast } = useToast();
   
   // Filter contatos by selected departamento
   const contatosFiltrados = novaTarefa.departamento 
     ? contatos.filter(c => c.departamentos.includes(novaTarefa.departamento!))
     : contatos;
+
+  // Get selected contato
+  const contatoSelecionado = contatos.find(c => c.id === novaTarefa.contatoId);
 
   // Reset contato when empresa or departamento changes
   useEffect(() => {
@@ -42,9 +51,75 @@ export function TaskModal({ novaTarefa, setNovaTarefa, empresas, onSave, onClose
       const contatoExists = contatosFiltrados.find(c => c.id === novaTarefa.contatoId);
       if (!contatoExists) {
         setNovaTarefa(prev => ({ ...prev, contatoId: undefined }));
+        setNotificarContato(false);
       }
     }
   }, [novaTarefa.empresaId, novaTarefa.departamento, contatosFiltrados]);
+
+  // Reset notification when contato changes
+  useEffect(() => {
+    if (!novaTarefa.contatoId) {
+      setNotificarContato(false);
+    }
+  }, [novaTarefa.contatoId]);
+
+  const getDepartamentoLabel = (dep: string) => {
+    const labels: Record<string, string> = {
+      fiscal: "Fiscal",
+      contabil: "Contábil",
+      departamento_pessoal: "Depto. Pessoal"
+    };
+    return labels[dep] || dep;
+  };
+
+  const sendNotification = async () => {
+    if (!contatoSelecionado || !novaTarefa.titulo) return;
+
+    const empresaSelecionada = empresas.find(e => e.id === novaTarefa.empresaId);
+
+    setEnviandoEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-task-notification', {
+        body: {
+          contatoNome: contatoSelecionado.nome,
+          contatoEmail: contatoSelecionado.email,
+          tarefaTitulo: novaTarefa.titulo,
+          tarefaDescricao: novaTarefa.descricao,
+          empresaNome: empresaSelecionada?.nome || "Empresa",
+          departamento: novaTarefa.departamento ? getDepartamentoLabel(novaTarefa.departamento) : undefined,
+          prioridade: novaTarefa.prioridade || "media",
+          dataVencimento: novaTarefa.dataVencimento,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: "Notificação enviada",
+          description: `E-mail enviado para ${contatoSelecionado.email}`,
+        });
+      } else {
+        throw new Error(data?.error || "Erro ao enviar e-mail");
+      }
+    } catch (error: any) {
+      console.error("Error sending notification:", error);
+      toast({
+        title: "Erro ao enviar notificação",
+        description: error.message || "Não foi possível enviar o e-mail",
+        variant: "destructive",
+      });
+    } finally {
+      setEnviandoEmail(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (notificarContato && contatoSelecionado) {
+      await sendNotification();
+    }
+    onSave();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -162,9 +237,41 @@ export function TaskModal({ novaTarefa, setNovaTarefa, empresas, onSave, onClose
               />
             </div>
           </div>
+
+          {/* Email notification option */}
+          {contatoSelecionado && (
+            <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <Checkbox 
+                id="notificar-contato"
+                checked={notificarContato}
+                onCheckedChange={(checked) => setNotificarContato(checked === true)}
+              />
+              <label 
+                htmlFor="notificar-contato" 
+                className="flex items-center gap-2 text-sm text-foreground/80 cursor-pointer flex-1"
+              >
+                <Mail className="w-4 h-4 text-blue-400" />
+                <span>
+                  Notificar <strong>{contatoSelecionado.nome}</strong> por e-mail
+                </span>
+              </label>
+            </div>
+          )}
           
-          <Button onClick={onSave} className="w-full bg-red-500 hover:bg-red-600 text-white">
-            <Save className="w-4 h-4 mr-2" /> Salvar Tarefa
+          <Button 
+            onClick={handleSave} 
+            disabled={enviandoEmail}
+            className="w-full bg-red-500 hover:bg-red-600 text-white"
+          >
+            {enviandoEmail ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Enviando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" /> Salvar Tarefa
+              </>
+            )}
           </Button>
         </div>
       </div>
