@@ -12,9 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
+import { REGIMES_TRIBUTARIOS } from "@/hooks/useTarefasModelo";
 
 type AppModule = Database['public']['Enums']['app_module'];
 type PermissionType = Database['public']['Enums']['permission_type'];
+type RegimeTributario = Database['public']['Enums']['regime_tributario'];
 
 interface ModuloConfig {
   modulo: AppModule;
@@ -32,6 +34,7 @@ interface WizardData {
   nome: string;
   cnpj: string;
   telefone: string;
+  regimeTributario: RegimeTributario | '';
   // Step 2: Gerente
   gerenteTipo: 'novo' | 'existente';
   gerenteNome: string;
@@ -63,6 +66,7 @@ const step1Schema = z.object({
   nome: z.string().min(3, 'Razão social deve ter pelo menos 3 caracteres'),
   cnpj: z.string().optional(),
   telefone: z.string().optional(),
+  regimeTributario: z.string().min(1, 'Selecione o regime tributário'),
 });
 
 const step2SchemaNew = z.object({
@@ -79,7 +83,7 @@ interface EmpresaWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
-  editingEmpresa?: { id: string; nome: string; cnpj?: string; email?: string } | null;
+  editingEmpresa?: { id: string; nome: string; cnpj?: string; email?: string; telefone?: string; regime_tributario?: RegimeTributario | null } | null;
 }
 
 export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: EmpresaWizardProps) {
@@ -93,6 +97,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
     nome: '',
     cnpj: '',
     telefone: '',
+    regimeTributario: '',
     gerenteTipo: 'novo',
     gerenteNome: '',
     gerenteEmail: '',
@@ -133,7 +138,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         ...prev,
         nome: editingEmpresa.nome,
         cnpj: editingEmpresa.cnpj || '',
-        telefone: '',
+        telefone: editingEmpresa.telefone || '',
+        regimeTributario: editingEmpresa.regime_tributario || '',
       }));
     }
   }, [editingEmpresa]);
@@ -180,6 +186,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       nome: '',
       cnpj: '',
       telefone: '',
+      regimeTributario: '',
       gerenteTipo: 'novo',
       gerenteNome: '',
       gerenteEmail: '',
@@ -264,6 +271,15 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
         if (empresaError) throw new Error(`Erro ao criar empresa: ${empresaError.message}`);
         if (!empresaId) throw new Error('Erro ao obter ID da empresa criada');
 
+        // Update regime tributario (can't pass to RPC, update separately)
+        if (data.regimeTributario) {
+          const { error: regimeError } = await supabase
+            .from('empresas')
+            .update({ regime_tributario: data.regimeTributario })
+            .eq('id', empresaId);
+          if (regimeError) console.error('Erro ao atualizar regime:', regimeError);
+        }
+
         // Link manager to empresa using SECURITY DEFINER function
         const { error: userEmpresaError } = await supabase.rpc('link_user_to_empresa', {
           _user_id: managerId,
@@ -345,6 +361,7 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
           nome: data.nome,
           cnpj: data.cnpj || null,
           telefone: data.telefone || null,
+          regime_tributario: data.regimeTributario || null,
         })
         .eq('id', editingEmpresa.id);
 
@@ -587,6 +604,24 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
                     onChange={(e) => setData(prev => ({ ...prev, telefone: e.target.value }))}
                     placeholder="(00) 00000-0000"
                   />
+                </div>
+
+                <div>
+                  <Label>Regime Tributário *</Label>
+                  <Select
+                    value={data.regimeTributario}
+                    onValueChange={(value) => setData(prev => ({ ...prev, regimeTributario: value as RegimeTributario }))}
+                  >
+                    <SelectTrigger className={errors.regimeTributario ? 'border-destructive' : ''}>
+                      <SelectValue placeholder="Selecione o regime tributário" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {REGIMES_TRIBUTARIOS.map(regime => (
+                        <SelectItem key={regime.value} value={regime.value}>{regime.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.regimeTributario && <p className="text-sm text-destructive mt-1">{errors.regimeTributario}</p>}
                 </div>
               </div>
             </div>
