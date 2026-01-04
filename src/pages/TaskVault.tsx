@@ -5,17 +5,18 @@ import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
-import { EmpresaModal } from "@/components/task/EmpresaModal";
 import { 
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
-  AlertTriangle, Activity, List, Columns
+  AlertTriangle, Activity, List, Columns, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Tarefa, Empresa, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
+import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
+import { useTarefas } from "@/hooks/useTarefas";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 
 const widgetGroups = [
   {
@@ -24,7 +25,6 @@ const widgetGroups = [
     icon: <Zap className="w-5 h-5" />,
     items: [
       { id: "new-task", label: "Nova Tarefa", icon: <Plus className="w-5 h-5" />, badge: "+" },
-      { id: "new-empresa", label: "Nova Empresa", icon: <Building2 className="w-5 h-5" /> },
       { id: "edit", label: "Editar", icon: <Edit className="w-5 h-5" /> },
       { id: "delete", label: "Excluir", icon: <Trash2 className="w-5 h-5" /> },
     ],
@@ -76,48 +76,51 @@ const widgetGroups = [
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
-  const [activeTab, setActiveTab] = useState<"tarefas" | "empresas">("tarefas");
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
-  const [showModal, setShowModal] = useState<"tarefa" | "empresa" | null>(null);
+  const [showModal, setShowModal] = useState<boolean>(false);
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>("all");
   
-  const [empresas, setEmpresas] = useState<Empresa[]>([
-    { id: "1", nome: "Empresa Alpha", cnpj: "12.345.678/0001-90", email: "contato@alpha.com" },
-    { id: "2", nome: "Empresa Beta", cnpj: "98.765.432/0001-10", email: "contato@beta.com" },
-    { id: "3", nome: "Empresa Gamma", cnpj: "11.222.333/0001-44", email: "contato@gamma.com" },
-  ]);
+  // Use empresas from system
+  const { empresasDisponiveis, loading: empresasLoading } = useEmpresaAtiva();
   
-  const [tarefas, setTarefas] = useState<Tarefa[]>([
-    { id: "1", titulo: "Conferir SPED Fiscal", descricao: "Verificar registros do mês de dezembro", empresaId: "1", prioridade: "alta", status: "pendente", dataVencimento: "2024-12-20", progresso: 0, criadoEm: "2024-12-15" },
-    { id: "2", titulo: "Ajustar EFD Contribuições", descricao: "Corrigir PIS/COFINS", empresaId: "2", prioridade: "media", status: "em_andamento", dataVencimento: "2024-12-25", progresso: 65, criadoEm: "2024-12-14" },
-    { id: "3", titulo: "Enviar declaração DCTF", descricao: "Declaração mensal de tributos", empresaId: "1", prioridade: "alta", status: "pendente", dataVencimento: "2024-12-22", progresso: 20, criadoEm: "2024-12-16" },
-    { id: "4", titulo: "Revisar Bloco K", descricao: "Conferência de estoque", empresaId: "3", prioridade: "baixa", status: "em_andamento", dataVencimento: "2024-12-28", progresso: 45, criadoEm: "2024-12-10" },
-    { id: "5", titulo: "Importar NF-e", descricao: "Importar notas do período", empresaId: "2", prioridade: "media", status: "concluida", dataVencimento: "2024-12-18", progresso: 100, criadoEm: "2024-12-12" },
-    { id: "6", titulo: "Calcular ICMS ST", descricao: "Cálculo substituição tributária", empresaId: "3", prioridade: "alta", status: "pendente", dataVencimento: "2024-12-21", progresso: 10, criadoEm: "2024-12-17" },
-  ]);
+  // Use persistent tarefas hook
+  const { 
+    tarefas, 
+    loading: tarefasLoading, 
+    addTarefa, 
+    updateTarefa, 
+    deleteTarefa: deleteTarefaDB,
+    uploadArquivo,
+    deleteArquivo
+  } = useTarefas();
 
   // Use persistent activities hook
-  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("taskvault");
+  const { atividades, addAtividade } = useAtividades("taskvault");
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
-  const [novaEmpresa, setNovaEmpresa] = useState<Partial<Empresa>>({});
 
-  const totalTarefas = tarefas.length;
-  const tarefasEmAndamento = tarefas.filter(t => t.status === "em_andamento").length;
-  const tarefasConcluidas = tarefas.filter(t => t.status === "concluida").length;
-  const tarefasUrgentes = tarefas.filter(t => t.prioridade === "alta" && t.status !== "concluida").length;
+  // Filter tarefas by selected empresa
+  const tarefasFiltradas = selectedEmpresaId === "all" 
+    ? tarefas 
+    : tarefas.filter(t => t.empresaId === selectedEmpresaId);
+
+  const totalTarefas = tarefasFiltradas.length;
+  const tarefasEmAndamento = tarefasFiltradas.filter(t => t.status === "em_andamento").length;
+  const tarefasConcluidas = tarefasFiltradas.filter(t => t.status === "concluida").length;
+  const tarefasUrgentes = tarefasFiltradas.filter(t => t.prioridade === "alta" && t.status !== "concluida").length;
 
   // Filter tasks based on active filter
   const getFilteredTarefas = () => {
     switch (activeFilter) {
       case "em_andamento":
-        return tarefas.filter(t => t.status === "em_andamento");
+        return tarefasFiltradas.filter(t => t.status === "em_andamento");
       case "concluida":
-        return tarefas.filter(t => t.status === "concluida");
+        return tarefasFiltradas.filter(t => t.status === "concluida");
       case "urgente":
-        return tarefas.filter(t => t.prioridade === "alta" && t.status !== "concluida");
+        return tarefasFiltradas.filter(t => t.prioridade === "alta" && t.status !== "concluida");
       default:
-        return tarefas;
+        return tarefasFiltradas;
     }
   };
 
@@ -136,79 +139,60 @@ export default function TaskVault() {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
     }
-    const tarefa: Tarefa = {
-      id: Date.now().toString(),
-      titulo: novaTarefa.titulo || "",
+    
+    const tarefaId = await addTarefa({
+      titulo: novaTarefa.titulo,
       descricao: novaTarefa.descricao || "",
-      empresaId: novaTarefa.empresaId || "",
+      empresaId: novaTarefa.empresaId,
       prioridade: novaTarefa.prioridade || "media",
       status: novaTarefa.status || "pendente",
-      dataVencimento: novaTarefa.dataVencimento || "",
+      dataVencimento: novaTarefa.dataVencimento,
       progresso: 0,
-      criadoEm: new Date().toISOString().split("T")[0],
-    };
-    setTarefas(prev => [...prev, tarefa]);
-    await logAtividade("criacao", `Nova tarefa criada: ${tarefa.titulo}`, tarefa.id);
-    setNovaTarefa({ prioridade: "media", status: "pendente" });
-    setShowModal(null);
-    toast({ title: "Tarefa criada com sucesso!" });
-  };
-
-  const handleSaveEmpresa = async () => {
-    if (!novaEmpresa.nome || !novaEmpresa.cnpj) {
-      toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
-      return;
+    });
+    
+    if (tarefaId) {
+      await logAtividade("criacao", `Nova tarefa criada: ${novaTarefa.titulo}`, tarefaId);
+      setNovaTarefa({ prioridade: "media", status: "pendente" });
+      setShowModal(false);
+      toast({ title: "Tarefa criada com sucesso!" });
     }
-    const empresa: Empresa = {
-      id: Date.now().toString(),
-      nome: novaEmpresa.nome || "",
-      cnpj: novaEmpresa.cnpj || "",
-      email: novaEmpresa.email || "",
-    };
-    setEmpresas(prev => [...prev, empresa]);
-    await logAtividade("criacao", `Nova empresa: ${empresa.nome}`);
-    setNovaEmpresa({});
-    setShowModal(null);
-    toast({ title: "Empresa criada com sucesso!" });
   };
 
-  const deleteTarefa = async (id: string) => {
+  const handleDeleteTarefa = async (id: string) => {
     const tarefa = tarefas.find(t => t.id === id);
-    setTarefas(prev => prev.filter(t => t.id !== id));
+    await deleteTarefaDB(id);
     if (tarefa) await logAtividade("edicao", `Tarefa excluída: ${tarefa.titulo}`, id);
     toast({ title: "Tarefa excluída" });
   };
 
-  const deleteEmpresa = async (id: string) => {
-    const empresa = empresas.find(e => e.id === id);
-    setEmpresas(prev => prev.filter(e => e.id !== id));
-    if (empresa) await logAtividade("edicao", `Empresa excluída: ${empresa.nome}`);
-    toast({ title: "Empresa excluída" });
-  };
-
-  const updateTarefaStatus = async (id: string, status: Tarefa["status"]) => {
+  const handleUpdateTarefaStatus = async (id: string, status: Tarefa["status"]) => {
     const tarefa = tarefas.find(t => t.id === id);
-    setTarefas(prev => prev.map(t => 
-      t.id === id ? { ...t, status, progresso: status === "concluida" ? 100 : status === "em_andamento" ? 50 : t.progresso } : t
-    ));
+    await updateTarefa(id, { 
+      status, 
+      progresso: status === "concluida" ? 100 : status === "em_andamento" ? 50 : tarefa?.progresso || 0 
+    });
     if (tarefa && status === "concluida") {
       await logAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`, id);
     }
   };
 
-  const updateTarefaArquivos = (id: string, arquivos: TarefaArquivo[]) => {
-    setTarefas(prev => prev.map(t => 
-      t.id === id ? { ...t, arquivos } : t
-    ));
+  const handleUploadArquivo = async (tarefaId: string, file: File) => {
+    await uploadArquivo(tarefaId, file);
   };
 
-  const getEmpresaNome = (id: string) => empresas.find(e => e.id === id)?.nome || "-";
+  const handleDeleteArquivo = async (arquivoId: string, url?: string) => {
+    await deleteArquivo(arquivoId, url);
+  };
+
+  const getEmpresaNome = (id: string) => empresasDisponiveis.find(e => e.id === id)?.nome || "-";
 
   const kanbanColumns = {
     pendente: filteredTarefas.filter(t => t.status === "pendente"),
     em_andamento: filteredTarefas.filter(t => t.status === "em_andamento"),
     concluida: filteredTarefas.filter(t => t.status === "concluida"),
   };
+
+  const isLoading = empresasLoading || tarefasLoading;
 
   // Sidebar content with filters and timeline
   const sidebarContent = (
@@ -217,9 +201,13 @@ export default function TaskVault() {
       <div className="p-3 border-b border-red-500/20">
         <div className="text-xs font-bold text-red-400 mb-3">Filtros Rápidos</div>
         <div className="space-y-2">
-          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
-            <option>Todas Empresas</option>
-            {empresas.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          <select 
+            value={selectedEmpresaId}
+            onChange={(e) => setSelectedEmpresaId(e.target.value)}
+            className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80"
+          >
+            <option value="all">Todas Empresas</option>
+            {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
           </select>
           <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
             <option>Todas Prioridades</option>
@@ -249,6 +237,17 @@ export default function TaskVault() {
       </div>
     </div>
   );
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+          <span className="text-muted-foreground">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-24">
@@ -285,7 +284,7 @@ export default function TaskVault() {
           <MetricCard 
             title="Concluídas" 
             value={tarefasConcluidas} 
-            change={`${Math.round((tarefasConcluidas/totalTarefas)*100)}% do total`} 
+            change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
             changeType="up" 
             icon={CheckSquare} 
             color="green"
@@ -320,173 +319,145 @@ export default function TaskVault() {
           </div>
         )}
 
+        {/* Selected empresa indicator */}
+        {selectedEmpresaId !== "all" && (
+          <div className="mb-4 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Empresa:</span>
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+              {getEmpresaNome(selectedEmpresaId)}
+            </span>
+            <button 
+              onClick={() => setSelectedEmpresaId("all")}
+              className="text-xs text-red-400 hover:text-red-300 underline"
+            >
+              Ver todas
+            </button>
+          </div>
+        )}
+
         {/* Tabs & View Toggle */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab("tarefas")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "tarefas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-            >
+            <div className="px-4 py-2 rounded-lg font-medium bg-red-500 text-white shadow-lg shadow-red-500/30">
               <ListTodo className="w-4 h-4 inline mr-2" />Tarefas ({filteredTarefas.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("empresas")}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${activeTab === "empresas" ? "bg-red-500 text-white shadow-lg shadow-red-500/30" : "bg-card/50 text-muted-foreground hover:bg-card"}`}
-            >
-              <Building2 className="w-4 h-4 inline mr-2" />Empresas ({empresas.length})
-            </button>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
-            {activeTab === "tarefas" && (
-              <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-                <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                  <Columns className="w-4 h-4" />
-                </button>
-                <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                  <List className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-            <Button onClick={() => setShowModal("tarefa")} className="bg-red-500 hover:bg-red-600 text-white">
+            <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
+              <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                <Columns className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+            <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
-            </Button>
-            <Button onClick={() => setShowModal("empresa")} variant="outline" className="border-red-500/50 text-red-300 hover:bg-red-500/20">
-              <Building2 className="w-4 h-4 mr-1" /> Nova Empresa
             </Button>
           </div>
         </div>
 
         {/* Content - Dynamic Kanban based on filter */}
-        {activeTab === "tarefas" ? (
-          viewMode === "kanban" ? (
-            <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
-              {activeFilter === "all" ? (
-                // Show all 3 columns when "all" filter is active
-                (["pendente", "em_andamento", "concluida"] as const).map(status => (
-                  <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
-                    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
-                      <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
-                      <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
-                      <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
-                        {kanbanColumns[status].length}
-                      </span>
-                    </div>
-                    <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
-                      {kanbanColumns[status].map(tarefa => (
-                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => deleteTarefa(tarefa.id)} onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)} />
-                      ))}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                // Show single column with expanded tasks stacked vertically
-                <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
-                  activeFilter === "em_andamento" ? "border-blue-500/30" : 
-                  activeFilter === "concluida" ? "border-green-500/30" : 
-                  "border-yellow-500/30"
-                }`}>
-                  <div className="flex items-center gap-2 mb-4 pb-3 border-b border-foreground/10">
-                    <div className={`w-3 h-3 rounded-full ${
-                      activeFilter === "em_andamento" ? "bg-blue-500 animate-pulse" : 
-                      activeFilter === "concluida" ? "bg-green-500" : 
-                      "bg-yellow-500 animate-pulse"
-                    }`} />
-                    <h3 className="text-lg font-semibold text-foreground">
-                      {activeFilter === "em_andamento" ? "Em Andamento" : 
-                       activeFilter === "concluida" ? "Concluídas" : 
-                       "Tarefas Urgentes"}
-                    </h3>
-                    <span className={`ml-auto text-sm px-3 py-1 rounded-full ${
-                      activeFilter === "em_andamento" ? "bg-blue-500/20 text-blue-300" : 
-                      activeFilter === "concluida" ? "bg-green-500/20 text-green-300" : 
-                      "bg-yellow-500/20 text-yellow-300"
-                    }`}>
-                      {filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}
+        {viewMode === "kanban" ? (
+          <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
+            {activeFilter === "all" ? (
+              // Show all 3 columns when "all" filter is active
+              (["pendente", "em_andamento", "concluida"] as const).map(status => (
+                <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
+                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
+                    <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
+                    <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
+                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
+                      {kanbanColumns[status].length}
                     </span>
                   </div>
-                  <div className="space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
-                    {filteredTarefas.map(tarefa => (
-                      <ExpandedTaskCard 
-                        key={tarefa.id} 
-                        tarefa={tarefa} 
-                        empresaNome={getEmpresaNome(tarefa.empresaId)} 
-                        onDelete={() => deleteTarefa(tarefa.id)} 
-                        onStatusChange={(s) => updateTarefaStatus(tarefa.id, s)}
-                        onUpdateArquivos={(arquivos) => updateTarefaArquivos(tarefa.id, arquivos)}
-                      />
+                  <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                    {kanbanColumns[status].map(tarefa => (
+                      <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} />
                     ))}
                   </div>
                 </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-red-950/50 border-b border-red-500/20">
-                  <tr>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Título</th>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Empresa</th>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Prioridade</th>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Status</th>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Progresso</th>
-                    <th className="text-left p-3 text-xs font-semibold text-red-300">Vencimento</th>
-                    <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
+              ))
+            ) : (
+              // Show single column with expanded tasks stacked vertically
+              <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
+                activeFilter === "em_andamento" ? "border-blue-500/30" : 
+                activeFilter === "concluida" ? "border-green-500/30" : 
+                "border-yellow-500/30"
+              }`}>
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-foreground/10">
+                  <div className={`w-3 h-3 rounded-full ${
+                    activeFilter === "em_andamento" ? "bg-blue-500 animate-pulse" : 
+                    activeFilter === "concluida" ? "bg-green-500" : 
+                    "bg-yellow-500 animate-pulse"
+                  }`} />
+                  <h3 className="text-lg font-semibold text-foreground">
+                    {activeFilter === "em_andamento" ? "Em Andamento" : 
+                     activeFilter === "concluida" ? "Concluídas" : 
+                     "Tarefas Urgentes"}
+                  </h3>
+                  <span className={`ml-auto text-sm px-3 py-1 rounded-full ${
+                    activeFilter === "em_andamento" ? "bg-blue-500/20 text-blue-300" : 
+                    activeFilter === "concluida" ? "bg-green-500/20 text-green-300" : 
+                    "bg-yellow-500/20 text-yellow-300"
+                  }`}>
+                    {filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <div className="space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
                   {filteredTarefas.map(tarefa => (
-                    <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
-                      <td className="p-3">
-                        <div className="font-medium text-foreground">{tarefa.titulo}</div>
-                        <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
-                      </td>
-                      <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
-                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
-                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
-                      <td className="p-3">
-                        <div className="w-20">
-                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
-                          <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
-                      <td className="p-3 text-right">
-                        <button onClick={() => deleteTarefa(tarefa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
-                      </td>
-                    </tr>
+                    <ExpandedTaskCard 
+                      key={tarefa.id} 
+                      tarefa={tarefa} 
+                      empresaNome={getEmpresaNome(tarefa.empresaId)} 
+                      onDelete={() => handleDeleteTarefa(tarefa.id)} 
+                      onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)}
+                      onUploadArquivo={(file) => handleUploadArquivo(tarefa.id, file)}
+                      onDeleteArquivo={handleDeleteArquivo}
+                    />
                   ))}
-                </tbody>
-              </table>
-            </div>
-          )
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
             <table className="w-full">
               <thead className="bg-red-950/50 border-b border-red-500/20">
                 <tr>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Nome</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">CNPJ</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Email</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Tarefas</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Título</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Empresa</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Prioridade</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Status</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Progresso</th>
+                  <th className="text-left p-3 text-xs font-semibold text-red-300">Vencimento</th>
                   <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {empresas.map(empresa => (
-                  <tr key={empresa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
+                {filteredTarefas.map(tarefa => (
+                  <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
                     <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm">{empresa.nome.charAt(0)}</div>
-                        <span className="font-medium text-foreground">{empresa.nome}</span>
+                      <div className="font-medium text-foreground">{tarefa.titulo}</div>
+                      <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
+                    </td>
+                    <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
+                    <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
+                    <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
+                    <td className="p-3">
+                      <div className="w-20">
+                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
+                        <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                        </div>
                       </div>
                     </td>
-                    <td className="p-3 text-sm text-foreground/80">{empresa.cnpj}</td>
-                    <td className="p-3 text-sm text-foreground/80">{empresa.email}</td>
-                    <td className="p-3"><span className="text-xs bg-red-500/20 text-red-300 px-2 py-1 rounded-full">{tarefas.filter(t => t.empresaId === empresa.id).length} tarefas</span></td>
-                    <td className="p-3 text-right"><button onClick={() => deleteEmpresa(empresa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button></td>
+                    <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
+                    <td className="p-3 text-right">
+                      <button onClick={() => handleDeleteTarefa(tarefa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -495,8 +466,15 @@ export default function TaskVault() {
         )}
       </div>
 
-      {showModal === "tarefa" && <TaskModal novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} empresas={empresas} onSave={handleSaveTarefa} onClose={() => setShowModal(null)} />}
-      {showModal === "empresa" && <EmpresaModal novaEmpresa={novaEmpresa} setNovaEmpresa={setNovaEmpresa} onSave={handleSaveEmpresa} onClose={() => setShowModal(null)} />}
+      {showModal && (
+        <TaskModal 
+          novaTarefa={novaTarefa} 
+          setNovaTarefa={setNovaTarefa} 
+          empresas={empresasDisponiveis.map(e => ({ id: e.id, nome: e.nome, cnpj: e.cnpj || "", email: e.email || "" }))} 
+          onSave={handleSaveTarefa} 
+          onClose={() => setShowModal(false)} 
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Trash2, Clock, User, FileText, Upload, X, ChevronDown, ChevronUp, Flag, Calendar, Building2 } from "lucide-react";
+import { Trash2, Clock, FileText, Upload, X, ChevronDown, ChevronUp, Flag, Calendar, Building2, ExternalLink } from "lucide-react";
 import { Tarefa, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -9,7 +9,10 @@ interface ExpandedTaskCardProps {
   empresaNome: string;
   onDelete: () => void;
   onStatusChange: (status: Tarefa["status"]) => void;
-  onUpdateArquivos: (arquivos: TarefaArquivo[]) => void;
+  onUploadArquivo?: (file: File) => Promise<void>;
+  onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
+  // Legacy prop for local state management
+  onUpdateArquivos?: (arquivos: TarefaArquivo[]) => void;
 }
 
 const statusLabels = {
@@ -23,37 +26,64 @@ export function ExpandedTaskCard({
   empresaNome, 
   onDelete, 
   onStatusChange,
+  onUploadArquivo,
+  onDeleteArquivo,
   onUpdateArquivos 
 }: ExpandedTaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progresso = tarefa.progresso || (tarefa.status === "concluida" ? 100 : tarefa.status === "em_andamento" ? 50 : 0);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (!files) return;
+    if (!files || files.length === 0) return;
 
-    const novosArquivos: TarefaArquivo[] = [];
-    
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.type !== "application/pdf") {
-        toast({ title: "Apenas arquivos PDF são permitidos", variant: "destructive" });
-        continue;
+    // If we have the new upload handler, use it
+    if (onUploadArquivo) {
+      setIsUploading(true);
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          if (file.type !== "application/pdf") {
+            toast({ title: "Apenas arquivos PDF são permitidos", variant: "destructive" });
+            continue;
+          }
+          await onUploadArquivo(file);
+        }
+      } finally {
+        setIsUploading(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       }
-      
-      novosArquivos.push({
-        id: Date.now().toString() + i,
-        nome: file.name,
-        tamanho: file.size,
-        tipo: "pdf",
-        dataUpload: new Date().toLocaleDateString("pt-BR"),
-      });
+      return;
     }
 
-    if (novosArquivos.length > 0) {
-      onUpdateArquivos([...(tarefa.arquivos || []), ...novosArquivos]);
-      toast({ title: `${novosArquivos.length} arquivo(s) adicionado(s)` });
+    // Legacy local state handling
+    if (onUpdateArquivos) {
+      const novosArquivos: TarefaArquivo[] = [];
+      
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file.type !== "application/pdf") {
+          toast({ title: "Apenas arquivos PDF são permitidos", variant: "destructive" });
+          continue;
+        }
+        
+        novosArquivos.push({
+          id: Date.now().toString() + i,
+          nome: file.name,
+          tamanho: file.size,
+          tipo: "pdf",
+          dataUpload: new Date().toLocaleDateString("pt-BR"),
+        });
+      }
+
+      if (novosArquivos.length > 0) {
+        onUpdateArquivos([...(tarefa.arquivos || []), ...novosArquivos]);
+        toast({ title: `${novosArquivos.length} arquivo(s) adicionado(s)` });
+      }
     }
     
     if (fileInputRef.current) {
@@ -61,9 +91,13 @@ export function ExpandedTaskCard({
     }
   };
 
-  const handleRemoveFile = (fileId: string) => {
-    onUpdateArquivos((tarefa.arquivos || []).filter(a => a.id !== fileId));
-    toast({ title: "Arquivo removido" });
+  const handleRemoveFile = async (arquivo: TarefaArquivo) => {
+    if (onDeleteArquivo) {
+      await onDeleteArquivo(arquivo.id, arquivo.url);
+    } else if (onUpdateArquivos) {
+      onUpdateArquivos((tarefa.arquivos || []).filter(a => a.id !== arquivo.id));
+      toast({ title: "Arquivo removido" });
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -117,7 +151,7 @@ export function ExpandedTaskCard({
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4 text-red-400" />
               <span className="text-muted-foreground">Vencimento:</span>
-              <span className="font-medium text-foreground">{tarefa.dataVencimento}</span>
+              <span className="font-medium text-foreground">{tarefa.dataVencimento || "-"}</span>
             </div>
             <div className="flex items-center gap-2 text-sm">
               <Clock className="w-4 h-4 text-red-400" />
@@ -168,7 +202,7 @@ export function ExpandedTaskCard({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <FileText className="w-4 h-4 text-red-400" />
-                <span className="text-sm font-medium text-foreground">Arquivos PDF</span>
+                <span className="text-sm font-medium text-foreground">Documentos Anexados</span>
                 {tarefa.arquivos && tarefa.arquivos.length > 0 && (
                   <span className="text-xs bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full">
                     {tarefa.arquivos.length}
@@ -180,9 +214,10 @@ export function ExpandedTaskCard({
                 variant="outline"
                 className="text-xs border-red-500/50 text-red-300 hover:bg-red-500/20"
                 onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
               >
                 <Upload className="w-3 h-3 mr-1" />
-                Upload PDF
+                {isUploading ? "Enviando..." : "Enviar PDF"}
               </Button>
               <input
                 ref={fileInputRef}
@@ -207,10 +242,21 @@ export function ExpandedTaskCard({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{arquivo.nome}</p>
-                      <p className="text-xs text-muted-foreground">{arquivo.tamanho} • {arquivo.dataUpload}</p>
+                      <p className="text-xs text-muted-foreground">{formatFileSize(arquivo.tamanho)}</p>
                     </div>
+                    {arquivo.url && (
+                      <a
+                        href={arquivo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 hover:bg-blue-500/20 rounded transition-all text-muted-foreground hover:text-blue-400"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                     <button
-                      onClick={() => handleRemoveFile(arquivo.id)}
+                      onClick={() => handleRemoveFile(arquivo)}
                       className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded transition-all text-muted-foreground hover:text-red-400"
                     >
                       <X className="w-3 h-3" />
@@ -221,8 +267,8 @@ export function ExpandedTaskCard({
             ) : (
               <div className="text-center py-6 border border-dashed border-foreground/20 rounded-lg">
                 <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">Nenhum arquivo anexado</p>
-                <p className="text-xs text-muted-foreground/60">Clique em "Upload PDF" para adicionar arquivos</p>
+                <p className="text-sm text-muted-foreground">Nenhum documento anexado</p>
+                <p className="text-xs text-muted-foreground/60">Clique em "Enviar PDF" para adicionar documentos</p>
               </div>
             )}
           </div>
