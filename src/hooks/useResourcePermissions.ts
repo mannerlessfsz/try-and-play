@@ -5,7 +5,9 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   MODULE_RESOURCES, 
   PERMISSION_ACTIONS,
-  AppModule 
+  SUB_MODULE_RESOURCES,
+  AppModule,
+  AppSubModule
 } from '@/constants/modules';
 
 // Re-export for backward compatibility
@@ -16,6 +18,7 @@ export interface ResourcePermission {
   user_id: string;
   empresa_id: string;
   module: string;
+  sub_module: string | null;
   resource: string;
   can_view: boolean;
   can_create: boolean;
@@ -30,6 +33,7 @@ export interface ResourcePermissionInput {
   user_id: string;
   empresa_id: string;
   module: string;
+  sub_module?: string | null;
   resource: string;
   can_view?: boolean;
   can_create?: boolean;
@@ -68,7 +72,10 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
     mutationFn: async (input: ResourcePermissionInput) => {
       const { data, error } = await supabase
         .from('user_resource_permissions')
-        .upsert(input, { onConflict: 'user_id,empresa_id,module,resource' })
+        .upsert({
+          ...input,
+          sub_module: input.sub_module || null,
+        }, { onConflict: 'user_id,empresa_id,module,resource' })
         .select()
         .single();
 
@@ -103,21 +110,33 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
   const hasResourcePermission = (
     module: string,
     resource: string,
-    action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export'
+    action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export',
+    subModule?: string | null
   ): boolean => {
     if (!query.data) return false;
     
     const permission = query.data.find(
-      p => p.module === module && p.resource === resource
+      p => p.module === module && 
+           p.resource === resource && 
+           (subModule === undefined || p.sub_module === subModule)
     );
     
     return permission ? permission[action] : false;
   };
 
   // Obter permissões de um usuário para um módulo específico
-  const getUserModulePermissions = (module: string) => {
+  const getUserModulePermissions = (module: string, subModule?: string) => {
     if (!query.data) return [];
-    return query.data.filter(p => p.module === module);
+    return query.data.filter(p => 
+      p.module === module && 
+      (subModule === undefined || p.sub_module === subModule)
+    );
+  };
+
+  // Obter permissões de um usuário para um sub-módulo específico
+  const getUserSubModulePermissions = (module: string, subModule: string) => {
+    if (!query.data) return [];
+    return query.data.filter(p => p.module === module && p.sub_module === subModule);
   };
 
   return {
@@ -128,6 +147,7 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
     deletePermission: deleteMutation.mutate,
     hasResourcePermission,
     getUserModulePermissions,
+    getUserSubModulePermissions,
     isUpdating: upsertMutation.isPending,
   };
 }
