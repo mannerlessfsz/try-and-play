@@ -1,199 +1,243 @@
 import { useState } from "react";
-import { 
-  Home, FileText, Upload, Download, 
-  CheckCircle, AlertTriangle, Eye, Trash2
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Home } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { ConversorBase, type ConvertedFile } from "./ConversorBase";
+import { useConversoes } from "@/hooks/useConversoes";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 
-interface ArquivoCasa {
-  id: string;
-  nome: string;
-  tipoOrigem: string;
-  tipoDestino: string;
-  status: "pendente" | "convertido" | "erro";
-  tamanho: string;
-  dataConversao: string | null;
-}
+const formatosSaida = [
+  { value: "csv", label: "CSV" },
+  { value: "txt", label: "TXT" },
+  { value: "xml", label: "XML" },
+  { value: "json", label: "JSON" },
+];
 
 export function ConversorCasaTab() {
-  const { toast } = useToast();
-  const [arquivos, setArquivos] = useState<ArquivoCasa[]>([
-    { id: "1", nome: "relatorio_casa_dez.txt", tipoOrigem: "TXT", tipoDestino: "CSV", status: "convertido", tamanho: "2.5 MB", dataConversao: "2024-12-20" },
-    { id: "2", nome: "movimento_casa_nov.csv", tipoOrigem: "CSV", tipoDestino: "TXT", status: "convertido", tamanho: "1.8 MB", dataConversao: "2024-11-18" },
-  ]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [tipoDestino, setTipoDestino] = useState<string>("csv");
+  const { empresaAtiva } = useEmpresaAtiva();
+  const { criarConversao, atualizarConversao } = useConversoes("casa");
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+  const [files, setFiles] = useState<File[]>([]);
+  const [tipoDestino, setTipoDestino] = useState<string>("csv");
+  const [isConverting, setIsConverting] = useState(false);
+  const [convertedFiles, setConvertedFiles] = useState<ConvertedFile[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const parseContent = (content: string): Record<string, string>[] => {
+    const lines = content.split('\n').filter(l => l.trim());
+    if (lines.length === 0) return [];
+
+    // Tentar detectar delimitador
+    const firstLine = lines[0];
+    const delimiter = firstLine.includes(';') ? ';' : firstLine.includes('\t') ? '\t' : ',';
+    
+    const headers = firstLine.split(delimiter).map(h => h.trim().replace(/"/g, ''));
+    const data: Record<string, string>[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ''));
+      const row: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        row[header || `col_${idx}`] = values[idx] || '';
+      });
+      data.push(row);
     }
+
+    return data;
   };
 
-  const handleConverter = () => {
-    if (!selectedFile) {
-      toast({ title: "Selecione um arquivo", variant: "destructive" });
+  const convertToCSV = (data: Record<string, string>[]): string => {
+    if (data.length === 0) return "";
+    const headers = Object.keys(data[0]);
+    const rows = [
+      headers.join(";"),
+      ...data.map(row => headers.map(h => `"${(row[h] || "").replace(/"/g, '""')}"`).join(";"))
+    ];
+    return rows.join("\n");
+  };
+
+  const convertToJSON = (data: Record<string, string>[]): string => {
+    return JSON.stringify(data, null, 2);
+  };
+
+  const convertToXML = (data: Record<string, string>[]): string => {
+    const xmlRows = data.map(row => {
+      const fields = Object.entries(row)
+        .map(([key, value]) => `    <${key}>${value}</${key}>`)
+        .join('\n');
+      return `  <registro>\n${fields}\n  </registro>`;
+    }).join('\n');
+    return `<?xml version="1.0" encoding="UTF-8"?>\n<dados>\n${xmlRows}\n</dados>`;
+  };
+
+  const convertToTXT = (data: Record<string, string>[]): string => {
+    if (data.length === 0) return "";
+    const headers = Object.keys(data[0]);
+    const lines = data.map(row => 
+      headers.map(h => `${h}: ${row[h] || ""}`).join(" | ")
+    );
+    return lines.join("\n");
+  };
+
+  const handleConvert = async () => {
+    if (files.length === 0) {
+      setError("Selecione pelo menos um arquivo para converter.");
       return;
     }
 
-    const extensao = selectedFile.name.split('.').pop()?.toUpperCase() || "TXT";
-    
-    toast({ 
-      title: "Conversão concluída!", 
-      description: `${selectedFile.name} convertido para ${tipoDestino.toUpperCase()}` 
-    });
-    
-    setArquivos(prev => [...prev, {
-      id: Date.now().toString(),
-      nome: selectedFile.name,
-      tipoOrigem: extensao,
-      tipoDestino: tipoDestino.toUpperCase(),
-      status: "convertido",
-      tamanho: `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB`,
-      dataConversao: new Date().toISOString().split('T')[0]
-    }]);
-    
-    setSelectedFile(null);
+    setIsConverting(true);
+    setError(null);
+    setConvertedFiles([]);
+
+    try {
+      const results: ConvertedFile[] = [];
+
+      for (const file of files) {
+        let conversaoId: string | null = null;
+        const content = await file.text();
+
+        if (empresaAtiva?.id) {
+          try {
+            const conversao = await criarConversao.mutateAsync({
+              modulo: "casa",
+              nomeArquivoOriginal: file.name,
+              conteudoOriginal: content,
+            });
+            conversaoId = conversao.id;
+          } catch (err) {
+            console.error("Erro ao criar conversão:", err);
+          }
+        }
+
+        try {
+          const data = parseContent(content);
+          
+          if (data.length === 0) {
+            toast.warning(`Arquivo ${file.name} não contém dados válidos.`);
+            if (conversaoId && empresaAtiva?.id) {
+              await atualizarConversao.mutateAsync({
+                id: conversaoId,
+                status: "erro",
+                mensagemErro: "Arquivo não contém dados válidos",
+              });
+            }
+            continue;
+          }
+
+          let convertedContent: string;
+
+          switch (tipoDestino) {
+            case "csv":
+              convertedContent = convertToCSV(data);
+              break;
+            case "json":
+              convertedContent = convertToJSON(data);
+              break;
+            case "xml":
+              convertedContent = convertToXML(data);
+              break;
+            case "txt":
+              convertedContent = convertToTXT(data);
+              break;
+            default:
+              convertedContent = convertToCSV(data);
+          }
+
+          const baseName = file.name.replace(/\.[^/.]+$/, "");
+          const convertedFile = {
+            name: `${baseName}.${tipoDestino}`,
+            type: tipoDestino,
+            content: convertedContent,
+            size: new Blob([convertedContent]).size,
+          };
+          results.push(convertedFile);
+
+          if (conversaoId && empresaAtiva?.id) {
+            await atualizarConversao.mutateAsync({
+              id: conversaoId,
+              status: "sucesso",
+              totalLinhas: data.length,
+              linhasProcessadas: data.length,
+              linhasErro: 0,
+              conteudoConvertido: convertedContent,
+              nomeArquivoConvertido: convertedFile.name,
+              metadados: { tipoDestino },
+            });
+          }
+        } catch (err) {
+          if (conversaoId && empresaAtiva?.id) {
+            await atualizarConversao.mutateAsync({
+              id: conversaoId,
+              status: "erro",
+              mensagemErro: err instanceof Error ? err.message : "Erro desconhecido",
+            });
+          }
+          throw err;
+        }
+      }
+
+      setConvertedFiles(results);
+      
+      if (results.length > 0) {
+        toast.success(`${results.length} arquivo(s) convertido(s) com sucesso!`);
+        setFiles([]);
+      }
+    } catch (err) {
+      setError("Erro ao converter arquivos. Verifique se os arquivos estão no formato correto.");
+      console.error(err);
+    } finally {
+      setIsConverting(false);
+    }
   };
 
-  const totalConvertidos = arquivos.filter(a => a.status === "convertido").length;
+  const downloadFile = (file: ConvertedFile) => {
+    const blob = new Blob([file.content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadAll = () => {
+    convertedFiles.forEach(file => downloadFile(file));
+  };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Home className="w-5 h-5 text-amber-500" />
-            Conversor CASA
-          </CardTitle>
-          <CardDescription>
-            Converta arquivos do sistema CASA para diferentes formatos compatíveis.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg border bg-muted/30">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <FileText className="w-4 h-4" />
-                <span className="text-sm">Total Arquivos</span>
-              </div>
-              <p className="text-2xl font-bold mt-1">{arquivos.length}</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-green-500/10 border-green-500/30">
-              <div className="flex items-center gap-2 text-green-600">
-                <CheckCircle className="w-4 h-4" />
-                <span className="text-sm">Convertidos</span>
-              </div>
-              <p className="text-2xl font-bold mt-1 text-green-600">{totalConvertidos}</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-amber-500/10 border-amber-500/30">
-              <div className="flex items-center gap-2 text-amber-600">
-                <Home className="w-4 h-4" />
-                <span className="text-sm">Formatos Suportados</span>
-              </div>
-              <p className="text-2xl font-bold mt-1 text-amber-600">5</p>
-            </div>
-          </div>
-
-          {/* Upload Area */}
-          <div className="border-2 border-dashed rounded-lg p-6 text-center">
-            <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground mb-3">
-              Arraste um arquivo CASA ou clique para selecionar
-            </p>
-            <div className="flex items-center justify-center gap-4">
-              <div>
-                <Label htmlFor="casa-file" className="sr-only">Arquivo CASA</Label>
-                <Input 
-                  id="casa-file" 
-                  type="file" 
-                  accept=".txt,.csv,.xml,.dat"
-                  onChange={handleFileChange}
-                  className="max-w-xs"
-                />
-              </div>
-              <Select value={tipoDestino} onValueChange={setTipoDestino}>
-                <SelectTrigger className="w-32">
-                  <SelectValue placeholder="Formato" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="csv">CSV</SelectItem>
-                  <SelectItem value="txt">TXT</SelectItem>
-                  <SelectItem value="xml">XML</SelectItem>
-                  <SelectItem value="json">JSON</SelectItem>
-                  <SelectItem value="xlsx">Excel</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={handleConverter} className="bg-amber-500 hover:bg-amber-600">
-                <Download className="w-4 h-4 mr-1" /> Converter
-              </Button>
-            </div>
-            {selectedFile && (
-              <p className="text-sm text-amber-500 mt-2">Arquivo selecionado: {selectedFile.name}</p>
-            )}
-          </div>
-
-          {/* Arquivos List */}
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50">
-                <tr>
-                  <th className="text-left p-3 font-medium">Arquivo</th>
-                  <th className="text-center p-3 font-medium">Origem → Destino</th>
-                  <th className="text-left p-3 font-medium">Status</th>
-                  <th className="text-center p-3 font-medium">Tamanho</th>
-                  <th className="text-left p-3 font-medium">Convertido em</th>
-                  <th className="text-center p-3 font-medium">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {arquivos.map(arquivo => (
-                  <tr key={arquivo.id} className="hover:bg-muted/30">
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-amber-500" />
-                        <span className="font-medium">{arquivo.nome}</span>
-                      </div>
-                    </td>
-                    <td className="p-3 text-center">
-                      <span className="px-2 py-1 rounded bg-muted text-xs">{arquivo.tipoOrigem}</span>
-                      <span className="mx-2">→</span>
-                      <span className="px-2 py-1 rounded bg-amber-500/20 text-amber-600 text-xs">{arquivo.tipoDestino}</span>
-                    </td>
-                    <td className="p-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        arquivo.status === "convertido" ? "bg-green-500/20 text-green-600" :
-                        arquivo.status === "erro" ? "bg-red-500/20 text-red-600" :
-                        "bg-yellow-500/20 text-yellow-600"
-                      }`}>
-                        {arquivo.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center text-muted-foreground">{arquivo.tamanho}</td>
-                    <td className="p-3 text-muted-foreground">
-                      {arquivo.dataConversao ? new Date(arquivo.dataConversao).toLocaleDateString('pt-BR') : '-'}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex justify-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8"><Download className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500"><Trash2 className="w-4 h-4" /></Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+    <ConversorBase
+      modulo="casa"
+      titulo="Conversor CASA"
+      descricao="Converta arquivos do sistema CASA para diferentes formatos"
+      icon={<Home className="w-5 h-5 text-amber-500" />}
+      iconColor="text-amber-500"
+      bgColor="bg-amber-500/10"
+      acceptedFiles=".txt,.csv,.xml,.dat"
+      acceptedFormats="Arquivos TXT, CSV, XML e DAT do sistema CASA"
+      files={files}
+      setFiles={setFiles}
+      convertedFiles={convertedFiles}
+      isConverting={isConverting}
+      onConvert={handleConvert}
+      onDownload={downloadFile}
+      onDownloadAll={downloadAll}
+      error={error}
+    >
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Formato de saída</label>
+        <Select value={tipoDestino} onValueChange={setTipoDestino}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {formatosSaida.map(f => (
+              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </ConversorBase>
   );
 }
