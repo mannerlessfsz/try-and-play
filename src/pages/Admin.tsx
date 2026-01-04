@@ -66,7 +66,7 @@ interface Empresa {
   email: string | null;
   telefone: string | null;
   manager_id: string | null;
-  regime_tributario: string | null;
+  regime_tributario: 'nano_empreendedor' | 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | null;
 }
 
 interface UserRole {
@@ -900,9 +900,10 @@ const Admin: React.FC = () => {
                   <Plus className="w-4 h-4" /> Nova Empresa
                 </Button>
                 <EmpresaWizard 
-                  isOpen={isAddingEmpresa} 
-                  onClose={() => setIsAddingEmpresa(false)}
+                  isOpen={isAddingEmpresa || !!editingEmpresa} 
+                  onClose={() => { setIsAddingEmpresa(false); setEditingEmpresa(null); }}
                   onSuccess={handleWizardSuccess}
+                  editingEmpresa={editingEmpresa}
                 />
               </CardHeader>
               <CardContent>
@@ -1056,58 +1057,7 @@ const Admin: React.FC = () => {
                   </div>
                 )}
 
-                {/* Edit Empresa Dialog */}
-                <Dialog open={!!editingEmpresa} onOpenChange={(open) => !open && setEditingEmpresa(null)}>
-                  <DialogContent className="max-w-lg">
-                    <DialogHeader>
-                      <DialogTitle>Editar Empresa</DialogTitle>
-                    </DialogHeader>
-                    {editingEmpresa && (
-                      <div className="space-y-4">
-                        <div>
-                          <Label>Razão Social</Label>
-                          <Input
-                            value={editingEmpresa.nome}
-                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, nome: e.target.value } : null)}
-                            placeholder="Nome da empresa"
-                          />
-                        </div>
-                        <div>
-                          <Label>CNPJ</Label>
-                          <Input
-                            value={editingEmpresa.cnpj || ''}
-                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, cnpj: e.target.value } : null)}
-                            placeholder="00.000.000/0000-00"
-                          />
-                        </div>
-                        <div>
-                          <Label>Email</Label>
-                          <Input
-                            value={editingEmpresa.email || ''}
-                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, email: e.target.value } : null)}
-                            placeholder="contato@empresa.com"
-                          />
-                        </div>
-                        <div>
-                          <Label>Telefone</Label>
-                          <Input
-                            value={editingEmpresa.telefone || ''}
-                            onChange={(e) => setEditingEmpresa(prev => prev ? { ...prev, telefone: e.target.value } : null)}
-                            placeholder="(00) 00000-0000"
-                          />
-                        </div>
-                        <Button 
-                          onClick={() => editingEmpresa && updateEmpresaMutation.mutate(editingEmpresa)}
-                          disabled={!editingEmpresa.nome || updateEmpresaMutation.isPending}
-                          className="w-full"
-                        >
-                          {updateEmpresaMutation.isPending && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                          Salvar Alterações
-                        </Button>
-                      </div>
-                    )}
-                  </DialogContent>
-                </Dialog>
+                {/* Edit Empresa Dialog - now using EmpresaWizard above */}
               </CardContent>
             </Card>
           </TabsContent>
