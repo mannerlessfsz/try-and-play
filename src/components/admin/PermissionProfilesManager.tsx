@@ -33,8 +33,7 @@ const MODULES = [
   { value: 'financialace', label: 'FinancialACE' },
   { value: 'erp', label: 'ERP/Gestão' },
   { value: 'taskvault', label: 'TaskVault' },
-  { value: 'ajustasped', label: 'AjustaSped' },
-  { value: 'conferesped', label: 'ConfereSped' },
+  { value: 'conversores', label: 'Conversores' },
 ];
 
 export function PermissionProfilesManager() {

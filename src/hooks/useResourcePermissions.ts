@@ -62,17 +62,6 @@ export const MODULE_RESOURCES: Record<string, { value: string; label: string; de
     { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
     { value: 'kanban', label: 'Kanban', description: 'Visualização Kanban' },
   ],
-  ajustasped: [
-    { value: 'arquivos', label: 'Arquivos SPED', description: 'Upload e gestão de arquivos' },
-    { value: 'ajustes', label: 'Ajustes', description: 'Correções automáticas' },
-    { value: 'validacoes', label: 'Validações', description: 'Validação de arquivos' },
-    { value: 'download', label: 'Download', description: 'Download de arquivos corrigidos' },
-  ],
-  conferesped: [
-    { value: 'conferencias', label: 'Conferências', description: 'Conferência de arquivos' },
-    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
-    { value: 'divergencias', label: 'Divergências', description: 'Análise de divergências' },
-  ],
   conversores: [
     { value: 'fiscal', label: 'Arquivos Fiscais', description: 'XML de NF-e, SPED, CT-e' },
     { value: 'extrato', label: 'Extratos Bancários', description: 'OFX, PDF para CSV/Excel' },
