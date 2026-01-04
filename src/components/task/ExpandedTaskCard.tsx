@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Trash2, Clock, FileText, Upload, X, ChevronDown, ChevronUp, Flag, Calendar, Building2, ExternalLink } from "lucide-react";
+import { Trash2, Clock, FileText, Upload, X, ChevronDown, ChevronUp, Calendar, Building2, ExternalLink } from "lucide-react";
 import { Tarefa, TarefaArquivo, prioridadeColors, statusColors } from "@/types/task";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -107,32 +107,38 @@ export function ExpandedTaskCard({
   };
 
   return (
-    <div className="bg-card/60 backdrop-blur-xl rounded-xl border border-foreground/10 overflow-hidden hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10 transition-all duration-300">
-      {/* Header */}
+    <div className="bg-card/60 backdrop-blur-xl rounded-lg border border-foreground/10 overflow-hidden hover:border-red-500/30 transition-all duration-200">
+      {/* Header - Compact */}
       <div 
-        className="p-4 cursor-pointer flex items-start justify-between gap-3"
+        className="px-3 py-2 cursor-pointer flex items-center gap-3"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
-            <div className={`w-2 h-2 rounded-full ${tarefa.prioridade === "alta" ? "bg-red-500 animate-pulse" : tarefa.prioridade === "media" ? "bg-yellow-500" : "bg-green-500"}`} />
-            <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${prioridadeColors[tarefa.prioridade]}`}>
-              {tarefa.prioridade === "alta" ? "Urgente" : tarefa.prioridade === "media" ? "Média" : "Baixa"}
-            </span>
-            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${statusColors[tarefa.status]}`}>
-              {statusLabels[tarefa.status]}
-            </span>
-          </div>
-          <h4 className="font-semibold text-foreground mb-1">{tarefa.titulo}</h4>
-          <p className="text-sm text-muted-foreground line-clamp-2">{tarefa.descricao}</p>
+        {/* Priority indicator */}
+        <div className={`w-1.5 h-6 rounded-full flex-shrink-0 ${tarefa.prioridade === "alta" ? "bg-red-500" : tarefa.prioridade === "media" ? "bg-yellow-500" : "bg-green-500"}`} />
+        
+        {/* Badges */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium border ${prioridadeColors[tarefa.prioridade]}`}>
+            {tarefa.prioridade === "alta" ? "Urgente" : tarefa.prioridade === "media" ? "Média" : "Baixa"}
+          </span>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusColors[tarefa.status]}`}>
+            {statusLabels[tarefa.status]}
+          </span>
         </div>
         
-        <div className="flex items-center gap-2">
+        {/* Title and description */}
+        <div className="flex-1 min-w-0">
+          <h4 className="font-medium text-sm text-foreground truncate">{tarefa.titulo}</h4>
+          <p className="text-[11px] text-muted-foreground truncate">{tarefa.descricao}</p>
+        </div>
+        
+        {/* Actions */}
+        <div className="flex items-center gap-1 flex-shrink-0">
           <button 
             onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="p-1.5 hover:bg-red-500/20 rounded transition-all text-muted-foreground hover:text-red-400"
+            className="p-1 hover:bg-red-500/20 rounded transition-all text-muted-foreground hover:text-red-400"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
           {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
         </div>
@@ -140,56 +146,42 @@ export function ExpandedTaskCard({
 
       {/* Expanded Content */}
       {isExpanded && (
-        <div className="px-4 pb-4 space-y-4 border-t border-foreground/10 pt-4">
-          {/* Meta Info */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="flex items-center gap-2 text-sm">
-              <Building2 className="w-4 h-4 text-red-400" />
-              <span className="text-muted-foreground">Empresa:</span>
-              <span className="font-medium text-foreground">{empresaNome}</span>
+        <div className="px-3 pb-3 space-y-3 border-t border-foreground/10 pt-3">
+          {/* Meta Info - Compact horizontal */}
+          <div className="flex flex-wrap items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-muted-foreground">{empresaNome}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Calendar className="w-4 h-4 text-red-400" />
-              <span className="text-muted-foreground">Vencimento:</span>
-              <span className="font-medium text-foreground">{tarefa.dataVencimento || "-"}</span>
+            <div className="flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-muted-foreground">{tarefa.dataVencimento || "-"}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="w-4 h-4 text-red-400" />
-              <span className="text-muted-foreground">Criado:</span>
-              <span className="font-medium text-foreground">{tarefa.criadoEm || "-"}</span>
+            <div className="flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-muted-foreground">{tarefa.criadoEm || "-"}</span>
             </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Flag className="w-4 h-4 text-red-400" />
-              <span className="text-muted-foreground">Prioridade:</span>
-              <span className={`font-medium ${tarefa.prioridade === "alta" ? "text-red-400" : tarefa.prioridade === "media" ? "text-yellow-400" : "text-green-400"}`}>
-                {tarefa.prioridade.charAt(0).toUpperCase() + tarefa.prioridade.slice(1)}
-              </span>
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div>
-            <div className="flex justify-between text-xs text-muted-foreground mb-2">
-              <span>Progresso da tarefa</span>
-              <span className="font-medium">{progresso}%</span>
-            </div>
-            <div className="h-2 bg-foreground/10 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all duration-500"
-                style={{ width: `${progresso}%` }}
-              />
+            {/* Progress inline */}
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-muted-foreground">{progresso}%</span>
+              <div className="w-16 h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full"
+                  style={{ width: `${progresso}%` }}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Status Actions */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-xs text-muted-foreground self-center mr-2">Alterar status:</span>
+          {/* Status Actions - Compact */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-muted-foreground">Status:</span>
             {(["pendente", "em_andamento", "concluida"] as const).map(status => (
               <Button
                 key={status}
                 size="sm"
                 variant={tarefa.status === status ? "default" : "outline"}
-                className={`text-xs ${tarefa.status === status ? "bg-red-500 hover:bg-red-600" : "border-foreground/20 hover:border-red-500/50"}`}
+                className={`text-[10px] h-6 px-2 ${tarefa.status === status ? "bg-red-500 hover:bg-red-600" : "border-foreground/20 hover:border-red-500/50"}`}
                 onClick={() => onStatusChange(status)}
               >
                 {statusLabels[status]}
