@@ -550,6 +550,11 @@ export function AdminDashboard() {
                     <Tooltip 
                       formatter={(value: number) => formatCurrency(value)}
                       labelFormatter={(label) => `Mês: ${label}`}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
                     />
                     <Area type="monotone" dataKey="receitas" stroke="#10b981" fill="url(#colorReceitas)" name="Receitas" />
                     <Area type="monotone" dataKey="despesas" stroke="#ef4444" fill="url(#colorDespesas)" name="Despesas" />
@@ -592,7 +597,13 @@ export function AdminDashboard() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
                   </RechartsPie>
                 </ResponsiveContainer>
               ) : (
@@ -624,7 +635,14 @@ export function AdminDashboard() {
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" />
                     <YAxis dataKey="name" type="category" width={100} className="text-xs" />
-                    <Tooltip />
+                    <Tooltip 
+                      cursor={{ fill: 'transparent' }}
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
                     <Bar dataKey="usuarios" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>

@@ -361,7 +361,7 @@ export function FinancialDashboard({
                     axisLine={false}
                     tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
                   <Bar 
                     dataKey="valor" 
                     fill="hsl(var(--primary))"
