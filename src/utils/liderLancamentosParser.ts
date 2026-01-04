@@ -193,15 +193,23 @@ function parse0300(line: string, lineNo: number): Reg0300 {
   }
 
   const prefix = line.slice(0, firstSpace);
-  if (prefix.length < 45) {
-    throw new Error(`L${lineNo}: prefixo 0300 muito curto (len=${prefix.length}; esperado >=45).`);
+  
+  // Tratamento especial: se o prefixo tem exatamente 44 caracteres (1 a menos que o esperado),
+  // assumimos que o trailer7 tem 6 dígitos em vez de 7
+  const isShortPrefix = prefix.length === 44;
+  
+  if (prefix.length < 44) {
+    throw new Error(`L${lineNo}: prefixo 0300 muito curto (len=${prefix.length}; esperado >=44).`);
   }
 
   const lote = prefix.slice(4, 9);
   const contaDebito = prefix.slice(9, 16);
   const contaCredito = prefix.slice(16, 23);
   const valorRaw = prefix.slice(23, 38);
-  const trailer7 = prefix.slice(38, 45);
+  
+  // Se o prefixo é curto, pega apenas 6 dígitos do trailer, senão pega 7
+  const trailer7 = isShortPrefix ? prefix.slice(38, 44) : prefix.slice(38, 45);
+  const trailerExpectedLen = isShortPrefix ? 6 : 7;
 
   if (!isDigits(lote) || lote.length !== 5) {
     throw new Error(`L${lineNo}: lote inválido em 0300: ${lote}`);
@@ -215,8 +223,8 @@ function parse0300(line: string, lineNo: number): Reg0300 {
   if (!isDigits(valorRaw) || valorRaw.length !== 15) {
     throw new Error(`L${lineNo}: valor_raw inválido em 0300 (15 dígitos): ${valorRaw}`);
   }
-  if (!isDigits(trailer7) || trailer7.length !== 7) {
-    throw new Error(`L${lineNo}: trailer7 inválido em 0300 (7 dígitos): ${trailer7}`);
+  if (!isDigits(trailer7) || trailer7.length !== trailerExpectedLen) {
+    throw new Error(`L${lineNo}: trailer inválido em 0300 (${trailerExpectedLen} dígitos): ${trailer7}`);
   }
 
   const valor = parseInt(valorRaw, 10) / 100.0;
