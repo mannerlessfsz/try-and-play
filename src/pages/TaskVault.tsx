@@ -148,6 +148,8 @@ export default function TaskVault() {
       status: novaTarefa.status || "pendente",
       dataVencimento: novaTarefa.dataVencimento,
       progresso: 0,
+      departamento: novaTarefa.departamento,
+      contatoId: novaTarefa.contatoId,
     });
     
     if (tarefaId) {

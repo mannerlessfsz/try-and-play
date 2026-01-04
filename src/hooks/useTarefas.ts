@@ -36,6 +36,8 @@ export function useTarefas() {
         dataVencimento: t.data_vencimento || undefined,
         progresso: t.progresso || 0,
         responsavel: t.responsavel || undefined,
+        departamento: t.departamento as Tarefa["departamento"] || undefined,
+        contatoId: t.contato_id || undefined,
         arquivos: (arquivosData || [])
           .filter((a) => a.tarefa_id === t.id)
           .map((a) => ({
@@ -73,6 +75,8 @@ export function useTarefas() {
           data_vencimento: tarefa.dataVencimento || null,
           progresso: tarefa.progresso || 0,
           responsavel: tarefa.responsavel || null,
+          departamento: tarefa.departamento || null,
+          contato_id: tarefa.contatoId || null,
         })
         .select()
         .single();
@@ -105,6 +109,8 @@ export function useTarefas() {
           data_vencimento: updates.dataVencimento || null,
           progresso: updates.progresso,
           responsavel: updates.responsavel || null,
+          departamento: updates.departamento || null,
+          contato_id: updates.contatoId || null,
         })
         .eq("id", id);
 
