@@ -21,7 +21,7 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
 
-type FilterType = "all" | "pendente" | "em_andamento" | "concluida" | "urgente";
+type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
   const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
@@ -65,22 +65,40 @@ export default function TaskVault() {
     : tarefas.filter(t => t.empresaId === selectedEmpresaId);
 
   const totalTarefas = tarefasFiltradas.length;
-  const tarefasPendentes = tarefasFiltradas.filter(t => t.status === "pendente").length;
-  const tarefasEmAndamento = tarefasFiltradas.filter(t => t.status === "em_andamento").length;
   const tarefasConcluidas = tarefasFiltradas.filter(t => t.status === "concluida").length;
-  const tarefasUrgentes = tarefasFiltradas.filter(t => t.prioridade === "alta" && t.status !== "concluida").length;
+  
+  // Em Andamento: tarefas não concluídas (pendentes + em_andamento)
+  const tarefasEmAndamento = tarefasFiltradas.filter(t => t.status !== "concluida").length;
+  
+  // Urgentes/Em Atraso: tarefas não concluídas que já passaram do prazo de envio
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const tarefasAtrasadas = tarefasFiltradas.filter(t => {
+    if (t.status === "concluida") return false;
+    if (!t.prazoEntrega) return false;
+    const prazo = new Date(t.prazoEntrega);
+    prazo.setHours(0, 0, 0, 0);
+    return prazo < hoje;
+  }).length;
 
   // Filter tasks based on active filter
   const getFilteredTarefas = () => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    
     switch (activeFilter) {
-      case "pendente":
-        return tarefasFiltradas.filter(t => t.status === "pendente");
       case "em_andamento":
-        return tarefasFiltradas.filter(t => t.status === "em_andamento");
+        return tarefasFiltradas.filter(t => t.status !== "concluida");
       case "concluida":
         return tarefasFiltradas.filter(t => t.status === "concluida");
       case "urgente":
-        return tarefasFiltradas.filter(t => t.prioridade === "alta" && t.status !== "concluida");
+        return tarefasFiltradas.filter(t => {
+          if (t.status === "concluida") return false;
+          if (!t.prazoEntrega) return false;
+          const prazo = new Date(t.prazoEntrega);
+          prazo.setHours(0, 0, 0, 0);
+          return prazo < hoje;
+        });
       default:
         return tarefasFiltradas;
     }
@@ -385,12 +403,12 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Dashboard Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+        {/* Dashboard Metrics - 4 cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <MetricCard 
             title="Total de Tarefas" 
             value={totalTarefas} 
-            change="+12% este mês" 
+            change="Todas as tarefas" 
             changeType="up" 
             icon={ListTodo} 
             color="red"
@@ -398,19 +416,9 @@ export default function TaskVault() {
             onClick={() => handleFilterClick("all")}
           />
           <MetricCard 
-            title="Pendentes" 
-            value={tarefasPendentes} 
-            change="Aguardando" 
-            changeType="down" 
-            icon={Clock} 
-            color="orange"
-            isActive={activeFilter === "pendente"}
-            onClick={() => handleFilterClick("pendente")}
-          />
-          <MetricCard 
             title="Em Andamento" 
             value={tarefasEmAndamento} 
-            change="Em progresso" 
+            change="Até vencer ou concluir" 
             changeType="up" 
             icon={Activity} 
             color="blue"
@@ -428,9 +436,9 @@ export default function TaskVault() {
             onClick={() => handleFilterClick("concluida")}
           />
           <MetricCard 
-            title="Urgentes" 
-            value={tarefasUrgentes} 
-            change="Atenção!" 
+            title="Em Atraso" 
+            value={tarefasAtrasadas} 
+            change="Prazo expirado" 
             changeType="down" 
             icon={AlertTriangle} 
             color="yellow"
@@ -444,7 +452,7 @@ export default function TaskVault() {
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
             <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
-              {activeFilter === "pendente" ? "Pendentes" : activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Urgentes"}
+              {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
             </span>
             <button 
               onClick={() => setActiveFilter("all")}
