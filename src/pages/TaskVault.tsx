@@ -526,7 +526,7 @@ export default function TaskVault() {
                       {kanbanColumns[status].length}
                     </span>
                   </div>
-                  <div className="space-y-3 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
                     {kanbanColumns[status].map(tarefa => (
                       <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} />
                     ))}

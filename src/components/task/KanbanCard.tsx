@@ -1,4 +1,4 @@
-import { Trash2, Clock, User } from "lucide-react";
+import { Trash2, Clock } from "lucide-react";
 import { Tarefa } from "@/types/task";
 
 interface KanbanCardProps {
@@ -19,47 +19,49 @@ export function KanbanCard({ tarefa, empresaNome, onDelete }: KanbanCardProps) {
 
   return (
     <div className="
-      bg-card/60 backdrop-blur-xl rounded-xl border border-foreground/10 p-3
-      hover:border-red-500/30 hover:shadow-lg hover:shadow-red-500/10
-      transition-all duration-300 cursor-pointer group
+      bg-card/60 backdrop-blur-xl rounded-lg border border-foreground/10 p-2
+      hover:border-red-500/30 hover:shadow-md hover:shadow-red-500/10
+      transition-all duration-200 cursor-pointer group
     ">
-      <div className="flex items-start justify-between mb-2">
-        <div className={`w-2 h-2 rounded-full ${prioridadeColors[tarefa.prioridade]} animate-pulse`} />
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
-        >
-          <Trash2 className="w-3 h-3 text-red-400" />
-        </button>
-      </div>
-
-      <h4 className="font-medium text-sm text-foreground mb-1 line-clamp-2">{tarefa.titulo}</h4>
-      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{tarefa.descricao}</p>
-
-      <div className="mb-3">
-        <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-          <span>Progresso</span>
-          <span>{progresso}%</span>
+      <div className="flex items-center gap-2">
+        {/* Priority indicator */}
+        <div className={`w-1.5 h-8 rounded-full ${prioridadeColors[tarefa.prioridade]} flex-shrink-0`} />
+        
+        {/* Main content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h4 className="font-medium text-sm text-foreground truncate flex-1">{tarefa.titulo}</h4>
+            <span className="text-[10px] text-muted-foreground flex-shrink-0">{progresso}%</span>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="text-[10px] text-muted-foreground truncate">{empresaNome}</span>
+            {tarefa.dataVencimento && (
+              <>
+                <span className="text-[10px] text-muted-foreground">•</span>
+                <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground flex-shrink-0">
+                  <Clock className="w-2.5 h-2.5" />
+                  <span>{tarefa.dataVencimento}</span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-        <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
+
+        {/* Progress bar mini */}
+        <div className="w-12 h-1 bg-foreground/10 rounded-full overflow-hidden flex-shrink-0">
           <div 
-            className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full transition-all duration-500"
+            className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full"
             style={{ width: `${progresso}%` }}
           />
         </div>
-      </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1">
-          <div className="w-5 h-5 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
-            <User className="w-3 h-3 text-white" />
-          </div>
-          <span className="text-[10px] text-muted-foreground">{empresaNome}</span>
-        </div>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Clock className="w-3 h-3" />
-          <span>{tarefa.dataVencimento}</span>
-        </div>
+        {/* Delete button */}
+        <button 
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
+        >
+          <Trash2 className="w-3 h-3 text-red-400" />
+        </button>
       </div>
     </div>
   );
