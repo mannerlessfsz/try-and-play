@@ -54,6 +54,7 @@ export interface Reg0300 {
   historico: string;
   suffix7: string;
   raw: string;
+  requerRevisao?: boolean; // true quando len=44 (trailer com 6 dígitos)
 }
 
 export interface Lancamento {
@@ -68,6 +69,7 @@ export interface OutputRow {
   valor: string;
   historico: string;
   loteFlag: boolean;
+  requerRevisao?: boolean; // true quando len=44 (trailer com 6 dígitos) - obriga correção do usuário
 }
 
 export interface TransformResult {
@@ -236,7 +238,10 @@ function parse0300(line: string, lineNo: number): Reg0300 {
   const suffix7 = trimmed.slice(-7);
   const historico = trimmed.slice(firstSpace + 1, -7).trimEnd();
 
-  return { lote, contaDebito, contaCredito, valor, trailer7, historico, suffix7, raw: line };
+  return { 
+    lote, contaDebito, contaCredito, valor, trailer7, historico, suffix7, raw: line,
+    requerRevisao: isShortPrefix // Marca para revisão obrigatória quando len=44
+  };
 }
 
 // -------------------------
@@ -420,7 +425,7 @@ export function transformarLancamentos(content: string): TransformResult {
   const outputRows: OutputRow[] = [];
   const warnings: string[] = [];
 
-  const emitRow = (data: Date, deb: string | null, cred: string | null, val: number, hist: string, loteFlag: boolean) => {
+  const emitRow = (data: Date, deb: string | null, cred: string | null, val: number, hist: string, loteFlag: boolean, requerRevisao?: boolean) => {
     outputLines.push(linhaSaida(data, deb, cred, val, hist));
     outputRows.push({
       data: formatDateDDMMYYYY(data),
@@ -429,6 +434,7 @@ export function transformarLancamentos(content: string): TransformResult {
       valor: formatValorBR(val),
       historico: hist,
       loteFlag,
+      requerRevisao: requerRevisao || false,
     });
   };
 
@@ -436,7 +442,7 @@ export function transformarLancamentos(content: string): TransformResult {
     const sorted = [...groupItems].sort((a, b) => a.idx - b.idx);
     for (const x of sorted) {
       const lan = x.lan;
-      emitRow(lan.header.data, lan.detalhe.contaDebito, lan.detalhe.contaCredito, lan.detalhe.valor, lan.detalhe.historico, true);
+      emitRow(lan.header.data, lan.detalhe.contaDebito, lan.detalhe.contaCredito, lan.detalhe.valor, lan.detalhe.historico, true, lan.detalhe.requerRevisao);
     }
   };
 
@@ -445,7 +451,7 @@ export function transformarLancamentos(content: string): TransformResult {
 
     if (key.startsWith("__NO_TITULO__")) {
       const lan = g[0].lan;
-      emitRow(lan.header.data, lan.detalhe.contaDebito, lan.detalhe.contaCredito, lan.detalhe.valor, lan.detalhe.historico, true);
+      emitRow(lan.header.data, lan.detalhe.contaDebito, lan.detalhe.contaCredito, lan.detalhe.valor, lan.detalhe.historico, true, lan.detalhe.requerRevisao);
       continue;
     }
 
@@ -479,7 +485,7 @@ export function transformarLancamentos(content: string): TransformResult {
       const credito = creditosPagto[0];
 
       // Buffer para validar antes de efetivar
-      const bufRows: Array<{ data: Date; deb: string | null; cred: string | null; val: number; hist: string; loteFlag: boolean }> = [];
+      const bufRows: Array<{ data: Date; deb: string | null; cred: string | null; val: number; hist: string; loteFlag: boolean; requerRevisao?: boolean }> = [];
 
       // 1) PAGTO(s) só débito: lote_flag=True somente na primeira linha
       pagtosSorted.forEach((p, i) => {
@@ -491,6 +497,7 @@ export function transformarLancamentos(content: string): TransformResult {
           val: lanP.detalhe.valor,
           hist: lanP.detalhe.historico,
           loteFlag: i === 0,
+          requerRevisao: lanP.detalhe.requerRevisao,
         });
       });
 
@@ -504,10 +511,13 @@ export function transformarLancamentos(content: string): TransformResult {
           val: lanT.detalhe.valor,
           hist: lanT.detalhe.historico,
           loteFlag: false,
+          requerRevisao: lanT.detalhe.requerRevisao,
         });
       }
 
       // 3) NOVA linha só crédito: lote_flag=False
+      // Se qualquer pagto ou tarifa requer revisão, a nova linha também requer
+      const anyRequerRevisao = [...pagtosSorted, ...tarifasSorted].some(x => x.lan.detalhe.requerRevisao);
       const histRef = pagtosSorted[0].lan.detalhe.historico;
       const dataRef = pagtosSorted[0].lan.header.data;
       bufRows.push({
@@ -517,6 +527,7 @@ export function transformarLancamentos(content: string): TransformResult {
         val: somaPagto + somaTarifas,
         hist: histRef,
         loteFlag: false,
+        requerRevisao: anyRequerRevisao,
       });
 
       // 4) DESCONTO(s) original(is): lote_flag=True
@@ -529,6 +540,7 @@ export function transformarLancamentos(content: string): TransformResult {
           val: lanD.detalhe.valor,
           hist: lanD.detalhe.historico,
           loteFlag: true,
+          requerRevisao: lanD.detalhe.requerRevisao,
         });
       }
 
@@ -559,7 +571,7 @@ export function transformarLancamentos(content: string): TransformResult {
 
       // Efetivar
       for (const row of bufRows) {
-        emitRow(row.data, row.deb, row.cred, row.val, row.hist, row.loteFlag);
+        emitRow(row.data, row.deb, row.cred, row.val, row.hist, row.loteFlag, row.requerRevisao);
       }
     } else {
       // Sem transformação: emitir original

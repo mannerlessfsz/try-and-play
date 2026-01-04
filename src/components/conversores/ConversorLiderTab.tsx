@@ -178,7 +178,9 @@ export function ConversorLiderTab() {
         ...row,
         id: `${arquivoId}-${idx}`,
         confirmado: false,
-        temErro: false,
+        // Se requerRevisao=true (len=44), marca como erro para forçar revisão do usuário
+        temErro: row.requerRevisao === true,
+        erroOriginal: row.requerRevisao ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." : undefined,
       }));
 
       // Marcar linhas com erros baseados nos erros do parser
