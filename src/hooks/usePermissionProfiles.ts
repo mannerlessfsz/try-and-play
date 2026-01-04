@@ -16,6 +16,7 @@ export interface PermissionProfileItem {
   id: string;
   profile_id: string;
   module: string;
+  sub_module: string | null;
   resource: string;
   can_view: boolean;
   can_create: boolean;
@@ -35,6 +36,7 @@ export interface PermissionProfileInput {
 export interface PermissionProfileItemInput {
   profile_id: string;
   module: string;
+  sub_module?: string | null;
   resource: string;
   can_view?: boolean;
   can_create?: boolean;
@@ -198,6 +200,7 @@ export function usePermissionProfiles() {
         user_id: userId,
         empresa_id: empresaId,
         module: item.module,
+        sub_module: item.sub_module,
         resource: item.resource,
         can_view: item.can_view,
         can_create: item.can_create,

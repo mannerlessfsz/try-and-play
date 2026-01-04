@@ -27,24 +27,25 @@ interface UserPermission {
   is_pro_mode: boolean;
 }
 
-interface UserEmpresa {
-  id: string;
-  user_id: string;
-  empresa_id: string;
-  is_owner: boolean;
-}
-
 interface UserResourcePermission {
   id: string;
   user_id: string;
   empresa_id: string;
   module: string; // Can be legacy module name
+  sub_module: string | null;
   resource: string;
   can_view: boolean;
   can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
   can_export: boolean;
+}
+
+interface UserEmpresa {
+  id: string;
+  user_id: string;
+  empresa_id: string;
+  is_owner: boolean;
 }
 
 export const usePermissions = () => {
@@ -178,6 +179,59 @@ export const usePermissions = () => {
     return hasResourceAccess;
   };
 
+  /**
+   * Check if user has access to a specific sub-module within a module
+   */
+  const hasSubModuleAccess = (module: AppModule, subModule: string): boolean => {
+    if (isAdmin) return true;
+    
+    const moduleNames: string[] = [module];
+    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
+      if (current === module) moduleNames.push(legacy);
+    });
+    
+    // Check if user has any view permission for resources in this sub-module
+    return resourcePermissions.some(p => 
+      moduleNames.includes(p.module) && 
+      p.sub_module === subModule && 
+      p.can_view === true
+    );
+  };
+
+  /**
+   * Check if user has permission for a specific resource within a sub-module
+   */
+  const hasResourcePermission = (
+    module: AppModule, 
+    subModule: string | null, 
+    resource: string, 
+    action: PermissionType,
+    empresaId?: string
+  ): boolean => {
+    if (isAdmin) return true;
+    
+    const moduleNames: string[] = [module];
+    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
+      if (current === module) moduleNames.push(legacy);
+    });
+    
+    const permissionMap: Record<PermissionType, 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export'> = {
+      'view': 'can_view',
+      'create': 'can_create',
+      'edit': 'can_edit',
+      'delete': 'can_delete',
+      'export': 'can_export'
+    };
+    
+    return resourcePermissions.some(p => 
+      moduleNames.includes(p.module) && 
+      (subModule === null || p.sub_module === subModule) &&
+      p.resource === resource &&
+      p[permissionMap[action]] === true &&
+      (!empresaId || p.empresa_id === empresaId)
+    );
+  };
+
   const hasProMode = (module: AppModule): boolean => {
     if (isAdmin) return true;
     
@@ -210,6 +264,8 @@ export const usePermissions = () => {
     hasRole,
     hasPermission,
     hasModuleAccess,
+    hasSubModuleAccess,
+    hasResourcePermission,
     hasProMode,
     hasEmpresaAccess,
     getAccessibleEmpresas,

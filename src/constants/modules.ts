@@ -4,11 +4,13 @@
  * Este arquivo centraliza todas as definições de módulos, recursos e permissões.
  * Qualquer alteração em módulos deve ser feita APENAS aqui.
  * 
- * IMPORTANTE: Ao adicionar um novo módulo:
- * 1. Adicionar ao APP_MODULES abaixo
- * 2. Adicionar seus recursos ao MODULE_RESOURCES
- * 3. Executar migration para adicionar ao enum app_module no banco de dados
- * 4. Testar permissões no painel admin
+ * HIERARQUIA DE PERMISSÕES:
+ * Módulo → Sub-módulo → Recurso → Ações (view, create, edit, delete, export)
+ * 
+ * Propagação em cascata:
+ * - Negar módulo = nega tudo abaixo automaticamente
+ * - Permitir módulo = permite configurar sub-módulos
+ * - Permitir sub-módulo = permite configurar recursos
  */
 
 // ============================================================================
@@ -25,8 +27,6 @@ export type AppRole = 'admin' | 'manager' | 'user';
 
 /**
  * Módulos disponíveis no sistema (inclui legados para compatibilidade com banco)
- * NOTA: Inclui módulos legados (financialace, erp, ajustasped) para compatibilidade
- * com dados existentes no banco de dados
  */
 export type AppModule = 
   | 'taskvault' 
@@ -39,6 +39,19 @@ export type AppModule =
   | 'ajustasped';
 
 /**
+ * Sub-módulos do sistema (nível intermediário da hierarquia)
+ */
+export type AppSubModule = 
+  | 'financeiro' 
+  | 'erp_comercial' 
+  | 'tarefas'
+  // Sub-módulos de outros módulos
+  | 'kanban'
+  | 'fiscal'
+  | 'extrato'
+  | 'conferencia';
+
+/**
  * Tipos de permissão por módulo
  */
 export type PermissionType = 'view' | 'create' | 'edit' | 'delete' | 'export';
@@ -49,7 +62,6 @@ export type PermissionType = 'view' | 'create' | 'edit' | 'delete' | 'export';
 
 /**
  * Lista oficial de módulos do sistema
- * Use esta lista em TODOS os componentes que precisam listar módulos
  */
 export const APP_MODULES: {
   value: AppModule;
@@ -100,7 +112,6 @@ export const MODULE_LABELS: Record<AppModule, string> = {
 
 /**
  * Mapeamento de módulos legados para os atuais
- * Usado para compatibilidade com dados antigos no banco
  */
 export const LEGACY_MODULE_MAP: Record<string, AppModule> = {
   'financialace': 'gestao',
@@ -116,16 +127,128 @@ export function normalizeModuleName(module: string): AppModule {
 }
 
 // ============================================================================
-// CONSTANTES - RECURSOS POR MÓDULO
+// CONSTANTES - SUB-MÓDULOS
 // ============================================================================
 
 /**
- * Recursos granulares por módulo
- * Cada módulo possui recursos específicos que podem ter permissões individuais
+ * Definição de sub-módulos por módulo
+ * Esta é a estrutura hierárquica intermediária
  */
-export const MODULE_RESOURCES: Record<AppModule, { value: string; label: string; description?: string }[]> = {
+export interface SubModuleDefinition {
+  value: AppSubModule;
+  label: string;
+  description: string;
+  icon?: string;
+}
+
+export const MODULE_SUB_MODULES: Record<AppModule, SubModuleDefinition[]> = {
+  gestao: [
+    { value: 'financeiro', label: 'Financeiro', description: 'Contas, transações, conciliação e relatórios' },
+    { value: 'erp_comercial', label: 'ERP', description: 'Produtos, clientes, vendas, compras e estoque' },
+    { value: 'tarefas', label: 'Tarefas', description: 'Gestão de tarefas dentro da empresa' },
+  ],
+  taskvault: [
+    { value: 'kanban', label: 'Kanban', description: 'Gestão visual de tarefas' },
+  ],
+  conversores: [
+    { value: 'fiscal', label: 'Fiscal', description: 'Conversão de arquivos fiscais' },
+    { value: 'extrato', label: 'Extrato', description: 'Conversão de extratos bancários' },
+  ],
+  conferesped: [
+    { value: 'conferencia', label: 'Conferência', description: 'Análise e conferência de SPED' },
+  ],
+  // Legados
+  financialace: [],
+  erp: [],
+  ajustasped: [],
+};
+
+// ============================================================================
+// CONSTANTES - RECURSOS POR SUB-MÓDULO
+// ============================================================================
+
+/**
+ * Recursos granulares por sub-módulo
+ * Cada sub-módulo possui recursos específicos que podem ter permissões individuais
+ */
+export interface ResourceDefinition {
+  value: string;
+  label: string;
+  description?: string;
+}
+
+export const SUB_MODULE_RESOURCES: Record<AppSubModule, ResourceDefinition[]> = {
+  // GESTÃO > Financeiro
+  financeiro: [
+    { value: 'dashboard', label: 'Dashboard', description: 'Visão geral e indicadores' },
+    { value: 'transacoes', label: 'Transações', description: 'Receitas, despesas e transferências' },
+    { value: 'contas_bancarias', label: 'Contas Bancárias', description: 'Cadastro de contas' },
+    { value: 'categorias', label: 'Categorias', description: 'Classificação de transações' },
+    { value: 'centros_custo', label: 'Centros de Custo', description: 'Centros de custo e projetos' },
+    { value: 'recorrencias', label: 'Recorrências', description: 'Transações recorrentes' },
+    { value: 'metas', label: 'Metas Financeiras', description: 'Objetivos e metas' },
+    { value: 'orcamentos', label: 'Orçamentos', description: 'Planejamento orçamentário' },
+    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios e DRE' },
+    { value: 'importacoes', label: 'Importações', description: 'Importação de extratos' },
+    { value: 'conciliacao', label: 'Conciliação', description: 'Conciliação bancária' },
+  ],
+  // GESTÃO > ERP
+  erp_comercial: [
+    { value: 'produtos', label: 'Produtos', description: 'Cadastro de produtos e serviços' },
+    { value: 'categorias_produtos', label: 'Categorias de Produtos', description: 'Classificação de produtos' },
+    { value: 'unidades', label: 'Unidades de Medida', description: 'UN, KG, LT, etc.' },
+    { value: 'clientes', label: 'Clientes', description: 'Cadastro de clientes' },
+    { value: 'fornecedores', label: 'Fornecedores', description: 'Cadastro de fornecedores' },
+    { value: 'vendas', label: 'Vendas', description: 'Pedidos de venda' },
+    { value: 'compras', label: 'Compras', description: 'Pedidos de compra' },
+    { value: 'orcamentos_servico', label: 'Orçamentos', description: 'Orçamentos para clientes' },
+    { value: 'estoque', label: 'Estoque', description: 'Movimentações de estoque' },
+    { value: 'nfe', label: 'Notas Fiscais', description: 'Importação e gestão de NF-e' },
+  ],
+  // GESTÃO > Tarefas
+  tarefas: [
+    { value: 'tarefas', label: 'Tarefas', description: 'Gerenciamento de tarefas' },
+    { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
+  ],
+  // TaskVault > Kanban
+  kanban: [
+    { value: 'tarefas', label: 'Tarefas', description: 'Gerenciamento de tarefas' },
+    { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
+    { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
+  ],
+  // Conversores > Fiscal
+  fiscal: [
+    { value: 'ajustasped', label: 'Ajusta SPED', description: 'Correção de arquivos SPED' },
+    { value: 'lancaapae', label: 'Lança APAE', description: 'Importação de arquivos APAE' },
+    { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
+    { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
+    { value: 'contabil', label: 'Dados Contábeis', description: 'Balancete, DRE, plano de contas' },
+  ],
+  // Conversores > Extrato
+  extrato: [
+    { value: 'ofx', label: 'OFX', description: 'Arquivos OFX bancários' },
+    { value: 'pdf', label: 'PDF', description: 'Extratos em PDF' },
+    { value: 'documentos', label: 'Documentos Gerais', description: 'Outros formatos' },
+  ],
+  // ConfereSped > Conferência
+  conferencia: [
+    { value: 'validacao', label: 'Validação', description: 'Validação de registros SPED' },
+    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
+  ],
+};
+
+// ============================================================================
+// MAPEAMENTO LEGADO (para compatibilidade com código existente)
+// ============================================================================
+
+/**
+ * Recursos por módulo (formato antigo - mantido para compatibilidade)
+ * @deprecated Use SUB_MODULE_RESOURCES para nova hierarquia
+ */
+export const MODULE_RESOURCES: Record<AppModule, ResourceDefinition[]> = {
   gestao: [
     // Financeiro
+    { value: 'dashboard', label: 'Dashboard', description: 'Visão geral e indicadores' },
     { value: 'transacoes', label: 'Transações', description: 'Receitas, despesas e transferências' },
     { value: 'categorias', label: 'Categorias', description: 'Classificação de transações' },
     { value: 'contas_bancarias', label: 'Contas Bancárias', description: 'Cadastro de contas' },
@@ -147,6 +270,9 @@ export const MODULE_RESOURCES: Record<AppModule, { value: string; label: string;
     { value: 'orcamentos_servico', label: 'Orçamentos de Serviço', description: 'Orçamentos para clientes' },
     { value: 'estoque', label: 'Estoque', description: 'Movimentações de estoque' },
     { value: 'nfe', label: 'Notas Fiscais', description: 'Importação e gestão de NF-e' },
+    // Tarefas
+    { value: 'tarefas', label: 'Tarefas', description: 'Gerenciamento de tarefas' },
+    { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
   ],
   taskvault: [
     { value: 'tarefas', label: 'Tarefas', description: 'Gerenciamento de tarefas' },
@@ -169,11 +295,39 @@ export const MODULE_RESOURCES: Record<AppModule, { value: string; label: string;
     { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
     { value: 'validacao', label: 'Validação', description: 'Validação de registros' },
   ],
-  // Legados - redirecionam para os módulos atuais
-  financialace: [], // Usar recursos de 'gestao'
-  erp: [], // Usar recursos de 'gestao'
-  ajustasped: [], // Usar recursos de 'conversores'
+  // Legados
+  financialace: [],
+  erp: [],
+  ajustasped: [],
 };
+
+// ============================================================================
+// MAPEAMENTO RECURSO -> SUB-MÓDULO
+// ============================================================================
+
+/**
+ * Mapeia um recurso para seu sub-módulo correspondente
+ */
+export function getSubModuleForResource(resource: string): AppSubModule | null {
+  for (const [subModule, resources] of Object.entries(SUB_MODULE_RESOURCES)) {
+    if (resources.some(r => r.value === resource)) {
+      return subModule as AppSubModule;
+    }
+  }
+  return null;
+}
+
+/**
+ * Obtém o módulo pai de um sub-módulo
+ */
+export function getModuleForSubModule(subModule: AppSubModule): AppModule | null {
+  for (const [module, subModules] of Object.entries(MODULE_SUB_MODULES)) {
+    if (subModules.some(sm => sm.value === subModule)) {
+      return module as AppModule;
+    }
+  }
+  return null;
+}
 
 // ============================================================================
 // CONSTANTES - PERMISSÕES
@@ -191,7 +345,7 @@ export const PERMISSION_TYPES: { value: PermissionType; label: string }[] = [
 ];
 
 /**
- * Ações de permissão para recursos (formato usado em user_resource_permissions)
+ * Ações de permissão para recursos
  */
 export const PERMISSION_ACTIONS = [
   { value: 'can_view', label: 'Visualizar' },
@@ -215,10 +369,25 @@ export const ROLES: { value: AppRole; label: string; color: string }[] = [
 // ============================================================================
 
 /**
- * Obtém os recursos de um módulo
+ * Obtém os recursos de um módulo (formato antigo)
+ * @deprecated Use getSubModuleResources para nova hierarquia
  */
 export function getModuleResources(module: AppModule) {
   return MODULE_RESOURCES[module] || [];
+}
+
+/**
+ * Obtém os sub-módulos de um módulo
+ */
+export function getModuleSubModules(module: AppModule): SubModuleDefinition[] {
+  return MODULE_SUB_MODULES[module] || [];
+}
+
+/**
+ * Obtém os recursos de um sub-módulo
+ */
+export function getSubModuleResources(subModule: AppSubModule): ResourceDefinition[] {
+  return SUB_MODULE_RESOURCES[subModule] || [];
 }
 
 /**
@@ -243,4 +412,29 @@ export function getAllResources() {
   return Object.entries(MODULE_RESOURCES).flatMap(([module, resources]) =>
     resources.map(r => ({ ...r, module: module as AppModule }))
   );
+}
+
+/**
+ * Obtém todos os recursos organizados por hierarquia
+ */
+export function getHierarchicalResources(): {
+  module: AppModule;
+  moduleLabel: string;
+  subModules: {
+    subModule: AppSubModule;
+    subModuleLabel: string;
+    resources: ResourceDefinition[];
+  }[];
+}[] {
+  return APP_MODULES
+    .filter(m => !['financialace', 'erp', 'ajustasped'].includes(m.value))
+    .map(module => ({
+      module: module.value,
+      moduleLabel: module.label,
+      subModules: getModuleSubModules(module.value).map(sm => ({
+        subModule: sm.value,
+        subModuleLabel: sm.label,
+        resources: getSubModuleResources(sm.value),
+      })),
+    }));
 }

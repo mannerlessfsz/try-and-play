@@ -1,13 +1,19 @@
 import React, { useState } from 'react';
 import { usePermissionProfiles, PermissionProfile } from '@/hooks/usePermissionProfiles';
-import { MODULE_RESOURCES, PERMISSION_ACTIONS } from '@/hooks/useResourcePermissions';
+import { 
+  APP_MODULES, 
+  MODULE_SUB_MODULES, 
+  SUB_MODULE_RESOURCES,
+  PERMISSION_ACTIONS,
+  AppModule,
+  AppSubModule 
+} from '@/constants/modules';
+import { HierarchicalPermissionEditor, PermissionState } from './HierarchicalPermissionEditor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,7 +25,6 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Copy,
   Users
 } from 'lucide-react';
 
@@ -27,13 +32,6 @@ const ROLES = [
   { value: 'admin', label: 'Administrador' },
   { value: 'manager', label: 'Gerente' },
   { value: 'user', label: 'Usuário' },
-];
-
-const MODULES = [
-  { value: 'gestao', label: 'GESTÃO' },
-  { value: 'taskvault', label: 'TaskVault' },
-  { value: 'conversores', label: 'Conversores' },
-  { value: 'conferesped', label: 'ConfereSped' },
 ];
 
 export function PermissionProfilesManager() {
@@ -49,7 +47,6 @@ export function PermissionProfilesManager() {
   } = usePermissionProfiles();
 
   const [expandedProfile, setExpandedProfile] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string>('financialace');
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<PermissionProfile | null>(null);
   const [formData, setFormData] = useState({
@@ -80,20 +77,37 @@ export function PermissionProfilesManager() {
     setFormData({ nome: '', descricao: '', role_padrao: '' });
   };
 
+  // Converter profileItems para o formato do HierarchicalPermissionEditor
+  const getPermissionsForEditor = (profileId: string): PermissionState[] => {
+    const items = getProfileItems(profileId);
+    return items.map(item => ({
+      module: item.module,
+      sub_module: item.sub_module || null,
+      resource: item.resource,
+      can_view: item.can_view ?? false,
+      can_create: item.can_create ?? false,
+      can_edit: item.can_edit ?? false,
+      can_delete: item.can_delete ?? false,
+      can_export: item.can_export ?? false,
+    }));
+  };
+
   const handleTogglePermission = (
     profileId: string,
     module: string,
+    subModule: string | null,
     resource: string,
     action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export',
     currentValue: boolean
   ) => {
     const existing = getProfileItems(profileId).find(
-      item => item.module === module && item.resource === resource
+      item => item.module === module && item.sub_module === subModule && item.resource === resource
     );
     
     upsertProfileItem({
       profile_id: profileId,
       module,
+      sub_module: subModule,
       resource,
       can_view: existing?.can_view ?? false,
       can_create: existing?.can_create ?? false,
@@ -104,10 +118,11 @@ export function PermissionProfilesManager() {
     });
   };
 
-  const handleGrantAllForResource = (profileId: string, module: string, resource: string) => {
+  const handleGrantAllForResource = (profileId: string, module: string, subModule: string | null, resource: string) => {
     upsertProfileItem({
       profile_id: profileId,
       module,
+      sub_module: subModule,
       resource,
       can_view: true,
       can_create: true,
@@ -117,16 +132,31 @@ export function PermissionProfilesManager() {
     });
   };
 
-  const handleRevokeAllForResource = (profileId: string, module: string, resource: string) => {
+  const handleRevokeAllForResource = (profileId: string, module: string, subModule: string | null, resource: string) => {
     upsertProfileItem({
       profile_id: profileId,
       module,
+      sub_module: subModule,
       resource,
       can_view: false,
       can_create: false,
       can_edit: false,
       can_delete: false,
       can_export: false,
+    });
+  };
+
+  const handleGrantAllForSubModule = (profileId: string, module: string, subModule: string) => {
+    const resources = SUB_MODULE_RESOURCES[subModule as AppSubModule] || [];
+    resources.forEach(resource => {
+      handleGrantAllForResource(profileId, module, subModule, resource.value);
+    });
+  };
+
+  const handleRevokeAllForSubModule = (profileId: string, module: string, subModule: string) => {
+    const resources = SUB_MODULE_RESOURCES[subModule as AppSubModule] || [];
+    resources.forEach(resource => {
+      handleRevokeAllForResource(profileId, module, subModule, resource.value);
     });
   };
 
@@ -165,7 +195,7 @@ export function PermissionProfilesManager() {
             Perfis de Permissões
           </CardTitle>
           <CardDescription>
-            Crie templates de permissões para aplicar rapidamente a usuários
+            Crie templates de permissões com hierarquia Módulo → Sub-módulo → Recurso
           </CardDescription>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -303,158 +333,25 @@ export function PermissionProfilesManager() {
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t border-border p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Shield className="w-4 h-4 text-primary" />
-                          <span className="font-medium text-sm">Configurar Permissões do Perfil</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Marque as permissões que este perfil terá em cada recurso
-                        </p>
-                      </div>
-
-                      {/* Module selector */}
-                      <div className="flex gap-2 flex-wrap">
-                        {MODULES.map(mod => {
-                          const modulePermCount = getProfileItems(profile.id).filter(
-                            item => item.module === mod.value
-                          ).reduce((acc, item) => {
-                            return acc + 
-                              (item.can_view ? 1 : 0) + 
-                              (item.can_create ? 1 : 0) + 
-                              (item.can_edit ? 1 : 0) + 
-                              (item.can_delete ? 1 : 0) + 
-                              (item.can_export ? 1 : 0);
-                          }, 0);
-                          
-                          return (
-                            <Button
-                              key={mod.value}
-                              size="sm"
-                              variant={selectedModule === mod.value ? 'default' : 'outline'}
-                              onClick={() => setSelectedModule(mod.value)}
-                              className="relative"
-                            >
-                              {mod.label}
-                              {modulePermCount > 0 && (
-                                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
-                                  {modulePermCount}
-                                </Badge>
-                              )}
-                            </Button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Bulk actions for module */}
-                      <div className="flex gap-2 items-center">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            MODULE_RESOURCES[selectedModule]?.forEach(resource => {
-                              handleGrantAllForResource(profile.id, selectedModule, resource.value);
-                            });
-                          }}
-                        >
-                          Marcar Todos do Módulo
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            MODULE_RESOURCES[selectedModule]?.forEach(resource => {
-                              handleRevokeAllForResource(profile.id, selectedModule, resource.value);
-                            });
-                          }}
-                        >
-                          Limpar Módulo
-                        </Button>
-                      </div>
-
-                      {/* Resource permissions table */}
-                      {MODULE_RESOURCES[selectedModule] && (
-                        <div className="rounded-lg border">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="min-w-[200px]">Recurso</TableHead>
-                                {PERMISSION_ACTIONS.map(action => (
-                                  <TableHead key={action.value} className="text-center w-24">
-                                    {action.label}
-                                  </TableHead>
-                                ))}
-                                <TableHead className="w-32">Ações</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {MODULE_RESOURCES[selectedModule].map(resource => {
-                                const permission = getProfileItems(profile.id).find(
-                                  p => p.module === selectedModule && p.resource === resource.value
-                                );
-                                const hasAnyPermission = permission && (
-                                  permission.can_view || permission.can_create || 
-                                  permission.can_edit || permission.can_delete || permission.can_export
-                                );
-
-                                return (
-                                  <TableRow key={resource.value} className={hasAnyPermission ? 'bg-primary/5' : ''}>
-                                    <TableCell>
-                                      <div>
-                                        <span className="font-medium">{resource.label}</span>
-                                        {resource.description && (
-                                          <p className="text-xs text-muted-foreground">{resource.description}</p>
-                                        )}
-                                      </div>
-                                    </TableCell>
-                                    {PERMISSION_ACTIONS.map(action => (
-                                      <TableCell key={action.value} className="text-center">
-                                        <Checkbox
-                                          checked={permission?.[action.value] ?? false}
-                                          onCheckedChange={() =>
-                                            handleTogglePermission(
-                                              profile.id,
-                                              selectedModule,
-                                              resource.value,
-                                              action.value,
-                                              permission?.[action.value] ?? false
-                                            )
-                                          }
-                                        />
-                                      </TableCell>
-                                    ))}
-                                    <TableCell>
-                                      <div className="flex gap-1">
-                                        <Button
-                                          size="sm"
-                                          variant="outline"
-                                          className="h-7 text-xs"
-                                          onClick={() =>
-                                            handleGrantAllForResource(profile.id, selectedModule, resource.value)
-                                          }
-                                        >
-                                          Todos
-                                        </Button>
-                                        <Button
-                                          size="sm"
-                                          variant="ghost"
-                                          className="h-7 text-xs"
-                                          onClick={() =>
-                                            handleRevokeAllForResource(profile.id, selectedModule, resource.value)
-                                          }
-                                        >
-                                          Limpar
-                                        </Button>
-                                      </div>
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      )}
+                    <div className="border-t border-border p-4">
+                      <HierarchicalPermissionEditor
+                        permissions={getPermissionsForEditor(profile.id)}
+                        onTogglePermission={(module, subModule, resource, action, currentValue) =>
+                          handleTogglePermission(profile.id, module, subModule, resource, action, currentValue)
+                        }
+                        onGrantAllForResource={(module, subModule, resource) =>
+                          handleGrantAllForResource(profile.id, module, subModule, resource)
+                        }
+                        onRevokeAllForResource={(module, subModule, resource) =>
+                          handleRevokeAllForResource(profile.id, module, subModule, resource)
+                        }
+                        onGrantAllForSubModule={(module, subModule) =>
+                          handleGrantAllForSubModule(profile.id, module, subModule)
+                        }
+                        onRevokeAllForSubModule={(module, subModule) =>
+                          handleRevokeAllForSubModule(profile.id, module, subModule)
+                        }
+                      />
                     </div>
                   )}
                 </div>

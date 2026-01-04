@@ -1235,6 +1235,7 @@ export type Database = {
           module: string
           profile_id: string
           resource: string
+          sub_module: string | null
         }
         Insert: {
           can_create?: boolean | null
@@ -1247,6 +1248,7 @@ export type Database = {
           module: string
           profile_id: string
           resource: string
+          sub_module?: string | null
         }
         Update: {
           can_create?: boolean | null
@@ -1259,6 +1261,7 @@ export type Database = {
           module?: string
           profile_id?: string
           resource?: string
+          sub_module?: string | null
         }
         Relationships: [
           {
@@ -1956,6 +1959,7 @@ export type Database = {
           id: string
           module: string
           resource: string
+          sub_module: string | null
           updated_at: string
           user_id: string
         }
@@ -1970,6 +1974,7 @@ export type Database = {
           id?: string
           module: string
           resource: string
+          sub_module?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1984,6 +1989,7 @@ export type Database = {
           id?: string
           module?: string
           resource?: string
+          sub_module?: string | null
           updated_at?: string
           user_id?: string
         }
