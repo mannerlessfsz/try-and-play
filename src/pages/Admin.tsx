@@ -1117,100 +1117,138 @@ const Admin: React.FC = () => {
                 <CardDescription>Configure permissões granulares para cada usuário</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  {users.map(user => (
-                    <div key={user.id} className="border border-border rounded-lg p-4 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-foreground">{user.full_name || user.email}</h3>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
-                        </div>
-                        <div className="flex gap-1">
-                          {getUserRoles(user.id).map(role => (
-                            <Badge key={role.id} className={ROLES.find(r => r.value === role.role)?.color}>
-                              {ROLES.find(r => r.value === role.role)?.label}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {MODULES.map(module => {
-                          const userModulePermissions = getUserPermissions(user.id).filter(p => p.module === module.value);
-                          
-                          return (
-                            <div key={module.value} className="bg-muted/30 rounded-lg p-3 space-y-2">
-                              <h4 className="font-medium text-sm text-foreground">{module.label}</h4>
-                              <div className="space-y-1">
-                                {PERMISSIONS.map(perm => {
-                                  const hasPermission = userModulePermissions.some(p => p.permission === perm.value);
-                                  
-                                  return (
-                                    <div key={perm.value} className="flex items-center gap-2">
-                                      <Checkbox
-                                        id={`${user.id}-${module.value}-${perm.value}`}
-                                        checked={hasPermission}
-                                        onCheckedChange={(checked) => {
-                                          if (checked) {
-                                            addPermissionMutation.mutate({
-                                              user_id: user.id,
-                                              empresa_id: null,
-                                              module: module.value,
-                                              permission: perm.value,
-                                              is_pro_mode: false
-                                            });
-                                          } else {
-                                            const permission = userModulePermissions.find(p => p.permission === perm.value);
-                                            if (permission) {
-                                              removePermissionMutation.mutate(permission.id);
-                                            }
-                                          }
-                                        }}
-                                      />
-                                      <Label 
-                                        htmlFor={`${user.id}-${module.value}-${perm.value}`}
-                                        className="text-xs text-muted-foreground cursor-pointer"
-                                      >
-                                        {perm.label}
-                                      </Label>
-                                    </div>
-                                  );
-                                })}
-                                <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
-                                  <Checkbox
-                                    id={`${user.id}-${module.value}-pro`}
-                                    checked={userModulePermissions.some(p => p.is_pro_mode)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        addPermissionMutation.mutate({
-                                          user_id: user.id,
-                                          empresa_id: null,
-                                          module: module.value,
-                                          permission: 'view',
-                                          is_pro_mode: true
-                                        });
-                                      } else {
-                                        const permission = userModulePermissions.find(p => p.is_pro_mode);
-                                        if (permission) {
-                                          removePermissionMutation.mutate(permission.id);
-                                        }
-                                      }
-                                    }}
-                                  />
-                                  <Label 
-                                    htmlFor={`${user.id}-${module.value}-pro`}
-                                    className="text-xs text-primary font-medium cursor-pointer"
-                                  >
-                                    Modo Pro
-                                  </Label>
-                                </div>
-                              </div>
+                <div className="space-y-3">
+                  {users.map(user => {
+                    const userRoles = getUserRoles(user.id);
+                    const userPermissions = getUserPermissions(user.id);
+                    const permissionCount = userPermissions.length;
+                    const isExpanded = selectedUser?.id === user.id;
+                    
+                    return (
+                      <div key={user.id} className="border border-border rounded-lg overflow-hidden">
+                        {/* Compact Header - Always visible */}
+                        <div 
+                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => setSelectedUser(isExpanded ? null : user)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                              <Users className="w-5 h-5 text-primary" />
                             </div>
-                          );
-                        })}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{user.full_name || user.email}</span>
+                                {user.id === MASTER_USER_ID && (
+                                  <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
+                                    <Crown className="w-3 h-3" /> Master
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-xs text-muted-foreground">{user.email}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex gap-1">
+                              {userRoles.map(role => (
+                                <Badge key={role.id} className={ROLES.find(r => r.value === role.role)?.color}>
+                                  {ROLES.find(r => r.value === role.role)?.label}
+                                </Badge>
+                              ))}
+                            </div>
+                            <Badge variant="secondary">
+                              {permissionCount} permissões
+                            </Badge>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Expanded Content - Permission checkboxes */}
+                        {isExpanded && (
+                          <div className="border-t border-border p-4 bg-muted/20">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                              {MODULES.map(module => {
+                                const userModulePermissions = userPermissions.filter(p => p.module === module.value);
+                                
+                                return (
+                                  <div key={module.value} className="bg-background/50 rounded-lg p-3 space-y-2 border border-border/50">
+                                    <h4 className="font-medium text-sm text-foreground">{module.label}</h4>
+                                    <div className="space-y-1">
+                                      {PERMISSIONS.map(perm => {
+                                        const hasPermission = userModulePermissions.some(p => p.permission === perm.value);
+                                        
+                                        return (
+                                          <div key={perm.value} className="flex items-center gap-2">
+                                            <Checkbox
+                                              id={`${user.id}-${module.value}-${perm.value}`}
+                                              checked={hasPermission}
+                                              onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                  addPermissionMutation.mutate({
+                                                    user_id: user.id,
+                                                    empresa_id: null,
+                                                    module: module.value,
+                                                    permission: perm.value,
+                                                    is_pro_mode: false
+                                                  });
+                                                } else {
+                                                  const permission = userModulePermissions.find(p => p.permission === perm.value);
+                                                  if (permission) {
+                                                    removePermissionMutation.mutate(permission.id);
+                                                  }
+                                                }
+                                              }}
+                                            />
+                                            <Label 
+                                              htmlFor={`${user.id}-${module.value}-${perm.value}`}
+                                              className="text-xs text-muted-foreground cursor-pointer"
+                                            >
+                                              {perm.label}
+                                            </Label>
+                                          </div>
+                                        );
+                                      })}
+                                      <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
+                                        <Checkbox
+                                          id={`${user.id}-${module.value}-pro`}
+                                          checked={userModulePermissions.some(p => p.is_pro_mode)}
+                                          onCheckedChange={(checked) => {
+                                            if (checked) {
+                                              addPermissionMutation.mutate({
+                                                user_id: user.id,
+                                                empresa_id: null,
+                                                module: module.value,
+                                                permission: 'view',
+                                                is_pro_mode: true
+                                              });
+                                            } else {
+                                              const permission = userModulePermissions.find(p => p.is_pro_mode);
+                                              if (permission) {
+                                                removePermissionMutation.mutate(permission.id);
+                                              }
+                                            }
+                                          }}
+                                        />
+                                        <Label 
+                                          htmlFor={`${user.id}-${module.value}-pro`}
+                                          className="text-xs text-primary font-medium cursor-pointer"
+                                        >
+                                          Modo Pro
+                                        </Label>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
