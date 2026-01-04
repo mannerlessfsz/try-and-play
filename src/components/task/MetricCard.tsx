@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { ArrowUpRight, ArrowDownRight, LucideIcon } from "lucide-react";
 
 interface MetricCardProps {
@@ -30,35 +31,40 @@ const colorClasses: Record<string, { base: string; active: string }> = {
   },
 };
 
-export function MetricCard({ title, value, change, changeType, icon: Icon, color, isActive, onClick }: MetricCardProps) {
-  const colorStyle = colorClasses[color] || colorClasses.red;
-  
-  return (
-    <div 
-      onClick={onClick}
-      className={`
-        relative overflow-hidden rounded-xl border bg-gradient-to-br 
-        ${isActive ? colorStyle.active : colorStyle.base}
-        px-3 py-2 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
-        group cursor-pointer
-      `}
-    >
-      <div className="absolute -right-2 -top-2 opacity-10 group-hover:opacity-20 transition-opacity">
-        <Icon className="w-16 h-16" />
-      </div>
-      <div className="relative z-10">
-        <p className="text-[10px] font-medium text-muted-foreground">{title}</p>
-        <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
-        {change && (
-          <div className={`flex items-center gap-1 text-[10px] ${changeType === "up" ? "text-green-400" : "text-red-400"}`}>
-            {changeType === "up" ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
-            <span>{change}</span>
-          </div>
+export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
+  ({ title, value, change, changeType, icon: Icon, color, isActive, onClick }, ref) => {
+    const colorStyle = colorClasses[color] || colorClasses.red;
+    
+    return (
+      <div 
+        ref={ref}
+        onClick={onClick}
+        className={`
+          relative overflow-hidden rounded-xl border bg-gradient-to-br 
+          ${isActive ? colorStyle.active : colorStyle.base}
+          px-3 py-2 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
+          group cursor-pointer
+        `}
+      >
+        <div className="absolute -right-2 -top-2 opacity-10 group-hover:opacity-20 transition-opacity">
+          <Icon className="w-16 h-16" />
+        </div>
+        <div className="relative z-10">
+          <p className="text-[10px] font-medium text-muted-foreground">{title}</p>
+          <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
+          {change && (
+            <div className={`flex items-center gap-1 text-[10px] ${changeType === "up" ? "text-green-400" : "text-red-400"}`}>
+              {changeType === "up" ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
+              <span>{change}</span>
+            </div>
+          )}
+        </div>
+        {isActive && (
+          <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
         )}
       </div>
-      {isActive && (
-        <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
-      )}
-    </div>
-  );
-}
+    );
+  }
+);
+
+MetricCard.displayName = "MetricCard";
