@@ -1,27 +1,25 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Database, 
   Table2, 
   Key, 
   Link2, 
   Search, 
-  Eye, 
-  EyeOff,
   Maximize2,
   ArrowRight,
+  ArrowDown,
   Shield,
   Clock,
   Hash,
   Type,
   ToggleLeft,
   Calendar,
-  DollarSign,
-  List,
   FileText,
   User,
   Building2,
@@ -36,9 +34,21 @@ import {
   Bell,
   History,
   Settings,
-  Layers
+  Layers,
+  Download,
+  Image,
+  FileDown,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Lock,
+  Unlock,
+  GitBranch,
+  ChevronRight,
+  List
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // Definição das tabelas do banco de dados
 interface Column {
@@ -51,6 +61,13 @@ interface Column {
   references?: { table: string; column: string };
 }
 
+interface RLSPolicy {
+  name: string;
+  command: 'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE' | 'ALL';
+  using?: string;
+  withCheck?: string;
+}
+
 interface TableSchema {
   name: string;
   displayName: string;
@@ -58,9 +75,11 @@ interface TableSchema {
   icon: React.ReactNode;
   columns: Column[];
   description: string;
+  rlsEnabled: boolean;
+  rlsPolicies: RLSPolicy[];
 }
 
-// Schema do banco de dados baseado nas tabelas reais
+// Schema do banco de dados com RLS policies
 const DATABASE_SCHEMA: TableSchema[] = [
   // Core Tables
   {
@@ -69,6 +88,13 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'core',
     icon: <User className="w-4 h-4" />,
     description: 'Dados complementares dos usuários autenticados',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view own profile only', command: 'SELECT', using: 'auth.uid() = id' },
+      { name: 'Admins can view all profiles', command: 'SELECT', using: 'is_admin(auth.uid())' },
+      { name: 'Users can update own profile', command: 'UPDATE', using: 'auth.uid() = id' },
+      { name: 'Admins can update all profiles', command: 'UPDATE', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true, isForeignKey: true, references: { table: 'auth.users', column: 'id' } },
       { name: 'email', type: 'text', nullable: false },
@@ -85,6 +111,13 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'core',
     icon: <Building2 className="w-4 h-4" />,
     description: 'Cadastro de empresas/clientes do sistema',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Owners/admins can view empresas', command: 'SELECT', using: 'is_admin(auth.uid()) OR is_empresa_owner(auth.uid(), id)' },
+      { name: 'Only admins can insert empresas', command: 'INSERT', withCheck: 'is_admin(auth.uid())' },
+      { name: 'Only admins can update empresas', command: 'UPDATE', using: 'is_admin(auth.uid())' },
+      { name: 'Only admins can delete empresas', command: 'DELETE', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'nome', type: 'text', nullable: false },
@@ -102,6 +135,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'core',
     icon: <Shield className="w-4 h-4" />,
     description: 'Relaciona usuários com empresas e define seus papéis',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view own roles', command: 'SELECT', using: 'auth.uid() = user_id OR is_admin(auth.uid())' },
+      { name: 'Only admins can manage roles', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'user_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'profiles', column: 'id' } },
@@ -116,6 +154,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'core',
     icon: <Key className="w-4 h-4" />,
     description: 'Permissões granulares por módulo e recurso',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view own permissions', command: 'SELECT', using: 'auth.uid() = user_id OR is_admin(auth.uid())' },
+      { name: 'Only admins can manage permissions', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'user_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'profiles', column: 'id' } },
@@ -126,7 +169,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'created_at', type: 'timestamptz', nullable: false },
     ]
   },
-
   // Config Tables
   {
     name: 'empresa_config',
@@ -134,6 +176,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'config',
     icon: <Settings className="w-4 h-4" />,
     description: 'Configurações específicas de cada empresa',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view empresa_config', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'Admins can manage empresa_config', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -151,6 +198,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'config',
     icon: <Layers className="w-4 h-4" />,
     description: 'Módulos habilitados por empresa',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view empresa_modulos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'Only admins can manage', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -167,6 +219,10 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'config',
     icon: <Shield className="w-4 h-4" />,
     description: 'Templates de permissões reutilizáveis',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Admins can view/manage', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'nome', type: 'text', nullable: false },
@@ -183,6 +239,10 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'config',
     icon: <List className="w-4 h-4" />,
     description: 'Permissões detalhadas de cada perfil',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Admins can view/manage', command: 'ALL', using: 'is_admin(auth.uid())' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'profile_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'permission_profiles', column: 'id' } },
@@ -196,7 +256,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'created_at', type: 'timestamptz', nullable: false },
     ]
   },
-
   // Financial Tables
   {
     name: 'contas_bancarias',
@@ -204,6 +263,13 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <Wallet className="w-4 h-4" />,
     description: 'Contas bancárias da empresa',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view with permission', command: 'SELECT', using: 'is_admin(auth.uid()) OR (has_empresa_access(auth.uid(), empresa_id) AND has_permission(..., view))' },
+      { name: 'Users can insert with permission', command: 'INSERT', withCheck: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(..., create))' },
+      { name: 'Users can update with permission', command: 'UPDATE', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(..., edit))' },
+      { name: 'Users can delete with permission', command: 'DELETE', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(..., delete))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -225,6 +291,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <List className="w-4 h-4" />,
     description: 'Categorias para classificação de transações',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view categorias', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -243,6 +314,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <Target className="w-4 h-4" />,
     description: 'Centros de custo para alocação de despesas',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view centros_custo', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -257,8 +333,13 @@ const DATABASE_SCHEMA: TableSchema[] = [
     name: 'transacoes',
     displayName: 'Transações Financeiras',
     category: 'financial',
-    icon: <DollarSign className="w-4 h-4" />,
+    icon: <Receipt className="w-4 h-4" />,
     description: 'Movimentações financeiras (receitas e despesas)',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view transacoes', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -285,6 +366,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <RefreshCw className="w-4 h-4" />,
     description: 'Transações recorrentes automáticas',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view recorrencias', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -311,6 +397,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <Target className="w-4 h-4" />,
     description: 'Metas e objetivos financeiros',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view metas', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -333,6 +424,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <FileText className="w-4 h-4" />,
     description: 'Histórico de importações de extratos bancários',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view importacoes', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -355,6 +451,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'financial',
     icon: <ClipboardList className="w-4 h-4" />,
     description: 'Planejamento orçamentário por categoria',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view orcamentos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with permissions', command: 'ALL', using: 'is_admin(auth.uid()) OR (has_empresa_access(...) AND has_permission(...))' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -367,7 +468,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'updated_at', type: 'timestamptz', nullable: false },
     ]
   },
-
   // ERP Tables
   {
     name: 'clientes',
@@ -375,6 +475,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <User className="w-4 h-4" />,
     description: 'Cadastro de clientes',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view clientes', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -382,14 +487,10 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'nome_fantasia', type: 'text', nullable: true },
       { name: 'tipo_pessoa', type: 'text', nullable: true, default: 'fisica' },
       { name: 'cpf_cnpj', type: 'text', nullable: true },
-      { name: 'rg_ie', type: 'text', nullable: true },
       { name: 'email', type: 'text', nullable: true },
       { name: 'telefone', type: 'text', nullable: true },
       { name: 'celular', type: 'text', nullable: true },
       { name: 'endereco', type: 'text', nullable: true },
-      { name: 'numero', type: 'text', nullable: true },
-      { name: 'complemento', type: 'text', nullable: true },
-      { name: 'bairro', type: 'text', nullable: true },
       { name: 'cidade', type: 'text', nullable: true },
       { name: 'estado', type: 'text', nullable: true },
       { name: 'cep', type: 'text', nullable: true },
@@ -405,6 +506,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Truck className="w-4 h-4" />,
     description: 'Cadastro de fornecedores',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view fornecedores', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -428,6 +534,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Package className="w-4 h-4" />,
     description: 'Cadastro de produtos e serviços',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view produtos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -436,15 +547,10 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'descricao', type: 'text', nullable: true },
       { name: 'codigo', type: 'text', nullable: true },
       { name: 'sku', type: 'text', nullable: true },
-      { name: 'codigo_barras', type: 'text', nullable: true },
-      { name: 'ncm', type: 'text', nullable: true },
-      { name: 'tipo', type: 'text', nullable: true, default: 'produto' },
       { name: 'preco_custo', type: 'numeric', nullable: true, default: '0' },
       { name: 'preco_venda', type: 'numeric', nullable: true, default: '0' },
-      { name: 'margem_lucro', type: 'numeric', nullable: true },
       { name: 'estoque_atual', type: 'numeric', nullable: true, default: '0' },
       { name: 'estoque_minimo', type: 'numeric', nullable: true, default: '0' },
-      { name: 'estoque_maximo', type: 'numeric', nullable: true },
       { name: 'controla_estoque', type: 'boolean', nullable: true, default: 'true' },
       { name: 'ativo', type: 'boolean', nullable: true, default: 'true' },
       { name: 'created_at', type: 'timestamptz', nullable: false },
@@ -457,6 +563,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <List className="w-4 h-4" />,
     description: 'Categorias para organização de produtos',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view categorias_produtos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -474,6 +585,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <ShoppingCart className="w-4 h-4" />,
     description: 'Registro de vendas',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view vendas', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -482,7 +598,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'data_venda', type: 'date', nullable: false },
       { name: 'status', type: 'status_pedido', nullable: true, default: 'rascunho' },
       { name: 'subtotal', type: 'numeric', nullable: true, default: '0' },
-      { name: 'desconto_percentual', type: 'numeric', nullable: true, default: '0' },
       { name: 'desconto_valor', type: 'numeric', nullable: true, default: '0' },
       { name: 'total', type: 'numeric', nullable: true, default: '0' },
       { name: 'forma_pagamento', type: 'text', nullable: true },
@@ -498,13 +613,17 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Receipt className="w-4 h-4" />,
     description: 'Itens das vendas',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view through vendas', command: 'SELECT', using: 'EXISTS(SELECT 1 FROM vendas WHERE vendas.id = venda_id AND has_empresa_access(...))' },
+      { name: 'CRUD through vendas', command: 'ALL', using: 'EXISTS(SELECT 1 FROM vendas WHERE ...)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'venda_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'vendas', column: 'id' } },
       { name: 'produto_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'produtos', column: 'id' } },
       { name: 'quantidade', type: 'numeric', nullable: false, default: '1' },
       { name: 'preco_unitario', type: 'numeric', nullable: false },
-      { name: 'desconto_percentual', type: 'numeric', nullable: true, default: '0' },
       { name: 'desconto_valor', type: 'numeric', nullable: true, default: '0' },
       { name: 'total', type: 'numeric', nullable: false },
       { name: 'created_at', type: 'timestamptz', nullable: false },
@@ -516,6 +635,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <ShoppingCart className="w-4 h-4" />,
     description: 'Registro de compras/pedidos',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view compras', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -525,8 +649,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'status', type: 'status_pedido', nullable: true, default: 'rascunho' },
       { name: 'subtotal', type: 'numeric', nullable: true, default: '0' },
       { name: 'frete', type: 'numeric', nullable: true, default: '0' },
-      { name: 'outras_despesas', type: 'numeric', nullable: true, default: '0' },
-      { name: 'desconto_valor', type: 'numeric', nullable: true, default: '0' },
       { name: 'total', type: 'numeric', nullable: true, default: '0' },
       { name: 'forma_pagamento', type: 'text', nullable: true },
       { name: 'observacoes', type: 'text', nullable: true },
@@ -541,6 +663,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Receipt className="w-4 h-4" />,
     description: 'Itens das compras',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view through compras', command: 'SELECT', using: 'EXISTS(SELECT 1 FROM compras WHERE compras.id = compra_id AND has_empresa_access(...))' },
+      { name: 'CRUD through compras', command: 'ALL', using: 'EXISTS(SELECT 1 FROM compras WHERE ...)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'compra_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'compras', column: 'id' } },
@@ -558,6 +685,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Package className="w-4 h-4" />,
     description: 'Histórico de movimentações de estoque',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view movimentos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'Users can insert movimentos', command: 'INSERT', withCheck: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -580,6 +712,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <ClipboardList className="w-4 h-4" />,
     description: 'Orçamentos para clientes',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view orcamentos', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -604,6 +741,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'erp',
     icon: <Receipt className="w-4 h-4" />,
     description: 'Itens dos orçamentos de serviço',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view through orcamentos', command: 'SELECT', using: 'EXISTS(SELECT 1 FROM orcamentos_servico WHERE ...)' },
+      { name: 'CRUD through orcamentos', command: 'ALL', using: 'EXISTS(SELECT 1 FROM orcamentos_servico WHERE ...)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'orcamento_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'orcamentos_servico', column: 'id' } },
@@ -616,7 +758,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'created_at', type: 'timestamptz', nullable: false },
     ]
   },
-
   // Task Tables
   {
     name: 'tarefas',
@@ -624,6 +765,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'tasks',
     icon: <ClipboardList className="w-4 h-4" />,
     description: 'Gestão de tarefas e projetos',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view tarefas', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: true, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -645,6 +791,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'tasks',
     icon: <History className="w-4 h-4" />,
     description: 'Registro de atividades e histórico',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view atividades', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'Users can insert atividades', command: 'INSERT', withCheck: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: true, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -660,6 +811,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'tasks',
     icon: <FileText className="w-4 h-4" />,
     description: 'Anexos de tarefas',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view through tarefas', command: 'SELECT', using: 'EXISTS(SELECT 1 FROM tarefas WHERE ...)' },
+      { name: 'CRUD through tarefas', command: 'ALL', using: 'EXISTS(SELECT 1 FROM tarefas WHERE ...)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'tarefa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'tarefas', column: 'id' } },
@@ -670,7 +826,6 @@ const DATABASE_SCHEMA: TableSchema[] = [
       { name: 'created_at', type: 'timestamptz', nullable: false },
     ]
   },
-
   // Admin Tables
   {
     name: 'admin_notifications',
@@ -678,6 +833,12 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'admin',
     icon: <Bell className="w-4 h-4" />,
     description: 'Notificações do sistema para administradores',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Admins can view notifications', command: 'SELECT', using: 'is_admin(auth.uid())' },
+      { name: 'Admins can update notifications', command: 'UPDATE', using: 'is_admin(auth.uid())' },
+      { name: 'System can insert notifications', command: 'INSERT', withCheck: 'true' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: true, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -697,6 +858,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'admin',
     icon: <History className="w-4 h-4" />,
     description: 'Registro de todas as ações no sistema',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Admins can view audit logs', command: 'SELECT', using: 'is_admin(auth.uid())' },
+      { name: 'Authenticated users can insert', command: 'INSERT', withCheck: 'auth.uid() IS NOT NULL' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'user_id', type: 'uuid', nullable: false },
@@ -717,6 +883,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     category: 'admin',
     icon: <FileText className="w-4 h-4" />,
     description: 'Histórico de conversões de arquivos',
+    rlsEnabled: true,
+    rlsPolicies: [
+      { name: 'Users can view conversions', command: 'SELECT', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+      { name: 'CRUD with access', command: 'ALL', using: 'is_admin(auth.uid()) OR has_empresa_access(auth.uid(), empresa_id)' },
+    ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
@@ -754,6 +925,23 @@ const ColumnTypeIcon = ({ type }: { type: string }) => {
   if (type === 'jsonb') return <FileText className="w-3 h-3 text-pink-400" />;
   return <Type className="w-3 h-3 text-muted-foreground" />;
 };
+
+// Badge de RLS
+const RLSBadge = ({ enabled, policiesCount }: { enabled: boolean; policiesCount: number }) => (
+  <div className="flex items-center gap-1">
+    {enabled ? (
+      <Badge variant="outline" className="text-xs bg-green-100 dark:bg-green-900/30 border-green-300 text-green-700 dark:text-green-400">
+        <Lock className="w-3 h-3 mr-1" />
+        RLS ({policiesCount})
+      </Badge>
+    ) : (
+      <Badge variant="outline" className="text-xs bg-red-100 dark:bg-red-900/30 border-red-300 text-red-700 dark:text-red-400">
+        <Unlock className="w-3 h-3 mr-1" />
+        Sem RLS
+      </Badge>
+    )}
+  </div>
+);
 
 // Componente de tabela interativa
 const TableCard = ({ 
@@ -795,25 +983,26 @@ const TableCard = ({
               <code className="text-xs text-muted-foreground">{table.name}</code>
             </div>
           </div>
-          <div className="flex gap-1">
-            {pkCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300">
-                {pkCount} PK
-              </Badge>
-            )}
-            {fkCount > 0 && (
-              <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900/30 border-blue-300">
-                {fkCount} FK
-              </Badge>
-            )}
-          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-0">
         <p className="text-xs text-muted-foreground mb-2">{table.description}</p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Table2 className="w-3 h-3" />
-          <span>{table.columns.length} colunas</span>
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge variant="outline" className="text-[10px]">
+            <Table2 className="w-2.5 h-2.5 mr-0.5" />
+            {table.columns.length}
+          </Badge>
+          {pkCount > 0 && (
+            <Badge variant="outline" className="text-[10px] bg-yellow-100 dark:bg-yellow-900/30 border-yellow-300">
+              {pkCount} PK
+            </Badge>
+          )}
+          {fkCount > 0 && (
+            <Badge variant="outline" className="text-[10px] bg-blue-100 dark:bg-blue-900/30 border-blue-300">
+              {fkCount} FK
+            </Badge>
+          )}
+          <RLSBadge enabled={table.rlsEnabled} policiesCount={table.rlsPolicies.length} />
         </div>
       </CardContent>
     </Card>
@@ -833,34 +1022,32 @@ const TableDetails = ({ table, onNavigate }: { table: TableSchema; onNavigate: (
           )}>
             {table.icon}
           </div>
-          <div>
+          <div className="flex-1">
             <CardTitle className="flex items-center gap-2">
               {table.displayName}
-              <Badge className={CATEGORIES[table.category].color}>
-                {CATEGORIES[table.category].label}
-              </Badge>
             </CardTitle>
             <code className="text-sm text-muted-foreground">{table.name}</code>
           </div>
+          <RLSBadge enabled={table.rlsEnabled} policiesCount={table.rlsPolicies.length} />
         </div>
         <p className="text-sm text-muted-foreground mt-2">{table.description}</p>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
-          {/* Colunas */}
-          <div>
-            <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-              <Table2 className="w-4 h-4" />
-              Colunas ({table.columns.length})
-            </h4>
+        <Tabs defaultValue="columns" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="columns">Colunas ({table.columns.length})</TabsTrigger>
+            <TabsTrigger value="rls">RLS Policies ({table.rlsPolicies.length})</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="columns" className="mt-4">
             <div className="border rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/50">
                   <tr>
                     <th className="text-left py-2 px-3">Nome</th>
                     <th className="text-left py-2 px-3">Tipo</th>
-                    <th className="text-center py-2 px-3">Nullable</th>
-                    <th className="text-left py-2 px-3">Referência</th>
+                    <th className="text-center py-2 px-3">Null</th>
+                    <th className="text-left py-2 px-3">Ref</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -886,9 +1073,9 @@ const TableDetails = ({ table, onNavigate }: { table: TableSchema; onNavigate: (
                       </td>
                       <td className="py-2 px-3 text-center">
                         {col.nullable ? (
-                          <Badge variant="outline" className="text-xs">null</Badge>
+                          <Badge variant="outline" className="text-[10px]">null</Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">not null</Badge>
+                          <Badge variant="secondary" className="text-[10px]">not null</Badge>
                         )}
                       </td>
                       <td className="py-2 px-3">
@@ -900,7 +1087,7 @@ const TableDetails = ({ table, onNavigate }: { table: TableSchema; onNavigate: (
                             onClick={() => onNavigate(col.references!.table)}
                           >
                             <ArrowRight className="w-3 h-3 mr-1" />
-                            {col.references.table}.{col.references.column}
+                            {col.references.table}
                           </Button>
                         )}
                       </td>
@@ -909,32 +1096,40 @@ const TableDetails = ({ table, onNavigate }: { table: TableSchema; onNavigate: (
                 </tbody>
               </table>
             </div>
-          </div>
-
-          {/* Foreign Keys Summary */}
-          {table.columns.some(c => c.isForeignKey) && (
-            <div>
-              <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Link2 className="w-4 h-4" />
-                Relacionamentos
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {table.columns.filter(c => c.isForeignKey && c.references).map((col) => (
-                  <Button
-                    key={col.name}
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => onNavigate(col.references!.table)}
-                  >
-                    <Link2 className="w-3 h-3 mr-1.5 text-blue-500" />
-                    {col.name} → {col.references!.table}
-                  </Button>
-                ))}
+          </TabsContent>
+          
+          <TabsContent value="rls" className="mt-4 space-y-2">
+            {table.rlsPolicies.map((policy, idx) => (
+              <div key={idx} className="border rounded-lg p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium text-sm">{policy.name}</span>
+                  <Badge variant="outline" className={cn(
+                    "text-xs",
+                    policy.command === 'SELECT' && "bg-blue-100 border-blue-300 text-blue-700",
+                    policy.command === 'INSERT' && "bg-green-100 border-green-300 text-green-700",
+                    policy.command === 'UPDATE' && "bg-yellow-100 border-yellow-300 text-yellow-700",
+                    policy.command === 'DELETE' && "bg-red-100 border-red-300 text-red-700",
+                    policy.command === 'ALL' && "bg-purple-100 border-purple-300 text-purple-700",
+                  )}>
+                    {policy.command}
+                  </Badge>
+                </div>
+                {policy.using && (
+                  <div className="text-xs">
+                    <span className="text-muted-foreground">USING: </span>
+                    <code className="bg-muted px-1.5 py-0.5 rounded">{policy.using}</code>
+                  </div>
+                )}
+                {policy.withCheck && (
+                  <div className="text-xs mt-1">
+                    <span className="text-muted-foreground">WITH CHECK: </span>
+                    <code className="bg-muted px-1.5 py-0.5 rounded">{policy.withCheck}</code>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
@@ -950,7 +1145,6 @@ const RelationshipsDiagram = ({
   selectedTable: string | null;
   onSelectTable: (name: string) => void;
 }) => {
-  // Encontrar todas as relações
   const relations: { from: string; to: string; column: string }[] = [];
   tables.forEach(table => {
     table.columns.forEach(col => {
@@ -964,7 +1158,6 @@ const RelationshipsDiagram = ({
     });
   });
 
-  // Agrupar por categoria
   const tablesByCategory = tables.reduce((acc, table) => {
     if (!acc[table.category]) acc[table.category] = [];
     acc[table.category].push(table);
@@ -1017,6 +1210,11 @@ const RelationshipsDiagram = ({
                       <div className="flex items-center gap-1.5 mb-1">
                         {table.icon}
                         <span className="text-xs font-medium truncate">{table.name}</span>
+                        {table.rlsEnabled ? (
+                          <Lock className="w-3 h-3 text-green-500 ml-auto flex-shrink-0" />
+                        ) : (
+                          <Unlock className="w-3 h-3 text-red-500 ml-auto flex-shrink-0" />
+                        )}
                       </div>
                       <div className="flex gap-1">
                         {incomingRels.length > 0 && (
@@ -1038,7 +1236,6 @@ const RelationshipsDiagram = ({
           ))}
         </div>
         
-        {/* Legenda */}
         <div className="mt-6 pt-4 border-t">
           <h4 className="text-sm font-semibold mb-2">Legenda</h4>
           <div className="flex flex-wrap gap-4 text-xs">
@@ -1051,12 +1248,234 @@ const RelationshipsDiagram = ({
               <span>Foreign Key</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px] px-1">←N</Badge>
-              <span>Referenciada por N tabelas</span>
+              <Lock className="w-3 h-3 text-green-500" />
+              <span>RLS Ativo</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Badge variant="outline" className="text-[10px] px-1">→N</Badge>
-              <span>Referencia N tabelas</span>
+              <Unlock className="w-3 h-3 text-red-500" />
+              <span>Sem RLS</span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Componente de Dependências em Cascata
+const CascadeDependencies = ({ selectedTable }: { selectedTable: string | null }) => {
+  const getDependencyTree = useCallback((tableName: string, visited: Set<string> = new Set(), depth = 0): { table: TableSchema; depth: number; type: 'references' | 'referenced-by' }[] => {
+    if (visited.has(tableName) || depth > 5) return [];
+    visited.add(tableName);
+    
+    const table = DATABASE_SCHEMA.find(t => t.name === tableName);
+    if (!table) return [];
+
+    const results: { table: TableSchema; depth: number; type: 'references' | 'referenced-by' }[] = [];
+    
+    // Tabelas que esta referencia
+    table.columns.forEach(col => {
+      if (col.references) {
+        const refTable = DATABASE_SCHEMA.find(t => t.name === col.references!.table);
+        if (refTable && !visited.has(refTable.name)) {
+          results.push({ table: refTable, depth: depth + 1, type: 'references' });
+        }
+      }
+    });
+    
+    // Tabelas que referenciam esta
+    DATABASE_SCHEMA.forEach(t => {
+      t.columns.forEach(col => {
+        if (col.references?.table === tableName && !visited.has(t.name)) {
+          results.push({ table: t, depth: depth + 1, type: 'referenced-by' });
+        }
+      });
+    });
+    
+    return results;
+  }, []);
+
+  const selectedTableData = DATABASE_SCHEMA.find(t => t.name === selectedTable);
+  
+  const dependencies = useMemo(() => {
+    if (!selectedTable) return { references: [], referencedBy: [] };
+    
+    const table = DATABASE_SCHEMA.find(t => t.name === selectedTable);
+    if (!table) return { references: [], referencedBy: [] };
+    
+    // Tabelas que esta tabela referencia (FKs outgoing)
+    const references: { table: TableSchema; column: string; refColumn: string }[] = [];
+    table.columns.forEach(col => {
+      if (col.references) {
+        const refTable = DATABASE_SCHEMA.find(t => t.name === col.references!.table);
+        if (refTable) {
+          references.push({ 
+            table: refTable, 
+            column: col.name, 
+            refColumn: col.references.column 
+          });
+        }
+      }
+    });
+    
+    // Tabelas que referenciam esta (FKs incoming)
+    const referencedBy: { table: TableSchema; column: string }[] = [];
+    DATABASE_SCHEMA.forEach(t => {
+      t.columns.forEach(col => {
+        if (col.references?.table === selectedTable) {
+          referencedBy.push({ table: t, column: col.name });
+        }
+      });
+    });
+    
+    return { references, referencedBy };
+  }, [selectedTable]);
+
+  if (!selectedTable || !selectedTableData) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <GitBranch className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">
+            Selecione uma tabela para ver as dependências em cascata
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <GitBranch className="w-5 h-5" />
+          Dependências em Cascata: {selectedTableData.displayName}
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Visualize o que acontece se esta tabela for modificada ou deletada
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Tabelas que esta referencia */}
+        <div>
+          <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-blue-600">
+            <ArrowRight className="w-4 h-4" />
+            Depende de ({dependencies.references.length} tabelas)
+          </h4>
+          {dependencies.references.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic pl-6">
+              Não depende de nenhuma tabela
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {dependencies.references.map((ref, idx) => (
+                <div key={idx} className="flex items-center gap-2 pl-6 p-2 border rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                  <div className={cn("p-1 rounded", CATEGORIES[ref.table.category].color, "text-white")}>
+                    {ref.table.icon}
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">{ref.table.displayName}</span>
+                    <code className="text-xs text-muted-foreground ml-2">{ref.table.name}</code>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {ref.column} → {ref.refColumn}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          {dependencies.references.length > 0 && (
+            <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-blue-600 mt-0.5" />
+                <p className="text-xs text-blue-700 dark:text-blue-400">
+                  <strong>Impacto:</strong> Se as tabelas acima forem modificadas ou deletadas, 
+                  os registros em <strong>{selectedTableData.name}</strong> podem ficar órfãos ou causar erros de integridade.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Tabelas que referenciam esta */}
+        <div>
+          <h4 className="font-semibold text-sm mb-3 flex items-center gap-2 text-red-600">
+            <ArrowDown className="w-4 h-4" />
+            É referenciada por ({dependencies.referencedBy.length} tabelas)
+          </h4>
+          {dependencies.referencedBy.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic pl-6">
+              Não é referenciada por nenhuma tabela
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {dependencies.referencedBy.map((ref, idx) => (
+                <div key={idx} className="flex items-center gap-2 pl-6 p-2 border rounded-lg bg-red-50 dark:bg-red-950/20">
+                  <div className={cn("p-1 rounded", CATEGORIES[ref.table.category].color, "text-white")}>
+                    {ref.table.icon}
+                  </div>
+                  <div className="flex-1">
+                    <span className="font-medium text-sm">{ref.table.displayName}</span>
+                    <code className="text-xs text-muted-foreground ml-2">{ref.table.name}</code>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    via {ref.column}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          )}
+          {dependencies.referencedBy.length > 0 && (
+            <div className="mt-2 p-3 bg-red-50 dark:bg-red-950/20 rounded-lg">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5" />
+                <p className="text-xs text-red-700 dark:text-red-400">
+                  <strong>⚠️ ATENÇÃO:</strong> Se você deletar ou modificar registros em <strong>{selectedTableData.name}</strong>, 
+                  as {dependencies.referencedBy.length} tabelas acima serão afetadas. Isso pode causar:
+                </p>
+              </div>
+              <ul className="text-xs text-red-700 dark:text-red-400 ml-6 mt-1 list-disc">
+                <li>Erros de integridade referencial</li>
+                <li>Registros órfãos nas tabelas dependentes</li>
+                <li>Falhas em consultas e relatórios</li>
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Resumo */}
+        <div className="pt-4 border-t">
+          <h4 className="font-semibold text-sm mb-2">Resumo de Impacto</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2 mb-1">
+                {dependencies.references.length === 0 ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <AlertTriangle className="w-4 h-4 text-yellow-500" />
+                )}
+                <span className="font-medium text-sm">Dependências</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {dependencies.references.length === 0 
+                  ? 'Tabela independente' 
+                  : `Depende de ${dependencies.references.length} tabela(s)`}
+              </p>
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50">
+              <div className="flex items-center gap-2 mb-1">
+                {dependencies.referencedBy.length === 0 ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <XCircle className="w-4 h-4 text-red-500" />
+                )}
+                <span className="font-medium text-sm">Risco de Cascata</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {dependencies.referencedBy.length === 0 
+                  ? 'Pode ser modificada livremente' 
+                  : `${dependencies.referencedBy.length} tabela(s) serão afetadas`}
+              </p>
             </div>
           </div>
         </div>
@@ -1071,6 +1490,8 @@ const DatabaseRelationshipsDiagram = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnlyWithRelations, setShowOnlyWithRelations] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('diagram');
+  const diagramRef = useRef<HTMLDivElement>(null);
 
   // Filtrar tabelas
   const filteredTables = useMemo(() => {
@@ -1098,14 +1519,12 @@ const DatabaseRelationshipsDiagram = () => {
 
     const related: string[] = [];
     
-    // Tabelas que esta tabela referencia
     selected.columns.forEach(col => {
       if (col.references) {
         related.push(col.references.table);
       }
     });
     
-    // Tabelas que referenciam esta tabela
     DATABASE_SCHEMA.forEach(table => {
       table.columns.forEach(col => {
         if (col.references?.table === selectedTable) {
@@ -1132,14 +1551,114 @@ const DatabaseRelationshipsDiagram = () => {
     const totalColumns = DATABASE_SCHEMA.reduce((sum, t) => sum + t.columns.length, 0);
     const totalFKs = DATABASE_SCHEMA.reduce((sum, t) => 
       sum + t.columns.filter(c => c.isForeignKey).length, 0);
+    const tablesWithRLS = DATABASE_SCHEMA.filter(t => t.rlsEnabled).length;
+    const totalPolicies = DATABASE_SCHEMA.reduce((sum, t) => sum + t.rlsPolicies.length, 0);
     
-    return { totalTables, totalColumns, totalFKs };
+    return { totalTables, totalColumns, totalFKs, tablesWithRLS, totalPolicies };
   }, []);
 
+  // Exportar para imagem/PDF
+  const handleExport = useCallback(async (format: 'png' | 'pdf') => {
+    try {
+      // Gerar conteúdo para exportação
+      const exportContent = {
+        generatedAt: new Date().toISOString(),
+        stats,
+        tables: DATABASE_SCHEMA.map(t => ({
+          name: t.name,
+          displayName: t.displayName,
+          category: t.category,
+          description: t.description,
+          columns: t.columns.map(c => ({
+            name: c.name,
+            type: c.type,
+            nullable: c.nullable,
+            isPrimaryKey: c.isPrimaryKey,
+            isForeignKey: c.isForeignKey,
+            references: c.references
+          })),
+          rlsEnabled: t.rlsEnabled,
+          rlsPolicies: t.rlsPolicies
+        }))
+      };
+
+      if (format === 'png') {
+        // Para PNG, criar um JSON formatado
+        const blob = new Blob([JSON.stringify(exportContent, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `database-schema-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast.success('Schema exportado como JSON!');
+      } else {
+        // Para PDF, usar jspdf
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF();
+        
+        let y = 20;
+        doc.setFontSize(20);
+        doc.text('Diagrama do Banco de Dados', 20, y);
+        y += 15;
+        
+        doc.setFontSize(12);
+        doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, y);
+        y += 10;
+        doc.text(`Total de Tabelas: ${stats.totalTables}`, 20, y);
+        y += 7;
+        doc.text(`Total de Colunas: ${stats.totalColumns}`, 20, y);
+        y += 7;
+        doc.text(`Foreign Keys: ${stats.totalFKs}`, 20, y);
+        y += 7;
+        doc.text(`Tabelas com RLS: ${stats.tablesWithRLS}`, 20, y);
+        y += 7;
+        doc.text(`Total de Policies: ${stats.totalPolicies}`, 20, y);
+        y += 15;
+
+        // Listar tabelas por categoria
+        Object.entries(CATEGORIES).forEach(([catKey, cat]) => {
+          const catTables = DATABASE_SCHEMA.filter(t => t.category === catKey);
+          if (catTables.length === 0) return;
+
+          if (y > 250) {
+            doc.addPage();
+            y = 20;
+          }
+
+          doc.setFontSize(14);
+          doc.text(cat.label, 20, y);
+          y += 8;
+
+          doc.setFontSize(10);
+          catTables.forEach(table => {
+            if (y > 270) {
+              doc.addPage();
+              y = 20;
+            }
+            const fkCount = table.columns.filter(c => c.isForeignKey).length;
+            const rlsStatus = table.rlsEnabled ? `RLS(${table.rlsPolicies.length})` : 'SEM RLS';
+            doc.text(`• ${table.name} - ${table.columns.length} cols, ${fkCount} FKs, ${rlsStatus}`, 25, y);
+            y += 6;
+          });
+          y += 5;
+        });
+
+        doc.save(`database-schema-${new Date().toISOString().split('T')[0]}.pdf`);
+        toast.success('PDF exportado com sucesso!');
+      }
+    } catch (error) {
+      console.error('Erro ao exportar:', error);
+      toast.error('Erro ao exportar');
+    }
+  }, [stats]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={diagramRef}>
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -1173,12 +1692,34 @@ const DatabaseRelationshipsDiagram = () => {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <Shield className="w-8 h-8 text-green-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.tablesWithRLS}/{stats.totalTables}</div>
+                <p className="text-xs text-muted-foreground">Com RLS</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <Lock className="w-8 h-8 text-purple-500" />
+              <div>
+                <div className="text-2xl font-bold">{stats.totalPolicies}</div>
+                <p className="text-xs text-muted-foreground">Policies</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Export */}
       <Card>
         <CardContent className="pt-4">
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-4 items-center">
             <div className="flex-1 min-w-[200px]">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1220,42 +1761,197 @@ const DatabaseRelationshipsDiagram = () => {
               <Link2 className="w-4 h-4 mr-1.5" />
               Com FKs
             </Button>
+
+            <div className="flex gap-2 ml-auto">
+              <Button variant="outline" size="sm" onClick={() => handleExport('pdf')}>
+                <FileDown className="w-4 h-4 mr-1.5" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
+                <Download className="w-4 h-4 mr-1.5" />
+                JSON
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Main Content */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Diagram */}
-        <div className="lg:col-span-2">
-          <RelationshipsDiagram 
-            tables={filteredTables}
-            selectedTable={selectedTable}
-            onSelectTable={setSelectedTable}
-          />
-        </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="diagram">
+            <Database className="w-4 h-4 mr-2" />
+            Diagrama
+          </TabsTrigger>
+          <TabsTrigger value="cascade">
+            <GitBranch className="w-4 h-4 mr-2" />
+            Dependências
+          </TabsTrigger>
+          <TabsTrigger value="rls">
+            <Shield className="w-4 h-4 mr-2" />
+            RLS Overview
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Details Panel */}
-        <div>
-          <ScrollArea className="h-[600px]">
-            {selectedTableData ? (
-              <TableDetails 
-                table={selectedTableData} 
-                onNavigate={handleNavigate}
+        <TabsContent value="diagram" className="mt-4">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <RelationshipsDiagram 
+                tables={filteredTables}
+                selectedTable={selectedTable}
+                onSelectTable={setSelectedTable}
               />
-            ) : (
-              <Card className="h-full flex items-center justify-center">
-                <CardContent className="text-center py-12">
-                  <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    Selecione uma tabela para ver os detalhes
-                  </p>
+            </div>
+            <div>
+              <ScrollArea className="h-[600px]">
+                {selectedTableData ? (
+                  <TableDetails 
+                    table={selectedTableData} 
+                    onNavigate={handleNavigate}
+                  />
+                ) : (
+                  <Card className="h-full flex items-center justify-center">
+                    <CardContent className="text-center py-12">
+                      <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        Selecione uma tabela para ver os detalhes
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+              </ScrollArea>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="cascade" className="mt-4">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <CascadeDependencies selectedTable={selectedTable} />
+            </div>
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">Selecione uma Tabela</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[500px]">
+                    <div className="space-y-1">
+                      {DATABASE_SCHEMA.map(table => (
+                        <Button
+                          key={table.name}
+                          variant={selectedTable === table.name ? "default" : "ghost"}
+                          size="sm"
+                          className="w-full justify-start"
+                          onClick={() => setSelectedTable(table.name)}
+                        >
+                          {table.icon}
+                          <span className="ml-2 truncate">{table.displayName}</span>
+                          <ChevronRight className="w-4 h-4 ml-auto" />
+                        </Button>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </CardContent>
               </Card>
-            )}
-          </ScrollArea>
-        </div>
-      </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="rls" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5" />
+                Visão Geral de RLS (Row Level Security)
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Status de segurança de todas as tabelas do sistema
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {DATABASE_SCHEMA.map(table => (
+                  <div 
+                    key={table.name}
+                    className={cn(
+                      "border rounded-lg p-4 cursor-pointer transition-all hover:shadow-md",
+                      table.rlsEnabled 
+                        ? "bg-green-50 dark:bg-green-950/20 border-green-200" 
+                        : "bg-red-50 dark:bg-red-950/20 border-red-200"
+                    )}
+                    onClick={() => {
+                      setSelectedTable(table.name);
+                      setActiveTab('diagram');
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={cn("p-1.5 rounded", CATEGORIES[table.category].color, "text-white")}>
+                        {table.icon}
+                      </div>
+                      <div className="flex-1">
+                        <span className="font-medium text-sm">{table.displayName}</span>
+                        <code className="text-xs text-muted-foreground block">{table.name}</code>
+                      </div>
+                      {table.rlsEnabled ? (
+                        <Lock className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <Unlock className="w-5 h-5 text-red-600" />
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className={cn(
+                        "text-xs",
+                        table.rlsEnabled 
+                          ? "bg-green-100 border-green-300 text-green-700"
+                          : "bg-red-100 border-red-300 text-red-700"
+                      )}>
+                        {table.rlsEnabled ? `${table.rlsPolicies.length} policies` : 'Sem proteção'}
+                      </Badge>
+                      <div className="flex gap-1">
+                        {table.rlsPolicies.some(p => p.command === 'SELECT' || p.command === 'ALL') && (
+                          <Badge variant="outline" className="text-[10px] bg-blue-50">S</Badge>
+                        )}
+                        {table.rlsPolicies.some(p => p.command === 'INSERT' || p.command === 'ALL') && (
+                          <Badge variant="outline" className="text-[10px] bg-green-50">I</Badge>
+                        )}
+                        {table.rlsPolicies.some(p => p.command === 'UPDATE' || p.command === 'ALL') && (
+                          <Badge variant="outline" className="text-[10px] bg-yellow-50">U</Badge>
+                        )}
+                        {table.rlsPolicies.some(p => p.command === 'DELETE' || p.command === 'ALL') && (
+                          <Badge variant="outline" className="text-[10px] bg-red-50">D</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 pt-4 border-t">
+                <h4 className="text-sm font-semibold mb-2">Legenda de Policies</h4>
+                <div className="flex flex-wrap gap-4 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px] bg-blue-50">S</Badge>
+                    <span>SELECT</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px] bg-green-50">I</Badge>
+                    <span>INSERT</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px] bg-yellow-50">U</Badge>
+                    <span>UPDATE</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="outline" className="text-[10px] bg-red-50">D</Badge>
+                    <span>DELETE</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Table Cards Grid */}
       <Card>
