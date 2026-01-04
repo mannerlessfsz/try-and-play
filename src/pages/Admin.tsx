@@ -66,6 +66,7 @@ interface Empresa {
   email: string | null;
   telefone: string | null;
   manager_id: string | null;
+  regime_tributario: string | null;
 }
 
 interface UserRole {

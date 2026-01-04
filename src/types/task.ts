@@ -1,8 +1,13 @@
+export type RegimeTributario = 'nano_empreendedor' | 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real';
+
 export interface Empresa {
   id: string;
   nome: string;
   cnpj?: string;
   email?: string;
+  telefone?: string;
+  manager_id?: string;
+  regime_tributario?: RegimeTributario | null;
 }
 
 export interface TarefaArquivo {
