@@ -570,6 +570,35 @@ export type Database = {
           },
         ]
       }
+      contato_departamentos: {
+        Row: {
+          contato_id: string
+          created_at: string
+          departamento: Database["public"]["Enums"]["departamento_tipo"]
+          id: string
+        }
+        Insert: {
+          contato_id: string
+          created_at?: string
+          departamento: Database["public"]["Enums"]["departamento_tipo"]
+          id?: string
+        }
+        Update: {
+          contato_id?: string
+          created_at?: string
+          departamento?: Database["public"]["Enums"]["departamento_tipo"]
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contato_departamentos_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "empresa_contatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversoes_arquivos: {
         Row: {
           arquivo_convertido_url: string | null
@@ -668,6 +697,50 @@ export type Database = {
             foreignKeyName: "empresa_config_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: true
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      empresa_contatos: {
+        Row: {
+          ativo: boolean | null
+          cargo: string | null
+          created_at: string
+          email: string
+          empresa_id: string
+          id: string
+          nome: string
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          cargo?: string | null
+          created_at?: string
+          email: string
+          empresa_id: string
+          id?: string
+          nome: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          cargo?: string | null
+          created_at?: string
+          email?: string
+          empresa_id?: string
+          id?: string
+          nome?: string
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresa_contatos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
             referencedRelation: "empresas"
             referencedColumns: ["id"]
           },
@@ -1574,8 +1647,10 @@ export type Database = {
       }
       tarefas: {
         Row: {
+          contato_id: string | null
           created_at: string
           data_vencimento: string | null
+          departamento: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao: string | null
           empresa_id: string | null
           id: string
@@ -1587,8 +1662,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          contato_id?: string | null
           created_at?: string
           data_vencimento?: string | null
+          departamento?: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao?: string | null
           empresa_id?: string | null
           id?: string
@@ -1600,8 +1677,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          contato_id?: string | null
           created_at?: string
           data_vencimento?: string | null
+          departamento?: Database["public"]["Enums"]["departamento_tipo"] | null
           descricao?: string | null
           empresa_id?: string | null
           id?: string
@@ -1613,6 +1692,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "tarefas_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "empresa_contatos"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "tarefas_empresa_id_fkey"
             columns: ["empresa_id"]
@@ -2283,6 +2369,7 @@ export type Database = {
         | "conversores"
         | "gestao"
       app_role: "admin" | "manager" | "user"
+      departamento_tipo: "fiscal" | "contabil" | "departamento_pessoal"
       permission_type: "view" | "create" | "edit" | "delete" | "export"
       status_pedido:
         | "rascunho"
@@ -2430,6 +2517,7 @@ export const Constants = {
         "gestao",
       ],
       app_role: ["admin", "manager", "user"],
+      departamento_tipo: ["fiscal", "contabil", "departamento_pessoal"],
       permission_type: ["view", "create", "edit", "delete", "export"],
       status_pedido: [
         "rascunho",
