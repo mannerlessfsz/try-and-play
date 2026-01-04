@@ -39,8 +39,12 @@ const SystemArchitectureViewer = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="modules" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="navigation" className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="navigation" className="flex items-center gap-2">
+            <Workflow className="w-4 h-4" />
+            Navegação
+          </TabsTrigger>
           <TabsTrigger value="modules" className="flex items-center gap-2">
             <Layers className="w-4 h-4" />
             Módulos
@@ -58,6 +62,11 @@ const SystemArchitectureViewer = () => {
             Fluxo Auth
           </TabsTrigger>
         </TabsList>
+
+        {/* Navigation Flow Tab */}
+        <TabsContent value="navigation" className="space-y-4 mt-4">
+          <NavigationFlowDiagram />
+        </TabsContent>
 
         {/* Módulos Tab */}
         <TabsContent value="modules" className="space-y-4 mt-4">
@@ -447,6 +456,297 @@ const SystemArchitectureViewer = () => {
     </div>
   );
 };
+
+// Navigation Flow Diagram Component
+const NavigationFlowDiagram = () => {
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Workflow className="w-5 h-5" />
+            Mapa de Navegação do Sistema
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <div className="min-w-[800px] p-4">
+              {/* Root Level */}
+              <div className="flex flex-col items-center">
+                {/* Entry Point */}
+                <div className="bg-primary text-primary-foreground rounded-lg px-6 py-3 font-bold text-lg shadow-lg">
+                  / (Raiz)
+                </div>
+                
+                <div className="w-px h-8 bg-border" />
+                
+                {/* First Decision */}
+                <div className="bg-amber-500/20 border-2 border-amber-500 rounded-lg px-4 py-2 text-center">
+                  <p className="font-medium">Usuário autenticado?</p>
+                </div>
+                
+                {/* Branches */}
+                <div className="flex items-start gap-4 mt-4">
+                  {/* Left Branch - Not Authenticated */}
+                  <div className="flex flex-col items-center">
+                    <div className="bg-red-500/20 text-red-700 rounded px-3 py-1 text-sm font-medium mb-2">
+                      NÃO
+                    </div>
+                    <div className="w-px h-6 bg-border" />
+                    <NavigationNode 
+                      route="/" 
+                      label="Landing Page" 
+                      description="Página pública"
+                      variant="public"
+                    />
+                    <div className="w-px h-6 bg-border" />
+                    <div className="flex gap-4">
+                      <div className="flex flex-col items-center">
+                        <NavigationNode 
+                          route="/auth" 
+                          label="Login Cliente" 
+                          description="Email + senha"
+                          variant="auth"
+                        />
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <NavigationNode 
+                          route="/master" 
+                          label="Login Master" 
+                          description="Username + senha"
+                          variant="auth"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Branch - Authenticated */}
+                  <div className="flex flex-col items-center">
+                    <div className="bg-green-500/20 text-green-700 rounded px-3 py-1 text-sm font-medium mb-2">
+                      SIM
+                    </div>
+                    <div className="w-px h-6 bg-border" />
+                    <NavigationNode 
+                      route="/dashboard" 
+                      label="Dashboard" 
+                      description="Hub principal"
+                      variant="protected"
+                    />
+                    <div className="w-px h-6 bg-border" />
+                    
+                    {/* Second Decision - Role Check */}
+                    <div className="bg-amber-500/20 border-2 border-amber-500 rounded-lg px-4 py-2 text-center mb-4">
+                      <p className="font-medium text-sm">Qual papel?</p>
+                    </div>
+                    
+                    <div className="flex gap-6">
+                      {/* Admin Branch */}
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="bg-red-500 text-white rounded px-3 py-1 text-sm font-medium">
+                          ADMIN
+                        </div>
+                        <NavigationNode 
+                          route="/admin" 
+                          label="Painel Admin" 
+                          description="Gestão completa"
+                          variant="admin"
+                        />
+                        <div className="text-xs text-muted-foreground text-center max-w-[120px]">
+                          + Acesso a todos os módulos
+                        </div>
+                      </div>
+
+                      {/* Manager/User Branch */}
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="bg-blue-500 text-white rounded px-3 py-1 text-sm font-medium">
+                          MANAGER / USER
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <NavigationNode 
+                            route="/taskvault" 
+                            label="TaskVault" 
+                            variant="module"
+                            small
+                          />
+                          <NavigationNode 
+                            route="/gestao" 
+                            label="GESTÃO" 
+                            variant="module"
+                            small
+                          />
+                          <NavigationNode 
+                            route="/conversores" 
+                            label="Conversores" 
+                            variant="module"
+                            small
+                          />
+                          <NavigationNode 
+                            route="/conferesped" 
+                            label="ConfereSped" 
+                            variant="module"
+                            small
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground text-center max-w-[200px]">
+                          Acesso conforme permissões configuradas
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Route Legend */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Legenda das Rotas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-slate-500/20 border border-slate-500" />
+              <span className="text-sm">Rota Pública</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-amber-500/20 border border-amber-500" />
+              <span className="text-sm">Autenticação</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-blue-500/20 border border-blue-500" />
+              <span className="text-sm">Rota Protegida</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-red-500/20 border border-red-500" />
+              <span className="text-sm">Admin Only</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded bg-green-500/20 border border-green-500" />
+              <span className="text-sm">Módulo</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Complete Route List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm">Todas as Rotas do Sistema</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3">Rota</th>
+                  <th className="text-left py-2 px-3">Nome</th>
+                  <th className="text-left py-2 px-3">Tipo</th>
+                  <th className="text-left py-2 px-3">Requer</th>
+                  <th className="text-left py-2 px-3">Descrição</th>
+                </tr>
+              </thead>
+              <tbody>
+                <RouteRow route="/" name="Landing Page" type="public" requires="-" description="Página inicial pública" />
+                <RouteRow route="/auth" name="Login Cliente" type="auth" requires="-" description="Autenticação por email" />
+                <RouteRow route="/master" name="Login Master" type="auth" requires="-" description="Autenticação do administrador" />
+                <RouteRow route="/dashboard" name="Dashboard" type="protected" requires="Autenticação" description="Hub central do usuário" />
+                <RouteRow route="/admin" name="Painel Admin" type="admin" requires="Role: admin" description="Gestão de usuários, empresas e permissões" />
+                <RouteRow route="/taskvault" name="TaskVault" type="module" requires="Permissão: taskvault" description="Gestão de tarefas" />
+                <RouteRow route="/gestao" name="GESTÃO" type="module" requires="Permissão: gestao" description="ERP + Financeiro integrado" />
+                <RouteRow route="/conversores" name="Conversores" type="module" requires="Permissão: conversores" description="Conversão de arquivos" />
+                <RouteRow route="/conferesped" name="ConfereSped" type="module" requires="Permissão: conferesped" description="Conferência de SPED" />
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+// Navigation Node Component
+const NavigationNode = ({ 
+  route, 
+  label, 
+  description,
+  variant = 'default',
+  small = false
+}: { 
+  route: string; 
+  label: string; 
+  description?: string;
+  variant?: 'public' | 'auth' | 'protected' | 'admin' | 'module' | 'default';
+  small?: boolean;
+}) => {
+  const colors = {
+    public: 'bg-slate-500/10 border-slate-500',
+    auth: 'bg-amber-500/10 border-amber-500',
+    protected: 'bg-blue-500/10 border-blue-500',
+    admin: 'bg-red-500/10 border-red-500',
+    module: 'bg-green-500/10 border-green-500',
+    default: 'bg-muted border-border'
+  };
+
+  return (
+    <div className={`border-2 rounded-lg text-center ${colors[variant]} ${small ? 'px-2 py-1' : 'px-4 py-2'}`}>
+      <code className={`font-mono ${small ? 'text-xs' : 'text-sm'}`}>{route}</code>
+      <p className={`font-medium ${small ? 'text-xs' : 'text-sm'}`}>{label}</p>
+      {description && !small && (
+        <p className="text-xs text-muted-foreground">{description}</p>
+      )}
+    </div>
+  );
+};
+
+// Route Row Component
+const RouteRow = ({
+  route,
+  name,
+  type,
+  requires,
+  description
+}: {
+  route: string;
+  name: string;
+  type: 'public' | 'auth' | 'protected' | 'admin' | 'module';
+  requires: string;
+  description: string;
+}) => {
+  const typeColors = {
+    public: 'bg-slate-500/20 text-slate-700',
+    auth: 'bg-amber-500/20 text-amber-700',
+    protected: 'bg-blue-500/20 text-blue-700',
+    admin: 'bg-red-500/20 text-red-700',
+    module: 'bg-green-500/20 text-green-700'
+  };
+
+  const typeLabels = {
+    public: 'Pública',
+    auth: 'Autenticação',
+    protected: 'Protegida',
+    admin: 'Admin',
+    module: 'Módulo'
+  };
+
+  return (
+    <tr className="border-b hover:bg-muted/50">
+      <td className="py-2 px-3">
+        <code className="text-xs bg-muted px-2 py-0.5 rounded">{route}</code>
+      </td>
+      <td className="py-2 px-3 font-medium">{name}</td>
+      <td className="py-2 px-3">
+        <span className={`text-xs px-2 py-0.5 rounded ${typeColors[type]}`}>
+          {typeLabels[type]}
+        </span>
+      </td>
+      <td className="py-2 px-3 text-muted-foreground text-xs">{requires}</td>
+      <td className="py-2 px-3 text-muted-foreground text-xs">{description}</td>
+    </tr>
+  );
+}
 
 // Helper Components
 const FlowStep = ({ 
