@@ -28,7 +28,11 @@ import {
   Package,
   XCircle,
   Info,
-  Lightbulb
+  Lightbulb,
+  GitBranch,
+  ArrowRight,
+  Key,
+  Lock
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -801,6 +805,11 @@ export default function MigrationGenerator() {
             Alterar Tabelas
             {alterOperations.length > 0 && <Badge variant="secondary" className="ml-1">{alterOperations.length}</Badge>}
           </TabsTrigger>
+          <TabsTrigger value="diagram" className="gap-2">
+            <GitBranch className="h-4 w-4" />
+            Diagrama ER
+            {newTables.length > 0 && <Badge variant="secondary" className="ml-1">{newTables.length}</Badge>}
+          </TabsTrigger>
           <TabsTrigger value="preview" className="gap-2">
             <Code className="h-4 w-4" />
             Preview
@@ -1168,6 +1177,242 @@ export default function MigrationGenerator() {
               )}
             </div>
           </ScrollArea>
+        </TabsContent>
+
+        {/* Diagram Tab */}
+        <TabsContent value="diagram" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Visualização do relacionamento entre as tabelas sendo criadas
+            </p>
+          </div>
+
+          {newTables.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhuma tabela definida ainda</p>
+              <p className="text-sm">Crie tabelas na aba "Criar Tabelas" para visualizar o diagrama</p>
+            </div>
+          ) : (
+            <div className="relative">
+              {/* Legend */}
+              <div className="flex flex-wrap gap-4 mb-4 p-3 bg-muted/30 rounded-lg text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-primary" />
+                  <span>Nova Tabela</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <span>Tabela Existente (ref)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Key className="h-3 w-3 text-yellow-500" />
+                  <span>Primary Key</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <ArrowRight className="h-3 w-3 text-blue-500" />
+                  <span>Foreign Key</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Lock className="h-3 w-3 text-green-500" />
+                  <span>RLS Ativo</span>
+                </div>
+              </div>
+
+              {/* ER Diagram Canvas */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* New Tables */}
+                {newTables.map((table) => {
+                  const foreignKeys = table.columns.filter(c => c.references);
+                  const referencedByOthers = newTables.filter(t => 
+                    t.id !== table.id && 
+                    t.columns.some(c => c.references?.table === table.name)
+                  );
+
+                  return (
+                    <Card key={table.id} className="border-2 border-primary/50 bg-gradient-to-br from-background to-primary/5">
+                      <CardHeader className="pb-2 border-b">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-primary" />
+                            <CardTitle className="text-sm font-mono">
+                              {table.name || "sem_nome"}
+                            </CardTitle>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            {table.enableRLS && (
+                              <Badge variant="outline" className="text-xs gap-1 text-green-600 border-green-500">
+                                <Lock className="h-3 w-3" />
+                                RLS
+                              </Badge>
+                            )}
+                            {table.policies.length > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {table.policies.length} policies
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        {/* Columns */}
+                        <div className="divide-y divide-border/50">
+                          {table.columns.slice(0, 8).map(col => (
+                            <div key={col.id} className="px-3 py-1.5 flex items-center gap-2 text-xs hover:bg-muted/30">
+                              {col.isPrimaryKey ? (
+                                <Key className="h-3 w-3 text-yellow-500 shrink-0" />
+                              ) : col.references ? (
+                                <ArrowRight className="h-3 w-3 text-blue-500 shrink-0" />
+                              ) : (
+                                <span className="w-3 h-3 shrink-0" />
+                              )}
+                              <span className="font-mono font-medium truncate">{col.name || "—"}</span>
+                              <span className="text-muted-foreground truncate flex-1 text-right">
+                                {col.type.replace("timestamp with time zone", "timestamptz")}
+                              </span>
+                              {!col.nullable && !col.isPrimaryKey && (
+                                <Badge variant="outline" className="text-[10px] px-1">NN</Badge>
+                              )}
+                            </div>
+                          ))}
+                          {table.columns.length > 8 && (
+                            <div className="px-3 py-1.5 text-xs text-muted-foreground text-center">
+                              +{table.columns.length - 8} mais colunas...
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Relationships */}
+                        {(foreignKeys.length > 0 || referencedByOthers.length > 0) && (
+                          <div className="border-t p-2 space-y-1.5 bg-muted/20">
+                            {foreignKeys.map(fk => (
+                              <div key={fk.id} className="flex items-center gap-1.5 text-[10px]">
+                                <ArrowRight className="h-3 w-3 text-blue-500" />
+                                <span className="font-mono">{fk.name}</span>
+                                <span className="text-muted-foreground">→</span>
+                                <Badge variant="outline" className="text-[10px] px-1 font-mono">
+                                  {fk.references?.table}.{fk.references?.column}
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px] px-1">
+                                  {fk.references?.onDelete}
+                                </Badge>
+                              </div>
+                            ))}
+                            {referencedByOthers.map(ref => (
+                              <div key={ref.id} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                                <span className="text-green-500">←</span>
+                                <span className="font-mono">{ref.name}</span>
+                                <span>referencia esta tabela</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+
+                {/* Referenced Existing Tables */}
+                {(() => {
+                  const referencedExisting = new Set<string>();
+                  newTables.forEach(t => {
+                    t.columns.forEach(c => {
+                      if (c.references && EXISTING_TABLES.includes(c.references.table)) {
+                        referencedExisting.add(c.references.table);
+                      }
+                    });
+                  });
+
+                  return Array.from(referencedExisting).map(tableName => {
+                    const referencingTables = newTables.filter(t =>
+                      t.columns.some(c => c.references?.table === tableName)
+                    );
+
+                    return (
+                      <Card key={tableName} className="border-2 border-amber-500/50 bg-gradient-to-br from-background to-amber-500/5">
+                        <CardHeader className="pb-2 border-b">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-amber-500" />
+                            <CardTitle className="text-sm font-mono text-amber-700 dark:text-amber-400">
+                              {tableName}
+                            </CardTitle>
+                            <Badge variant="outline" className="text-[10px] text-amber-600">
+                              existente
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-2">
+                          <div className="text-xs text-muted-foreground space-y-1">
+                            <p className="font-medium">Referenciada por:</p>
+                            {referencingTables.map(ref => {
+                              const fkCols = ref.columns.filter(c => c.references?.table === tableName);
+                              return fkCols.map(fk => (
+                                <div key={fk.id} className="flex items-center gap-1 pl-2">
+                                  <span className="text-green-500">←</span>
+                                  <span className="font-mono">{ref.name || "sem_nome"}.{fk.name}</span>
+                                </div>
+                              ));
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Relationship Lines Summary */}
+              {(() => {
+                const relationships: { from: string; fromCol: string; to: string; toCol: string; onDelete: string }[] = [];
+                newTables.forEach(t => {
+                  t.columns.forEach(c => {
+                    if (c.references) {
+                      relationships.push({
+                        from: t.name || "sem_nome",
+                        fromCol: c.name,
+                        to: c.references.table,
+                        toCol: c.references.column,
+                        onDelete: c.references.onDelete
+                      });
+                    }
+                  });
+                });
+
+                if (relationships.length === 0) return null;
+
+                return (
+                  <Card className="mt-4">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Link className="h-4 w-4" />
+                        Relacionamentos ({relationships.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {relationships.map((rel, i) => (
+                          <div key={i} className="flex items-center gap-2 p-2 bg-muted/30 rounded text-xs font-mono">
+                            <Badge variant="outline" className="px-1.5">
+                              {rel.from}
+                            </Badge>
+                            <span className="text-muted-foreground">.{rel.fromCol}</span>
+                            <ArrowRight className="h-3 w-3 text-blue-500" />
+                            <Badge variant={EXISTING_TABLES.includes(rel.to) ? "secondary" : "outline"} className="px-1.5">
+                              {rel.to}
+                            </Badge>
+                            <span className="text-muted-foreground">.{rel.toCol}</span>
+                            <Badge variant="secondary" className="ml-auto text-[10px]">
+                              {rel.onDelete}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+          )}
         </TabsContent>
 
         {/* Preview Tab */}
