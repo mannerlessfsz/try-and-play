@@ -50,6 +50,8 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
   const query = useQuery({
     queryKey: ['resource-permissions', empresaId, userId],
     queryFn: async () => {
+      // Para useMyResourcePermissions, precisamos de ambos empresaId e userId
+      // Se não tiver empresaId, busca apenas por userId para compatibilidade
       let queryBuilder = supabase
         .from('user_resource_permissions')
         .select('*');
@@ -65,7 +67,10 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
       if (error) throw error;
       return data as ResourcePermission[];
     },
-    enabled: !!empresaId || !!userId,
+    enabled: !!userId && (!!empresaId || empresaId === undefined),
+    staleTime: 1000 * 60, // 1 minuto - invalidar cache mais frequentemente
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const upsertMutation = useMutation({
@@ -155,5 +160,13 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
 // Hook para o usuário atual checar suas próprias permissões
 export function useMyResourcePermissions(empresaId?: string) {
   const { user } = useAuth();
-  return useResourcePermissions(empresaId, user?.id);
+  
+  // Só retorna dados quando temos tanto o user quanto o empresaId
+  const result = useResourcePermissions(empresaId, user?.id);
+  
+  return {
+    ...result,
+    // Se não tiver empresaId, considera que ainda está carregando
+    isLoading: result.isLoading || !empresaId,
+  };
 }
