@@ -139,53 +139,66 @@ interface ApplyProfileInlineProps {
   userId: string;
   userEmpresas: UserEmpresa[];
   empresas: Empresa[];
+  allowStandalone?: boolean; // Permite aplicar permissões sem empresa (standalone)
 }
 
-function ApplyProfileInline({ userId, userEmpresas, empresas }: ApplyProfileInlineProps) {
-  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(userEmpresas[0]?.empresa_id || '');
+function ApplyProfileInline({ userId, userEmpresas, empresas, allowStandalone = false }: ApplyProfileInlineProps) {
+  // Se allowStandalone e não tem empresas, usa 'standalone' como valor especial
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(
+    userEmpresas[0]?.empresa_id || (allowStandalone ? 'standalone' : '')
+  );
   const [selectedProfileId, setSelectedProfileId] = useState<string>('');
   const { profiles, applyProfileToUser, isApplying } = usePermissionProfiles();
 
   const activeProfiles = profiles.filter(p => p.ativo);
   const selectedEmpresa = empresas.find(e => e.id === selectedEmpresaId);
+  const isStandalone = selectedEmpresaId === 'standalone';
 
   const handleApply = () => {
-    if (!selectedProfileId || !selectedEmpresaId) return;
+    if (!selectedProfileId) return;
+    if (!isStandalone && !selectedEmpresaId) return;
+    
     applyProfileToUser({
       profileId: selectedProfileId,
       userId,
-      empresaId: selectedEmpresaId,
+      empresaId: isStandalone ? null : selectedEmpresaId,
       assignRole: true,
     });
     setSelectedProfileId('');
   };
 
+  // Opções de empresa: empresas vinculadas + standalone se permitido
+  const empresaOptions = [
+    ...(allowStandalone ? [{ id: 'standalone', nome: '🔧 Standalone (Conversores)' }] : []),
+    ...userEmpresas.map(ue => {
+      const emp = empresas.find(e => e.id === ue.empresa_id);
+      return { id: ue.empresa_id, nome: emp?.nome || 'Empresa desconhecida' };
+    })
+  ];
+
   return (
     <div className="space-y-4">
-      {userEmpresas.length > 1 && (
+      {empresaOptions.length > 1 && (
         <div className="space-y-2">
-          <Label>Empresa</Label>
+          <Label>Contexto</Label>
           <Select value={selectedEmpresaId} onValueChange={setSelectedEmpresaId}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecione a empresa" />
+              <SelectValue placeholder="Selecione o contexto" />
             </SelectTrigger>
             <SelectContent>
-              {userEmpresas.map(ue => {
-                const emp = empresas.find(e => e.id === ue.empresa_id);
-                return (
-                  <SelectItem key={ue.empresa_id} value={ue.empresa_id}>
-                    {emp?.nome || 'Empresa desconhecida'}
-                  </SelectItem>
-                );
-              })}
+              {empresaOptions.map(opt => (
+                <SelectItem key={opt.id} value={opt.id}>
+                  {opt.nome}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       )}
       
-      {userEmpresas.length === 1 && (
+      {empresaOptions.length === 1 && (
         <div className="text-sm text-muted-foreground">
-          Empresa: <span className="font-medium">{selectedEmpresa?.nome}</span>
+          Contexto: <span className="font-medium">{empresaOptions[0]?.nome}</span>
         </div>
       )}
 
@@ -218,11 +231,11 @@ function ApplyProfileInline({ userId, userEmpresas, empresas }: ApplyProfileInli
       {selectedProfileId && (
         <Button 
           onClick={handleApply} 
-          disabled={isApplying || !selectedEmpresaId}
+          disabled={isApplying || (!isStandalone && !selectedEmpresaId)}
           className="w-full"
         >
           {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Aplicar Perfil
+          Aplicar Perfil {isStandalone && '(Standalone)'}
         </Button>
       )}
     </div>
@@ -793,21 +806,16 @@ const Admin: React.FC = () => {
                                   <DialogHeader>
                                     <DialogTitle>Aplicar Perfil - {user.full_name || user.email}</DialogTitle>
                                   </DialogHeader>
-                                  <div className="space-y-4 mt-2">
+                                   <div className="space-y-4 mt-2">
                                     <p className="text-sm text-muted-foreground">
                                       Selecione um perfil para aplicar permissões e role ao usuário.
                                     </p>
-                                    {getUserEmpresas(user.id).length === 0 ? (
-                                      <p className="text-sm text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg">
-                                        Este usuário não está vinculado a nenhuma empresa. Vincule-o primeiro para aplicar perfis.
-                                      </p>
-                                    ) : (
-                                      <ApplyProfileInline
-                                        userId={user.id}
-                                        userEmpresas={getUserEmpresas(user.id)}
-                                        empresas={empresas}
-                                      />
-                                    )}
+                                    <ApplyProfileInline
+                                      userId={user.id}
+                                      userEmpresas={getUserEmpresas(user.id)}
+                                      empresas={empresas}
+                                      allowStandalone={true}
+                                    />
                                   </div>
                                 </DialogContent>
                               </Dialog>
