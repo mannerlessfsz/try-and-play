@@ -368,7 +368,7 @@ export function ConversorLiderTab() {
       filename = arquivoAtual?.nome.replace(/\.[^.]+$/, '_transformado.csv') || 'transformado.csv';
       mimeType = 'text/csv;charset=utf-8';
     } else {
-      content = gerarTXT(rows);
+      content = gerarTXT(rows, codigoEmpresa);
       filename = arquivoAtual?.nome.replace(/\.[^.]+$/, '_transformado.txt') || 'transformado.txt';
       mimeType = 'text/plain;charset=utf-8';
     }
