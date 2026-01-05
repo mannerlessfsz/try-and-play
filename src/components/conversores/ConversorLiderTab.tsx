@@ -194,34 +194,38 @@ export function ConversorLiderTab() {
       const resultado = transformarLancamentos(content);
       
       // Função auxiliar para verificar se lançamento casa com regra
-      // Observação: contas do arquivo vêm com 7 dígitos (zero à esquerda), ex: "0010023".
-      // Para permitir regras como "1" (significativo), normalizamos removendo zeros à esquerda só para comparação.
-      const normalizarContaParaMatch = (conta: string) => {
-        const cleaned = (conta || "").trim().replace(/^0+/, "");
-        return cleaned.length > 0 ? cleaned : "0";
+      // Importante: o arquivo sempre traz conta débito/crédito com 7 dígitos (com zeros à esquerda).
+      // Ex.: conta "1" no arquivo vem como "0000001".
+      // Então, para o usuário poder cadastrar regra como "1" e isso significar "0000001",
+      // nós normalizamos a REGRA para 7 dígitos (padStart) e comparamos usando a representação do arquivo.
+      const normalizarConta7 = (conta: string) => (conta || "").trim();
+
+      const normalizarRegra7 = (regra: string) => {
+        const digits = (regra || "").trim().replace(/\D/g, "");
+        if (!digits) return "";
+        if (digits.length >= 7) return digits.slice(0, 7);
+        return digits.padStart(7, "0");
       };
 
       const verificarRegraMatch = (
         contaDebito: string,
         contaCredito: string
       ): { casa: boolean; regraId?: string } => {
-        const deb = normalizarContaParaMatch(contaDebito);
-        const cred = normalizarContaParaMatch(contaCredito);
+        const deb = normalizarConta7(contaDebito);
+        const cred = normalizarConta7(contaCredito);
 
         for (const regra of regrasExclusao) {
-          const regraDeb = (regra.conta_debito || "").trim();
-          const regraCred = (regra.conta_credito || "").trim();
+          const regraDeb7 = normalizarRegra7(regra.conta_debito || "");
+          const regraCred7 = normalizarRegra7(regra.conta_credito || "");
 
-          const regraDebNorm = regraDeb ? normalizarContaParaMatch(regraDeb) : "";
-          const regraCredNorm = regraCred ? normalizarContaParaMatch(regraCred) : "";
+          const matchDebito = !regraDeb7 || deb.startsWith(regraDeb7);
+          const matchCredito = !regraCred7 || cred.startsWith(regraCred7);
 
-          const matchDebito = !regraDebNorm || deb.startsWith(regraDebNorm);
-          const matchCredito = !regraCredNorm || cred.startsWith(regraCredNorm);
-
-          if (regraDebNorm && regraCredNorm) {
+          // Se a regra tem débito + crédito, exige ambos. Caso contrário, basta um dos lados.
+          if (regraDeb7 && regraCred7) {
             if (matchDebito && matchCredito) return { casa: true, regraId: regra.id };
           } else {
-            if ((regraDebNorm && matchDebito) || (regraCredNorm && matchCredito)) {
+            if ((regraDeb7 && matchDebito) || (regraCred7 && matchCredito)) {
               return { casa: true, regraId: regra.id };
             }
           }
@@ -233,8 +237,15 @@ export function ConversorLiderTab() {
       // Criar lançamentos editáveis - separando por tipo
       const lancamentos: LancamentoEditavel[] = resultado.outputRows.map((row, idx) => {
         const temErro = row.requerRevisao === true;
-        const regraMatch = !temErro ? verificarRegraMatch(row.contaDebito, row.contaCredito) : { casa: false };
-        
+
+        // Regras devem considerar as contas do arquivo (0300). Em linhas transformadas,
+        // às vezes um dos lados é zerado no output (ex.: crédito em PAGTO/TARIFA).
+        // Então usamos o valor do output quando existir, senão usamos o valor original.
+        const debParaRegra = row.contaDebito || row.contaDebitoOriginal || "";
+        const credParaRegra = row.contaCredito || row.contaCreditoOriginal || "";
+
+        const regraMatch = !temErro ? verificarRegraMatch(debParaRegra, credParaRegra) : { casa: false };
+
         return {
           ...row,
           id: `${arquivoId}-${idx}`,
