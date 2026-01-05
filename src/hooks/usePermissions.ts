@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
@@ -50,6 +51,70 @@ interface UserEmpresa {
 
 export const usePermissions = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Realtime subscription para atualização imediata de todas as permissões
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Subscribe to user_roles changes
+    const rolesChannel = supabase
+      .channel(`user-roles-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_roles',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user_permissions changes
+    const permissionsChannel = supabase
+      .channel(`user-permissions-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-permissions', user.id] });
+        }
+      )
+      .subscribe();
+
+    // Subscribe to user_resource_permissions changes
+    const resourcePermissionsChannel = supabase
+      .channel(`user-resource-permissions-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_resource_permissions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['user-resource-permissions', user.id] });
+          queryClient.invalidateQueries({ queryKey: ['resource-permissions'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(rolesChannel);
+      supabase.removeChannel(permissionsChannel);
+      supabase.removeChannel(resourcePermissionsChannel);
+    };
+  }, [user?.id, queryClient]);
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ['user-roles', user?.id],
@@ -62,7 +127,10 @@ export const usePermissions = () => {
       if (error) throw error;
       return data as UserRole[];
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 1000 * 30,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const { data: permissions = [], isLoading: permissionsLoading } = useQuery({
@@ -76,7 +144,10 @@ export const usePermissions = () => {
       if (error) throw error;
       return data as UserPermission[];
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 1000 * 30,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Also fetch resource permissions (granular permissions set in Admin)
@@ -91,7 +162,10 @@ export const usePermissions = () => {
       if (error) throw error;
       return data as UserResourcePermission[];
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 1000 * 30,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const { data: userEmpresas = [], isLoading: empresasLoading } = useQuery({
@@ -105,7 +179,10 @@ export const usePermissions = () => {
       if (error) throw error;
       return data as UserEmpresa[];
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 1000 * 30,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const isAdmin = roles.some(r => r.role === 'admin');
