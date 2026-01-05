@@ -193,11 +193,11 @@ export function ConversorLiderTab() {
 
       const resultado = transformarLancamentos(content);
       
-      // Função auxiliar para verificar se lançamento casa com regra
+      // Função auxiliar para verificar se lançamento casa com regra (usando startsWith)
       const verificarRegraMatch = (contaDebito: string, contaCredito: string): { casa: boolean; regraId?: string } => {
         for (const regra of regrasExclusao) {
-          const matchDebito = !regra.conta_debito || contaDebito === regra.conta_debito;
-          const matchCredito = !regra.conta_credito || contaCredito === regra.conta_credito;
+          const matchDebito = !regra.conta_debito || contaDebito.startsWith(regra.conta_debito);
+          const matchCredito = !regra.conta_credito || contaCredito.startsWith(regra.conta_credito);
           
           if (regra.conta_debito && regra.conta_credito) {
             if (matchDebito && matchCredito) return { casa: true, regraId: regra.id };
