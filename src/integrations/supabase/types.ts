@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_logicas: {
+        Row: {
+          ativo: boolean | null
+          codigo: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          modulo: string
+          nome_logica: string
+          updated_at: string
+          versao: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          codigo: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          modulo: string
+          nome_logica: string
+          updated_at?: string
+          versao?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          codigo?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          modulo?: string
+          nome_logica?: string
+          updated_at?: string
+          versao?: string
+        }
+        Relationships: []
+      }
       admin_notifications: {
         Row: {
           created_at: string
@@ -60,6 +99,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      admin_prompts: {
+        Row: {
+          conteudo: string
+          created_at: string
+          created_by: string | null
+          data: string
+          id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          conteudo: string
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          conteudo?: string
+          created_at?: string
+          created_by?: string | null
+          data?: string
+          id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       atividades: {
         Row: {
