@@ -193,24 +193,40 @@ export function ConversorLiderTab() {
 
       const resultado = transformarLancamentos(content);
       
-      // Função auxiliar para verificar se lançamento casa com regra (usando startsWith)
-      console.log("Regras de exclusão carregadas:", regrasExclusao);
-      
-      const verificarRegraMatch = (contaDebito: string, contaCredito: string): { casa: boolean; regraId?: string } => {
+      // Função auxiliar para verificar se lançamento casa com regra
+      // Observação: contas do arquivo vêm com 7 dígitos (zero à esquerda), ex: "0010023".
+      // Para permitir regras como "1" (significativo), normalizamos removendo zeros à esquerda só para comparação.
+      const normalizarContaParaMatch = (conta: string) => {
+        const cleaned = (conta || "").trim().replace(/^0+/, "");
+        return cleaned.length > 0 ? cleaned : "0";
+      };
+
+      const verificarRegraMatch = (
+        contaDebito: string,
+        contaCredito: string
+      ): { casa: boolean; regraId?: string } => {
+        const deb = normalizarContaParaMatch(contaDebito);
+        const cred = normalizarContaParaMatch(contaCredito);
+
         for (const regra of regrasExclusao) {
-          const matchDebito = !regra.conta_debito || contaDebito.startsWith(regra.conta_debito);
-          const matchCredito = !regra.conta_credito || contaCredito.startsWith(regra.conta_credito);
-          
-          console.log(`Verificando: débito=${contaDebito}, crédito=${contaCredito} contra regra: débito=${regra.conta_debito}, crédito=${regra.conta_credito} => matchD=${matchDebito}, matchC=${matchCredito}`);
-          
-          if (regra.conta_debito && regra.conta_credito) {
+          const regraDeb = (regra.conta_debito || "").trim();
+          const regraCred = (regra.conta_credito || "").trim();
+
+          const regraDebNorm = regraDeb ? normalizarContaParaMatch(regraDeb) : "";
+          const regraCredNorm = regraCred ? normalizarContaParaMatch(regraCred) : "";
+
+          const matchDebito = !regraDebNorm || deb.startsWith(regraDebNorm);
+          const matchCredito = !regraCredNorm || cred.startsWith(regraCredNorm);
+
+          if (regraDebNorm && regraCredNorm) {
             if (matchDebito && matchCredito) return { casa: true, regraId: regra.id };
           } else {
-            if ((regra.conta_debito && matchDebito) || (regra.conta_credito && matchCredito)) {
+            if ((regraDebNorm && matchDebito) || (regraCredNorm && matchCredito)) {
               return { casa: true, regraId: regra.id };
             }
           }
         }
+
         return { casa: false };
       };
       
