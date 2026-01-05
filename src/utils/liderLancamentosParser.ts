@@ -608,10 +608,17 @@ export function gerarCSV(rows: OutputRow[], codigoEmpresa?: string): string {
   return [header, ...lines].join('\n');
 }
 
-export function gerarTXT(rows: OutputRow[]): string {
-  return rows.map(row => 
-    `${row.data} | ${row.contaDebito} | ${row.contaCredito} | ${row.valor} | ${row.historico}`
-  ).join('\n');
+export function gerarTXT(rows: OutputRow[], codigoEmpresa?: string): string {
+  let loteNumero = 0;
+  const lines = rows.map(row => {
+    if (row.loteFlag) {
+      loteNumero++;
+    }
+    const loteOutput = row.loteFlag ? String(loteNumero) : '';
+    const codigoOutput = codigoEmpresa || '';
+    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico.toUpperCase()};${loteOutput};${codigoOutput}`;
+  });
+  return lines.join('\n');
 }
 
 // -------------------------
