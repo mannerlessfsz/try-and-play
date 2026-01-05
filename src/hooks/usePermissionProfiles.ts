@@ -166,6 +166,7 @@ export function usePermissionProfiles() {
   });
 
   // Apply profile to user (bulk insert permissions)
+  // empresaId: null = standalone permissions (ferramentas sem empresa)
   const applyProfileToUserMutation = useMutation({
     mutationFn: async ({ 
       profileId, 
@@ -175,7 +176,7 @@ export function usePermissionProfiles() {
     }: { 
       profileId: string; 
       userId: string; 
-      empresaId: string;
+      empresaId: string | null; // null = standalone
       assignRole?: boolean;
     }) => {
       // Get profile items
@@ -187,18 +188,24 @@ export function usePermissionProfiles() {
       }
 
       // Delete existing permissions for this user/empresa combination
-      const { error: deleteError } = await supabase
+      let deleteQuery = supabase
         .from('user_resource_permissions')
         .delete()
-        .eq('user_id', userId)
-        .eq('empresa_id', empresaId);
+        .eq('user_id', userId);
       
+      if (empresaId === null) {
+        deleteQuery = deleteQuery.is('empresa_id', null);
+      } else {
+        deleteQuery = deleteQuery.eq('empresa_id', empresaId);
+      }
+      
+      const { error: deleteError } = await deleteQuery;
       if (deleteError) throw deleteError;
 
       // Insert new permissions based on profile
       const newPermissions = profileItems.map(item => ({
         user_id: userId,
-        empresa_id: empresaId,
+        empresa_id: empresaId, // null for standalone
         module: item.module,
         sub_module: item.sub_module,
         resource: item.resource,
@@ -215,18 +222,19 @@ export function usePermissionProfiles() {
 
       if (insertError) throw insertError;
 
-      // Register which profile was applied (for auto-sync when profile changes)
-      const { error: trackError } = await fromTable('user_applied_profiles')
-        .upsert({
-          user_id: userId,
-          empresa_id: empresaId,
-          profile_id: profileId,
-          applied_at: new Date().toISOString(),
-        } as any, { onConflict: 'user_id,empresa_id' });
+      // Register which profile was applied (only for empresa-based, not standalone)
+      if (empresaId !== null) {
+        const { error: trackError } = await fromTable('user_applied_profiles')
+          .upsert({
+            user_id: userId,
+            empresa_id: empresaId,
+            profile_id: profileId,
+            applied_at: new Date().toISOString(),
+          } as any, { onConflict: 'user_id,empresa_id' });
 
-      if (trackError) {
-        console.warn('Erro ao registrar perfil aplicado:', trackError);
-        // Não falhar a operação por causa disso
+        if (trackError) {
+          console.warn('Erro ao registrar perfil aplicado:', trackError);
+        }
       }
 
       // Optionally assign role
@@ -258,7 +266,7 @@ export function usePermissionProfiles() {
       queryClient.invalidateQueries({ queryKey: ['user-applied-profiles'] });
       toast({ 
         title: 'Perfil aplicado com sucesso', 
-        description: `${data.applied} permissões configuradas. Alterações no perfil serão sincronizadas automaticamente.` 
+        description: `${data.applied} permissões configuradas.` 
       });
     },
     onError: (error) => {

@@ -2151,7 +2151,7 @@ export type Database = {
           can_export: boolean | null
           can_view: boolean | null
           created_at: string
-          empresa_id: string
+          empresa_id: string | null
           id: string
           module: string
           resource: string
@@ -2166,7 +2166,7 @@ export type Database = {
           can_export?: boolean | null
           can_view?: boolean | null
           created_at?: string
-          empresa_id: string
+          empresa_id?: string | null
           id?: string
           module: string
           resource: string
@@ -2181,7 +2181,7 @@ export type Database = {
           can_export?: boolean | null
           can_view?: boolean | null
           created_at?: string
-          empresa_id?: string
+          empresa_id?: string | null
           id?: string
           module?: string
           resource?: string
