@@ -159,11 +159,17 @@ type FilterType = "all" | "fiscal" | "financeiro" | "contabil" | "sistemas";
 const Conversores = () => {
   const [activeTab, setActiveTab] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const { empresaAtiva } = useEmpresaAtiva();
+  const { empresaAtiva, loading: empresaLoading, empresasDisponiveis } = useEmpresaAtiva();
   const { isAdmin } = usePermissions();
   
-  // Se usuário tem empresa, usa empresa_id; senão, usa null para permissões standalone
-  const permissionEmpresaId = empresaAtiva?.id ?? null;
+  // Determinar o empresaId para permissões:
+  // - undefined: ainda carregando empresas (aguardar)
+  // - null: usuário não tem empresas vinculadas (standalone)
+  // - string: usar empresa ativa
+  const permissionEmpresaId = empresaLoading 
+    ? undefined 
+    : (empresasDisponiveis.length === 0 ? null : empresaAtiva?.id);
+  
   const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(permissionEmpresaId);
   const { conversoes } = useConversoes(empresaAtiva?.id);
   
