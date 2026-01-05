@@ -2,7 +2,6 @@ import { useState, useEffect, createContext, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions } from '@/hooks/usePermissions';
 
 interface Empresa {
   id: string;
@@ -30,12 +29,11 @@ export const useEmpresaAtiva = () => {
 
 export const useEmpresaAtivaState = () => {
   const { user } = useAuth();
-  const { isAdmin, userEmpresas } = usePermissions();
   const [empresaAtiva, setEmpresaAtivaState] = useState<Empresa | null>(null);
 
   // Fetch empresas the user has access to via secure RPC (masks sensitive data for non-owners)
   const { data: empresasDisponiveis = [], isLoading } = useQuery({
-    queryKey: ['empresas-disponiveis', user?.id, isAdmin],
+    queryKey: ['empresas-disponiveis', user?.id],
     queryFn: async () => {
       if (!user) return [];
       
