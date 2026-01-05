@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -50,8 +51,6 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
   const query = useQuery({
     queryKey: ['resource-permissions', empresaId, userId],
     queryFn: async () => {
-      // Para useMyResourcePermissions, precisamos de ambos empresaId e userId
-      // Se não tiver empresaId, busca apenas por userId para compatibilidade
       let queryBuilder = supabase
         .from('user_resource_permissions')
         .select('*');
@@ -68,10 +67,37 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
       return data as ResourcePermission[];
     },
     enabled: !!userId && (!!empresaId || empresaId === undefined),
-    staleTime: 1000 * 60, // 1 minuto - invalidar cache mais frequentemente
+    staleTime: 1000 * 30, // 30 segundos
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
+
+  // Realtime subscription para atualização imediata das permissões
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`permissions-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_resource_permissions',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('Permissão atualizada em tempo real:', payload);
+          // Invalidar o cache para forçar refetch
+          queryClient.invalidateQueries({ queryKey: ['resource-permissions'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, queryClient]);
 
   const upsertMutation = useMutation({
     mutationFn: async (input: ResourcePermissionInput) => {
