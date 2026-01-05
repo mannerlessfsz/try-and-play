@@ -86,6 +86,7 @@ export function ConversorLiderTab() {
   const [isDragging, setIsDragging] = useState(false);
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<OutputRow>>({});
+  const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
 
   // Calcula se todos foram confirmados e erros corrigidos
   useEffect(() => {
@@ -285,6 +286,10 @@ export function ConversorLiderTab() {
   };
 
   const handleProcessar = async () => {
+    if (!codigoEmpresa.trim()) {
+      toast({ title: "Informe o código da empresa", description: "O código da empresa é obrigatório para prosseguir.", variant: "destructive" });
+      return;
+    }
     if (!selectedFile) {
       toast({ title: "Selecione um arquivo TXT", variant: "destructive" });
       return;
@@ -359,7 +364,7 @@ export function ConversorLiderTab() {
     let mimeType: string;
 
     if (tipoExportacao === "csv") {
-      content = gerarCSV(rows);
+      content = gerarCSV(rows, codigoEmpresa);
       filename = arquivoAtual?.nome.replace(/\.[^.]+$/, '_transformado.csv') || 'transformado.csv';
       mimeType = 'text/csv;charset=utf-8';
     } else {
@@ -417,6 +422,7 @@ export function ConversorLiderTab() {
     setLancamentosEditaveis([]);
     setTodosConfirmados(false);
     setErrosCorrigidos(false);
+    setCodigoEmpresa("");
   };
 
   // Stats
@@ -523,6 +529,25 @@ export function ConversorLiderTab() {
                 </div>
               </div>
 
+              {/* Código da Empresa */}
+              <div className="p-4 rounded-lg border bg-amber-500/10 border-amber-500/30">
+                <Label htmlFor="codigo-empresa" className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium mb-2">
+                  <Crown className="w-4 h-4" />
+                  Código da Empresa (obrigatório)
+                </Label>
+                <Input 
+                  id="codigo-empresa"
+                  type="text"
+                  placeholder="Ex: 001, ABC123..."
+                  value={codigoEmpresa}
+                  onChange={(e) => setCodigoEmpresa(e.target.value)}
+                  className="max-w-xs border-amber-500/50 focus:border-amber-500"
+                />
+                <p className="text-sm text-muted-foreground mt-2">
+                  Este código será adicionado na coluna G de todas as linhas do arquivo final.
+                </p>
+              </div>
+
               {/* Upload Area */}
               <div 
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200 cursor-pointer ${
@@ -565,7 +590,7 @@ export function ConversorLiderTab() {
                   <Button 
                     onClick={handleProcessar} 
                     className="bg-violet-500 hover:bg-violet-600"
-                    disabled={isProcessing || !selectedFile || !empresaAtiva}
+                    disabled={isProcessing || !selectedFile || !empresaAtiva || !codigoEmpresa.trim()}
                   >
                     {isProcessing ? (
                       <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Processando...</>
