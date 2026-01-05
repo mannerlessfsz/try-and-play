@@ -1616,6 +1616,50 @@ export type Database = {
           },
         ]
       }
+      regras_exclusao_lider: {
+        Row: {
+          ativo: boolean | null
+          conta_credito: string | null
+          conta_debito: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string
+          empresa_id: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          conta_credito?: string | null
+          conta_debito?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao: string
+          empresa_id: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          conta_credito?: string | null
+          conta_debito?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "regras_exclusao_lider_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tarefa_arquivos: {
         Row: {
           created_at: string
