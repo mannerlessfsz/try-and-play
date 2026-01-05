@@ -43,7 +43,8 @@ export interface ResourcePermissionInput {
   can_export?: boolean;
 }
 
-export function useResourcePermissions(empresaId?: string, userId?: string) {
+// Parâmetro especial: empresaId = null busca permissões standalone (sem empresa)
+export function useResourcePermissions(empresaId?: string | null, userId?: string) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user: currentUser } = useAuth();
@@ -55,9 +56,15 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
         .from('user_resource_permissions')
         .select('*');
 
-      if (empresaId) {
+      // empresaId === null: buscar permissões standalone (is null)
+      // empresaId === undefined: não filtrar por empresa
+      // empresaId === string: filtrar por empresa específica
+      if (empresaId === null) {
+        queryBuilder = queryBuilder.is('empresa_id', null);
+      } else if (empresaId !== undefined) {
         queryBuilder = queryBuilder.eq('empresa_id', empresaId);
       }
+      
       if (userId) {
         queryBuilder = queryBuilder.eq('user_id', userId);
       }
@@ -66,7 +73,7 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
       if (error) throw error;
       return data as ResourcePermission[];
     },
-    enabled: !!userId && (!!empresaId || empresaId === undefined),
+    enabled: !!userId,
     staleTime: 1000 * 30, // 30 segundos
     refetchOnMount: true,
     refetchOnWindowFocus: true,
@@ -184,15 +191,18 @@ export function useResourcePermissions(empresaId?: string, userId?: string) {
 }
 
 // Hook para o usuário atual checar suas próprias permissões
-export function useMyResourcePermissions(empresaId?: string) {
+// empresaId = null: buscar permissões standalone (usuário sem empresa)
+// empresaId = undefined: ainda não sabemos a empresa (loading state)
+// empresaId = string: buscar permissões para empresa específica
+export function useMyResourcePermissions(empresaId?: string | null) {
   const { user } = useAuth();
   
-  // Só retorna dados quando temos tanto o user quanto o empresaId
   const result = useResourcePermissions(empresaId, user?.id);
   
   return {
     ...result,
-    // Se não tiver empresaId, considera que ainda está carregando
-    isLoading: result.isLoading || !empresaId,
+    // Se empresaId for undefined (ainda não sabemos), está carregando
+    // Se empresaId for null ou string, já temos a informação necessária
+    isLoading: result.isLoading || empresaId === undefined,
   };
 }

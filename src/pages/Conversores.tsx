@@ -161,7 +161,10 @@ const Conversores = () => {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const { empresaAtiva } = useEmpresaAtiva();
   const { isAdmin } = usePermissions();
-  const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(empresaAtiva?.id);
+  
+  // Se usuário tem empresa, usa empresa_id; senão, usa null para permissões standalone
+  const permissionEmpresaId = empresaAtiva?.id ?? null;
+  const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(permissionEmpresaId);
   const { conversoes } = useConversoes(empresaAtiva?.id);
   
   // Use persistent activities hook
@@ -173,11 +176,9 @@ const Conversores = () => {
   const conversoesErro = conversoes?.filter(c => c.status === 'erro').length || 0;
 
   // Função para verificar se usuário tem acesso a um conversor
-  // Usuários sem empresa vinculada têm acesso a todos os conversores (ferramentas standalone)
+  // Admin tem acesso total; demais verificam permissões (com ou sem empresa)
   const hasConversorAccess = (conversorId: string): boolean => {
     if (isAdmin) return true;
-    // Se usuário não tem empresa vinculada, liberar acesso a conversores (ferramentas standalone)
-    if (!empresaAtiva?.id) return true;
     return hasResourcePermission('conversores', conversorId, 'can_view');
   };
 
