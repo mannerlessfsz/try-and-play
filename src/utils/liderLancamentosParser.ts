@@ -594,15 +594,16 @@ export function transformarLancamentos(content: string): TransformResult {
 // Exportação CSV
 // -------------------------
 
-export function gerarCSV(rows: OutputRow[]): string {
-  const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote";
+export function gerarCSV(rows: OutputRow[], codigoEmpresa?: string): string {
+  const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote;Código Empresa";
   let loteNumero = 0;
   const lines = rows.map(row => {
     if (row.loteFlag) {
       loteNumero++;
     }
     const loteOutput = row.loteFlag ? String(loteNumero) : '';
-    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico.toUpperCase()};${loteOutput}`;
+    const codigoOutput = codigoEmpresa || '';
+    return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico.toUpperCase()};${loteOutput};${codigoOutput}`;
   });
   return [header, ...lines].join('\n');
 }
