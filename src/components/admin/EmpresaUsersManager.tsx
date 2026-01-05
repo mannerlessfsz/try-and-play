@@ -141,11 +141,20 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
         throw new Error('Este e-mail já está cadastrado no sistema. Use a aba "Existente" para adicionar este usuário.');
       }
       
+      // Store current master session BEFORE creating new user
+      const { data: currentSession } = await supabase.auth.getSession();
+      const masterSession = currentSession?.session;
+      
+      if (!masterSession) {
+        throw new Error('Sessão do usuário master não encontrada. Faça login novamente.');
+      }
+      
       // Create user via Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             full_name: name,
           },
@@ -160,6 +169,12 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
         throw authError;
       }
       if (!authData.user) throw new Error('Falha ao criar usuário');
+
+      // IMMEDIATELY restore master session before any other operations
+      await supabase.auth.setSession({
+        access_token: masterSession.access_token,
+        refresh_token: masterSession.refresh_token,
+      });
 
       // Link user to empresa
       const { error: linkError } = await supabase

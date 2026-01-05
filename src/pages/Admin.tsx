@@ -429,14 +429,30 @@ const Admin: React.FC = () => {
         throw new Error('Este e-mail já está cadastrado no sistema');
       }
       
+      // Store current master session BEFORE creating new user
+      const { data: currentSession } = await supabase.auth.getSession();
+      const masterSession = currentSession?.session;
+      
+      if (!masterSession) {
+        throw new Error('Sessão do usuário master não encontrada. Faça login novamente.');
+      }
+      
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}/`,
           data: { full_name: fullName }
         }
       });
       if (error) throw error;
+      
+      // IMMEDIATELY restore master session
+      await supabase.auth.setSession({
+        access_token: masterSession.access_token,
+        refresh_token: masterSession.refresh_token,
+      });
+      
       return data;
     },
     onSuccess: () => {
