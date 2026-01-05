@@ -173,9 +173,11 @@ const Conversores = () => {
   const conversoesErro = conversoes?.filter(c => c.status === 'erro').length || 0;
 
   // Função para verificar se usuário tem acesso a um conversor
+  // Usuários sem empresa vinculada têm acesso a todos os conversores (ferramentas standalone)
   const hasConversorAccess = (conversorId: string): boolean => {
     if (isAdmin) return true;
-    if (!empresaAtiva?.id) return false;
+    // Se usuário não tem empresa vinculada, liberar acesso a conversores (ferramentas standalone)
+    if (!empresaAtiva?.id) return true;
     return hasResourcePermission('conversores', conversorId, 'can_view');
   };
 
