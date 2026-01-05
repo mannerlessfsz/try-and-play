@@ -3,7 +3,7 @@ import {
   Crown, FileText, Upload, Download, 
   CheckCircle, AlertTriangle, Eye, Trash2,
   FileSpreadsheet, Loader2, History, RefreshCw,
-  Check, Edit3, Save, X, ChevronRight
+  Check, Edit3, Save, X, ChevronRight, Filter, Plus, Ban
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,9 +53,18 @@ interface LancamentoEditavel extends OutputRow {
   confirmado: boolean;
   temErro: boolean;
   erroOriginal?: string;
+  marcadoExclusao?: boolean;
 }
 
-type FluxoStep = "importar" | "revisar" | "corrigir" | "exportar";
+// Regra de exclusão
+interface RegraExclusao {
+  id: string;
+  contaDebito: string;
+  contaCredito: string;
+  descricao: string;
+}
+
+type FluxoStep = "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
 
 export function ConversorLiderTab() {
   const { toast } = useToast();
@@ -71,11 +80,15 @@ export function ConversorLiderTab() {
   } = useConversoes("lider");
 
   // Estado do fluxo
-  const [currentStep, setCurrentStep] = useState<FluxoStep>("importar");
+  const [currentStep, setCurrentStep] = useState<FluxoStep>("regras");
   const [arquivoAtual, setArquivoAtual] = useState<ArquivoProcessadoLocal | null>(null);
   const [lancamentosEditaveis, setLancamentosEditaveis] = useState<LancamentoEditavel[]>([]);
   const [todosConfirmados, setTodosConfirmados] = useState(false);
   const [errosCorrigidos, setErrosCorrigidos] = useState(false);
+
+  // Estados de regras de exclusão
+  const [regrasExclusao, setRegrasExclusao] = useState<RegraExclusao[]>([]);
+  const [novaRegra, setNovaRegra] = useState({ contaDebito: "", contaCredito: "", descricao: "" });
 
   // Estados existentes
   const [arquivosLocais, setArquivosLocais] = useState<ArquivoProcessadoLocal[]>([]);
@@ -348,7 +361,11 @@ export function ConversorLiderTab() {
   };
 
   const handleExportar = () => {
-    const lancamentosValidos = lancamentosEditaveis.filter(l => !l.temErro || (l.data && l.contaDebito && l.contaCredito && l.valor));
+    // Exclui lançamentos com erro, lançamentos marcados para exclusão, e lançamentos incompletos
+    const lancamentosValidos = lancamentosEditaveis.filter(l => 
+      (!l.temErro || (l.data && l.contaDebito && l.contaCredito && l.valor)) && 
+      !l.marcadoExclusao
+    );
     
     const rows: OutputRow[] = lancamentosValidos.map(l => ({
       data: l.data,
@@ -417,12 +434,73 @@ export function ConversorLiderTab() {
   };
 
   const resetarFluxo = () => {
-    setCurrentStep("importar");
+    setCurrentStep("regras");
     setArquivoAtual(null);
     setLancamentosEditaveis([]);
     setTodosConfirmados(false);
     setErrosCorrigidos(false);
     setCodigoEmpresa("");
+    // Mantém regrasExclusao para reutilização
+  };
+
+  // Funções para gerenciar regras de exclusão
+  const adicionarRegra = () => {
+    if (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim()) {
+      toast({ title: "Informe ao menos uma conta", description: "Preencha a conta débito, crédito ou ambas.", variant: "destructive" });
+      return;
+    }
+    const regra: RegraExclusao = {
+      id: Date.now().toString(),
+      contaDebito: novaRegra.contaDebito.trim(),
+      contaCredito: novaRegra.contaCredito.trim(),
+      descricao: novaRegra.descricao.trim() || `Regra ${regrasExclusao.length + 1}`,
+    };
+    setRegrasExclusao(prev => [...prev, regra]);
+    setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "" });
+    toast({ title: "Regra adicionada", description: regra.descricao });
+  };
+
+  const removerRegra = (id: string) => {
+    setRegrasExclusao(prev => prev.filter(r => r.id !== id));
+  };
+
+  // Verifica se um lançamento casa com alguma regra
+  const lancamentoCasaComRegra = (lancamento: LancamentoEditavel): RegraExclusao | null => {
+    for (const regra of regrasExclusao) {
+      const matchDebito = !regra.contaDebito || lancamento.contaDebito === regra.contaDebito;
+      const matchCredito = !regra.contaCredito || lancamento.contaCredito === regra.contaCredito;
+      
+      // Se a regra tem ambas as contas, ambas devem casar
+      if (regra.contaDebito && regra.contaCredito) {
+        if (matchDebito && matchCredito) return regra;
+      } else {
+        // Se tem apenas uma, basta ela casar
+        if ((regra.contaDebito && matchDebito) || (regra.contaCredito && matchCredito)) {
+          return regra;
+        }
+      }
+    }
+    return null;
+  };
+
+  // Lançamentos que casam com regras (para a etapa de exclusões)
+  const lancamentosParaExclusao = lancamentosEditaveis.filter(l => !l.temErro && lancamentoCasaComRegra(l));
+
+  const toggleExclusao = (id: string) => {
+    setLancamentosEditaveis(prev => 
+      prev.map(l => l.id === id ? { ...l, marcadoExclusao: !l.marcadoExclusao } : l)
+    );
+  };
+
+  const marcarTodosExclusao = (marcar: boolean) => {
+    setLancamentosEditaveis(prev => 
+      prev.map(l => {
+        if (!l.temErro && lancamentoCasaComRegra(l)) {
+          return { ...l, marcadoExclusao: marcar };
+        }
+        return l;
+      })
+    );
   };
 
   // Stats
@@ -434,9 +512,11 @@ export function ConversorLiderTab() {
   const totalHistoricoSucesso = conversoes.filter(c => c.status === "sucesso").length;
 
   const steps = [
+    { id: "regras", label: "Regras", icon: Filter },
     { id: "importar", label: "Importar", icon: Upload },
     { id: "revisar", label: "Revisar", icon: Eye },
     { id: "corrigir", label: "Corrigir", icon: Edit3, hidden: lancamentosComErro.length === 0 },
+    { id: "exclusoes", label: "Exclusões", icon: Ban, hidden: lancamentosParaExclusao.length === 0 },
     { id: "exportar", label: "Exportar", icon: Download },
   ].filter(s => !s.hidden);
 
@@ -492,6 +572,115 @@ export function ConversorLiderTab() {
           </div>
 
           {/* Step Content */}
+          {currentStep === "regras" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Filter className="w-5 h-5 text-violet-500" />
+                    Regras de Exclusão
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Defina regras para filtrar lançamentos que serão mostrados para exclusão antes de exportar
+                  </p>
+                </div>
+                <Button 
+                  className="bg-violet-500 hover:bg-violet-600"
+                  onClick={() => setCurrentStep("importar")}
+                >
+                  Próximo
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              {/* Adicionar nova regra */}
+              <div className="p-4 rounded-lg border bg-muted/30">
+                <h4 className="font-medium mb-4 flex items-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Adicionar Nova Regra
+                </h4>
+                <div className="grid grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="regra-debito" className="text-sm text-muted-foreground">Conta Débito</Label>
+                    <Input 
+                      id="regra-debito"
+                      placeholder="Ex: 1234"
+                      value={novaRegra.contaDebito}
+                      onChange={(e) => setNovaRegra(prev => ({ ...prev, contaDebito: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="regra-credito" className="text-sm text-muted-foreground">Conta Crédito</Label>
+                    <Input 
+                      id="regra-credito"
+                      placeholder="Ex: 5678"
+                      value={novaRegra.contaCredito}
+                      onChange={(e) => setNovaRegra(prev => ({ ...prev, contaCredito: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="regra-desc" className="text-sm text-muted-foreground">Descrição (opcional)</Label>
+                    <Input 
+                      id="regra-desc"
+                      placeholder="Ex: Excluir tarifas bancárias"
+                      value={novaRegra.descricao}
+                      onChange={(e) => setNovaRegra(prev => ({ ...prev, descricao: e.target.value }))}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button onClick={adicionarRegra} className="w-full">
+                      <Plus className="w-4 h-4 mr-1" />
+                      Adicionar
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Preencha conta débito, crédito, ou ambas. Lançamentos que casarem com a regra serão listados para possível exclusão.
+                </p>
+              </div>
+
+              {/* Lista de regras */}
+              {regrasExclusao.length > 0 ? (
+                <div className="border rounded-lg">
+                  <div className="p-3 border-b bg-muted/50">
+                    <h4 className="font-medium">Regras Configuradas ({regrasExclusao.length})</h4>
+                  </div>
+                  <div className="divide-y">
+                    {regrasExclusao.map((regra) => (
+                      <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="font-mono">
+                              D: {regra.contaDebito || "*"}
+                            </Badge>
+                            <Badge variant="outline" className="font-mono">
+                              C: {regra.contaCredito || "*"}
+                            </Badge>
+                          </div>
+                          <span className="text-sm text-muted-foreground">{regra.descricao}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          className="h-8 w-8 text-red-500"
+                          onClick={() => removerRegra(regra.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
+                  <Filter className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                  <p>Nenhuma regra de exclusão configurada.</p>
+                  <p className="text-sm">Você pode continuar sem regras ou adicionar regras acima.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {currentStep === "importar" && (
             <div className="space-y-6">
               {/* Stats */}
@@ -738,7 +927,15 @@ export function ConversorLiderTab() {
                   </Button>
                   <Button 
                     className="bg-violet-500 hover:bg-violet-600"
-                    onClick={() => setCurrentStep(lancamentosComErro.length > 0 ? "corrigir" : "exportar")}
+                    onClick={() => {
+                      if (lancamentosComErro.length > 0) {
+                        setCurrentStep("corrigir");
+                      } else if (lancamentosParaExclusao.length > 0) {
+                        setCurrentStep("exclusoes");
+                      } else {
+                        setCurrentStep("exportar");
+                      }
+                    }}
                     disabled={!todosConfirmados}
                   >
                     Próximo
@@ -827,7 +1024,7 @@ export function ConversorLiderTab() {
                   </Button>
                   <Button 
                     className="bg-violet-500 hover:bg-violet-600"
-                    onClick={() => setCurrentStep("exportar")}
+                    onClick={() => setCurrentStep(lancamentosParaExclusao.length > 0 ? "exclusoes" : "exportar")}
                     disabled={!errosCorrigidos && lancamentosComErro.length > 0}
                   >
                     Próximo
@@ -915,6 +1112,121 @@ export function ConversorLiderTab() {
             </div>
           )}
 
+          {currentStep === "exclusoes" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Ban className="w-5 h-5 text-orange-500" />
+                    Confirmar Exclusões
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {lancamentosParaExclusao.length} lançamento(s) casam com suas regras de exclusão
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setCurrentStep(lancamentosComErro.length > 0 ? "corrigir" : "revisar")}>
+                    Voltar
+                  </Button>
+                  <Button 
+                    className="bg-violet-500 hover:bg-violet-600"
+                    onClick={() => setCurrentStep("exportar")}
+                  >
+                    Próximo
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-lg border bg-orange-500/10 border-orange-500/30">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                    <span className="font-medium text-orange-700 dark:text-orange-400">
+                      Marque os lançamentos que deseja EXCLUIR do arquivo final
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => marcarTodosExclusao(true)}
+                    >
+                      Excluir Todos
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => marcarTodosExclusao(false)}
+                    >
+                      Manter Todos
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Lançamentos marcados serão removidos do arquivo exportado.
+                </p>
+              </div>
+
+              <ScrollArea className="h-[400px] border rounded-lg">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 sticky top-0">
+                    <tr>
+                      <th className="text-center p-2 w-12">Excluir?</th>
+                      <th className="text-left p-2">Regra</th>
+                      <th className="text-left p-2">Data</th>
+                      <th className="text-left p-2">Débito</th>
+                      <th className="text-left p-2">Crédito</th>
+                      <th className="text-right p-2">Valor</th>
+                      <th className="text-left p-2">Histórico</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {lancamentosParaExclusao.map((row) => {
+                      const regraMatch = lancamentoCasaComRegra(row);
+                      return (
+                        <tr 
+                          key={row.id} 
+                          className={row.marcadoExclusao ? "bg-red-500/10" : ""}
+                        >
+                          <td className="p-2 text-center">
+                            <Checkbox 
+                              checked={row.marcadoExclusao || false}
+                              onCheckedChange={() => toggleExclusao(row.id)}
+                            />
+                          </td>
+                          <td className="p-2">
+                            <Badge variant="outline" className="text-xs">
+                              {regraMatch?.descricao || "Regra"}
+                            </Badge>
+                          </td>
+                          <td className="p-2">{row.data}</td>
+                          <td className="p-2 font-mono">{row.contaDebito || '-'}</td>
+                          <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
+                          <td className="p-2 text-right font-mono">{row.valor}</td>
+                          <td className="p-2 truncate max-w-[200px]" title={row.historico}>
+                            {row.historico}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </ScrollArea>
+
+              <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
+                <div className="flex-1">
+                  <p className="font-medium">
+                    {lancamentosParaExclusao.filter(l => l.marcadoExclusao).length} de {lancamentosParaExclusao.length} lançamentos serão excluídos
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Total de lançamentos no arquivo final: {lancamentosEditaveis.filter(l => !l.temErro && !l.marcadoExclusao).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {currentStep === "exportar" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
@@ -927,22 +1239,41 @@ export function ConversorLiderTab() {
                     Arquivo: <span className="font-medium">{arquivoAtual?.nome}</span>
                   </p>
                 </div>
-                <Button variant="outline" onClick={() => setCurrentStep(lancamentosComErro.length > 0 ? "corrigir" : "revisar")}>
+                <Button variant="outline" onClick={() => {
+                  if (lancamentosParaExclusao.length > 0) {
+                    setCurrentStep("exclusoes");
+                  } else if (lancamentosComErro.length > 0) {
+                    setCurrentStep("corrigir");
+                  } else {
+                    setCurrentStep("revisar");
+                  }
+                }}>
                   Voltar
                 </Button>
               </div>
 
               {/* Resumo */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-4">
                 <div className="p-4 rounded-lg border bg-green-500/10 border-green-500/30">
                   <div className="flex items-center gap-2 text-green-600">
                     <CheckCircle className="w-4 h-4" />
-                    <span className="text-sm">Lançamentos Válidos</span>
+                    <span className="text-sm">Lançamentos Finais</span>
                   </div>
                   <p className="text-2xl font-bold mt-1 text-green-600">
-                    {lancamentosEditaveis.filter(l => !l.temErro || (l.data && l.valor)).length}
+                    {lancamentosEditaveis.filter(l => (!l.temErro || (l.data && l.valor)) && !l.marcadoExclusao).length}
                   </p>
                 </div>
+                {lancamentosParaExclusao.filter(l => l.marcadoExclusao).length > 0 && (
+                  <div className="p-4 rounded-lg border bg-red-500/10 border-red-500/30">
+                    <div className="flex items-center gap-2 text-red-600">
+                      <Ban className="w-4 h-4" />
+                      <span className="text-sm">Excluídos</span>
+                    </div>
+                    <p className="text-2xl font-bold mt-1 text-red-600">
+                      {lancamentosParaExclusao.filter(l => l.marcadoExclusao).length}
+                    </p>
+                  </div>
+                )}
                 <div className="p-4 rounded-lg border bg-violet-500/10 border-violet-500/30">
                   <div className="flex items-center gap-2 text-violet-600">
                     <FileSpreadsheet className="w-4 h-4" />
@@ -964,7 +1295,7 @@ export function ConversorLiderTab() {
               {/* Preview */}
               <div className="border rounded-lg">
                 <div className="p-3 border-b bg-muted/50">
-                  <h4 className="font-medium">Preview do Arquivo</h4>
+                  <h4 className="font-medium">Preview do Arquivo Final</h4>
                 </div>
                 <ScrollArea className="h-[300px]">
                   <table className="w-full text-xs">
@@ -980,7 +1311,7 @@ export function ConversorLiderTab() {
                     </thead>
                     <tbody className="divide-y">
                       {lancamentosEditaveis
-                        .filter(l => !l.temErro || (l.data && l.valor))
+                        .filter(l => (!l.temErro || (l.data && l.valor)) && !l.marcadoExclusao)
                         .map((row) => (
                           <tr key={row.id} className={row.loteFlag ? "bg-violet-500/5" : ""}>
                             <td className="p-2">{row.data}</td>
