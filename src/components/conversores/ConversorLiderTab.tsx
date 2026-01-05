@@ -37,6 +37,7 @@ import { useConversoes, type ConversaoArquivo } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useRegrasExclusaoLider, type RegraExclusaoLider } from "@/hooks/useRegrasExclusaoLider";
 
 interface ArquivoProcessadoLocal {
   id: string;
@@ -56,14 +57,6 @@ interface LancamentoEditavel extends OutputRow {
   marcadoExclusao?: boolean;
 }
 
-// Regra de exclusão
-interface RegraExclusao {
-  id: string;
-  contaDebito: string;
-  contaCredito: string;
-  descricao: string;
-}
-
 type FluxoStep = "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
 
 export function ConversorLiderTab() {
@@ -79,6 +72,15 @@ export function ConversorLiderTab() {
     refetch 
   } = useConversoes("lider");
 
+  // Hook de regras de exclusão persistentes
+  const { 
+    regras: regrasExclusao, 
+    isLoading: isLoadingRegras,
+    criarRegra, 
+    atualizarRegra, 
+    deletarRegra 
+  } = useRegrasExclusaoLider(empresaAtiva?.id);
+
   // Estado do fluxo
   const [currentStep, setCurrentStep] = useState<FluxoStep>("regras");
   const [arquivoAtual, setArquivoAtual] = useState<ArquivoProcessadoLocal | null>(null);
@@ -86,9 +88,10 @@ export function ConversorLiderTab() {
   const [todosConfirmados, setTodosConfirmados] = useState(false);
   const [errosCorrigidos, setErrosCorrigidos] = useState(false);
 
-  // Estados de regras de exclusão
-  const [regrasExclusao, setRegrasExclusao] = useState<RegraExclusao[]>([]);
+  // Estado para nova regra e edição
   const [novaRegra, setNovaRegra] = useState({ contaDebito: "", contaCredito: "", descricao: "" });
+  const [editandoRegraId, setEditandoRegraId] = useState<string | null>(null);
+  const [editRegraValues, setEditRegraValues] = useState({ contaDebito: "", contaCredito: "", descricao: "" });
 
   // Estados existentes
   const [arquivosLocais, setArquivosLocais] = useState<ArquivoProcessadoLocal[]>([]);
@@ -444,38 +447,61 @@ export function ConversorLiderTab() {
   };
 
   // Funções para gerenciar regras de exclusão
-  const adicionarRegra = () => {
+  const adicionarRegra = async () => {
     if (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim()) {
       toast({ title: "Informe ao menos uma conta", description: "Preencha a conta débito, crédito ou ambas.", variant: "destructive" });
       return;
     }
-    const regra: RegraExclusao = {
-      id: Date.now().toString(),
-      contaDebito: novaRegra.contaDebito.trim(),
-      contaCredito: novaRegra.contaCredito.trim(),
+    await criarRegra.mutateAsync({
+      conta_debito: novaRegra.contaDebito.trim(),
+      conta_credito: novaRegra.contaCredito.trim(),
       descricao: novaRegra.descricao.trim() || `Regra ${regrasExclusao.length + 1}`,
-    };
-    setRegrasExclusao(prev => [...prev, regra]);
+    });
     setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "" });
-    toast({ title: "Regra adicionada", description: regra.descricao });
   };
 
-  const removerRegra = (id: string) => {
-    setRegrasExclusao(prev => prev.filter(r => r.id !== id));
+  const removerRegra = async (id: string) => {
+    await deletarRegra.mutateAsync(id);
+  };
+
+  const iniciarEdicaoRegra = (regra: RegraExclusaoLider) => {
+    setEditandoRegraId(regra.id);
+    setEditRegraValues({
+      contaDebito: regra.conta_debito,
+      contaCredito: regra.conta_credito,
+      descricao: regra.descricao,
+    });
+  };
+
+  const salvarEdicaoRegra = async () => {
+    if (!editandoRegraId) return;
+    await atualizarRegra.mutateAsync({
+      id: editandoRegraId,
+      conta_debito: editRegraValues.contaDebito,
+      conta_credito: editRegraValues.contaCredito,
+      descricao: editRegraValues.descricao,
+    });
+    setEditandoRegraId(null);
+    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "" });
+  };
+
+  const cancelarEdicaoRegra = () => {
+    setEditandoRegraId(null);
+    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "" });
   };
 
   // Verifica se um lançamento casa com alguma regra
-  const lancamentoCasaComRegra = (lancamento: LancamentoEditavel): RegraExclusao | null => {
+  const lancamentoCasaComRegra = (lancamento: LancamentoEditavel): RegraExclusaoLider | null => {
     for (const regra of regrasExclusao) {
-      const matchDebito = !regra.contaDebito || lancamento.contaDebito === regra.contaDebito;
-      const matchCredito = !regra.contaCredito || lancamento.contaCredito === regra.contaCredito;
+      const matchDebito = !regra.conta_debito || lancamento.contaDebito === regra.conta_debito;
+      const matchCredito = !regra.conta_credito || lancamento.contaCredito === regra.conta_credito;
       
       // Se a regra tem ambas as contas, ambas devem casar
-      if (regra.contaDebito && regra.contaCredito) {
+      if (regra.conta_debito && regra.conta_credito) {
         if (matchDebito && matchCredito) return regra;
       } else {
         // Se tem apenas uma, basta ela casar
-        if ((regra.contaDebito && matchDebito) || (regra.contaCredito && matchCredito)) {
+        if ((regra.conta_debito && matchDebito) || (regra.conta_credito && matchCredito)) {
           return regra;
         }
       }
@@ -640,7 +666,12 @@ export function ConversorLiderTab() {
               </div>
 
               {/* Lista de regras */}
-              {regrasExclusao.length > 0 ? (
+              {isLoadingRegras ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mt-2">Carregando regras...</p>
+                </div>
+              ) : regrasExclusao.length > 0 ? (
                 <div className="border rounded-lg">
                   <div className="p-3 border-b bg-muted/50">
                     <h4 className="font-medium">Regras Configuradas ({regrasExclusao.length})</h4>
@@ -648,25 +679,70 @@ export function ConversorLiderTab() {
                   <div className="divide-y">
                     {regrasExclusao.map((regra) => (
                       <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="font-mono">
-                              D: {regra.contaDebito || "*"}
-                            </Badge>
-                            <Badge variant="outline" className="font-mono">
-                              C: {regra.contaCredito || "*"}
-                            </Badge>
-                          </div>
-                          <span className="text-sm text-muted-foreground">{regra.descricao}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="h-8 w-8 text-red-500"
-                          onClick={() => removerRegra(regra.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {editandoRegraId === regra.id ? (
+                          <>
+                            <div className="flex items-center gap-2 flex-1">
+                              <Input
+                                value={editRegraValues.contaDebito}
+                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, contaDebito: e.target.value }))}
+                                placeholder="Débito"
+                                className="w-24"
+                              />
+                              <Input
+                                value={editRegraValues.contaCredito}
+                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, contaCredito: e.target.value }))}
+                                placeholder="Crédito"
+                                className="w-24"
+                              />
+                              <Input
+                                value={editRegraValues.descricao}
+                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, descricao: e.target.value }))}
+                                placeholder="Descrição"
+                                className="flex-1"
+                              />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={salvarEdicaoRegra}>
+                                <Save className="w-4 h-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={cancelarEdicaoRegra}>
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="font-mono">
+                                  D: {regra.conta_debito || "*"}
+                                </Badge>
+                                <Badge variant="outline" className="font-mono">
+                                  C: {regra.conta_credito || "*"}
+                                </Badge>
+                              </div>
+                              <span className="text-sm text-muted-foreground">{regra.descricao}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => iniciarEdicaoRegra(regra)}
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="h-8 w-8 text-red-500"
+                                onClick={() => removerRegra(regra.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
