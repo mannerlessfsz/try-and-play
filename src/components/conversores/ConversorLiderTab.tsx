@@ -54,7 +54,9 @@ interface LancamentoEditavel extends OutputRow {
   confirmado: boolean;
   temErro: boolean;
   erroOriginal?: string;
-  marcadoExclusao?: boolean;
+  casaComRegra: boolean; // true = vai para etapa exclusões
+  regraMatchId?: string; // id da regra que casou
+  marcadoExclusao?: boolean; // true = será excluído do arquivo final
 }
 
 type FluxoStep = "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
@@ -105,10 +107,11 @@ export function ConversorLiderTab() {
   const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
 
   // Calcula se todos foram confirmados e erros corrigidos
+  // Considera apenas lançamentos que não casam com regra (esses vão para exclusões)
   useEffect(() => {
-    const semErro = lancamentosEditaveis.filter(l => !l.temErro);
-    const confirmados = semErro.every(l => l.confirmado);
-    setTodosConfirmados(semErro.length > 0 && confirmados);
+    const semErroESemRegra = lancamentosEditaveis.filter(l => !l.temErro && !l.casaComRegra);
+    const confirmados = semErroESemRegra.every(l => l.confirmado);
+    setTodosConfirmados(semErroESemRegra.length > 0 && confirmados);
     
     const comErro = lancamentosEditaveis.filter(l => l.temErro);
     const corrigidos = comErro.every(l => 
@@ -190,20 +193,42 @@ export function ConversorLiderTab() {
 
       const resultado = transformarLancamentos(content);
       
-      // Criar lançamentos editáveis
-      const lancamentos: LancamentoEditavel[] = resultado.outputRows.map((row, idx) => ({
-        ...row,
-        id: `${arquivoId}-${idx}`,
-        confirmado: false,
-        // Se requerRevisao=true (len=44), marca como erro para forçar revisão do usuário
-        temErro: row.requerRevisao === true,
-        erroOriginal: row.requerRevisao ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." : undefined,
-      }));
+      // Função auxiliar para verificar se lançamento casa com regra
+      const verificarRegraMatch = (contaDebito: string, contaCredito: string): { casa: boolean; regraId?: string } => {
+        for (const regra of regrasExclusao) {
+          const matchDebito = !regra.conta_debito || contaDebito === regra.conta_debito;
+          const matchCredito = !regra.conta_credito || contaCredito === regra.conta_credito;
+          
+          if (regra.conta_debito && regra.conta_credito) {
+            if (matchDebito && matchCredito) return { casa: true, regraId: regra.id };
+          } else {
+            if ((regra.conta_debito && matchDebito) || (regra.conta_credito && matchCredito)) {
+              return { casa: true, regraId: regra.id };
+            }
+          }
+        }
+        return { casa: false };
+      };
+      
+      // Criar lançamentos editáveis - separando por tipo
+      const lancamentos: LancamentoEditavel[] = resultado.outputRows.map((row, idx) => {
+        const temErro = row.requerRevisao === true;
+        const regraMatch = !temErro ? verificarRegraMatch(row.contaDebito, row.contaCredito) : { casa: false };
+        
+        return {
+          ...row,
+          id: `${arquivoId}-${idx}`,
+          confirmado: false,
+          temErro,
+          erroOriginal: temErro ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." : undefined,
+          casaComRegra: regraMatch.casa,
+          regraMatchId: regraMatch.regraId,
+          marcadoExclusao: regraMatch.casa, // Pré-marca para exclusão se casa com regra
+        };
+      });
 
-      // Marcar linhas com erros baseados nos erros do parser
-      // Os erros normalmente indicam linhas problemáticas
+      // Adicionar linhas de erro do parser como lançamentos editáveis para correção
       if (resultado.erros.length > 0) {
-        // Adicionar linhas de erro como lançamentos editáveis para correção
         resultado.erros.forEach((erro, idx) => {
           lancamentos.push({
             id: `${arquivoId}-erro-${idx}`,
@@ -216,6 +241,7 @@ export function ConversorLiderTab() {
             confirmado: false,
             temErro: true,
             erroOriginal: erro,
+            casaComRegra: false,
           });
         });
       }
@@ -256,17 +282,21 @@ export function ConversorLiderTab() {
       setArquivoAtual(arquivoFinal);
       setArquivosLocais(prev => [...prev, arquivoFinal]);
 
-      // Avança para o próximo passo
-      if (resultado.erros.length > 0) {
+      // Conta lançamentos por categoria
+      const totalErros = lancamentos.filter(l => l.temErro).length;
+      const totalParaExclusao = lancamentos.filter(l => l.casaComRegra && !l.temErro).length;
+      const totalParaRevisar = lancamentos.filter(l => !l.temErro && !l.casaComRegra).length;
+
+      // Avança para o próximo passo e mostra resumo
+      if (totalErros > 0 || totalParaExclusao > 0) {
         toast({ 
-          title: "Processamento com erros", 
-          description: `${resultado.totalLancamentos} lançamentos. ${resultado.erros.length} erros encontrados.`,
-          variant: "destructive"
+          title: "Processamento concluído", 
+          description: `${totalParaRevisar} para revisar, ${totalErros} erros, ${totalParaExclusao} para exclusão.`,
         });
       } else {
         toast({ 
           title: "Processamento concluído!", 
-          description: `${resultado.totalLancamentos} lançamentos processados. Revise e confirme.`
+          description: `${totalParaRevisar} lançamentos processados. Revise e confirme.`
         });
       }
 
@@ -314,8 +344,9 @@ export function ConversorLiderTab() {
   };
 
   const confirmarTodos = () => {
+    // Confirma apenas lançamentos sem erro E que não casam com regra
     setLancamentosEditaveis(prev => 
-      prev.map(l => l.temErro ? l : { ...l, confirmado: true })
+      prev.map(l => (l.temErro || l.casaComRegra) ? l : { ...l, confirmado: true })
     );
   };
 
@@ -490,27 +521,8 @@ export function ConversorLiderTab() {
     setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "" });
   };
 
-  // Verifica se um lançamento casa com alguma regra
-  const lancamentoCasaComRegra = (lancamento: LancamentoEditavel): RegraExclusaoLider | null => {
-    for (const regra of regrasExclusao) {
-      const matchDebito = !regra.conta_debito || lancamento.contaDebito === regra.conta_debito;
-      const matchCredito = !regra.conta_credito || lancamento.contaCredito === regra.conta_credito;
-      
-      // Se a regra tem ambas as contas, ambas devem casar
-      if (regra.conta_debito && regra.conta_credito) {
-        if (matchDebito && matchCredito) return regra;
-      } else {
-        // Se tem apenas uma, basta ela casar
-        if ((regra.conta_debito && matchDebito) || (regra.conta_credito && matchCredito)) {
-          return regra;
-        }
-      }
-    }
-    return null;
-  };
-
-  // Lançamentos que casam com regras (para a etapa de exclusões)
-  const lancamentosParaExclusao = lancamentosEditaveis.filter(l => !l.temErro && lancamentoCasaComRegra(l));
+  // Lançamentos que casam com regras (para a etapa de exclusões) - usa a flag casaComRegra
+  const lancamentosParaExclusao = lancamentosEditaveis.filter(l => l.casaComRegra && !l.temErro);
 
   const toggleExclusao = (id: string) => {
     setLancamentosEditaveis(prev => 
@@ -521,7 +533,7 @@ export function ConversorLiderTab() {
   const marcarTodosExclusao = (marcar: boolean) => {
     setLancamentosEditaveis(prev => 
       prev.map(l => {
-        if (!l.temErro && lancamentoCasaComRegra(l)) {
+        if (l.casaComRegra && !l.temErro) {
           return { ...l, marcadoExclusao: marcar };
         }
         return l;
@@ -529,8 +541,26 @@ export function ConversorLiderTab() {
     );
   };
 
-  // Stats
-  const lancamentosSemErro = lancamentosEditaveis.filter(l => !l.temErro);
+  // Confirmar exclusões: se desmarcado, o lançamento vira erro para correção
+  const confirmarExclusoes = () => {
+    setLancamentosEditaveis(prev => 
+      prev.map(l => {
+        // Se casa com regra mas NÃO foi marcado para exclusão → vira erro para correção
+        if (l.casaComRegra && !l.marcadoExclusao) {
+          return { 
+            ...l, 
+            casaComRegra: false, // Remove da lista de exclusões
+            temErro: true, 
+            erroOriginal: "Lançamento desmarcado da exclusão. Preencha os dados ou confirme a correção." 
+          };
+        }
+        return l;
+      })
+    );
+  };
+
+  // Stats - lancamentosSemErro agora exclui os que casam com regra (vão para exclusões)
+  const lancamentosSemErro = lancamentosEditaveis.filter(l => !l.temErro && !l.casaComRegra);
   const lancamentosComErro = lancamentosEditaveis.filter(l => l.temErro);
   const totalConfirmados = lancamentosSemErro.filter(l => l.confirmado).length;
 
@@ -1206,9 +1236,24 @@ export function ConversorLiderTab() {
                   </Button>
                   <Button 
                     className="bg-violet-500 hover:bg-violet-600"
-                    onClick={() => setCurrentStep("exportar")}
+                    onClick={() => {
+                      // Confirma exclusões - lançamentos não marcados viram erro
+                      confirmarExclusoes();
+                      // Verifica se há novos erros (lançamentos que foram desmarcados)
+                      const desmarcados = lancamentosParaExclusao.filter(l => !l.marcadoExclusao);
+                      if (desmarcados.length > 0) {
+                        // Volta para correção pois há novos erros
+                        setCurrentStep("corrigir");
+                        toast({
+                          title: "Lançamentos para correção",
+                          description: `${desmarcados.length} lançamento(s) foram movidos para correção.`,
+                        });
+                      } else {
+                        setCurrentStep("exportar");
+                      }
+                    }}
                   >
-                    Próximo
+                    Confirmar e Próximo
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Button>
                 </div>
@@ -1219,7 +1264,7 @@ export function ConversorLiderTab() {
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-orange-500" />
                     <span className="font-medium text-orange-700 dark:text-orange-400">
-                      Marque os lançamentos que deseja EXCLUIR do arquivo final
+                      Confirme quais lançamentos serão EXCLUÍDOS do arquivo final
                     </span>
                   </div>
                   <div className="flex gap-2">
@@ -1240,7 +1285,8 @@ export function ConversorLiderTab() {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Lançamentos marcados serão removidos do arquivo exportado.
+                  ✓ Lançamentos <strong>marcados</strong> serão removidos do arquivo exportado.<br />
+                  ⚠ Lançamentos <strong>desmarcados</strong> voltarão para a etapa de correção para revisão manual.
                 </p>
               </div>
 
@@ -1259,11 +1305,12 @@ export function ConversorLiderTab() {
                   </thead>
                   <tbody className="divide-y">
                     {lancamentosParaExclusao.map((row) => {
-                      const regraMatch = lancamentoCasaComRegra(row);
+                      // Busca a regra pelo id armazenado no lançamento
+                      const regraMatch = regrasExclusao.find(r => r.id === row.regraMatchId);
                       return (
                         <tr 
                           key={row.id} 
-                          className={row.marcadoExclusao ? "bg-red-500/10" : ""}
+                          className={row.marcadoExclusao ? "bg-red-500/10" : "bg-green-500/5"}
                         >
                           <td className="p-2 text-center">
                             <Checkbox 
