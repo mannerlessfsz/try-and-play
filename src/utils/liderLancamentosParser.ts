@@ -595,7 +595,6 @@ export function transformarLancamentos(content: string): TransformResult {
 // -------------------------
 
 export function gerarCSV(rows: OutputRow[], codigoEmpresa?: string): string {
-  const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote;Código Empresa";
   let loteNumero = 0;
   const lines = rows.map(row => {
     if (row.loteFlag) {
@@ -605,7 +604,7 @@ export function gerarCSV(rows: OutputRow[], codigoEmpresa?: string): string {
     const codigoOutput = codigoEmpresa || '';
     return `${row.data};${row.contaDebito};${row.contaCredito};${row.valor};${row.historico.toUpperCase()};${loteOutput};${codigoOutput}`;
   });
-  return [header, ...lines].join('\n');
+  return lines.join('\n');
 }
 
 export function gerarTXT(rows: OutputRow[], codigoEmpresa?: string): string {
