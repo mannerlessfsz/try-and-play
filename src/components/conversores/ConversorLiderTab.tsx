@@ -194,10 +194,14 @@ export function ConversorLiderTab() {
       const resultado = transformarLancamentos(content);
       
       // Função auxiliar para verificar se lançamento casa com regra (usando startsWith)
+      console.log("Regras de exclusão carregadas:", regrasExclusao);
+      
       const verificarRegraMatch = (contaDebito: string, contaCredito: string): { casa: boolean; regraId?: string } => {
         for (const regra of regrasExclusao) {
           const matchDebito = !regra.conta_debito || contaDebito.startsWith(regra.conta_debito);
           const matchCredito = !regra.conta_credito || contaCredito.startsWith(regra.conta_credito);
+          
+          console.log(`Verificando: débito=${contaDebito}, crédito=${contaCredito} contra regra: débito=${regra.conta_debito}, crédito=${regra.conta_credito} => matchD=${matchDebito}, matchC=${matchCredito}`);
           
           if (regra.conta_debito && regra.conta_credito) {
             if (matchDebito && matchCredito) return { casa: true, regraId: regra.id };
