@@ -8,20 +8,29 @@ import {
   ShoppingCart, 
   TrendingUp, 
   BarChart3, 
-  Settings,
   ChevronLeft,
-  ChevronRight,
   Wallet,
   FileText,
   Target,
   RefreshCw,
   CreditCard,
-  Building2
+  Building2,
+  LogOut,
+  ChevronDown
 } from "lucide-react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface NavItem {
   id: string;
@@ -40,7 +49,15 @@ interface GlassSidebarProps {
 export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: GlassSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
+  const initials = displayName
+    .split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 
   const colorMap: Record<string, string> = {
     blue: "from-blue/20 to-cyan/10 border-blue/30 hover:border-blue/50",
@@ -206,6 +223,57 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
             })}
           </div>
         </nav>
+
+        {/* User Profile Section */}
+        {user && (
+          <div className="p-3 border-t border-white/5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.button
+                  className={cn(
+                    "w-full flex items-center gap-3 px-2 py-2 rounded-xl",
+                    "hover:bg-white/5 transition-colors",
+                    "border border-transparent hover:border-white/10"
+                  )}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.user_metadata?.avatar_url} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -10 }}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <p className="text-xs font-medium text-foreground leading-none truncate">{displayName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                  {isExpanded && <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                </motion.button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
 
         {/* Collapse toggle */}
         <div className="p-3 border-t border-white/5">
