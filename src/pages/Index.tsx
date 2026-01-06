@@ -1,6 +1,6 @@
 import { CheckSquare, FileCheck, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { VaultLogo } from "@/components/VaultLogo";
+
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { GradientMesh } from "@/components/GradientMesh";
 import { useAuth } from "@/contexts/AuthContext";
@@ -141,7 +141,7 @@ const Index = () => {
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
             <div className="p-2 rounded-xl bg-gradient-to-br from-magenta/20 to-blue/20 backdrop-blur-xl border border-white/10 shadow-lg shadow-magenta/5">
-              <VaultLogo className="w-8 h-8" />
+              <Zap className="w-6 h-6 text-magenta fill-magenta" />
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-tight text-foreground">
