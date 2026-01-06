@@ -220,8 +220,8 @@ export default function FinancialACE() {
         </div>
       </FloatingWidget>
       
-      {/* Main Content - adjusted for glass sidebar */}
-      <div className="pt-4 pb-8 pl-[280px] pr-6 transition-all duration-300">
+      {/* Main Content - adjusted for right sidebar */}
+      <div className="pt-4 pb-8 pr-[280px] pl-6 transition-all duration-300">
 
         {/* Dashboard Metrics - Only show on transacoes or produtos tabs */}
         {(activeTab === "transacoes" || activeTab === "produtos") && (
