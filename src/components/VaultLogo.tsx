@@ -1,8 +1,13 @@
 import { Zap } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export function VaultLogo() {
+interface VaultLogoProps {
+  className?: string;
+}
+
+export function VaultLogo({ className }: VaultLogoProps) {
   return (
-    <div className="relative flex flex-col items-center justify-center">
+    <div className={cn("relative flex flex-col items-center justify-center", className)}>
       {/* Outer glow ring */}
       <div className="absolute w-40 h-40 rounded-full bg-gradient-to-r from-magenta/20 via-blue/20 to-cyan/20 blur-3xl animate-spin-slow" />
       
