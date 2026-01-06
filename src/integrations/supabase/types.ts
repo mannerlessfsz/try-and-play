@@ -2333,6 +2333,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_widget_preferences: {
+        Row: {
+          created_at: string
+          empresa_id: string
+          id: string
+          is_active: boolean
+          position_x: number | null
+          position_y: number | null
+          updated_at: string
+          user_id: string
+          widget_type: string
+        }
+        Insert: {
+          created_at?: string
+          empresa_id: string
+          id?: string
+          is_active?: boolean
+          position_x?: number | null
+          position_y?: number | null
+          updated_at?: string
+          user_id: string
+          widget_type: string
+        }
+        Update: {
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          is_active?: boolean
+          position_x?: number | null
+          position_y?: number | null
+          updated_at?: string
+          user_id?: string
+          widget_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_widget_preferences_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_widget_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venda_itens: {
         Row: {
           created_at: string
