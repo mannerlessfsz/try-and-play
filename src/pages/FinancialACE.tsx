@@ -17,7 +17,7 @@ import { formatCurrency as formatCurrencyUtil } from "@/lib/formatters";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
 import { CategoriasManager } from "@/components/financial/CategoriasManager";
 import { TransacoesUnificadasManager } from "@/components/financial/TransacoesUnificadasManager";
-import { UserHeader } from "@/components/financial/UserHeader";
+
 import { RelatoriosManager } from "@/components/financial/RelatoriosManager";
 import { ProdutosManager } from "@/components/erp/ProdutosManager";
 import { ClientesManager } from "@/components/erp/ClientesManager";
@@ -142,7 +142,6 @@ export default function FinancialACE() {
 
   return (
     <div className="min-h-screen bg-background">
-      <UserHeader />
       
       {/* Glass Sidebar Premium */}
       <GlassSidebar
