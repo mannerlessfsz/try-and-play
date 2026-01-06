@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { GradientMesh } from "@/components/GradientMesh";
-import { CursorGlow } from "@/components/CursorGlow";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, AppModule } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
@@ -85,7 +84,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
-
       {/* Animated gradient mesh background */}
       <GradientMesh />
 
@@ -137,10 +135,21 @@ const Index = () => {
         transition={{ delay: 0.2, duration: 0.5 }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <Zap className="w-4 h-4 text-magenta" />
-            <span className="text-xs font-medium tracking-wider uppercase">Central Vault</span>
-          </div>
+          <motion.div 
+            className="flex items-center gap-3"
+            whileHover={{ scale: 1.02 }}
+            transition={{ type: "spring", stiffness: 400, damping: 10 }}
+          >
+            <div className="p-2 rounded-xl bg-gradient-to-br from-magenta/20 to-blue/20 backdrop-blur-xl border border-white/10 shadow-lg shadow-magenta/5">
+              <VaultLogo className="w-8 h-8" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold tracking-tight text-foreground">
+                VAULT<span className="text-magenta">CORP</span>
+              </h1>
+              <p className="text-[10px] text-muted-foreground tracking-wider">ENTERPRISE SUITE</p>
+            </div>
+          </motion.div>
           <div className="flex items-center gap-2">
             {isAdmin && (
               <Button 
@@ -164,86 +173,53 @@ const Index = () => {
         </div>
       </motion.div>
 
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 py-24 md:py-32">
-        {/* Header */}
-        <motion.header 
-          className="text-center mb-16 md:mb-20"
-          initial={{ opacity: 0, y: 20 }}
+      {/* Main content with cinematic entrance */}
+      <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-24">
+        {/* Hero section */}
+        <motion.div 
+          className="text-center mb-16"
+          initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
         >
           <motion.div 
-            className="inline-block mb-6"
-            initial={{ scale: 0.8, opacity: 0 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-magenta/10 to-blue/10 border border-magenta/20 backdrop-blur-xl mb-6"
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-          >
-            <span className="px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-magenta/10 to-blue/10 text-muted-foreground border border-border/30 backdrop-blur-xl inline-flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-magenta animate-pulse" />
-              Plataforma de Produtividade
-            </span>
-          </motion.div>
-          
-          <VaultLogo />
-          
-          <motion.p 
-            className="mt-8 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.5 }}
           >
-            Sua <span className="text-foreground font-semibold bg-gradient-to-r from-magenta to-blue bg-clip-text text-transparent">central unificada</span> para 
-            transformar a maneira como você trabalha
-          </motion.p>
-          
-          <motion.div 
-            className="mt-6 flex items-center justify-center gap-6 text-sm text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-          >
-            {[
-              { color: 'bg-cyan', label: 'Rápido' },
-              { color: 'bg-magenta', label: 'Seguro' },
-              { color: 'bg-blue', label: 'Inteligente' },
-            ].map((item, index) => (
-              <motion.span 
-                key={item.label}
-                className="flex items-center gap-2"
-                whileHover={{ scale: 1.05 }}
-              >
-                <span className={`w-2 h-2 rounded-full ${item.color}`} />
-                {item.label}
-              </motion.span>
-            ))}
-          </motion.div>
-        </motion.header>
-
-        {/* Feature Cards Grid */}
-        <div className="max-w-6xl mx-auto">
-          <motion.div 
-            className="flex items-center gap-3 mb-6"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
-            <div className="h-px flex-1 max-w-[60px] bg-gradient-to-r from-transparent to-border" />
-            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Módulos Disponíveis</span>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+            <Zap className="w-4 h-4 text-magenta" />
+            <span className="text-sm font-medium text-foreground/90">Plataforma Empresarial Unificada</span>
           </motion.div>
           
-          <motion.div 
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {features.map((feature) => (
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-4">
+            <span className="bg-gradient-to-r from-foreground via-foreground/90 to-foreground/70 bg-clip-text text-transparent">
+              Selecione seu
+            </span>
+            <br />
+            <span className="bg-gradient-to-r from-magenta via-blue to-cyan bg-clip-text text-transparent">
+              Módulo
+            </span>
+          </h2>
+          
+          <p className="text-muted-foreground text-lg max-w-md mx-auto">
+            Ferramentas poderosas para gestão empresarial integrada
+          </p>
+        </motion.div>
+        
+        {/* Feature cards grid with stagger animation */}
+        <motion.div 
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl w-full"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {features.map((feature) => {
+            const hasAccess = hasModuleAccess(feature.module);
+            return (
               <motion.div
                 key={feature.title}
                 variants={itemVariants}
-                className="h-full"
               >
                 <CompactFeatureCard
                   icon={feature.icon}
@@ -251,35 +227,16 @@ const Index = () => {
                   description={feature.description}
                   variant={feature.variant}
                   href={feature.href}
-                  disabled={!hasModuleAccess(feature.module)}
+                  disabled={!hasAccess}
                 />
               </motion.div>
-            ))}
-          </motion.div>
-        </div>
-
-        {/* Footer hint with animation */}
-        <motion.div 
-          className="mt-16 text-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.5 }}
-        >
-          <p className="text-sm text-muted-foreground/70">
-            {isAdmin ? (
-              <span className="inline-flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                Você tem acesso total a todos os módulos
-              </span>
-            ) : (
-              'Selecione uma ferramenta disponível para começar'
-            )}
-          </p>
+            );
+          })}
         </motion.div>
-      </div>
 
-      {/* Bottom gradient fade */}
-      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        {/* Bottom gradient fade */}
+        <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      </div>
     </div>
   );
 };
