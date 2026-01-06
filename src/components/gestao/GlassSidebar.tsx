@@ -224,11 +224,19 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
           </Button>
         </div>
 
-        {/* Decorative gradient line */}
+        {/* Decorative gradient line on left edge */}
         <div 
           className={cn(
-            "absolute left-0 top-1/4 bottom-1/4 w-px",
-            "bg-gradient-to-b from-transparent via-blue/50 to-transparent"
+            "absolute left-0 top-0 bottom-0 w-px",
+            "bg-gradient-to-b from-transparent via-primary/40 to-transparent"
+          )}
+        />
+        
+        {/* Secondary accent line */}
+        <div 
+          className={cn(
+            "absolute left-1 top-1/4 bottom-1/4 w-px",
+            "bg-gradient-to-b from-transparent via-accent/30 to-transparent"
           )}
         />
       </motion.aside>

@@ -1,5 +1,4 @@
-import { LogOut, ChevronDown, Home } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { LogOut, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -13,7 +12,6 @@ import { Button } from "@/components/ui/button";
 
 export function UserHeader() {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
 
   if (!user) return null;
 
@@ -26,17 +24,7 @@ export function UserHeader() {
     .slice(0, 2);
 
   return (
-    <div className="fixed top-0 right-0 z-50 p-2 flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => navigate('/')}
-        className="w-8 h-8 bg-card/50 border border-border/30 hover:bg-card"
-        title="Ir para Home"
-      >
-        <Home className="w-4 h-4 text-muted-foreground" />
-      </Button>
-      
+    <div className="fixed top-0 left-0 z-50 p-2 flex items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -56,7 +44,7 @@ export function UserHeader() {
             <ChevronDown className="w-3 h-3 text-muted-foreground" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuContent align="start" className="w-48">
           <div className="px-2 py-1.5">
             <p className="text-sm font-medium">{displayName}</p>
             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
