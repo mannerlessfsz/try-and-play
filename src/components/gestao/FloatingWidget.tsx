@@ -11,6 +11,7 @@ interface FloatingWidgetProps {
   defaultPosition?: { x: number; y: number };
   moduleColor?: "blue" | "magenta" | "orange" | "green";
   onClose?: () => void;
+  onClick?: () => void;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export function FloatingWidget({
   defaultPosition = { x: 20, y: 20 },
   moduleColor = "blue",
   onClose,
+  onClick,
   className,
 }: FloatingWidgetProps) {
   const [isMinimized, setIsMinimized] = useState(false);
@@ -122,7 +124,10 @@ export function FloatingWidget({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="p-3">
+            <div 
+              className={cn("p-3", onClick && "cursor-pointer hover:bg-white/5 transition-colors")}
+              onClick={onClick}
+            >
               {children}
             </div>
           </motion.div>
