@@ -84,9 +84,7 @@ const Index = () => {
   const { isAdmin, hasModuleAccess } = usePermissions();
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden cursor-none">
-      {/* Cursor glow effect */}
-      <CursorGlow />
+    <div className="min-h-screen bg-background relative overflow-hidden">
 
       {/* Animated gradient mesh background */}
       <GradientMesh />
@@ -149,7 +147,7 @@ const Index = () => {
                 variant="ghost" 
                 size="sm" 
                 onClick={() => navigate('/admin')} 
-                className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm cursor-none"
+                className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm"
               >
                 <Settings className="w-4 h-4" /> Admin
               </Button>
@@ -158,7 +156,7 @@ const Index = () => {
               variant="ghost" 
               size="sm" 
               onClick={signOut} 
-              className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm cursor-none"
+              className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm"
             >
               <LogOut className="w-4 h-4" /> Sair
             </Button>
