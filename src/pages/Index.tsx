@@ -1,11 +1,14 @@
-import { CheckSquare, FileCheck, DollarSign, Settings, LogOut, RefreshCw } from "lucide-react";
+import { CheckSquare, FileCheck, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
-import { ParticleField } from "@/components/ParticleField";
+import { GradientMesh } from "@/components/GradientMesh";
+import { CursorGlow } from "@/components/CursorGlow";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermissions, AppModule } from "@/hooks/usePermissions";
 import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
+
 interface FeatureConfig {
   icon: React.ReactNode;
   title: string;
@@ -17,7 +20,7 @@ interface FeatureConfig {
 
 const features: FeatureConfig[] = [
   {
-    icon: <CheckSquare className="w-7 h-7" />,
+    icon: <CheckSquare className="w-6 h-6" />,
     title: "TASKVAULT",
     description: "Gerencie suas tarefas com prioridades inteligentes e controle total sobre sua produtividade diária",
     variant: "magenta",
@@ -25,7 +28,7 @@ const features: FeatureConfig[] = [
     module: "taskvault",
   },
   {
-    icon: <DollarSign className="w-7 h-7" />,
+    icon: <DollarSign className="w-6 h-6" />,
     title: "GESTÃO",
     description: "Sistema integrado de gestão financeira, produtos, clientes, vendas, compras e estoque",
     variant: "blue",
@@ -33,7 +36,7 @@ const features: FeatureConfig[] = [
     module: "gestao",
   },
   {
-    icon: <FileCheck className="w-7 h-7" />,
+    icon: <FileCheck className="w-6 h-6" />,
     title: "CONFERESPED",
     description: "Confira e valide arquivos SPED com precisão e gere relatórios detalhados",
     variant: "orange",
@@ -41,7 +44,7 @@ const features: FeatureConfig[] = [
     module: "conferesped",
   },
   {
-    icon: <RefreshCw className="w-7 h-7" />,
+    icon: <RefreshCw className="w-6 h-6" />,
     title: "CONVERSORES",
     description: "Converta arquivos fiscais, extratos, SPED, APAE, CASA e LÍDER",
     variant: "green",
@@ -50,93 +53,199 @@ const features: FeatureConfig[] = [
   },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.3,
+    },
+  },
+} as const;
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: "spring" as const,
+      stiffness: 100,
+      damping: 15,
+    },
+  },
+};
+
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { isAdmin, hasModuleAccess } = usePermissions();
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
-      {/* Top bar */}
-      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
-        {isAdmin && (
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="gap-2 text-muted-foreground hover:text-foreground">
-            <Settings className="w-4 h-4" /> Admin
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={signOut} className="gap-2 text-muted-foreground hover:text-foreground">
-          <LogOut className="w-4 h-4" /> Sair
-        </Button>
-      </div>
-      {/* Animated background gradients */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-radial from-magenta/30 via-magenta/10 to-transparent blur-3xl animate-pulse-slow opacity-60" />
-        <div className="absolute top-1/4 right-0 w-[600px] h-[600px] bg-gradient-radial from-blue/20 via-blue/5 to-transparent blur-3xl animate-float-slow opacity-50" />
-        <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-gradient-radial from-cyan/15 via-cyan/5 to-transparent blur-3xl animate-float opacity-40" />
-      </div>
+    <div className="min-h-screen bg-background relative overflow-hidden cursor-none">
+      {/* Cursor glow effect */}
+      <CursorGlow />
 
-      {/* Particle field */}
-      <ParticleField />
+      {/* Animated gradient mesh background */}
+      <GradientMesh />
 
-      {/* Grid pattern overlay */}
+      {/* Subtle grid overlay */}
       <div 
-        className="absolute inset-0 pointer-events-none opacity-[0.02]"
+        className="fixed inset-0 pointer-events-none opacity-[0.015]"
         style={{
           backgroundImage: `
             linear-gradient(hsl(var(--foreground)) 1px, transparent 1px),
             linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)
           `,
-          backgroundSize: '60px 60px'
+          backgroundSize: '80px 80px'
         }}
       />
 
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 py-12 md:py-20">
-        {/* Header */}
-        <header className="text-center mb-12 md:mb-16">
-          <div className="inline-block mb-4">
-            <span className="px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase bg-muted/50 text-muted-foreground border border-border/50 backdrop-blur-sm">
-              ✨ Plataforma de Produtividade
-            </span>
+      {/* Floating orbs */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <motion.div 
+          className="absolute top-[20%] left-[10%] w-2 h-2 rounded-full bg-magenta/60"
+          animate={{ 
+            y: [0, -20, 0],
+            opacity: [0.6, 1, 0.6],
+          }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          className="absolute top-[40%] right-[15%] w-3 h-3 rounded-full bg-blue/50"
+          animate={{ 
+            y: [0, 15, 0],
+            x: [0, -10, 0],
+          }}
+          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div 
+          className="absolute bottom-[30%] left-[20%] w-2 h-2 rounded-full bg-cyan/40"
+          animate={{ 
+            y: [0, -25, 0],
+            scale: [1, 1.5, 1],
+          }}
+          transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </div>
+
+      {/* Top bar with glass effect */}
+      <motion.div 
+        className="fixed top-0 left-0 right-0 z-50 px-4 py-3"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Zap className="w-4 h-4 text-magenta" />
+            <span className="text-xs font-medium tracking-wider uppercase">Central Vault</span>
           </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => navigate('/admin')} 
+                className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm cursor-none"
+              >
+                <Settings className="w-4 h-4" /> Admin
+              </Button>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={signOut} 
+              className="gap-2 text-muted-foreground hover:text-foreground hover:bg-white/5 backdrop-blur-sm cursor-none"
+            >
+              <LogOut className="w-4 h-4" /> Sair
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Content */}
+      <div className="relative z-10 container mx-auto px-4 py-24 md:py-32">
+        {/* Header */}
+        <motion.header 
+          className="text-center mb-16 md:mb-20"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+        >
+          <motion.div 
+            className="inline-block mb-6"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          >
+            <span className="px-4 py-2 rounded-full text-xs font-semibold tracking-wider uppercase bg-gradient-to-r from-magenta/10 to-blue/10 text-muted-foreground border border-border/30 backdrop-blur-xl inline-flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-magenta animate-pulse" />
+              Plataforma de Produtividade
+            </span>
+          </motion.div>
           
           <VaultLogo />
           
-          <p className="mt-6 text-base md:text-lg text-muted-foreground max-w-xl mx-auto leading-relaxed">
-            Sua <span className="text-foreground font-semibold">central unificada</span> para 
+          <motion.p 
+            className="mt-8 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+          >
+            Sua <span className="text-foreground font-semibold bg-gradient-to-r from-magenta to-blue bg-clip-text text-transparent">central unificada</span> para 
             transformar a maneira como você trabalha
-          </p>
+          </motion.p>
           
-          <div className="mt-4 flex items-center justify-center gap-3 text-sm text-muted-foreground">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-cyan animate-pulse" />
-              Rápido
-            </span>
-            <span className="text-border">•</span>
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-magenta animate-pulse" />
-              Seguro
-            </span>
-            <span className="text-border">•</span>
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-blue animate-pulse" />
-              Inteligente
-            </span>
-          </div>
-        </header>
+          <motion.div 
+            className="mt-6 flex items-center justify-center gap-6 text-sm text-muted-foreground"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+          >
+            {[
+              { color: 'bg-cyan', label: 'Rápido' },
+              { color: 'bg-magenta', label: 'Seguro' },
+              { color: 'bg-blue', label: 'Inteligente' },
+            ].map((item, index) => (
+              <motion.span 
+                key={item.label}
+                className="flex items-center gap-2"
+                whileHover={{ scale: 1.05 }}
+              >
+                <span className={`w-2 h-2 rounded-full ${item.color}`} />
+                {item.label}
+              </motion.span>
+            ))}
+          </motion.div>
+        </motion.header>
 
-
-        {/* Feature Cards Grid - 4 em uma linha */}
+        {/* Feature Cards Grid */}
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm font-medium text-muted-foreground">Módulos Disponíveis</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {features.map((feature, index) => (
-              <div
+          <motion.div 
+            className="flex items-center gap-3 mb-6"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+          >
+            <div className="h-px flex-1 max-w-[60px] bg-gradient-to-r from-transparent to-border" />
+            <span className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Módulos Disponíveis</span>
+            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-border" />
+          </motion.div>
+          
+          <motion.div 
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+          >
+            {features.map((feature) => (
+              <motion.div
                 key={feature.title}
-                className="animate-fade-in"
-                style={{ animationDelay: `${index * 100}ms` }}
+                variants={itemVariants}
+                className="h-full"
               >
                 <CompactFeatureCard
                   icon={feature.icon}
@@ -146,18 +255,33 @@ const Index = () => {
                   href={feature.href}
                   disabled={!hasModuleAccess(feature.module)}
                 />
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
 
-        {/* Footer hint */}
-        <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground">
-            {isAdmin ? 'Você tem acesso total a todos os módulos' : 'Selecione uma ferramenta disponível para começar'}
+        {/* Footer hint with animation */}
+        <motion.div 
+          className="mt-16 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.5 }}
+        >
+          <p className="text-sm text-muted-foreground/70">
+            {isAdmin ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Você tem acesso total a todos os módulos
+              </span>
+            ) : (
+              'Selecione uma ferramenta disponível para começar'
+            )}
           </p>
-        </div>
+        </motion.div>
       </div>
+
+      {/* Bottom gradient fade */}
+      <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
     </div>
   );
 };
