@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   Package, ShoppingCart, ShoppingBag, FileText
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useAtividades } from "@/hooks/useAtividades";
@@ -32,9 +33,9 @@ import { useProdutos } from "@/hooks/useProdutos";
 import { useVendas } from "@/hooks/useVendas";
 import { useCompras } from "@/hooks/useCompras";
 import { useOrcamentos } from "@/hooks/useOrcamentos";
-import { ModernSidebar } from "@/components/gestao/ModernSidebar";
+import { GlassSidebar } from "@/components/gestao/GlassSidebar";
 import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
-
+import { FloatingWidget } from "@/components/gestao/FloatingWidget";
 import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
 import { FinancialDashboard } from "@/components/gestao/FinancialDashboard";
 import type { Atividade } from "@/types/task";
@@ -143,23 +144,84 @@ export default function FinancialACE() {
     <div className="min-h-screen bg-background">
       <UserHeader />
       
-      {/* Modern Sidebar */}
-      <ModernSidebar
-        empresaAtiva={empresaAtiva}
-        empresasDisponiveis={empresasDisponiveis}
-        onEmpresaChange={setEmpresaAtiva}
-        modo={modo}
-        onModoChange={setModo}
-        atividades={atividadesForSidebar}
-        atividadesLoading={atividadesLoading}
-        activeSection={activeSection}
+      {/* Glass Sidebar Premium */}
+      <GlassSidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab as (tab: string) => void}
-        onSectionChange={setActiveSection}
+        onTabChange={(tab) => {
+          setActiveTab(tab as typeof activeTab);
+          // Update section based on tab
+          const gestaoTabs = ["produtos", "clientes", "fornecedores", "vendas", "compras", "estoque", "orcamentos"];
+          setActiveSection(gestaoTabs.includes(tab) ? "gestao" : "financeiro");
+        }}
+        moduleColor="blue"
       />
+
+      {/* Floating Widgets - Alertas e Resumo Rápido */}
+      {parcelasAlerta.hasAlertas && (
+        <FloatingWidget
+          id="alertas-parcelas"
+          title="Alertas de Parcelas"
+          icon={<AlertTriangle className="w-4 h-4" />}
+          defaultPosition={{ x: 20, y: 100 }}
+          moduleColor="orange"
+        >
+          <div className="space-y-2">
+            {parcelasAlerta.totalAtrasadas > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-red-400">Atrasadas</span>
+                <span className="font-bold text-red-400">{parcelasAlerta.totalAtrasadas}</span>
+              </div>
+            )}
+            {parcelasAlerta.totalVencendo > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-yellow-400">Vencendo em 7 dias</span>
+                <span className="font-bold text-yellow-400">{parcelasAlerta.totalVencendo}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-white/10">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="w-full text-xs"
+                onClick={() => {
+                  setActiveTab("transacoes");
+                  setActiveFilter("pendentes");
+                }}
+              >
+                Ver Pendentes
+              </Button>
+            </div>
+          </div>
+        </FloatingWidget>
+      )}
+
+      <FloatingWidget
+        id="resumo-financeiro"
+        title="Resumo Rápido"
+        icon={<Wallet className="w-4 h-4" />}
+        defaultPosition={{ x: 20, y: 280 }}
+        moduleColor="green"
+      >
+        <div className="space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Saldo</span>
+            <span className={cn("font-bold", saldo >= 0 ? "text-green-400" : "text-red-400")}>
+              {formatCurrency(saldo)}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Receitas</span>
+            <span className="text-green-400">{formatCurrency(totalReceitas)}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-muted-foreground">Despesas</span>
+            <span className="text-red-400">{formatCurrency(totalDespesas)}</span>
+          </div>
+        </div>
+      </FloatingWidget>
       
-      {/* Main Content */}
-      <div className="pt-4 pr-64 pb-8 pl-4">
+      {/* Main Content - adjusted for glass sidebar */}
+      <div className="pt-4 pb-8 pl-[280px] pr-6 transition-all duration-300">
 
         {/* Dashboard Metrics - Only show on transacoes or produtos tabs */}
         {(activeTab === "transacoes" || activeTab === "produtos") && (
