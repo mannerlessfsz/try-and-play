@@ -2577,6 +2577,10 @@ export type Database = {
         Returns: undefined
       }
       sync_missing_profiles: { Args: never; Returns: number }
+      user_has_empresa_access: {
+        Args: { check_empresa_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_module:

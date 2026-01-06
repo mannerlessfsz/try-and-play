@@ -270,11 +270,11 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
                 <CardContent className="p-4">
                   <ResponsiveContainer width="100%" height={250}>
                     <AreaChart data={fluxoDiario}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                      <XAxis dataKey="data" stroke="#888" fontSize={11} />
-                      <YAxis stroke="#888" fontSize={11} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                      <XAxis dataKey="data" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
                       <Tooltip 
-                        contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #333' }}
+                        contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                         formatter={(value: number) => formatCurrency(value)}
                       />
                       <Area type="monotone" dataKey="receitas" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.3} name="Receitas" />
@@ -500,11 +500,11 @@ export function RelatoriosManager({ empresaId }: RelatoriosManagerProps) {
               {contaData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={contaData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                    <XAxis type="number" stroke="#888" fontSize={11} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
-                    <YAxis type="category" dataKey="name" stroke="#888" fontSize={11} width={100} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`} />
+                    <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={100} />
                     <Tooltip 
-                      contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid #333' }}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
                       formatter={(value: number) => formatCurrency(value)}
                     />
                     <Legend />
