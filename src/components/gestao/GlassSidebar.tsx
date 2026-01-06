@@ -88,9 +88,9 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
     <TooltipProvider delayDuration={0}>
       <motion.aside
         className={cn(
-          "fixed left-0 top-0 bottom-0 z-40 flex flex-col",
+          "fixed right-0 top-0 bottom-0 z-40 flex flex-col",
           "bg-gradient-to-b from-background/80 via-background/60 to-background/80",
-          "backdrop-blur-2xl border-r border-white/10",
+          "backdrop-blur-2xl border-l border-white/10",
           "shadow-2xl shadow-black/20"
         )}
         variants={sidebarVariants}
@@ -164,7 +164,7 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
                       ? activeColorMap[moduleColor]
                       : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                   )}
-                  whileHover={{ x: isExpanded ? 4 : 0, scale: isExpanded ? 1 : 1.1 }}
+                  whileHover={{ x: isExpanded ? -4 : 0, scale: isExpanded ? 1 : 1.1 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   <motion.div
@@ -195,7 +195,7 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
                 return (
                   <Tooltip key={item.id}>
                     <TooltipTrigger asChild>{content}</TooltipTrigger>
-                    <TooltipContent side="right" className="bg-background/90 backdrop-blur-xl border-white/10">
+                    <TooltipContent side="left" className="bg-background/90 backdrop-blur-xl border-white/10">
                       {item.label}
                     </TooltipContent>
                   </Tooltip>
@@ -216,7 +216,7 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
             className="w-full justify-center hover:bg-white/5"
           >
             <motion.div
-              animate={{ rotate: isExpanded ? 0 : 180 }}
+              animate={{ rotate: isExpanded ? 180 : 0 }}
               transition={{ duration: 0.3 }}
             >
               <ChevronLeft className="w-4 h-4" />
@@ -227,7 +227,7 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
         {/* Decorative gradient line */}
         <div 
           className={cn(
-            "absolute right-0 top-1/4 bottom-1/4 w-px",
+            "absolute left-0 top-1/4 bottom-1/4 w-px",
             "bg-gradient-to-b from-transparent via-blue/50 to-transparent"
           )}
         />
