@@ -127,147 +127,151 @@ export function WidgetRibbon({ groups, title, accentColor, sidebarContent }: Wid
           w-64 bg-card/90 backdrop-blur-xl border-l ${styles.border}
           transition-all duration-400 ease-out
           ${isMinimized ? 'translate-x-full opacity-0' : 'translate-x-0 opacity-100'}
-          overflow-y-auto
+          flex flex-col
         `}
       >
-        {/* Action Groups Section */}
-        <div className="p-3 border-b border-foreground/10">
-          <div className={`text-xs font-bold ${styles.text} mb-3`}>Ações</div>
-          <div className="space-y-1">
-            {groups.map((group) => {
-              const isExpanded = expandedGroup === group.id;
-              
-              return (
-                <div key={group.id}>
-                  {/* Group Header */}
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className={`
-                      w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg
-                      transition-all duration-200
-                      ${isExpanded 
-                        ? `${styles.bg} ${styles.border} border` 
-                        : 'hover:bg-foreground/5 border border-transparent'
-                      }
-                    `}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className={`${isExpanded ? styles.text : 'text-muted-foreground'}`}>
-                        {group.icon}
-                      </div>
-                      <span className={`text-xs font-medium ${isExpanded ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {group.label}
-                      </span>
-                    </div>
-                    <ChevronDown 
-                      className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200
-                        ${isExpanded ? 'rotate-180' : ''}`} 
-                    />
-                  </button>
-                  
-                  {/* Group Items */}
-                  {isExpanded && (
-                    <div className="grid grid-cols-2 gap-1 mt-1 pl-2">
-                      {group.items.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={item.onClick}
-                          onMouseEnter={() => setHoveredItem(item.id)}
-                          onMouseLeave={() => setHoveredItem(null)}
-                          disabled={item.disabled}
-                          className={`
-                            relative flex flex-col items-center gap-1 p-2 rounded-lg
-                            transition-all duration-200 group
-                            ${item.disabled 
-                              ? 'opacity-40 cursor-not-allowed' 
-                              : `cursor-pointer hover:bg-foreground/10 active:scale-95`
-                            }
-                          `}
-                        >
-                          {/* Badge */}
-                          {item.badge && (
-                            <div className={`
-                              absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5
-                              rounded-full ${styles.bgSolid}
-                              flex items-center justify-center
-                              text-[8px] font-bold text-primary-foreground
-                            `}>
-                              {item.badge}
-                            </div>
-                          )}
-                          
-                          {/* Icon */}
-                          <div className={`
-                            w-8 h-8 rounded-md flex items-center justify-center
-                            ${styles.bg} border ${styles.border}
-                            group-hover:${styles.borderActive}
-                            transition-all duration-200
-                            ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
-                          `}>
-                            {item.icon}
-                          </div>
-                          
-                          {/* Label */}
-                          <span className={`
-                            text-[10px] font-medium text-muted-foreground
-                            group-hover:text-foreground
-                            transition-colors duration-200
-                            whitespace-nowrap
-                          `}>
-                            {item.label}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+        {/* Custom sidebar content (filters, timeline, etc.) - Takes available space */}
+        <div className="flex-1 overflow-y-auto">
+          {sidebarContent ? (
+            sidebarContent
+          ) : (
+            <div className="flex flex-col gap-3 p-3">
+              <div className={`text-xs font-bold ${styles.text} border-b ${styles.border} pb-2 mb-1`}>
+                Filtros Rápidos
+              </div>
+              <FilterSelect 
+                icon={<Building2 className="w-3.5 h-3.5" />}
+                label="Empresa"
+                options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
+                accentStyles={styles}
+              />
+              <FilterSelect 
+                icon={<Calendar className="w-3.5 h-3.5" />}
+                label="Competência"
+                options={["Todas", "01/2024", "02/2024", "03/2024"]}
+                accentStyles={styles}
+              />
+              <FilterInput 
+                icon={<CalendarRange className="w-3.5 h-3.5" />}
+                label="Período inicial"
+                type="date"
+                placeholder="Inicial"
+                accentStyles={styles}
+              />
+              <FilterInput 
+                icon={<CalendarRange className="w-3.5 h-3.5" />}
+                label="Período final"
+                type="date"
+                placeholder="Final"
+                accentStyles={styles}
+              />
+              <FilterSelect 
+                icon={<ListTodo className="w-3.5 h-3.5" />}
+                label="Tarefa"
+                options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
+                accentStyles={styles}
+              />
+            </div>
+          )}
         </div>
 
-        {/* Custom sidebar content (filters, timeline, etc.) */}
-        {sidebarContent ? (
-          sidebarContent
-        ) : (
-          <div className="flex flex-col gap-3 p-3">
-            <div className={`text-xs font-bold ${styles.text} border-b ${styles.border} pb-2 mb-1`}>
-              Filtros Rápidos
+        {/* Action Groups Section - Fixed at bottom */}
+        <div className="border-t border-foreground/10 bg-card/95 backdrop-blur-xl">
+          <div className="p-3">
+            <div className={`text-xs font-bold ${styles.text} mb-2`}>Ações</div>
+            <div className="space-y-1">
+              {groups.map((group) => {
+                const isExpanded = expandedGroup === group.id;
+                
+                return (
+                  <div key={group.id}>
+                    {/* Group Header */}
+                    <button
+                      onClick={() => toggleGroup(group.id)}
+                      className={`
+                        w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg
+                        transition-all duration-200
+                        ${isExpanded 
+                          ? `${styles.bg} ${styles.border} border` 
+                          : 'hover:bg-foreground/5 border border-transparent'
+                        }
+                      `}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className={`${isExpanded ? styles.text : 'text-muted-foreground'}`}>
+                          {group.icon}
+                        </div>
+                        <span className={`text-xs font-medium ${isExpanded ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {group.label}
+                        </span>
+                      </div>
+                      <ChevronDown 
+                        className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200
+                          ${isExpanded ? 'rotate-180' : ''}`} 
+                      />
+                    </button>
+                    
+                    {/* Group Items */}
+                    {isExpanded && (
+                      <div className="grid grid-cols-2 gap-1 mt-1 pl-2">
+                        {group.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={item.onClick}
+                            onMouseEnter={() => setHoveredItem(item.id)}
+                            onMouseLeave={() => setHoveredItem(null)}
+                            disabled={item.disabled}
+                            className={`
+                              relative flex flex-col items-center gap-1 p-2 rounded-lg
+                              transition-all duration-200 group
+                              ${item.disabled 
+                                ? 'opacity-40 cursor-not-allowed' 
+                                : `cursor-pointer hover:bg-foreground/10 active:scale-95`
+                              }
+                            `}
+                          >
+                            {/* Badge */}
+                            {item.badge && (
+                              <div className={`
+                                absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5
+                                rounded-full ${styles.bgSolid}
+                                flex items-center justify-center
+                                text-[8px] font-bold text-primary-foreground
+                              `}>
+                                {item.badge}
+                              </div>
+                            )}
+                            
+                            {/* Icon */}
+                            <div className={`
+                              w-7 h-7 rounded-md flex items-center justify-center
+                              ${styles.bg} border ${styles.border}
+                              group-hover:${styles.borderActive}
+                              transition-all duration-200
+                              ${hoveredItem === item.id ? styles.text : 'text-foreground/70'}
+                            `}>
+                              {item.icon}
+                            </div>
+                            
+                            {/* Label */}
+                            <span className={`
+                              text-[9px] font-medium text-muted-foreground
+                              group-hover:text-foreground
+                              transition-colors duration-200
+                              whitespace-nowrap
+                            `}>
+                              {item.label}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-            <FilterSelect 
-              icon={<Building2 className="w-3.5 h-3.5" />}
-              label="Empresa"
-              options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
-              accentStyles={styles}
-            />
-            <FilterSelect 
-              icon={<Calendar className="w-3.5 h-3.5" />}
-              label="Competência"
-              options={["Todas", "01/2024", "02/2024", "03/2024"]}
-              accentStyles={styles}
-            />
-            <FilterInput 
-              icon={<CalendarRange className="w-3.5 h-3.5" />}
-              label="Período inicial"
-              type="date"
-              placeholder="Inicial"
-              accentStyles={styles}
-            />
-            <FilterInput 
-              icon={<CalendarRange className="w-3.5 h-3.5" />}
-              label="Período final"
-              type="date"
-              placeholder="Final"
-              accentStyles={styles}
-            />
-            <FilterSelect 
-              icon={<ListTodo className="w-3.5 h-3.5" />}
-              label="Tarefa"
-              options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
-              accentStyles={styles}
-            />
           </div>
-        )}
+        </div>
       </div>
     </>
   );
