@@ -163,146 +163,165 @@ export default function FinancialACE() {
       {/* Widget Manager - Botão de configuração */}
       <WidgetManager empresaId={empresaAtiva?.id} />
 
-      {/* Dynamic Floating Widgets */}
-      {isWidgetActive("alertas_vencimento") && parcelasAlerta.hasAlertas && (
-        <FloatingWidget
-          id="alertas-parcelas"
-          title="Alertas de Vencimento"
-          icon={<AlertTriangle className="w-4 h-4" />}
-          defaultPosition={{ x: 20, y: 100 }}
-          moduleColor="orange"
-          onClick={() => {
-            setActiveTab("transacoes");
-            setActiveFilter("pendentes");
-          }}
-        >
-          <div className="space-y-2">
-            {parcelasAlerta.totalAtrasadas > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-red-400">Atrasadas</span>
-                <span className="font-bold text-red-400">{parcelasAlerta.totalAtrasadas}</span>
-              </div>
-            )}
-            {parcelasAlerta.totalVencendo > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-yellow-400">Vencendo em 7 dias</span>
-                <span className="font-bold text-yellow-400">{parcelasAlerta.totalVencendo}</span>
-              </div>
-            )}
-            <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
-              Clique para ver pendentes
-            </div>
-          </div>
-        </FloatingWidget>
-      )}
-
-      {isWidgetActive("resumo_financeiro") && (
-        <FloatingWidget
-          id="resumo-financeiro"
-          title="Resumo Rápido"
-          icon={<Wallet className="w-4 h-4" />}
-          defaultPosition={{ x: 20, y: 200 }}
-          moduleColor="green"
-          onClick={() => setActiveTab("transacoes")}
-        >
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Saldo</span>
-              <span className={cn("font-bold", saldo >= 0 ? "text-green-400" : "text-red-400")}>
-                {formatCurrency(saldo)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Receitas</span>
-              <span className="text-green-400">{formatCurrency(totalReceitas)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Despesas</span>
-              <span className="text-red-400">{formatCurrency(totalDespesas)}</span>
-            </div>
-            <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
-              Clique para ver transações
-            </div>
-          </div>
-        </FloatingWidget>
-      )}
-
-      {isWidgetActive("metricas_vendas") && (
-        <FloatingWidget
-          id="metricas-vendas"
-          title="Métricas de Vendas"
-          icon={<TrendingUp className="w-4 h-4" />}
-          defaultPosition={{ x: 20, y: 320 }}
-          moduleColor="blue"
-          onClick={() => setActiveTab("vendas")}
-        >
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Total Vendas</span>
-              <span className="font-bold text-blue">{formatCurrency(totalVendas)}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Orçamentos</span>
-              <span className="text-cyan">{orcamentosAbertos}</span>
-            </div>
-            <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
-              Clique para ver vendas
-            </div>
-          </div>
-        </FloatingWidget>
-      )}
-
-      {isWidgetActive("estoque_critico") && (
-        <FloatingWidget
-          id="estoque-critico"
-          title="Estoque Crítico"
-          icon={<Package className="w-4 h-4" />}
-          defaultPosition={{ x: 20, y: 440 }}
-          moduleColor="magenta"
-          onClick={() => setActiveTab("produtos")}
-        >
-          <div className="space-y-2 text-sm">
-            {(() => {
-              const produtosCriticos = produtos?.filter(p => 
-                p.controla_estoque && 
-                p.estoque_minimo && 
-                (p.estoque_atual || 0) <= p.estoque_minimo
-              ) || [];
-              
-              if (produtosCriticos.length === 0) {
-                return (
-                  <p className="text-xs text-muted-foreground text-center py-2">
-                    Nenhum produto com estoque crítico
-                  </p>
-                );
-              }
-              
-              return (
-                <>
+      {/* Dynamic Floating Widgets - positioned bottom-left, left to right */}
+      {(() => {
+        let widgetIndex = 0;
+        return (
+          <>
+            {isWidgetActive("resumo_financeiro") && (
+              <FloatingWidget
+                id="resumo-financeiro"
+                title="Resumo Rápido"
+                icon={<Wallet className="w-4 h-4" />}
+                defaultPosition={{ x: 20, y: 20 }}
+                moduleColor="green"
+                index={widgetIndex++}
+                onClick={() => setActiveTab("transacoes")}
+              >
+                <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Produtos críticos</span>
-                    <span className="font-bold text-magenta">{produtosCriticos.length}</span>
+                    <span className="text-muted-foreground">Saldo</span>
+                    <span className={cn("font-bold", saldo >= 0 ? "text-green-400" : "text-red-400")}>
+                      {formatCurrency(saldo)}
+                    </span>
                   </div>
-                  {produtosCriticos.slice(0, 3).map(p => (
-                    <div key={p.id} className="flex items-center justify-between text-xs">
-                      <span className="truncate max-w-[140px]">{p.nome}</span>
-                      <span className="text-red-400">{p.estoque_atual || 0}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Receitas</span>
+                    <span className="text-green-400">{formatCurrency(totalReceitas)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Despesas</span>
+                    <span className="text-red-400">{formatCurrency(totalDespesas)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
+                    Clique para ver transações
+                  </div>
+                </div>
+              </FloatingWidget>
+            )}
+
+            {isWidgetActive("alertas_vencimento") && (
+              <FloatingWidget
+                id="alertas-parcelas"
+                title="Alertas de Vencimento"
+                icon={<AlertTriangle className="w-4 h-4" />}
+                defaultPosition={{ x: 20, y: 20 }}
+                moduleColor="orange"
+                index={widgetIndex++}
+                onClick={() => {
+                  setActiveTab("transacoes");
+                  setActiveFilter("pendentes");
+                }}
+              >
+                <div className="space-y-2">
+                  {parcelasAlerta.hasAlertas ? (
+                    <>
+                      {parcelasAlerta.totalAtrasadas > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-red-400">Atrasadas</span>
+                          <span className="font-bold text-red-400">{parcelasAlerta.totalAtrasadas}</span>
+                        </div>
+                      )}
+                      {parcelasAlerta.totalVencendo > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-yellow-400">Vencendo em 7 dias</span>
+                          <span className="font-bold text-yellow-400">{parcelasAlerta.totalVencendo}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-sm text-center text-muted-foreground py-1">
+                      ✓ Nenhum vencimento próximo
                     </div>
-                  ))}
-                  {produtosCriticos.length > 3 && (
-                    <p className="text-xs text-muted-foreground text-center">
-                      +{produtosCriticos.length - 3} mais...
-                    </p>
                   )}
-                </>
-              );
-            })()}
-            <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
-              Clique para ver produtos
-            </div>
-          </div>
-        </FloatingWidget>
-      )}
+                  <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
+                    Clique para ver pendentes
+                  </div>
+                </div>
+              </FloatingWidget>
+            )}
+
+            {isWidgetActive("metricas_vendas") && (
+              <FloatingWidget
+                id="metricas-vendas"
+                title="Métricas de Vendas"
+                icon={<TrendingUp className="w-4 h-4" />}
+                defaultPosition={{ x: 20, y: 20 }}
+                moduleColor="blue"
+                index={widgetIndex++}
+                onClick={() => setActiveTab("vendas")}
+              >
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Total Vendas</span>
+                    <span className="font-bold text-blue">{formatCurrency(totalVendas)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Orçamentos</span>
+                    <span className="text-cyan">{orcamentosAbertos}</span>
+                  </div>
+                  <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
+                    Clique para ver vendas
+                  </div>
+                </div>
+              </FloatingWidget>
+            )}
+
+            {isWidgetActive("estoque_critico") && (
+              <FloatingWidget
+                id="estoque-critico"
+                title="Estoque Crítico"
+                icon={<Package className="w-4 h-4" />}
+                defaultPosition={{ x: 20, y: 20 }}
+                moduleColor="magenta"
+                index={widgetIndex++}
+                onClick={() => setActiveTab("produtos")}
+              >
+                <div className="space-y-2 text-sm">
+                  {(() => {
+                    const produtosCriticos = produtos?.filter(p => 
+                      p.controla_estoque && 
+                      p.estoque_minimo && 
+                      (p.estoque_atual || 0) <= p.estoque_minimo
+                    ) || [];
+                    
+                    if (produtosCriticos.length === 0) {
+                      return (
+                        <p className="text-xs text-muted-foreground text-center py-2">
+                          ✓ Nenhum produto com estoque crítico
+                        </p>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Produtos críticos</span>
+                          <span className="font-bold text-magenta">{produtosCriticos.length}</span>
+                        </div>
+                        {produtosCriticos.slice(0, 3).map(p => (
+                          <div key={p.id} className="flex items-center justify-between text-xs">
+                            <span className="truncate max-w-[140px]">{p.nome}</span>
+                            <span className="text-red-400">{p.estoque_atual || 0}</span>
+                          </div>
+                        ))}
+                        {produtosCriticos.length > 3 && (
+                          <p className="text-xs text-muted-foreground text-center">
+                            +{produtosCriticos.length - 3} mais...
+                          </p>
+                        )}
+                      </>
+                    );
+                  })()}
+                  <div className="pt-2 border-t border-white/10 text-xs text-muted-foreground text-center">
+                    Clique para ver produtos
+                  </div>
+                </div>
+              </FloatingWidget>
+            )}
+          </>
+        );
+      })()}
       
       {/* Main Content - adjusted for right sidebar */}
       <div className="pt-4 pb-8 pr-[280px] pl-6 transition-all duration-300">

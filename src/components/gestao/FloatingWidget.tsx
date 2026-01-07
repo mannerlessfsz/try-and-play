@@ -13,6 +13,8 @@ interface FloatingWidgetProps {
   onClose?: () => void;
   onClick?: () => void;
   className?: string;
+  /** Widget index for horizontal positioning (0-based, left to right) */
+  index?: number;
 }
 
 export function FloatingWidget({
@@ -25,10 +27,16 @@ export function FloatingWidget({
   onClose,
   onClick,
   className,
+  index = 0,
 }: FloatingWidgetProps) {
   const [isMinimized, setIsMinimized] = useState(false);
   const [position, setPosition] = useState(defaultPosition);
   const dragControls = useDragControls();
+  
+  // Calculate position from bottom-left, widgets go left to right
+  const widgetWidth = 220; // approximate width
+  const gap = 16;
+  const leftOffset = 20 + (index * (widgetWidth + gap));
 
   const colorMap = {
     blue: "from-blue/20 to-cyan/10 border-blue/30 shadow-blue/10",
@@ -66,9 +74,10 @@ export function FloatingWidget({
         className
       )}
       style={{ 
-        top: defaultPosition.y, 
-        right: defaultPosition.x,
-        left: "auto",
+        bottom: 20,
+        left: leftOffset,
+        right: "auto",
+        top: "auto",
       }}
     >
       {/* Header with drag handle */}
