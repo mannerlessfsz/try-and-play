@@ -1,6 +1,4 @@
-import { Resend } from "https://esm.sh/resend@2.0.0";
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -138,16 +136,25 @@ const handler = async (req: Request): Promise<Response> => {
       </html>
     `;
 
-    const emailResponse = await resend.emails.send({
-      from: "VAULT <onboarding@resend.dev>",
-      to: [contatoEmail],
-      subject: `Tarefa Concluída: ${tarefaTitulo}`,
-      html: emailHtml,
+    const emailResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: "VAULT <onboarding@resend.dev>",
+        to: [contatoEmail],
+        subject: `Tarefa Concluída: ${tarefaTitulo}`,
+        html: emailHtml,
+      }),
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    const emailData = await emailResponse.json();
 
-    return new Response(JSON.stringify({ success: true, data: emailResponse }), {
+    console.log("Email sent successfully:", emailData);
+
+    return new Response(JSON.stringify({ success: true, data: emailData }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
