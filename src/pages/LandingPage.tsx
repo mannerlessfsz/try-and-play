@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { CheckSquare, FileText, FileCheck, DollarSign, ArrowRight, Shield, Zap, Users, LogIn } from "lucide-react";
+import { CheckSquare, FileText, MessageCircle, DollarSign, ArrowRight, Shield, Zap, Users, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { VaultLogo } from "@/components/VaultLogo";
 import { ParticleField } from "@/components/ParticleField";
@@ -23,11 +23,11 @@ const services = [
     bgGlow: "from-blue/20"
   },
   {
-    icon: <FileCheck className="w-8 h-8" />,
-    title: "ConfereSped",
-    description: "Conferência e validação de arquivos SPED com detecção automática de divergências e geração de relatórios.",
-    color: "text-orange",
-    bgGlow: "from-orange/20"
+    icon: <MessageCircle className="w-8 h-8" />,
+    title: "Messenger",
+    description: "Comunicação integrada via WhatsApp Business para atendimento e envio de documentos aos clientes.",
+    color: "text-emerald-500",
+    bgGlow: "from-emerald-500/20"
   },
   {
     icon: <FileText className="w-8 h-8" />,

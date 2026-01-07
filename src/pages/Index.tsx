@@ -1,4 +1,4 @@
-import { CheckSquare, FileCheck, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
+import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
@@ -35,18 +35,18 @@ const features: FeatureConfig[] = [
     module: "gestao",
   },
   {
-    icon: <FileCheck className="w-6 h-6" />,
-    title: "CONFERESPED",
-    description: "Confira e valide arquivos SPED com precisão e gere relatórios detalhados",
-    variant: "orange",
-    href: "/conferesped",
-    module: "conferesped",
+    icon: <MessageCircle className="w-6 h-6" />,
+    title: "MESSENGER",
+    description: "Comunicação integrada via WhatsApp Business para atendimento e envio de documentos",
+    variant: "green",
+    href: "/messenger",
+    module: "messenger",
   },
   {
     icon: <RefreshCw className="w-6 h-6" />,
     title: "CONVERSORES",
     description: "Converta arquivos fiscais, extratos, SPED, APAE, CASA e LÍDER",
-    variant: "green",
+    variant: "cyan",
     href: "/conversores",
     module: "conversores",
   },
