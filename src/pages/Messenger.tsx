@@ -346,8 +346,8 @@ const EnergyMessage = ({ message, index }: { message: Message; index: number }) 
         {/* Container da mensagem */}
         <div
           className={cn(
-            "relative px-4 py-3 rounded-2xl max-w-[300px]",
-            "backdrop-blur-xl border",
+            "relative px-4 py-3 rounded-2xl max-w-[300px] md:max-w-[400px]",
+            "backdrop-blur-xl border break-words",
             isFromMe 
               ? "bg-gradient-to-r from-orange-500/90 to-orange-600/90 border-orange-400/30 text-white rounded-br-md" 
               : "bg-card/60 border-purple-500/20 text-foreground rounded-bl-md"
@@ -361,7 +361,7 @@ const EnergyMessage = ({ message, index }: { message: Message; index: number }) 
             )}
           />
           
-          <p className="relative text-sm">{message.content}</p>
+          <p className="relative text-sm whitespace-pre-wrap break-words">{message.content}</p>
           
           <div className={cn(
             "flex items-center justify-end gap-1.5 mt-1.5",
