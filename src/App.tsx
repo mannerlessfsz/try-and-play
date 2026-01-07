@@ -2,8 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { EmpresaAtivaProvider } from "@/contexts/EmpresaAtivaContext";
 import LandingPage from "./pages/LandingPage";
 import Dashboard from "./pages/Index";
@@ -16,23 +16,8 @@ import FinancialACE from "./pages/FinancialACE";
 import Conversores from "./pages/Conversores";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { FloatingMessenger } from "./components/messenger/FloatingMessenger";
 
 const queryClient = new QueryClient();
-
-// Componente que renderiza o FloatingMessenger apenas em rotas protegidas (exceto na própria página messenger)
-function GlobalMessenger() {
-  const location = useLocation();
-  const { user } = useAuth();
-  
-  // Não mostrar na página do messenger, nas páginas de auth, ou se não estiver logado
-  const hiddenRoutes = ['/messenger', '/', '/auth', '/master'];
-  const shouldShow = user && !hiddenRoutes.includes(location.pathname);
-  
-  if (!shouldShow) return null;
-  
-  return <FloatingMessenger />;
-}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -55,7 +40,6 @@ const App = () => (
               <Route path="/conversores" element={<ProtectedRoute module="conversores"><Conversores /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
-            <GlobalMessenger />
           </BrowserRouter>
         </TooltipProvider>
       </EmpresaAtivaProvider>
