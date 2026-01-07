@@ -44,6 +44,7 @@ import {
   History,
   Workflow,
   Pencil,
+  RotateCcw,
 } from 'lucide-react';
 
 interface Profile {
@@ -62,6 +63,7 @@ interface Empresa {
   telefone: string | null;
   manager_id: string | null;
   regime_tributario: 'nano_empreendedor' | 'mei' | 'simples_nacional' | 'lucro_presumido' | 'lucro_real' | null;
+  ativo: boolean;
 }
 
 interface UserRole {
@@ -357,18 +359,39 @@ const Admin: React.FC = () => {
     }
   });
 
-  // Delete empresa mutation
+  // Inactivate empresa mutation (soft delete)
   const deleteEmpresaMutation = useMutation({
     mutationFn: async (empresaId: string) => {
-      const { error } = await supabase.from('empresas').delete().eq('id', empresaId);
+      const { error } = await supabase
+        .from('empresas')
+        .update({ ativo: false })
+        .eq('id', empresaId);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
-      toast({ title: 'Empresa removida' });
+      toast({ title: 'Empresa inativada', description: 'Todos os acessos foram revogados automaticamente.' });
     },
     onError: (error) => {
-      toast({ title: 'Erro ao remover empresa', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao inativar empresa', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Reactivate empresa mutation
+  const reactivateEmpresaMutation = useMutation({
+    mutationFn: async (empresaId: string) => {
+      const { error } = await supabase
+        .from('empresas')
+        .update({ ativo: true })
+        .eq('id', empresaId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-empresas'] });
+      toast({ title: 'Empresa reativada', description: 'Reconfigure os módulos e permissões conforme necessário.' });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao reativar empresa', description: error.message, variant: 'destructive' });
     }
   });
 
@@ -760,19 +783,24 @@ const Admin: React.FC = () => {
                       const isExpanded = expandedEmpresa === empresa.id;
                       
                       return (
-                        <Card key={empresa.id} className="bg-muted/30">
+                        <Card key={empresa.id} className={`${empresa.ativo ? 'bg-muted/30' : 'bg-muted/10 opacity-60 border-dashed'}`}>
                           <CardContent className="p-4">
                             <div 
                               className="flex items-center justify-between cursor-pointer"
                               onClick={() => setExpandedEmpresa(isExpanded ? null : empresa.id)}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                                  <Building2 className="w-5 h-5 text-primary" />
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${empresa.ativo ? 'bg-primary/20' : 'bg-muted'}`}>
+                                  <Building2 className={`w-5 h-5 ${empresa.ativo ? 'text-primary' : 'text-muted-foreground'}`} />
                                 </div>
                                 <div>
                                   <div className="flex items-center gap-2">
                                     <span className="font-medium">{empresa.nome}</span>
+                                    {!empresa.ativo && (
+                                      <Badge variant="outline" className="text-xs border-destructive/50 text-destructive">
+                                        Inativa
+                                      </Badge>
+                                    )}
                                     {empresa.regime_tributario && (
                                       <Badge variant="outline" className="text-xs">
                                         {empresa.regime_tributario.replace('_', ' ')}
@@ -789,31 +817,53 @@ const Admin: React.FC = () => {
                                         {m.modulo} {m.modo === 'pro' && '★'}
                                       </Badge>
                                     ))}
+                                    {!empresa.ativo && modulos.length === 0 && (
+                                      <span className="text-xs text-muted-foreground italic">Sem módulos ativos</span>
+                                    )}
                                   </div>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8"
-                                  onClick={(e) => { e.stopPropagation(); setEditingEmpresa(empresa); }}
-                                >
-                                  <Edit className="w-4 h-4" />
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (confirm(`Deseja remover a empresa ${empresa.nome}?`)) {
-                                      deleteEmpresaMutation.mutate(empresa.id);
-                                    }
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                {empresa.ativo ? (
+                                  <>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8"
+                                      onClick={(e) => { e.stopPropagation(); setEditingEmpresa(empresa); }}
+                                    >
+                                      <Edit className="w-4 h-4" />
+                                    </Button>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="icon" 
+                                      className="h-8 w-8 text-destructive hover:text-destructive"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (confirm(`Deseja inativar a empresa ${empresa.nome}? Todos os acessos serão revogados automaticamente.`)) {
+                                          deleteEmpresaMutation.mutate(empresa.id);
+                                        }
+                                      }}
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    className="h-8 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm(`Deseja reativar a empresa ${empresa.nome}? Será necessário reconfigurar módulos e permissões.`)) {
+                                        reactivateEmpresaMutation.mutate(empresa.id);
+                                      }
+                                    }}
+                                  >
+                                    <RotateCcw className="w-3 h-3 mr-1" />
+                                    Reativar
+                                  </Button>
+                                )}
                                 {isExpanded ? (
                                   <ChevronUp className="w-4 h-4 text-muted-foreground" />
                                 ) : (

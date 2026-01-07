@@ -8,6 +8,7 @@ export interface Empresa {
   telefone?: string;
   manager_id?: string;
   regime_tributario?: RegimeTributario | null;
+  ativo?: boolean;
 }
 
 export interface TarefaArquivo {
