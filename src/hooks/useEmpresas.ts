@@ -24,6 +24,7 @@ export function useEmpresas() {
           telefone: e.telefone || undefined,
           manager_id: e.manager_id || undefined,
           regime_tributario: e.regime_tributario || null,
+          ativo: e.ativo ?? true,
         }))
       );
     } catch (error) {
@@ -88,17 +89,53 @@ export function useEmpresas() {
     }
   };
 
+  // Soft delete - inativar empresa (dispara triggers de revogação)
   const deleteEmpresa = async (id: string) => {
     try {
-      const { error } = await supabase.from("empresas").delete().eq("id", id);
+      const { error } = await supabase
+        .from("empresas")
+        .update({ ativo: false })
+        .eq("id", id);
 
       if (error) throw error;
+      
+      toast({
+        title: "Empresa inativada",
+        description: "A empresa foi inativada e todos os acessos foram revogados.",
+      });
+      
       await fetchEmpresas();
     } catch (error) {
-      console.error("Error deleting empresa:", error);
+      console.error("Error deactivating empresa:", error);
       toast({
         title: "Erro",
-        description: "Não foi possível excluir a empresa",
+        description: "Não foi possível inativar a empresa",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Reativar empresa
+  const reactivateEmpresa = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("empresas")
+        .update({ ativo: true })
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Empresa reativada",
+        description: "A empresa foi reativada. Os módulos e permissões precisam ser reconfigurados.",
+      });
+      
+      await fetchEmpresas();
+    } catch (error) {
+      console.error("Error reactivating empresa:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível reativar a empresa",
         variant: "destructive",
       });
     }
@@ -114,6 +151,7 @@ export function useEmpresas() {
     addEmpresa,
     updateEmpresa,
     deleteEmpresa,
+    reactivateEmpresa,
     refetch: fetchEmpresas,
   };
 }

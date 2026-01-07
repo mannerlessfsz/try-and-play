@@ -2855,7 +2855,13 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      v_system_integrity: {
+        Row: {
+          quantidade: number | null
+          tipo: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       add_empresa_modulo: {
@@ -2901,9 +2907,25 @@ export type Database = {
         }
         Returns: string
       }
+      fix_permission_inconsistencies: { Args: never; Returns: Json }
       gerar_tarefas_empresa: {
         Args: { p_ano: number; p_empresa_id: string; p_mes: number }
         Returns: number
+      }
+      get_empresas_safe: {
+        Args: never
+        Returns: {
+          ativo: boolean
+          cnpj: string
+          created_at: string
+          email: string
+          id: string
+          manager_id: string
+          nome: string
+          regime_tributario: Database["public"]["Enums"]["regime_tributario"]
+          telefone: string
+          updated_at: string
+        }[]
       }
       get_user_module_permissions: {
         Args: { p_user_id: string }

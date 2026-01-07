@@ -8,6 +8,7 @@ interface Empresa {
   nome: string;
   cnpj: string | null;
   email: string | null;
+  ativo: boolean;
 }
 
 interface EmpresaAtivaContextType {
