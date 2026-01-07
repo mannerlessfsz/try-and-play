@@ -73,55 +73,83 @@ const themeConfigs = {
       text: 'text-white/60',
       hoverText: 'hover:text-white',
     },
+    chat: {
+      backdrop: 'bg-black/60',
+      panel: 'bg-zinc-900/90',
+      border: 'border-white/10',
+      header: 'border-white/10',
+      text: 'text-white',
+      textMuted: 'text-white/60',
+      input: 'bg-zinc-800/60 border-orange-500/20',
+      messageMine: 'from-orange-500/90 to-orange-600/90 border-orange-400/30 text-white',
+      messageOther: 'bg-zinc-800/80 border-purple-500/30 text-white',
+    },
   },
   dark: {
     tagGradients: {
-      cliente: { from: '#374151', to: '#1f2937' },
-      fornecedor: { from: '#4b5563', to: '#374151' },
-      interno: { from: '#6b7280', to: '#4b5563' },
+      cliente: { from: '#64748b', to: '#475569' },
+      fornecedor: { from: '#6b7280', to: '#4b5563' },
+      interno: { from: '#71717a', to: '#52525b' },
     },
     island: {
-      bg: 'bg-zinc-900/95',
-      border: 'border-zinc-700/50',
-      glow: 'from-zinc-600/20 via-zinc-500/10 to-zinc-600/20',
+      bg: 'bg-zinc-950/98',
+      border: 'border-zinc-800',
+      glow: 'from-zinc-700/10 via-zinc-600/5 to-zinc-700/10',
     },
     button: {
-      bg: 'bg-zinc-800',
+      bg: 'bg-zinc-800/80',
       hover: 'hover:bg-zinc-700',
       text: 'text-zinc-400',
-      hoverText: 'hover:text-zinc-200',
+      hoverText: 'hover:text-zinc-100',
+    },
+    chat: {
+      backdrop: 'bg-black/70',
+      panel: 'bg-zinc-950/98',
+      border: 'border-zinc-800',
+      header: 'border-zinc-800',
+      text: 'text-zinc-100',
+      textMuted: 'text-zinc-400',
+      input: 'bg-zinc-900 border-zinc-700',
+      messageMine: 'from-zinc-700 to-zinc-800 border-zinc-600 text-zinc-100',
+      messageOther: 'bg-zinc-900 border-zinc-700 text-zinc-200',
     },
   },
   light: {
     tagGradients: {
-      cliente: { from: '#fbbf24', to: '#f59e0b' },
-      fornecedor: { from: '#a78bfa', to: '#8b5cf6' },
-      interno: { from: '#34d399', to: '#10b981' },
+      cliente: { from: '#f97316', to: '#ea580c' },
+      fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
+      interno: { from: '#10b981', to: '#059669' },
     },
     island: {
-      bg: 'bg-white/90',
-      border: 'border-gray-200',
-      glow: 'from-amber-200/40 via-violet-200/40 to-emerald-200/40',
+      bg: 'bg-white/98',
+      border: 'border-gray-300',
+      glow: 'from-orange-100/30 via-violet-100/30 to-emerald-100/30',
     },
     button: {
       bg: 'bg-gray-100',
       hover: 'hover:bg-gray-200',
-      text: 'text-gray-500',
-      hoverText: 'hover:text-gray-700',
+      text: 'text-gray-600',
+      hoverText: 'hover:text-gray-900',
+    },
+    chat: {
+      backdrop: 'bg-black/30',
+      panel: 'bg-white/98',
+      border: 'border-gray-200',
+      header: 'border-gray-200',
+      text: 'text-gray-900',
+      textMuted: 'text-gray-500',
+      input: 'bg-gray-100 border-gray-300',
+      messageMine: 'from-orange-500 to-orange-600 border-orange-400 text-white',
+      messageOther: 'bg-gray-100 border-gray-200 text-gray-900',
     },
   },
 };
 
-// Tag colors (default, used for expanded chat)
-const tagGradients = {
-  cliente: { from: '#f97316', to: '#ea580c' },
-  fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
-  interno: { from: '#06b6d4', to: '#0891b2' },
-};
-
 // Energy Message Component
-const EnergyMessage = React.memo(({ message, index }: { message: Message; index: number }) => {
+const EnergyMessage = React.memo(({ message, index, theme }: { message: Message; index: number; theme: IslandTheme }) => {
   const isFromMe = message.isFromMe;
+  const themeConfig = themeConfigs[theme];
+  const showGlow = theme === 'colorful';
   
   return (
     <motion.div
@@ -131,13 +159,15 @@ const EnergyMessage = React.memo(({ message, index }: { message: Message; index:
       className={cn("flex", isFromMe ? "justify-end" : "justify-start")}
     >
       <div className="relative group">
-        {/* Glow de fundo */}
-        <div
-          className={cn(
-            "absolute inset-0 rounded-2xl blur-lg opacity-30",
-            isFromMe ? "bg-orange-500" : "bg-purple-500"
-          )}
-        />
+        {/* Glow de fundo - only for colorful theme */}
+        {showGlow && (
+          <div
+            className={cn(
+              "absolute inset-0 rounded-2xl blur-lg opacity-30",
+              isFromMe ? "bg-orange-500" : "bg-purple-500"
+            )}
+          />
+        )}
         
         {/* Container da mensagem */}
         <div
@@ -145,28 +175,32 @@ const EnergyMessage = React.memo(({ message, index }: { message: Message; index:
             "relative px-4 py-3 rounded-2xl max-w-[300px]",
             "backdrop-blur-xl border",
             isFromMe 
-              ? "bg-gradient-to-r from-orange-500/90 to-orange-600/90 border-orange-400/30 text-white rounded-br-md" 
-              : "bg-card/60 border-purple-500/20 text-foreground rounded-bl-md"
+              ? cn("bg-gradient-to-r rounded-br-md", themeConfig.chat.messageMine)
+              : cn("rounded-bl-md", themeConfig.chat.messageOther)
           )}
         >
-          {/* Efeito de brilho */}
-          <div 
-            className={cn(
-              "absolute inset-0 rounded-2xl opacity-20",
-              isFromMe ? "bg-gradient-to-t from-transparent to-white/30" : "bg-gradient-to-t from-transparent to-purple-400/20"
-            )}
-          />
+          {/* Efeito de brilho - only for colorful */}
+          {showGlow && (
+            <div 
+              className={cn(
+                "absolute inset-0 rounded-2xl opacity-20",
+                isFromMe ? "bg-gradient-to-t from-transparent to-white/30" : "bg-gradient-to-t from-transparent to-purple-400/20"
+              )}
+            />
+          )}
           
           <p className="relative text-sm">{message.content}</p>
           
           <div className={cn(
             "flex items-center justify-end gap-1.5 mt-1.5",
-            isFromMe ? "text-orange-100" : "text-muted-foreground"
+            isFromMe 
+              ? theme === 'light' ? 'text-orange-100' : 'text-white/70'
+              : themeConfig.chat.textMuted
           )}>
             <span className="text-[10px]">{message.timestamp}</span>
             {isFromMe && (
               message.status === "read" 
-                ? <CheckCheck className="w-3 h-3 text-cyan-300" />
+                ? <CheckCheck className={cn("w-3 h-3", theme === 'colorful' ? 'text-cyan-300' : theme === 'light' ? 'text-cyan-200' : 'text-zinc-400')} />
                 : message.status === "delivered"
                 ? <CheckCheck className="w-3 h-3" />
                 : message.status === "sent"
@@ -176,15 +210,17 @@ const EnergyMessage = React.memo(({ message, index }: { message: Message; index:
           </div>
         </div>
         
-        {/* Linha de energia conectando */}
-        <motion.div
-          className={cn(
-            "absolute top-1/2 w-8 h-[2px]",
-            isFromMe ? "-right-8 bg-gradient-to-r from-orange-500/50 to-transparent" : "-left-8 bg-gradient-to-l from-purple-500/50 to-transparent"
-          )}
-          animate={{ opacity: [0.3, 0.7, 0.3] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        />
+        {/* Linha de energia conectando - only for colorful */}
+        {showGlow && (
+          <motion.div
+            className={cn(
+              "absolute top-1/2 w-8 h-[2px]",
+              isFromMe ? "-right-8 bg-gradient-to-r from-orange-500/50 to-transparent" : "-left-8 bg-gradient-to-l from-purple-500/50 to-transparent"
+            )}
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+        )}
       </div>
     </motion.div>
   );
@@ -198,31 +234,46 @@ const HolographicInput = React.memo(({
   onChange, 
   onSend,
   onKeyDown,
-  inputRef 
+  inputRef,
+  theme
 }: { 
   value: string; 
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSend: () => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   inputRef: React.RefObject<HTMLInputElement>;
+  theme: IslandTheme;
 }) => {
+  const themeConfig = themeConfigs[theme];
+  const showGlow = theme === 'colorful';
+  
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="relative"
     >
-      {/* Glow de fundo */}
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-orange-500/20 blur-xl" />
+      {/* Glow de fundo - only for colorful */}
+      {showGlow && (
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-orange-500/20 blur-xl" />
+      )}
       
       {/* Container principal */}
-      <div className="relative flex items-center gap-3 p-3 rounded-2xl bg-card/60 backdrop-blur-xl border border-orange-500/20">
+      <div className={cn(
+        "relative flex items-center gap-3 p-3 rounded-2xl backdrop-blur-xl border",
+        themeConfig.chat.input
+      )}>
         {/* Botões de mídia */}
         <div className="flex items-center gap-1">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-9 h-9 rounded-full text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10"
+            className={cn(
+              "w-9 h-9 rounded-full",
+              theme === 'light' 
+                ? 'text-gray-500 hover:text-orange-500 hover:bg-orange-100' 
+                : 'text-zinc-400 hover:text-orange-400 hover:bg-orange-500/10'
+            )}
           >
             <Paperclip className="w-4 h-4" />
           </Button>
@@ -236,13 +287,23 @@ const HolographicInput = React.memo(({
             onChange={onChange}
             onKeyDown={onKeyDown}
             placeholder="Digite sua mensagem..."
-            className="bg-transparent border-0 focus-visible:ring-0 px-0 placeholder:text-muted-foreground/50"
+            className={cn(
+              "bg-transparent border-0 focus-visible:ring-0 px-0",
+              theme === 'light' 
+                ? 'text-gray-900 placeholder:text-gray-400' 
+                : 'text-white placeholder:text-zinc-500'
+            )}
           />
           
           {/* Linha de digitação animada */}
           {value.length > 0 && (
             <motion.div
-              className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-orange-500 to-purple-500"
+              className={cn(
+                "absolute bottom-0 left-0 h-[2px]",
+                theme === 'dark' 
+                  ? 'bg-gradient-to-r from-zinc-500 to-zinc-400' 
+                  : 'bg-gradient-to-r from-orange-500 to-purple-500'
+              )}
               initial={{ width: 0 }}
               animate={{ width: `${Math.min(value.length * 3, 100)}%` }}
               transition={{ type: "spring", stiffness: 300 }}
@@ -263,7 +324,12 @@ const HolographicInput = React.memo(({
               <Button
                 onClick={onSend}
                 size="icon"
-                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/30"
+                className={cn(
+                  "w-10 h-10 rounded-full shadow-lg",
+                  theme === 'dark'
+                    ? 'bg-zinc-700 hover:bg-zinc-600 text-zinc-200'
+                    : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-orange-500/30'
+                )}
               >
                 <Send className="w-4 h-4" />
               </Button>
@@ -278,7 +344,12 @@ const HolographicInput = React.memo(({
               <Button
                 variant="ghost"
                 size="icon"
-                className="w-10 h-10 rounded-full text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10"
+                className={cn(
+                  "w-10 h-10 rounded-full",
+                  theme === 'light'
+                    ? 'text-gray-500 hover:text-orange-500 hover:bg-orange-100'
+                    : 'text-zinc-400 hover:text-orange-400 hover:bg-orange-500/10'
+                )}
               >
                 <Mic className="w-4 h-4" />
               </Button>
@@ -302,6 +373,7 @@ const ExpandedChatPanel = React.memo(({
   onSendMessage,
   inputRef,
   messagesEndRef,
+  theme,
 }: {
   contact: Contact;
   messages: Message[];
@@ -311,8 +383,10 @@ const ExpandedChatPanel = React.memo(({
   onSendMessage: () => void;
   inputRef: React.RefObject<HTMLInputElement>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  theme: IslandTheme;
 }) => {
-  const tagStyle = contact.tag ? tagGradients[contact.tag] : tagGradients.cliente;
+  const themeConfig = themeConfigs[theme];
+  const tagStyle = contact.tag ? themeConfig.tagGradients[contact.tag] : themeConfig.tagGradients.cliente;
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -329,7 +403,7 @@ const ExpandedChatPanel = React.memo(({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 z-[59] bg-black/40 backdrop-blur-sm"
+        className={cn("fixed inset-0 z-[59] backdrop-blur-sm", themeConfig.chat.backdrop)}
       />
       
       <motion.div
@@ -341,24 +415,23 @@ const ExpandedChatPanel = React.memo(({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Fundo com blur */}
-        <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl" />
+        <div className={cn("absolute inset-0 backdrop-blur-2xl", themeConfig.chat.panel)} />
       
       {/* Borda gradiente */}
       <div 
-        className="absolute inset-0 rounded-3xl"
+        className={cn("absolute inset-0 rounded-3xl border", themeConfig.chat.border)}
         style={{
-          background: `linear-gradient(135deg, ${tagStyle.from}20, ${tagStyle.to}20)`,
-          padding: 1,
+          background: theme === 'colorful' ? `linear-gradient(135deg, ${tagStyle.from}20, ${tagStyle.to}20)` : undefined,
         }}
       />
       
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4 border-b border-foreground/10">
+      <div className={cn("relative z-10 flex items-center justify-between p-4 border-b", themeConfig.chat.header)}>
         <div className="flex items-center gap-4">
           {/* Avatar com animação */}
           <motion.div
             className="relative"
-            animate={{ rotate: [0, 5, -5, 0] }}
+            animate={theme === 'colorful' ? { rotate: [0, 5, -5, 0] } : {}}
             transition={{ duration: 4, repeat: Infinity }}
           >
             <div
@@ -369,7 +442,10 @@ const ExpandedChatPanel = React.memo(({
             </div>
             {contact.isOnline && (
               <motion.div
-                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-2 border-background"
+                className={cn(
+                  "absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-2",
+                  theme === 'light' ? 'border-white' : 'border-zinc-900'
+                )}
                 animate={{ scale: [1, 1.2, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
               />
@@ -377,7 +453,7 @@ const ExpandedChatPanel = React.memo(({
           </motion.div>
           
           <div>
-            <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
+            <h2 className={cn("font-bold text-lg flex items-center gap-2", themeConfig.chat.text)}>
               {contact.name}
               <span 
                 className="text-[10px] px-2 py-0.5 rounded-full font-medium"
@@ -389,9 +465,9 @@ const ExpandedChatPanel = React.memo(({
                 {contact.tag}
               </span>
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className={cn("text-sm", themeConfig.chat.textMuted)}>
               {contact.isOnline ? (
-                <span className="text-green-400 flex items-center gap-1">
+                <span className="text-green-500 flex items-center gap-1">
                   <Radio className="w-3 h-3" /> online
                 </span>
               ) : contact.phone}
@@ -403,7 +479,10 @@ const ExpandedChatPanel = React.memo(({
           variant="ghost"
           size="icon"
           onClick={onClose}
-          className="rounded-full hover:bg-foreground/10"
+          className={cn(
+            "rounded-full",
+            theme === 'light' ? 'hover:bg-gray-100 text-gray-600' : 'hover:bg-white/10 text-white'
+          )}
         >
           <X className="w-5 h-5" />
         </Button>
@@ -411,45 +490,47 @@ const ExpandedChatPanel = React.memo(({
       
       {/* Área de mensagens */}
       <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Linhas de conexão animadas */}
-        <div className="absolute inset-0 pointer-events-none">
-          <svg className="w-full h-full opacity-10">
-            <motion.line
-              x1="10%"
-              y1="0"
-              x2="10%"
-              y2="100%"
-              stroke="url(#lineGradient)"
-              strokeWidth="1"
-              strokeDasharray="10 10"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 2 }}
-            />
-            <motion.line
-              x1="90%"
-              y1="0"
-              x2="90%"
-              y2="100%"
-              stroke="url(#lineGradient)"
-              strokeWidth="1"
-              strokeDasharray="10 10"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 2, delay: 0.5 }}
-            />
-            <defs>
-              <linearGradient id="lineGradientFloat" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor={tagStyle.from} stopOpacity="0" />
-                <stop offset="50%" stopColor={tagStyle.from} stopOpacity="1" />
-                <stop offset="100%" stopColor={tagStyle.to} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+        {/* Linhas de conexão animadas - only for colorful */}
+        {theme === 'colorful' && (
+          <div className="absolute inset-0 pointer-events-none">
+            <svg className="w-full h-full opacity-10">
+              <motion.line
+                x1="10%"
+                y1="0"
+                x2="10%"
+                y2="100%"
+                stroke="url(#lineGradient)"
+                strokeWidth="1"
+                strokeDasharray="10 10"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 2 }}
+              />
+              <motion.line
+                x1="90%"
+                y1="0"
+                x2="90%"
+                y2="100%"
+                stroke="url(#lineGradient)"
+                strokeWidth="1"
+                strokeDasharray="10 10"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 2, delay: 0.5 }}
+              />
+              <defs>
+                <linearGradient id="lineGradientFloat" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor={tagStyle.from} stopOpacity="0" />
+                  <stop offset="50%" stopColor={tagStyle.from} stopOpacity="1" />
+                  <stop offset="100%" stopColor={tagStyle.to} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        )}
         
         {messages.map((message, index) => (
-          <EnergyMessage key={message.id} message={message} index={index} />
+          <EnergyMessage key={message.id} message={message} index={index} theme={theme} />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -462,6 +543,7 @@ const ExpandedChatPanel = React.memo(({
           onSend={onSendMessage}
           onKeyDown={handleKeyDown}
           inputRef={inputRef}
+          theme={theme}
         />
       </div>
     </motion.div>
@@ -872,6 +954,7 @@ export const FloatingMessengerOrbs = () => {
             onSendMessage={handleSendMessage}
             inputRef={inputRef}
             messagesEndRef={messagesEndRef}
+            theme={islandTheme}
           />
         )}
       </AnimatePresence>
