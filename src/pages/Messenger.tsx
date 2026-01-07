@@ -335,12 +335,35 @@ const NewConversationModal = ({
   onCreateGroup: (name: string, userIds: string[]) => void;
   onCreateChannel: (name: string, departamento?: string) => void;
 }) => {
+  const [open, setOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [channelName, setChannelName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   
+  const handleCreateDirect = (userId: string) => {
+    onCreateDirect(userId);
+    setOpen(false);
+  };
+
+  const handleCreateGroup = () => {
+    if (groupName.trim() && selectedUsers.length > 0) {
+      onCreateGroup(groupName, selectedUsers);
+      setGroupName("");
+      setSelectedUsers([]);
+      setOpen(false);
+    }
+  };
+
+  const handleCreateChannel = () => {
+    if (channelName.trim()) {
+      onCreateChannel(channelName);
+      setChannelName("");
+      setOpen(false);
+    }
+  };
+  
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
           <Plus className="w-4 h-4 mr-1" /> Nova Conversa
@@ -373,7 +396,7 @@ const NewConversationModal = ({
                     key={member.user_id}
                     variant="ghost"
                     className="w-full justify-start h-auto py-2 hover:bg-blue-500/10"
-                    onClick={() => onCreateDirect(member.user_id)}
+                    onClick={() => handleCreateDirect(member.user_id)}
                   >
                     <Avatar className="w-7 h-7 mr-2">
                       <AvatarFallback className="bg-blue-500/20 text-blue-400 text-[10px]">
@@ -423,7 +446,7 @@ const NewConversationModal = ({
               </ScrollArea>
             </div>
             <Button
-              onClick={() => onCreateGroup(groupName, selectedUsers)}
+              onClick={handleCreateGroup}
               disabled={!groupName.trim() || selectedUsers.length === 0}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
               size="sm"
@@ -443,7 +466,7 @@ const NewConversationModal = ({
               />
             </div>
             <Button
-              onClick={() => onCreateChannel(channelName)}
+              onClick={handleCreateChannel}
               disabled={!channelName.trim()}
               className="w-full bg-gradient-to-r from-orange-500 to-yellow-500"
               size="sm"
