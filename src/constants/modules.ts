@@ -93,7 +93,7 @@ export const APP_MODULES: {
     value: 'messenger',
     label: 'Messenger',
     description: 'Comunicação via WhatsApp Business',
-    color: 'bg-emerald-500',
+    color: 'bg-orange-500',
   },
 ];
 

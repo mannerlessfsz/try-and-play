@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, Search, Phone, Video, MoreVertical, 
   Send, Paperclip, Smile, Mic, Image, FileText, 
   Check, CheckCheck, Clock, Users, Settings,
-  ChevronDown, Star, Archive, Bell, BellOff,
-  ArrowLeft, Plus, Camera, X
+  Star, Archive, Bell, BellOff, Plus, X, Zap,
+  ArrowLeft, Filter, SlidersHorizontal
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { GradientMesh } from "@/components/GradientMesh";
 
 // Tipos
 interface Contact {
@@ -28,6 +30,7 @@ interface Contact {
   isTyping?: boolean;
   isPinned?: boolean;
   isMuted?: boolean;
+  tag?: "cliente" | "fornecedor" | "interno";
 }
 
 interface Message {
@@ -41,14 +44,14 @@ interface Message {
   fileName?: string;
 }
 
-// Dados mock para demonstração
+// Dados mock
 const mockContacts: Contact[] = [
-  { id: "1", name: "João Silva", phone: "+55 11 99999-1111", lastMessage: "Ok, vou enviar os documentos", lastMessageTime: "10:30", unreadCount: 2, isOnline: true, isPinned: true },
-  { id: "2", name: "Maria Santos", phone: "+55 11 99999-2222", lastMessage: "Obrigada pela informação!", lastMessageTime: "09:45", isOnline: true },
-  { id: "3", name: "Carlos Oliveira", phone: "+55 11 99999-3333", lastMessage: "Quando posso passar aí?", lastMessageTime: "Ontem", unreadCount: 1 },
-  { id: "4", name: "Ana Costa", phone: "+55 11 99999-4444", lastMessage: "Documento recebido ✓", lastMessageTime: "Ontem" },
-  { id: "5", name: "Pedro Lima", phone: "+55 11 99999-5555", lastMessage: "Perfeito!", lastMessageTime: "Seg", isMuted: true },
-  { id: "6", name: "Fernanda Souza", phone: "+55 11 99999-6666", lastMessage: "Vou verificar e te retorno", lastMessageTime: "12/01" },
+  { id: "1", name: "João Silva", phone: "+55 11 99999-1111", lastMessage: "Ok, vou enviar os documentos", lastMessageTime: "10:30", unreadCount: 2, isOnline: true, isPinned: true, tag: "cliente" },
+  { id: "2", name: "Maria Santos", phone: "+55 11 99999-2222", lastMessage: "Obrigada pela informação!", lastMessageTime: "09:45", isOnline: true, tag: "cliente" },
+  { id: "3", name: "Carlos Oliveira", phone: "+55 11 99999-3333", lastMessage: "Quando posso passar aí?", lastMessageTime: "Ontem", unreadCount: 1, tag: "fornecedor" },
+  { id: "4", name: "Ana Costa", phone: "+55 11 99999-4444", lastMessage: "Documento recebido ✓", lastMessageTime: "Ontem", tag: "cliente" },
+  { id: "5", name: "Pedro Lima", phone: "+55 11 99999-5555", lastMessage: "Perfeito!", lastMessageTime: "Seg", isMuted: true, tag: "interno" },
+  { id: "6", name: "Fernanda Souza", phone: "+55 11 99999-6666", lastMessage: "Vou verificar e te retorno", lastMessageTime: "12/01", tag: "cliente" },
 ];
 
 const mockMessages: Message[] = [
@@ -58,6 +61,12 @@ const mockMessages: Message[] = [
   { id: "4", contactId: "1", content: "Claro! Pode enviar por aqui mesmo", timestamp: "10:18", isFromMe: true, status: "read", type: "text" },
   { id: "5", contactId: "1", content: "Ok, vou enviar os documentos", timestamp: "10:30", isFromMe: false, status: "read", type: "text" },
 ];
+
+const tagColors = {
+  cliente: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  fornecedor: "bg-purple-500/20 text-purple-400 border-purple-500/30",
+  interno: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+};
 
 export default function Messenger() {
   const { user } = useAuth();
@@ -69,34 +78,34 @@ export default function Messenger() {
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "pinned">("all");
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Scroll para última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, selectedContact]);
 
-  // Filtra contatos pela busca
-  const filteredContacts = contacts.filter(contact =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    contact.phone.includes(searchQuery)
-  );
+  const filteredContacts = contacts.filter(contact => {
+    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery);
+    
+    if (activeFilter === "unread") return matchesSearch && (contact.unreadCount || 0) > 0;
+    if (activeFilter === "pinned") return matchesSearch && contact.isPinned;
+    return matchesSearch;
+  });
 
-  // Ordena: fixados primeiro, depois por horário
   const sortedContacts = [...filteredContacts].sort((a, b) => {
     if (a.isPinned && !b.isPinned) return -1;
     if (!a.isPinned && b.isPinned) return 1;
     return 0;
   });
 
-  // Mensagens do contato selecionado
   const contactMessages = selectedContact 
     ? messages.filter(m => m.contactId === selectedContact.id)
     : [];
 
-  // Envia mensagem
   const handleSendMessage = () => {
     if (!newMessage.trim() || !selectedContact) return;
 
@@ -114,7 +123,6 @@ export default function Messenger() {
     setNewMessage("");
     inputRef.current?.focus();
 
-    // Simula mudança de status
     setTimeout(() => {
       setMessages(prev => prev.map(m => 
         m.id === message.id ? { ...m, status: "delivered" } : m
@@ -128,176 +136,230 @@ export default function Messenger() {
     }, 2000);
   };
 
-  // Seleciona contato
   const handleSelectContact = (contact: Contact) => {
     setSelectedContact(contact);
     setShowMobileChat(true);
   };
 
-  // Ícone de status da mensagem
   const MessageStatus = ({ status }: { status: Message["status"] }) => {
     switch (status) {
       case "pending":
-        return <Clock className="w-3.5 h-3.5 text-muted-foreground" />;
+        return <Clock className="w-3 h-3 text-muted-foreground" />;
       case "sent":
-        return <Check className="w-3.5 h-3.5 text-muted-foreground" />;
+        return <Check className="w-3 h-3 text-muted-foreground" />;
       case "delivered":
-        return <CheckCheck className="w-3.5 h-3.5 text-muted-foreground" />;
+        return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
       case "read":
-        return <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />;
+        return <CheckCheck className="w-3 h-3 text-orange-400" />;
     }
   };
 
-  // Componente Lista de Contatos
+  // Lista de Contatos
   const ContactList = () => (
-    <div className={cn(
-      "flex flex-col h-full bg-card border-r border-border",
-      "w-full md:w-[380px] lg:w-[420px]",
-      showMobileChat && "hidden md:flex"
-    )}>
+    <motion.div 
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className={cn(
+        "flex flex-col h-full",
+        "bg-card/40 backdrop-blur-2xl border-r border-orange-500/10",
+        "w-full md:w-[380px] lg:w-[420px]",
+        showMobileChat && "hidden md:flex"
+      )}
+    >
       {/* Header */}
-      <div className="p-4 border-b border-border bg-card/80 backdrop-blur-xl">
+      <div className="p-4 border-b border-orange-500/10">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-emerald-500/20 text-emerald-500">
-                {user?.email?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20">
+              <MessageCircle className="w-5 h-5 text-orange-400" />
+            </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">Messenger</h1>
-              <p className="text-xs text-muted-foreground">{empresaAtiva?.nome || "Empresa"}</p>
+              <p className="text-xs text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
             </div>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <Users className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
+              <Plus className="w-5 h-5" />
             </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <MessageCircle className="w-5 h-5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-              <MoreVertical className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
+              <SlidersHorizontal className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         {/* Busca */}
-        <div className="relative">
+        <div className="relative mb-3">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Pesquisar ou começar nova conversa"
+            placeholder="Buscar conversas..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-emerald-500"
+            className="pl-10 bg-background/50 border-orange-500/20 focus-visible:ring-orange-500/50 focus-visible:border-orange-500/40"
           />
+        </div>
+
+        {/* Filtros */}
+        <div className="flex gap-2">
+          {[
+            { key: "all", label: "Todas" },
+            { key: "unread", label: "Não lidas" },
+            { key: "pinned", label: "Fixadas" },
+          ].map((filter) => (
+            <button
+              key={filter.key}
+              onClick={() => setActiveFilter(filter.key as typeof activeFilter)}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                activeFilter === filter.key
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
+                  : "bg-background/50 text-muted-foreground hover:text-foreground hover:bg-background/80"
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Lista de Contatos */}
+      {/* Lista */}
       <ScrollArea className="flex-1">
-        {sortedContacts.map(contact => (
-          <div
-            key={contact.id}
-            onClick={() => handleSelectContact(contact)}
-            className={cn(
-              "flex items-center gap-3 p-3 cursor-pointer transition-colors",
-              "hover:bg-muted/50",
-              selectedContact?.id === contact.id && "bg-muted"
-            )}
-          >
-            <div className="relative">
-              <Avatar className="h-12 w-12">
-                <AvatarImage src={contact.avatar} />
-                <AvatarFallback className="bg-emerald-500/20 text-emerald-500">
-                  {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                </AvatarFallback>
-              </Avatar>
-              {contact.isOnline && (
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-card" />
+        <AnimatePresence>
+          {sortedContacts.map((contact, index) => (
+            <motion.div
+              key={contact.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ delay: index * 0.05 }}
+              onClick={() => handleSelectContact(contact)}
+              className={cn(
+                "flex items-center gap-3 p-3 cursor-pointer transition-all",
+                "hover:bg-orange-500/5 border-b border-foreground/5",
+                selectedContact?.id === contact.id && "bg-orange-500/10 border-l-2 border-l-orange-500"
               )}
-            </div>
-            
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground truncate flex items-center gap-1">
-                  {contact.name}
-                  {contact.isPinned && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />}
-                </span>
-                <span className={cn(
-                  "text-xs",
-                  contact.unreadCount ? "text-emerald-500" : "text-muted-foreground"
-                )}>
-                  {contact.lastMessageTime}
-                </span>
+            >
+              <div className="relative">
+                <Avatar className="h-12 w-12 border-2 border-background shadow-lg">
+                  <AvatarImage src={contact.avatar} />
+                  <AvatarFallback className="bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-300 font-semibold">
+                    {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                {contact.isOnline && (
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-card shadow-lg shadow-green-500/50" />
+                )}
               </div>
-              <div className="flex items-center justify-between mt-0.5">
-                <p className="text-sm text-muted-foreground truncate pr-2 flex items-center gap-1">
-                  {contact.isMuted && <BellOff className="w-3 h-3" />}
-                  {contact.isTyping ? (
-                    <span className="text-emerald-500 italic">digitando...</span>
-                  ) : (
-                    contact.lastMessage
-                  )}
-                </p>
-                {contact.unreadCount ? (
-                  <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center">
-                    {contact.unreadCount}
-                  </Badge>
-                ) : null}
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-foreground truncate flex items-center gap-1.5">
+                    {contact.name}
+                    {contact.isPinned && <Star className="w-3 h-3 text-orange-400 fill-orange-400" />}
+                    {contact.isMuted && <BellOff className="w-3 h-3 text-muted-foreground" />}
+                  </span>
+                  <span className={cn(
+                    "text-xs shrink-0",
+                    contact.unreadCount ? "text-orange-400 font-medium" : "text-muted-foreground"
+                  )}>
+                    {contact.lastMessageTime}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-0.5 gap-2">
+                  <p className="text-sm text-muted-foreground truncate">
+                    {contact.isTyping ? (
+                      <span className="text-orange-400 italic">digitando...</span>
+                    ) : (
+                      contact.lastMessage
+                    )}
+                  </p>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {contact.tag && (
+                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", tagColors[contact.tag])}>
+                        {contact.tag}
+                      </span>
+                    )}
+                    {contact.unreadCount ? (
+                      <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center shadow-lg shadow-orange-500/30">
+                        {contact.unreadCount}
+                      </Badge>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            </motion.div>
+          ))}
+        </AnimatePresence>
 
         {filteredContacts.length === 0 && (
           <div className="p-8 text-center text-muted-foreground">
-            <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Nenhum contato encontrado</p>
+            <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
+            <p>Nenhuma conversa encontrada</p>
           </div>
         )}
       </ScrollArea>
 
-      {/* Status da API */}
-      <div className="p-3 border-t border-border bg-yellow-500/10">
-        <div className="flex items-center gap-2 text-xs text-yellow-600">
-          <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-          <span>Aguardando conexão com WhatsApp Business API</span>
+      {/* Status API */}
+      <div className="p-3 border-t border-orange-500/10 bg-orange-500/5">
+        <div className="flex items-center gap-2 text-xs text-orange-400">
+          <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+          <span>Aguardando conexão com API Business</span>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 
-  // Componente Área de Chat
+  // Área de Chat
   const ChatArea = () => (
     <div className={cn(
-      "flex-1 flex flex-col h-full bg-background",
+      "flex-1 flex flex-col h-full relative",
       !showMobileChat && "hidden md:flex"
     )}>
+      {/* Background sutil */}
+      <div className="absolute inset-0 opacity-30">
+        <div 
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(circle at 50% 50%, hsl(var(--orange-500) / 0.03) 0%, transparent 50%)`,
+          }}
+        />
+      </div>
+
       {selectedContact ? (
         <>
           {/* Header do Chat */}
-          <div className="flex items-center justify-between p-3 border-b border-border bg-card/80 backdrop-blur-xl">
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 flex items-center justify-between p-3 border-b border-orange-500/10 bg-card/60 backdrop-blur-xl"
+          >
             <div className="flex items-center gap-3">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="md:hidden text-muted-foreground"
+                className="md:hidden text-muted-foreground hover:text-orange-400"
                 onClick={() => setShowMobileChat(false)}
               >
                 <ArrowLeft className="w-5 h-5" />
               </Button>
-              <Avatar className="h-10 w-10">
+              <Avatar className="h-10 w-10 border-2 border-orange-500/20">
                 <AvatarImage src={selectedContact.avatar} />
-                <AvatarFallback className="bg-emerald-500/20 text-emerald-500">
+                <AvatarFallback className="bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-300">
                   {selectedContact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="font-semibold text-foreground">{selectedContact.name}</h2>
+                <h2 className="font-semibold text-foreground flex items-center gap-2">
+                  {selectedContact.name}
+                  {selectedContact.tag && (
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", tagColors[selectedContact.tag])}>
+                      {selectedContact.tag}
+                    </span>
+                  )}
+                </h2>
                 <p className="text-xs text-muted-foreground">
                   {selectedContact.isOnline ? (
-                    <span className="text-emerald-500">online</span>
+                    <span className="text-green-400">online</span>
                   ) : (
                     selectedContact.phone
                   )}
@@ -305,117 +367,140 @@ export default function Messenger() {
               </div>
             </div>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Video className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
                 <Phone className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                <Search className="w-5 h-5" />
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
+                <Video className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
                 <MoreVertical className="w-5 h-5" />
               </Button>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Área de Mensagens */}
-          <ScrollArea className="flex-1 p-4" style={{ 
-            backgroundImage: 'url("data:image/svg+xml,%3Csvg width="60" height="60" viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg"%3E%3Cg fill="none" fill-rule="evenodd"%3E%3Cg fill="%239C92AC" fill-opacity="0.05"%3E%3Cpath d="M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z"/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
-            backgroundColor: 'hsl(var(--muted) / 0.3)'
-          }}>
-            <div className="space-y-2 max-w-3xl mx-auto">
-              {contactMessages.map(message => (
-                <div
-                  key={message.id}
-                  className={cn(
-                    "flex",
-                    message.isFromMe ? "justify-end" : "justify-start"
-                  )}
-                >
-                  <div
+          {/* Mensagens */}
+          <ScrollArea className="flex-1 p-4 relative z-10">
+            <div className="space-y-3 max-w-3xl mx-auto">
+              <AnimatePresence>
+                {contactMessages.map((message, index) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
                     className={cn(
-                      "max-w-[70%] rounded-lg px-3 py-2 shadow-sm",
-                      message.isFromMe 
-                        ? "bg-emerald-500 text-white rounded-br-none" 
-                        : "bg-card text-foreground rounded-bl-none"
+                      "flex",
+                      message.isFromMe ? "justify-end" : "justify-start"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                    <div className={cn(
-                      "flex items-center justify-end gap-1 mt-1",
-                      message.isFromMe ? "text-emerald-100" : "text-muted-foreground"
-                    )}>
-                      <span className="text-[10px]">{message.timestamp}</span>
-                      {message.isFromMe && <MessageStatus status={message.status} />}
+                    <div
+                      className={cn(
+                        "max-w-[70%] rounded-2xl px-4 py-2.5 shadow-lg",
+                        message.isFromMe 
+                          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-br-md" 
+                          : "bg-card/80 backdrop-blur-xl text-foreground border border-foreground/10 rounded-bl-md"
+                      )}
+                    >
+                      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+                      <div className={cn(
+                        "flex items-center justify-end gap-1 mt-1",
+                        message.isFromMe ? "text-orange-100" : "text-muted-foreground"
+                      )}>
+                        <span className="text-[10px]">{message.timestamp}</span>
+                        {message.isFromMe && <MessageStatus status={message.status} />}
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
               <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
-          {/* Input de Mensagem */}
-          <div className="p-3 border-t border-border bg-card/80 backdrop-blur-xl">
+          {/* Input */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="relative z-10 p-3 border-t border-orange-500/10 bg-card/60 backdrop-blur-xl"
+          >
             <div className="flex items-center gap-2 max-w-3xl mx-auto">
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
                 <Smile className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
+              <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
                 <Paperclip className="w-5 h-5" />
               </Button>
               <Input
                 ref={inputRef}
-                placeholder="Digite uma mensagem"
+                placeholder="Digite sua mensagem..."
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                className="flex-1 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-emerald-500"
+                className="flex-1 bg-background/50 border-orange-500/20 focus-visible:ring-orange-500/50 focus-visible:border-orange-500/40"
               />
               {newMessage.trim() ? (
                 <Button 
                   size="icon" 
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white shrink-0"
+                  className="bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30 shrink-0"
                   onClick={handleSendMessage}
                 >
                   <Send className="w-5 h-5" />
                 </Button>
               ) : (
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground shrink-0">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
                   <Mic className="w-5 h-5" />
                 </Button>
               )}
             </div>
-          </div>
+          </motion.div>
         </>
       ) : (
         /* Estado Vazio */
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          <div className="w-64 h-64 mb-6 rounded-full bg-muted/30 flex items-center justify-center">
-            <MessageCircle className="w-32 h-32 text-muted-foreground/30" />
-          </div>
-          <h2 className="text-2xl font-light text-foreground mb-2">Messenger VAULT</h2>
-          <p className="text-muted-foreground max-w-md">
-            Envie e receba mensagens, documentos e arquivos diretamente pelo sistema.
-            Conecte-se com seus clientes de forma rápida e segura.
-          </p>
-          <div className="mt-8 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20 max-w-md">
-            <p className="text-sm text-yellow-600 flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Configure a integração com WhatsApp Business API para começar
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="relative"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-orange-600/10 rounded-full blur-3xl" />
+            <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20 flex items-center justify-center mb-6">
+              <MessageCircle className="w-16 h-16 text-orange-400" />
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Messenger <span className="text-orange-400">VAULT</span>
+            </h2>
+            <p className="text-muted-foreground max-w-md mb-8">
+              Comunicação integrada para envio de documentos, lembretes e atendimento ao cliente.
             </p>
-          </div>
+            
+            <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 max-w-md">
+              <div className="flex items-center gap-3 text-sm text-orange-400">
+                <Zap className="w-5 h-5" />
+                <span>Configure a API Business para começar a enviar mensagens</span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
   );
 
   return (
-    <div className="h-screen flex overflow-hidden bg-background">
-      <ContactList />
-      <ChatArea />
+    <div className="h-screen flex overflow-hidden bg-background relative">
+      <GradientMesh />
+      <div className="relative z-10 flex w-full h-full">
+        <ContactList />
+        <ChatArea />
+      </div>
     </div>
   );
 }
