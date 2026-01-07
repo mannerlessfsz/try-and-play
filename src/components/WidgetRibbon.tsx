@@ -186,18 +186,30 @@ export function WidgetRibbon({ groups, title, accentColor, sidebarContent }: Wid
                 return (
                   <div key={group.id}>
                     {/* Group Header */}
-                    <button
-                      onClick={() => toggleGroup(group.id)}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleGroup(group.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleGroup(group.id);
+                        }
+                      }}
                       className={`
                         w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg
-                        transition-all duration-200
+                        transition-all duration-200 cursor-pointer select-none
                         ${isExpanded 
                           ? `${styles.bg} ${styles.border} border` 
                           : 'hover:bg-foreground/5 border border-transparent'
                         }
                       `}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 pointer-events-none">
                         <div className={`${isExpanded ? styles.text : 'text-muted-foreground'}`}>
                           {group.icon}
                         </div>
@@ -206,10 +218,10 @@ export function WidgetRibbon({ groups, title, accentColor, sidebarContent }: Wid
                         </span>
                       </div>
                       <ChevronDown 
-                        className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200
+                        className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 pointer-events-none
                           ${isExpanded ? 'rotate-180' : ''}`} 
                       />
-                    </button>
+                    </div>
                     
                     {/* Group Items */}
                     {isExpanded && (
