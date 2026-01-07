@@ -38,7 +38,6 @@ import { ModernMetricCard } from "@/components/gestao/ModernMetricCard";
 import { FloatingWidget } from "@/components/gestao/FloatingWidget";
 import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
 import { FinancialDashboard } from "@/components/gestao/FinancialDashboard";
-import { WidgetManager } from "@/components/gestao/WidgetManager";
 import { useWidgetPreferences } from "@/hooks/useWidgetPreferences";
 import type { Atividade } from "@/types/task";
 
@@ -158,10 +157,8 @@ export default function FinancialACE() {
           setActiveSection(gestaoTabs.includes(tab) ? "gestao" : "financeiro");
         }}
         moduleColor="blue"
+        empresaId={empresaAtiva?.id}
       />
-
-      {/* Widget Manager - Botão de configuração */}
-      <WidgetManager empresaId={empresaAtiva?.id} />
 
       {/* Dynamic Floating Widgets - positioned bottom-left, left to right */}
       {(() => {

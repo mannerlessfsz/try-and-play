@@ -16,7 +16,8 @@ import {
   CreditCard,
   Building2,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Settings2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -31,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WidgetManagerPanel } from "./WidgetManagerPanel";
 
 interface NavItem {
   id: string;
@@ -44,9 +46,10 @@ interface GlassSidebarProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   moduleColor?: string;
+  empresaId?: string;
 }
 
-export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: GlassSidebarProps) {
+export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue", empresaId }: GlassSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -221,6 +224,16 @@ export function GlassSidebar({ activeTab, onTabChange, moduleColor = "blue" }: G
 
               return <div key={item.id}>{content}</div>;
             })}
+
+            {/* Widget Manager Button */}
+            <div className="pt-4 pb-2 px-3">
+              {isExpanded && (
+                <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase">
+                  Configurações
+                </span>
+              )}
+            </div>
+            <WidgetManagerPanel empresaId={empresaId} isExpanded={isExpanded} />
           </div>
         </nav>
 
