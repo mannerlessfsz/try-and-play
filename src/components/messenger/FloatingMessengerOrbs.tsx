@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   MessageCircle, X, Send, Mic, Paperclip, Radio, 
   ChevronLeft, ChevronRight, Check, CheckCheck, Clock,
-  Sparkles
+  Sparkles, Palette, Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,9 @@ interface Message {
   status?: 'pending' | 'sent' | 'delivered' | 'read';
 }
 
+// Theme types
+type IslandTheme = 'colorful' | 'dark' | 'light';
+
 // Mock data - replace with real data from Supabase
 const mockContacts: Contact[] = [
   { id: '1', name: 'João Silva', tag: 'cliente', isOnline: true, unread: 3, lastMessage: 'Preciso do relatório', phone: '(11) 99999-1111' },
@@ -51,7 +54,65 @@ const mockMessages: Message[] = [
   { id: '5', content: 'Ok, vou enviar os documentos', isFromMe: false, timestamp: '10:30' },
 ];
 
-// Tag colors
+// Theme configurations
+const themeConfigs = {
+  colorful: {
+    tagGradients: {
+      cliente: { from: '#f97316', to: '#ea580c' },
+      fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
+      interno: { from: '#06b6d4', to: '#0891b2' },
+    },
+    island: {
+      bg: 'bg-black/70',
+      border: 'border-white/10',
+      glow: 'from-orange-500/30 via-violet-500/30 to-cyan-500/30',
+    },
+    button: {
+      bg: 'bg-white/10',
+      hover: 'hover:bg-white/20',
+      text: 'text-white/60',
+      hoverText: 'hover:text-white',
+    },
+  },
+  dark: {
+    tagGradients: {
+      cliente: { from: '#374151', to: '#1f2937' },
+      fornecedor: { from: '#4b5563', to: '#374151' },
+      interno: { from: '#6b7280', to: '#4b5563' },
+    },
+    island: {
+      bg: 'bg-zinc-900/95',
+      border: 'border-zinc-700/50',
+      glow: 'from-zinc-600/20 via-zinc-500/10 to-zinc-600/20',
+    },
+    button: {
+      bg: 'bg-zinc-800',
+      hover: 'hover:bg-zinc-700',
+      text: 'text-zinc-400',
+      hoverText: 'hover:text-zinc-200',
+    },
+  },
+  light: {
+    tagGradients: {
+      cliente: { from: '#fbbf24', to: '#f59e0b' },
+      fornecedor: { from: '#a78bfa', to: '#8b5cf6' },
+      interno: { from: '#34d399', to: '#10b981' },
+    },
+    island: {
+      bg: 'bg-white/90',
+      border: 'border-gray-200',
+      glow: 'from-amber-200/40 via-violet-200/40 to-emerald-200/40',
+    },
+    button: {
+      bg: 'bg-gray-100',
+      hover: 'hover:bg-gray-200',
+      text: 'text-gray-500',
+      hoverText: 'hover:text-gray-700',
+    },
+  },
+};
+
+// Tag colors (default, used for expanded chat)
 const tagGradients = {
   cliente: { from: '#f97316', to: '#ea580c' },
   fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
@@ -416,17 +477,24 @@ const FloatingIsland = React.memo(({
   onContactSelect,
   isVisible,
   onToggle,
-  onOpenMessenger
+  onOpenMessenger,
+  theme,
+  onThemeChange
 }: { 
   contacts: Contact[];
   onContactSelect: (contact: Contact) => void;
   isVisible: boolean;
   onToggle: () => void;
   onOpenMessenger: () => void;
+  theme: IslandTheme;
+  onThemeChange: (theme: IslandTheme) => void;
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showThemeMenu, setShowThemeMenu] = useState(false);
   const VISIBLE_COUNT = 6;
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  const themeConfig = themeConfigs[theme];
   
   const contactsWithActivity = contacts.filter(c => c.unread && c.unread > 0 || c.isOnline);
   const totalUnread = contacts.reduce((acc, c) => acc + (c.unread || 0), 0);
@@ -452,6 +520,21 @@ const FloatingIsland = React.memo(({
   const scrollRight = useCallback(() => {
     setCurrentIndex(prev => Math.min(contactsWithActivity.length - VISIBLE_COUNT, prev + 1));
   }, [contactsWithActivity.length]);
+
+  const cycleTheme = useCallback(() => {
+    const themes: IslandTheme[] = ['colorful', 'dark', 'light'];
+    const currentIdx = themes.indexOf(theme);
+    const nextIdx = (currentIdx + 1) % themes.length;
+    onThemeChange(themes[nextIdx]);
+  }, [theme, onThemeChange]);
+
+  const getThemeIcon = () => {
+    switch (theme) {
+      case 'colorful': return <Palette className="w-3 h-3" />;
+      case 'dark': return <Moon className="w-3 h-3" />;
+      case 'light': return <Sun className="w-3 h-3" />;
+    }
+  };
 
   if (contactsWithActivity.length === 0) return null;
 
@@ -505,23 +588,29 @@ const FloatingIsland = React.memo(({
             transition={{ type: 'spring', damping: 25 }}
             className="fixed bottom-6 left-4 right-72 z-50 flex justify-center pointer-events-none"
           >
-            {/* Glow effect */}
-            <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-orange-500/30 via-violet-500/30 to-cyan-500/30 blur-2xl scale-110 pointer-events-none" />
+            {/* Glow effect - themed */}
+            <div className={cn(
+              "absolute inset-0 -z-10 rounded-full bg-gradient-to-r blur-2xl scale-110 pointer-events-none",
+              themeConfig.island.glow
+            )} />
             
-            {/* Island container - Compact */}
+            {/* Island container - Compact & themed */}
             <div 
               ref={containerRef}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-full 
-                         bg-black/70 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto"
+              className={cn(
+                "relative flex items-center gap-1.5 px-3 py-2 rounded-full backdrop-blur-2xl shadow-2xl pointer-events-auto border",
+                themeConfig.island.bg,
+                themeConfig.island.border
+              )}
             >
-              {/* Left arrow */}
+              {/* Left arrow - themed */}
               <motion.button
                 onClick={scrollLeft}
                 className={cn(
                   "w-6 h-6 rounded-full flex items-center justify-center transition-all",
                   canScrollLeft 
-                    ? "bg-white/10 hover:bg-white/20 text-white" 
-                    : "text-white/20 cursor-not-allowed"
+                    ? cn(themeConfig.button.bg, themeConfig.button.hover, theme === 'light' ? 'text-gray-600' : 'text-white')
+                    : theme === 'light' ? 'text-gray-300 cursor-not-allowed' : 'text-white/20 cursor-not-allowed'
                 )}
                 whileHover={canScrollLeft ? { scale: 1.1 } : {}}
                 whileTap={canScrollLeft ? { scale: 0.9 } : {}}
@@ -530,10 +619,10 @@ const FloatingIsland = React.memo(({
                 <ChevronLeft className="w-3 h-3" />
               </motion.button>
 
-              {/* Orbs - Compact */}
+              {/* Orbs - Compact & themed */}
               <div className="flex items-center gap-2 px-1">
                 {visibleContacts.map((contact, index) => {
-                  const tagStyle = tagGradients[contact.tag];
+                  const tagStyle = themeConfig.tagGradients[contact.tag];
                   return (
                     <motion.button
                       key={`${contact.id}-${index}`}
@@ -605,14 +694,14 @@ const FloatingIsland = React.memo(({
                 })}
               </div>
 
-              {/* Right arrow */}
+              {/* Right arrow - themed */}
               <motion.button
                 onClick={scrollRight}
                 className={cn(
                   "w-6 h-6 rounded-full flex items-center justify-center transition-all",
                   canScrollRight 
-                    ? "bg-white/10 hover:bg-white/20 text-white" 
-                    : "text-white/20 cursor-not-allowed"
+                    ? cn(themeConfig.button.bg, themeConfig.button.hover, theme === 'light' ? 'text-gray-600' : 'text-white')
+                    : theme === 'light' ? 'text-gray-300 cursor-not-allowed' : 'text-white/20 cursor-not-allowed'
                 )}
                 whileHover={canScrollRight ? { scale: 1.1 } : {}}
                 whileTap={canScrollRight ? { scale: 0.9 } : {}}
@@ -622,13 +711,29 @@ const FloatingIsland = React.memo(({
               </motion.button>
 
               {/* Separator */}
-              <div className="w-px h-6 bg-white/10 mx-0.5" />
+              <div className={cn("w-px h-6 mx-0.5", theme === 'light' ? 'bg-gray-300' : 'bg-white/10')} />
+
+              {/* Theme toggle button */}
+              <motion.button
+                onClick={cycleTheme}
+                className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
+                  themeConfig.button.bg, themeConfig.button.hover, themeConfig.button.text, themeConfig.button.hoverText
+                )}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                title={`Tema: ${theme === 'colorful' ? 'Colorido' : theme === 'dark' ? 'Escuro' : 'Claro'}`}
+              >
+                {getThemeIcon()}
+              </motion.button>
 
               {/* Open full messenger */}
               <motion.button
                 onClick={onOpenMessenger}
-                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 
-                           flex items-center justify-center text-white/60 hover:text-white transition-colors"
+                className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
+                  themeConfig.button.bg, themeConfig.button.hover, themeConfig.button.text, themeConfig.button.hoverText
+                )}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 title="Abrir Messenger"
@@ -639,8 +744,13 @@ const FloatingIsland = React.memo(({
               {/* Close island */}
               <motion.button
                 onClick={onToggle}
-                className="w-6 h-6 rounded-full bg-white/10 hover:bg-red-500/20 
-                           flex items-center justify-center text-white/60 hover:text-red-400 transition-colors"
+                className={cn(
+                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
+                  themeConfig.button.bg, 
+                  "hover:bg-red-500/20",
+                  themeConfig.button.text,
+                  "hover:text-red-400"
+                )}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
@@ -666,6 +776,11 @@ export const FloatingMessengerOrbs = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [messages, setMessages] = useState<Message[]>(mockMessages);
   const [newMessage, setNewMessage] = useState("");
+  const [islandTheme, setIslandTheme] = useState<IslandTheme>(() => {
+    // Persist theme preference in localStorage
+    const saved = localStorage.getItem('messenger-island-theme');
+    return (saved as IslandTheme) || 'colorful';
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -687,6 +802,11 @@ export const FloatingMessengerOrbs = () => {
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [selectedContact]);
+
+  // Save theme preference
+  useEffect(() => {
+    localStorage.setItem('messenger-island-theme', islandTheme);
+  }, [islandTheme]);
 
   const handleContactSelect = useCallback((contact: Contact) => {
     setSelectedContact(contact);
@@ -723,6 +843,10 @@ export const FloatingMessengerOrbs = () => {
     navigate('/messenger');
   }, [navigate]);
 
+  const handleThemeChange = useCallback((theme: IslandTheme) => {
+    setIslandTheme(theme);
+  }, []);
+
   if (!shouldShow) return null;
 
   return (
@@ -733,6 +857,8 @@ export const FloatingMessengerOrbs = () => {
         isVisible={isIslandVisible}
         onToggle={handleToggleIsland}
         onOpenMessenger={handleOpenMessenger}
+        theme={islandTheme}
+        onThemeChange={handleThemeChange}
       />
 
       <AnimatePresence>
