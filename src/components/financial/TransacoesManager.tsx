@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/formatters";
 import {
   Plus,
   Edit,
@@ -252,9 +253,7 @@ export function TransacoesManager({ empresaId, tipoFiltro, statusFiltro }: Trans
     resetForm();
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  };
+  // formatCurrency imported from @/lib/formatters
 
   const categoriasDoTipo = categorias.filter(c => c.tipo === formData.tipo);
 
