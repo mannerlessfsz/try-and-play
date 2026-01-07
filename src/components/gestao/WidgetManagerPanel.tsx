@@ -6,8 +6,7 @@ import {
   Wallet, 
   AlertTriangle, 
   TrendingUp, 
-  Package,
-  Check
+  Package
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -16,9 +15,11 @@ import {
   WidgetType 
 } from "@/hooks/useWidgetPreferences";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-interface WidgetManagerProps {
+interface WidgetManagerPanelProps {
   empresaId: string | undefined;
+  isExpanded: boolean;
 }
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -35,7 +36,7 @@ const colorClasses: Record<string, string> = {
   magenta: "text-magenta bg-magenta/10 border-magenta/30",
 };
 
-export function WidgetManager({ empresaId }: WidgetManagerProps) {
+export function WidgetManagerPanel({ empresaId, isExpanded }: WidgetManagerPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const { isWidgetActive, toggleWidget, isLoading } = useWidgetPreferences(empresaId);
 
@@ -43,26 +44,47 @@ export function WidgetManager({ empresaId }: WidgetManagerProps) {
     toggleWidget.mutate({ widgetType, isActive: !currentActive });
   };
 
+  const triggerButton = (
+    <motion.button
+      onClick={() => setIsOpen(true)}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl",
+        "transition-all duration-200",
+        "border border-transparent",
+        "text-muted-foreground hover:text-foreground hover:bg-white/5"
+      )}
+      whileHover={{ x: isExpanded ? -4 : 0, scale: isExpanded ? 1 : 1.1 }}
+      whileTap={{ scale: 0.98 }}
+    >
+      <Settings2 className="w-5 h-5" />
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.span
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -10 }}
+            className="text-sm font-medium whitespace-nowrap"
+          >
+            Widgets
+          </motion.span>
+        )}
+      </AnimatePresence>
+    </motion.button>
+  );
+
   return (
     <>
-      {/* Trigger Button */}
-      <motion.button
-        onClick={() => setIsOpen(true)}
-        className={cn(
-          "fixed bottom-20 left-4 z-40",
-          "p-3 rounded-xl",
-          "bg-gradient-to-br from-background/90 to-background/70",
-          "backdrop-blur-xl border border-white/10",
-          "shadow-lg hover:shadow-xl",
-          "transition-all duration-300",
-          "hover:scale-105 hover:border-magenta/30"
-        )}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        title="Gerenciar Widgets"
-      >
-        <Settings2 className="w-5 h-5 text-magenta" />
-      </motion.button>
+      {/* Trigger Button in Sidebar */}
+      {!isExpanded ? (
+        <Tooltip>
+          <TooltipTrigger asChild>{triggerButton}</TooltipTrigger>
+          <TooltipContent side="left" className="bg-background/90 backdrop-blur-xl border-white/10">
+            Widgets
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        triggerButton
+      )}
 
       {/* Manager Panel */}
       <AnimatePresence>
@@ -79,12 +101,12 @@ export function WidgetManager({ empresaId }: WidgetManagerProps) {
 
             {/* Panel */}
             <motion.div
-              initial={{ opacity: 0, x: -100, scale: 0.95 }}
+              initial={{ opacity: 0, x: 100, scale: 0.95 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: -100, scale: 0.95 }}
+              exit={{ opacity: 0, x: 100, scale: 0.95 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className={cn(
-                "fixed bottom-4 left-4 z-50",
+                "fixed top-1/2 right-[280px] -translate-y-1/2 z-50",
                 "w-80 max-h-[70vh]",
                 "rounded-2xl border backdrop-blur-2xl",
                 "bg-gradient-to-br from-background/95 to-background/80",
@@ -153,7 +175,7 @@ export function WidgetManager({ empresaId }: WidgetManagerProps) {
               {/* Footer */}
               <div className="px-4 py-3 border-t border-white/10 bg-white/5">
                 <p className="text-xs text-muted-foreground text-center">
-                  Arraste os widgets para reposicioná-los
+                  Widgets aparecem na parte inferior da tela
                 </p>
               </div>
             </motion.div>
