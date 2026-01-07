@@ -674,7 +674,7 @@ const ExpandedChat = ({
 };
 
 export default function Messenger() {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { empresaAtiva } = useEmpresaAtiva();
   
   const [contacts] = useState<Contact[]>(mockContacts);
@@ -1273,6 +1273,40 @@ export default function Messenger() {
                   <p className={styles.textMuted}>Nenhum contato encontrado</p>
                 </div>
               )}
+            </div>
+
+            {/* Footer com usuário logado */}
+            <div className={cn("p-3 border-t", styles.border)}>
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                    style={{ background: "linear-gradient(135deg, #f97316, #eab308)" }}
+                  >
+                    {user?.email?.slice(0, 2).toUpperCase() || "US"}
+                  </div>
+                  <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-background" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={cn("font-medium text-sm truncate", styles.text)}>
+                    {user?.user_metadata?.full_name || user?.email?.split('@')[0] || "Usuário"}
+                  </p>
+                  <p className={cn("text-xs truncate", styles.textMuted)}>
+                    {user?.email || "Conectado"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => signOut()}
+                  className={cn(
+                    "w-8 h-8 rounded-lg",
+                    theme === "light" ? "hover:bg-gray-100" : "hover:bg-white/10"
+                  )}
+                >
+                  <LogOut className="w-4 h-4 text-muted-foreground" />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
