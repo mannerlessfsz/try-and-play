@@ -211,23 +211,46 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
 
       if (error) throw error;
 
-      // Update empresa modules
-      // First delete existing modules
-      await supabase
-        .from('empresa_modulos')
-        .delete()
-        .eq('empresa_id', editingEmpresa.id);
-
-      // Then insert new modules
+      // Update empresa modules with proper UPDATE to trigger permission sync
       const modulosAtivos = data.modulos.filter(m => m.ativo);
+      const modulosInativos = data.modulos.filter(m => !m.ativo);
+      
+      // For each active module: upsert (update if exists, insert if not)
       for (const mod of modulosAtivos) {
-        const { error: moduloError } = await supabase.rpc('add_empresa_modulo', {
-          _empresa_id: editingEmpresa.id,
-          _modulo: mod.modulo,
-          _modo: mod.modo,
-          _ativo: true,
-        });
-        if (moduloError) console.error('Erro ao adicionar módulo:', moduloError);
+        const existing = currentModulos.find(cm => cm.modulo === mod.modulo);
+        
+        if (existing) {
+          // UPDATE existing module (triggers sync_permissions_on_module_mode_change)
+          const { error: updateError } = await supabase
+            .from('empresa_modulos')
+            .update({ 
+              modo: mod.modo, 
+              ativo: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+          if (updateError) console.error('Erro ao atualizar módulo:', updateError);
+        } else {
+          // INSERT new module
+          const { error: insertError } = await supabase.rpc('add_empresa_modulo', {
+            _empresa_id: editingEmpresa.id,
+            _modulo: mod.modulo,
+            _modo: mod.modo,
+            _ativo: true,
+          });
+          if (insertError) console.error('Erro ao adicionar módulo:', insertError);
+        }
+      }
+      
+      // Deactivate removed modules (soft delete)
+      for (const mod of modulosInativos) {
+        const existing = currentModulos.find(cm => cm.modulo === mod.modulo);
+        if (existing && existing.ativo) {
+          await supabase
+            .from('empresa_modulos')
+            .update({ ativo: false, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+        }
       }
       
       return { id: editingEmpresa.id, nome: data.nome };
