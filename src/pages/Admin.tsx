@@ -438,11 +438,11 @@ const Admin: React.FC = () => {
             <TabsTrigger value="dashboard" className="gap-2">
               <LayoutDashboard className="w-4 h-4" /> Dashboard
             </TabsTrigger>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="w-4 h-4" /> Usuários
-            </TabsTrigger>
             <TabsTrigger value="empresas" className="gap-2">
               <Building2 className="w-4 h-4" /> Empresas
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" /> Usuários
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-2">
               <History className="w-4 h-4" /> Auditoria
