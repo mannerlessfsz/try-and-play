@@ -121,7 +121,7 @@ const themeConfigs = {
       interno: { from: '#10b981', to: '#059669' },
     },
     island: {
-      bg: 'bg-white/98',
+      bg: 'bg-white',
       border: 'border-gray-300',
       glow: 'from-orange-100/30 via-violet-100/30 to-emerald-100/30',
     },
@@ -133,7 +133,7 @@ const themeConfigs = {
     },
     chat: {
       backdrop: 'bg-black/30',
-      panel: 'bg-white/98',
+      panel: 'bg-white',
       border: 'border-gray-200',
       header: 'border-gray-200',
       text: 'text-gray-900',
