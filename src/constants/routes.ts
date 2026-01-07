@@ -103,12 +103,12 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     module: 'conversores',
   },
   {
-    path: '/conferesped',
-    name: 'ConfereSped',
+    path: '/messenger',
+    name: 'Messenger',
     type: 'module',
-    requires: 'Permissão: conferesped',
-    description: 'Conferência de SPED',
-    module: 'conferesped',
+    requires: 'Permissão: messenger',
+    description: 'Comunicação via WhatsApp Business',
+    module: 'messenger',
   },
 ];
 

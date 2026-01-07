@@ -11,7 +11,7 @@ import ClientAuth from "./pages/ClientAuth";
 import MasterAuth from "./pages/MasterAuth";
 import Admin from "./pages/Admin";
 import TaskVault from "./pages/TaskVault";
-import ConfereSped from "./pages/ConfereSped";
+import Messenger from "./pages/Messenger";
 import FinancialACE from "./pages/FinancialACE";
 import Conversores from "./pages/Conversores";
 import NotFound from "./pages/NotFound";
@@ -35,7 +35,7 @@ const App = () => (
               <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
               <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
               <Route path="/ajustasped" element={<Navigate to="/conversores" replace />} />
-              <Route path="/conferesped" element={<ProtectedRoute module="conferesped"><ConfereSped /></ProtectedRoute>} />
+              <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />
               <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
               <Route path="/conversores" element={<ProtectedRoute module="conversores"><Conversores /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />

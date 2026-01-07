@@ -32,11 +32,12 @@ export type AppModule =
   | 'taskvault' 
   | 'gestao' 
   | 'conversores' 
-  | 'conferesped'
+  | 'messenger'
   // Legados (mantidos para compatibilidade com banco de dados)
   | 'financialace' 
   | 'erp' 
-  | 'ajustasped';
+  | 'ajustasped'
+  | 'conferesped';
 
 /**
  * Sub-módulos do sistema (nível intermediário da hierarquia)
@@ -89,10 +90,10 @@ export const APP_MODULES: {
     color: 'bg-green-500',
   },
   {
-    value: 'conferesped',
-    label: 'ConfereSped',
-    description: 'Conferência de arquivos SPED',
-    color: 'bg-orange-500',
+    value: 'messenger',
+    label: 'Messenger',
+    description: 'Comunicação via WhatsApp Business',
+    color: 'bg-emerald-500',
   },
 ];
 
@@ -103,11 +104,12 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   taskvault: 'TaskVault',
   gestao: 'GESTÃO',
   conversores: 'Conversores',
-  conferesped: 'ConfereSped',
+  messenger: 'Messenger',
   // Legados - apontam para os novos
   financialace: 'GESTÃO',
   erp: 'GESTÃO',
   ajustasped: 'Conversores',
+  conferesped: 'Conversores',
 };
 
 /**
@@ -117,6 +119,7 @@ export const LEGACY_MODULE_MAP: Record<string, AppModule> = {
   'financialace': 'gestao',
   'erp': 'gestao',
   'ajustasped': 'conversores',
+  'conferesped': 'conversores',
 };
 
 /**
@@ -154,10 +157,9 @@ export const MODULE_SUB_MODULES: Record<AppModule, SubModuleDefinition[]> = {
     { value: 'fiscal', label: 'Fiscal', description: 'Conversão de arquivos fiscais' },
     { value: 'extrato', label: 'Extrato', description: 'Conversão de extratos bancários' },
   ],
-  conferesped: [
-    { value: 'conferencia', label: 'Conferência', description: 'Análise e conferência de SPED' },
-  ],
+  messenger: [],
   // Legados
+  conferesped: [],
   financialace: [],
   erp: [],
   ajustasped: [],
@@ -290,12 +292,13 @@ export const MODULE_RESOURCES: Record<AppModule, ResourceDefinition[]> = {
     { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
     { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
   ],
-  conferesped: [
-    { value: 'conferencia', label: 'Conferência', description: 'Conferência de arquivos SPED' },
-    { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
-    { value: 'validacao', label: 'Validação', description: 'Validação de registros' },
+  messenger: [
+    { value: 'conversas', label: 'Conversas', description: 'Gerenciamento de conversas' },
+    { value: 'contatos', label: 'Contatos', description: 'Lista de contatos' },
+    { value: 'templates', label: 'Templates', description: 'Modelos de mensagem' },
   ],
   // Legados
+  conferesped: [],
   financialace: [],
   erp: [],
   ajustasped: [],
