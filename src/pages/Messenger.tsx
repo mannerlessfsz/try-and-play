@@ -6,7 +6,8 @@ import {
   Send, Paperclip, Mic, 
   Check, CheckCheck, Clock, 
   Sparkles, Zap, Radio,
-  X, Search, Plus
+  X, Search, Plus, Home, LayoutGrid,
+  Palette, Moon, Sun, LogOut
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -816,15 +817,17 @@ export default function Messenger() {
     <div className={cn("min-h-screen overflow-hidden relative", styles.bg)}>
       <NebulaBackground theme={theme} />
       
-      {/* Glass Sidebar */}
-      <MessengerSidebar
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        theme={theme}
-        onThemeChange={cycleTheme}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
-      />
+      {/* Glass Sidebar - only in orbs mode */}
+      {viewMode === "orbs" && (
+        <MessengerSidebar
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          theme={theme}
+          onThemeChange={cycleTheme}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+        />
+      )}
       
       {/* Main Content - adjusted for right sidebar */}
       {viewMode === "orbs" ? (
@@ -990,7 +993,7 @@ export default function Messenger() {
         </div>
       ) : (
         /* Traditional WhatsApp-style View */
-        <div className="flex h-screen pr-[280px] transition-all duration-300">
+        <div className="flex h-screen transition-all duration-300">
           {/* Lista de conversas à esquerda */}
           <div className={cn(
             "w-80 flex-shrink-0 border-r flex flex-col",
@@ -998,39 +1001,111 @@ export default function Messenger() {
             styles.card
           )}>
             {/* Header da lista */}
-            <div className={cn("p-4 border-b", styles.border)}>
-              <div className="flex items-center gap-3 mb-4">
-                <motion.div
-                  className={cn(
-                    "p-2 rounded-xl border",
-                    theme === "light" 
-                      ? "bg-orange-50 border-orange-200" 
-                      : "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30"
-                  )}
-                >
-                  <Sparkles className="w-5 h-5 text-orange-400" />
-                </motion.div>
-                <div>
-                  <h1 className="font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+            <div className={cn("p-3 border-b", styles.border)}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <motion.div
+                    className={cn(
+                      "p-1.5 rounded-lg border",
+                      theme === "light" 
+                        ? "bg-orange-50 border-orange-200" 
+                        : "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30"
+                    )}
+                  >
+                    <Sparkles className="w-4 h-4 text-orange-400" />
+                  </motion.div>
+                  <h1 className="font-bold text-sm bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
                     Messenger
                   </h1>
-                  <p className={cn("text-xs", styles.textMuted)}>Conversas</p>
+                </div>
+                
+                {/* Controles */}
+                <div className="flex items-center gap-1">
+                  {/* Voltar ao Dashboard */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => window.location.href = "/dashboard"}
+                    className={cn(
+                      "w-8 h-8 rounded-lg",
+                      theme === "light" ? "hover:bg-gray-100" : "hover:bg-white/10"
+                    )}
+                  >
+                    <Home className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                  
+                  {/* Toggle Tema */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={cycleTheme}
+                    className={cn(
+                      "w-8 h-8 rounded-lg",
+                      theme === "light" ? "hover:bg-gray-100" : "hover:bg-white/10"
+                    )}
+                  >
+                    {theme === "colorful" && <Palette className="w-4 h-4 text-muted-foreground" />}
+                    {theme === "dark" && <Moon className="w-4 h-4 text-muted-foreground" />}
+                    {theme === "light" && <Sun className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                  
+                  {/* Toggle View Mode */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setViewMode("orbs")}
+                    className={cn(
+                      "w-8 h-8 rounded-lg",
+                      theme === "light" ? "hover:bg-gray-100" : "hover:bg-white/10"
+                    )}
+                  >
+                    <LayoutGrid className="w-4 h-4 text-muted-foreground" />
+                  </Button>
                 </div>
               </div>
               
               {/* Campo de busca */}
               <div className={cn(
-                "relative flex items-center rounded-xl border px-3 py-2",
+                "relative flex items-center rounded-lg border px-2.5 py-1.5",
                 styles.inputBorder,
                 styles.input
               )}>
-                <Search className="w-4 h-4 text-muted-foreground mr-2" />
+                <Search className="w-3.5 h-3.5 text-muted-foreground mr-2" />
                 <input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar..."
                   className={cn("bg-transparent border-0 outline-none text-sm w-full placeholder:text-muted-foreground/50", styles.text)}
                 />
+              </div>
+              
+              {/* Filtros por categoria */}
+              <div className="flex gap-1 mt-2 overflow-x-auto">
+                {[
+                  { id: "todos", label: "Todos" },
+                  { id: "clientes", label: "Clientes" },
+                  { id: "fornecedores", label: "Fornec." },
+                  { id: "interno", label: "Interno" },
+                ].map((tab) => (
+                  <Button
+                    key={tab.id}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={cn(
+                      "h-7 px-2.5 text-xs rounded-lg whitespace-nowrap",
+                      activeTab === tab.id
+                        ? theme === "light"
+                          ? "bg-orange-100 text-orange-600"
+                          : "bg-orange-500/20 text-orange-400"
+                        : theme === "light"
+                          ? "text-gray-500 hover:bg-gray-100"
+                          : "text-muted-foreground hover:bg-white/5"
+                    )}
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
               </div>
             </div>
             
