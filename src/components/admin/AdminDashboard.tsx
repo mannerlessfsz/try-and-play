@@ -233,13 +233,12 @@ export function AdminDashboard() {
     }
   });
 
-  // Resource permissions count
+  // Module permissions count
   const { data: permissionsData } = useQuery({
     queryKey: ['admin-dashboard-permissions'],
     queryFn: async () => {
-      const { count: resourcePerms } = await supabase.from('user_resource_permissions').select('*', { count: 'exact', head: true });
-      const { count: profiles } = await supabase.from('permission_profiles').select('*', { count: 'exact', head: true });
-      return { resourcePerms: resourcePerms || 0, profiles: profiles || 0 };
+      const { count: modulePerms } = await supabase.from('user_module_permissions').select('*', { count: 'exact', head: true });
+      return { modulePerms: modulePerms || 0 };
     }
   });
 
@@ -303,7 +302,7 @@ export function AdminDashboard() {
   const { data: moduleUsage } = useQuery({
     queryKey: ['admin-dashboard-module-usage'],
     queryFn: async () => {
-      const { data: perms } = await supabase.from('user_resource_permissions').select('module');
+      const { data: perms } = await supabase.from('user_module_permissions').select('module');
       
       const counts: Record<string, number> = {};
       (perms || []).forEach(p => {
@@ -312,12 +311,9 @@ export function AdminDashboard() {
       
       const moduleLabels: Record<string, string> = {
         gestao: 'GESTÃO',
-        financialace: 'GESTÃO',
-        erp: 'GESTÃO',
         taskvault: 'TaskVault',
         conversores: 'Conversores',
-        conferesped: 'ConfereSped',
-        ajustasped: 'Conversores',
+        messenger: 'Messenger',
       };
       
       return Object.entries(counts).map(([key, value]) => ({
@@ -382,8 +378,8 @@ export function AdminDashboard() {
       color: 'text-orange-500'
     },
     {
-      label: 'Permissões Configuradas',
-      value: permissionsData?.resourcePerms || 0,
+      label: 'Permissões de Módulo',
+      value: permissionsData?.modulePerms || 0,
       icon: <Shield className="w-5 h-5" />,
       color: 'text-indigo-500'
     }
@@ -697,8 +693,8 @@ export function AdminDashboard() {
       {/* Quick Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-muted/50 rounded-lg p-4 text-center">
-          <p className="text-3xl font-bold text-primary">{permissionsData?.profiles || 0}</p>
-          <p className="text-sm text-muted-foreground">Perfis de Permissão</p>
+          <p className="text-3xl font-bold text-primary">{permissionsData?.modulePerms || 0}</p>
+          <p className="text-sm text-muted-foreground">Permissões de Módulo</p>
         </div>
         <div className="bg-muted/50 rounded-lg p-4 text-center">
           <p className="text-3xl font-bold text-orange-500">{financialData.pendentes}</p>

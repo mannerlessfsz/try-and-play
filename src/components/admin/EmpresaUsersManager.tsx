@@ -4,20 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { syncMissingProfiles } from '@/hooks/useSyncProfiles';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  MODULE_RESOURCES, 
-  PERMISSION_ACTIONS,
-  useResourcePermissions 
-} from '@/hooks/useResourcePermissions';
-import { ApplyProfileToUserModal } from './ApplyProfileToUserModal';
+import { ModulePermissionsEditor } from './ModulePermissionsEditor';
 import { 
   UserPlus, 
   Trash2, 
@@ -26,9 +19,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  Mail,
-  User,
-  Wand2
+  User
 } from 'lucide-react';
 
 interface Profile {
@@ -48,35 +39,25 @@ interface UserEmpresa {
 interface EmpresaUsersManagerProps {
   empresaId: string;
   empresaNome?: string;
+  empresaModulos?: string[]; // Módulos liberados para a empresa
 }
 
-const MODULES = [
-  { value: 'gestao', label: 'GESTÃO' },
-  { value: 'taskvault', label: 'TaskVault' },
-  { value: 'conversores', label: 'Conversores' },
-  { value: 'conferesped', label: 'ConfereSped' },
-];
-
-export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersManagerProps) {
+export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: EmpresaUsersManagerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
-  const [selectedModule, setSelectedModule] = useState<string>('financialace');
   const [addMode, setAddMode] = useState<'existing' | 'new'>('existing');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [applyProfileUser, setApplyProfileUser] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch all users (includes automatic sync of missing profiles)
   const { data: allUsers = [] } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
-      // Sync any missing profiles first
       await syncMissingProfiles();
-      
       const { data, error } = await supabase.from('profiles').select('*');
       if (error) throw error;
       return data as Profile[];
@@ -95,13 +76,6 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
       return data as UserEmpresa[];
     },
   });
-
-  // Resource permissions hook
-  const { 
-    permissions: resourcePermissions, 
-    upsertPermission, 
-    isUpdating 
-  } = useResourcePermissions(empresaId);
 
   // Get active users not yet linked
   const availableUsers = allUsers.filter(
@@ -132,51 +106,43 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     },
   });
 
-  // Create new user and add to empresa with email validation
+  // Create new user and add to empresa
   const createUserMutation = useMutation({
     mutationFn: async ({ email, name, password, isOwner }: { email: string; name: string; password: string; isOwner: boolean }) => {
-      // Check if email already exists
       const existingUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (existingUser) {
-        throw new Error('Este e-mail já está cadastrado no sistema. Use a aba "Existente" para adicionar este usuário.');
+        throw new Error('Este e-mail já está cadastrado. Use a aba "Existente" para adicionar.');
       }
       
-      // Store current master session BEFORE creating new user
       const { data: currentSession } = await supabase.auth.getSession();
       const masterSession = currentSession?.session;
       
       if (!masterSession) {
-        throw new Error('Sessão do usuário master não encontrada. Faça login novamente.');
+        throw new Error('Sessão não encontrada. Faça login novamente.');
       }
       
-      // Create user via Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            full_name: name,
-          },
+          data: { full_name: name },
         },
       });
       
       if (authError) {
-        // Check for duplicate email error from Supabase
-        if (authError.message.includes('already registered') || authError.message.includes('User already registered')) {
-          throw new Error('Este e-mail já está cadastrado no sistema. Use a aba "Existente" para adicionar este usuário.');
+        if (authError.message.includes('already registered')) {
+          throw new Error('Este e-mail já está cadastrado.');
         }
         throw authError;
       }
       if (!authData.user) throw new Error('Falha ao criar usuário');
 
-      // IMMEDIATELY restore master session before any other operations
       await supabase.auth.setSession({
         access_token: masterSession.access_token,
         refresh_token: masterSession.refresh_token,
       });
 
-      // Link user to empresa
       const { error: linkError } = await supabase
         .from('user_empresas')
         .insert({ user_id: authData.user.id, empresa_id: empresaId, is_owner: isOwner });
@@ -215,64 +181,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
     },
   });
 
-  // Get user profile
   const getUserProfile = (userId: string) => allUsers.find(u => u.id === userId);
-
-  // Get user's permissions for a resource
-  const getUserResourcePermission = (userId: string, module: string, resource: string) => {
-    return resourcePermissions.find(
-      p => p.user_id === userId && p.module === module && p.resource === resource
-    );
-  };
-
-  // Toggle permission
-  const handleTogglePermission = (
-    userId: string, 
-    module: string, 
-    resource: string, 
-    action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export',
-    currentValue: boolean
-  ) => {
-    const existing = getUserResourcePermission(userId, module, resource);
-    upsertPermission({
-      user_id: userId,
-      empresa_id: empresaId,
-      module,
-      resource,
-      ...existing,
-      [action]: !currentValue,
-    });
-  };
-
-  // Grant all permissions for a resource
-  const handleGrantAllForResource = (userId: string, module: string, resource: string) => {
-    upsertPermission({
-      user_id: userId,
-      empresa_id: empresaId,
-      module,
-      resource,
-      can_view: true,
-      can_create: true,
-      can_edit: true,
-      can_delete: true,
-      can_export: true,
-    });
-  };
-
-  // Revoke all permissions for a resource
-  const handleRevokeAllForResource = (userId: string, module: string, resource: string) => {
-    upsertPermission({
-      user_id: userId,
-      empresa_id: empresaId,
-      module,
-      resource,
-      can_view: false,
-      can_create: false,
-      can_edit: false,
-      can_delete: false,
-      can_export: false,
-    });
-  };
 
   if (isLoading) {
     return (
@@ -316,12 +225,12 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                     <SelectContent>
                       {availableUsers.length === 0 ? (
                         <div className="p-2 text-sm text-muted-foreground text-center">
-                          Nenhum usuário ativo disponível
+                          Nenhum usuário disponível
                         </div>
                       ) : (
                         availableUsers.map(user => (
                           <SelectItem key={user.id} value={user.id}>
-                            {user.full_name || user.email} {!user.ativo && '(Inativo)'}
+                            {user.full_name || user.email}
                           </SelectItem>
                         ))
                       )}
@@ -343,7 +252,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                     disabled={!selectedUserId || addUserMutation.isPending}
                     className="flex-1"
                   >
-                    <Crown className="w-4 h-4 mr-1" /> Como Proprietário
+                    <Crown className="w-4 h-4 mr-1" /> Proprietário
                   </Button>
                 </div>
               </TabsContent>
@@ -390,7 +299,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                     className="flex-1"
                   >
                     {createUserMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Criar Usuário
+                    Criar
                   </Button>
                   <Button
                     variant="outline"
@@ -403,7 +312,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                     disabled={!newUserEmail || !newUserPassword || newUserPassword.length < 6 || createUserMutation.isPending}
                     className="flex-1"
                   >
-                    <Crown className="w-4 h-4 mr-1" /> Como Proprietário
+                    <Crown className="w-4 h-4 mr-1" /> Proprietário
                   </Button>
                 </div>
               </TabsContent>
@@ -469,123 +378,23 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
                 </div>
 
                 {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-border space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-primary" />
-                        <span className="font-medium text-sm">Permissões Granulares por Recurso</span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="gap-2"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setApplyProfileUser({
-                            id: eu.user_id,
-                            name: user?.full_name || user?.email || 'Usuário',
-                          });
-                        }}
-                      >
-                        <Wand2 className="w-4 h-4" />
-                        Aplicar Perfil
-                      </Button>
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm">Permissões por Módulo</span>
                     </div>
-
-                    {/* Module selector */}
-                    <div className="flex gap-2 flex-wrap">
-                      {MODULES.map(mod => (
-                        <Button
-                          key={mod.value}
-                          variant={selectedModule === mod.value ? 'default' : 'outline'}
-                          size="sm"
-                          onClick={() => setSelectedModule(mod.value)}
-                        >
-                          {mod.label}
-                        </Button>
-                      ))}
-                    </div>
-
-                    {/* Resources table */}
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Recurso</TableHead>
-                            {PERMISSION_ACTIONS.map(action => (
-                              <TableHead key={action.value} className="text-center w-20">
-                                {action.label}
-                              </TableHead>
-                            ))}
-                            <TableHead className="text-center w-24">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {(MODULE_RESOURCES[selectedModule] || []).map(resource => {
-                            const perm = getUserResourcePermission(eu.user_id, selectedModule, resource.value);
-                            
-                            return (
-                              <TableRow key={resource.value}>
-                                <TableCell className="font-medium">{resource.label}</TableCell>
-                                {PERMISSION_ACTIONS.map(action => (
-                                  <TableCell key={action.value} className="text-center">
-                                    <Checkbox
-                                      checked={perm?.[action.value] || false}
-                                      onCheckedChange={() => handleTogglePermission(
-                                        eu.user_id,
-                                        selectedModule,
-                                        resource.value,
-                                        action.value,
-                                        perm?.[action.value] || false
-                                      )}
-                                      disabled={isUpdating}
-                                    />
-                                  </TableCell>
-                                ))}
-                                <TableCell className="text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs text-green-500 hover:text-green-600"
-                                      onClick={() => handleGrantAllForResource(eu.user_id, selectedModule, resource.value)}
-                                    >
-                                      Tudo
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-7 px-2 text-xs text-red-500 hover:text-red-600"
-                                      onClick={() => handleRevokeAllForResource(eu.user_id, selectedModule, resource.value)}
-                                    >
-                                      Nada
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
+                    
+                    <ModulePermissionsEditor
+                      userId={eu.user_id}
+                      empresaId={empresaId}
+                      empresaModulos={empresaModulos}
+                    />
                   </div>
                 )}
               </div>
             );
           })}
         </div>
-      )}
-
-      {/* Apply Profile Modal */}
-      {applyProfileUser && (
-        <ApplyProfileToUserModal
-          isOpen={!!applyProfileUser}
-          onClose={() => setApplyProfileUser(null)}
-          userId={applyProfileUser.id}
-          userName={applyProfileUser.name}
-          empresaId={empresaId}
-          empresaNome={empresaNome || 'Empresa'}
-        />
       )}
     </div>
   );

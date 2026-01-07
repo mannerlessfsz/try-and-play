@@ -1,3 +1,8 @@
+/**
+ * Hook de permissões refatorado - usa o novo sistema user_module_permissions
+ * Mantém API compatível com código existente
+ */
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +11,6 @@ import {
   AppRole, 
   AppModule, 
   PermissionType,
-  normalizeModuleName,
   LEGACY_MODULE_MAP
 } from '@/constants/modules';
 
@@ -19,27 +23,17 @@ interface UserRole {
   role: AppRole;
 }
 
-interface UserPermission {
+interface ModulePermission {
   id: string;
   user_id: string;
   empresa_id: string | null;
-  module: string; // Can be legacy module name
-  permission: PermissionType;
-  is_pro_mode: boolean;
-}
-
-interface UserResourcePermission {
-  id: string;
-  user_id: string;
-  empresa_id: string;
-  module: string; // Can be legacy module name
-  sub_module: string | null;
-  resource: string;
+  module: string;
   can_view: boolean;
   can_create: boolean;
   can_edit: boolean;
   can_delete: boolean;
   can_export: boolean;
+  is_pro_mode: boolean;
 }
 
 interface UserEmpresa {
@@ -49,17 +43,23 @@ interface UserEmpresa {
   is_owner: boolean;
 }
 
+/**
+ * Normaliza nome de módulo (legado -> atual)
+ */
+function normalizeModule(module: string): string {
+  return LEGACY_MODULE_MAP[module] || module;
+}
+
 export const usePermissions = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Realtime subscription para atualização imediata de todas as permissões
+  // Realtime subscription para atualização imediata
   useEffect(() => {
     if (!user?.id) return;
 
-    // Subscribe to user_roles changes
-    const rolesChannel = supabase
-      .channel(`user-roles-${user.id}`)
+    const channel = supabase
+      .channel(`permissions-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -72,50 +72,26 @@ export const usePermissions = () => {
           queryClient.invalidateQueries({ queryKey: ['user-roles', user.id] });
         }
       )
-      .subscribe();
-
-    // Subscribe to user_permissions changes
-    const permissionsChannel = supabase
-      .channel(`user-permissions-${user.id}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'user_permissions',
+          table: 'user_module_permissions',
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['user-permissions', user.id] });
-        }
-      )
-      .subscribe();
-
-    // Subscribe to user_resource_permissions changes
-    const resourcePermissionsChannel = supabase
-      .channel(`user-resource-permissions-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_resource_permissions',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ['user-resource-permissions', user.id] });
-          queryClient.invalidateQueries({ queryKey: ['resource-permissions'] });
+          queryClient.invalidateQueries({ queryKey: ['user-module-permissions', user.id] });
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(rolesChannel);
-      supabase.removeChannel(permissionsChannel);
-      supabase.removeChannel(resourcePermissionsChannel);
+      supabase.removeChannel(channel);
     };
   }, [user?.id, queryClient]);
 
+  // Buscar roles
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ['user-roles', user?.id],
     queryFn: async () => {
@@ -133,16 +109,17 @@ export const usePermissions = () => {
     refetchOnWindowFocus: true,
   });
 
-  const { data: permissions = [], isLoading: permissionsLoading } = useQuery({
-    queryKey: ['user-permissions', user?.id],
+  // Buscar permissões de módulo (NOVA TABELA)
+  const { data: modulePermissions = [], isLoading: permissionsLoading } = useQuery({
+    queryKey: ['user-module-permissions', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
-        .from('user_permissions')
+        .from('user_module_permissions')
         .select('*')
         .eq('user_id', user.id);
       if (error) throw error;
-      return data as UserPermission[];
+      return data as ModulePermission[];
     },
     enabled: !!user,
     staleTime: 1000 * 30,
@@ -150,24 +127,7 @@ export const usePermissions = () => {
     refetchOnWindowFocus: true,
   });
 
-  // Also fetch resource permissions (granular permissions set in Admin)
-  const { data: resourcePermissions = [], isLoading: resourcePermissionsLoading } = useQuery({
-    queryKey: ['user-resource-permissions', user?.id],
-    queryFn: async () => {
-      if (!user) return [];
-      const { data, error } = await supabase
-        .from('user_resource_permissions')
-        .select('*')
-        .eq('user_id', user.id);
-      if (error) throw error;
-      return data as UserResourcePermission[];
-    },
-    enabled: !!user,
-    staleTime: 1000 * 30,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-  });
-
+  // Buscar empresas do usuário
   const { data: userEmpresas = [], isLoading: empresasLoading } = useQuery({
     queryKey: ['user-empresas', user?.id],
     queryFn: async () => {
@@ -193,151 +153,102 @@ export const usePermissions = () => {
   };
 
   /**
-   * Check permission considering both current and legacy module names
+   * Check permission in a module
    */
   const hasPermission = (module: AppModule, permission: PermissionType, empresaId?: string): boolean => {
     if (isAdmin) return true;
     
-    // Get all possible module names (current + legacy that map to this module)
-    const moduleNames: string[] = [module];
-    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
-      if (current === module) moduleNames.push(legacy);
+    const normalizedModule = normalizeModule(module);
+    const actionKey = `can_${permission}` as keyof ModulePermission;
+    
+    return modulePermissions.some(p => {
+      const moduleMatch = normalizeModule(p.module) === normalizedModule;
+      const empresaMatch = empresaId === undefined 
+        ? true  // Não filtrar por empresa
+        : p.empresa_id === empresaId || p.empresa_id === null;
+      
+      return moduleMatch && empresaMatch && p[actionKey] === true;
     });
-    
-    // Check user_permissions table
-    const hasDirectPermission = permissions.some(p => 
-      moduleNames.includes(p.module) && 
-      p.permission === permission &&
-      (p.empresa_id === null || p.empresa_id === empresaId)
-    );
-    
-    if (hasDirectPermission) return true;
-    
-    // Check user_resource_permissions table (granular permissions)
-    const permissionMap: Record<PermissionType, keyof UserResourcePermission> = {
-      'view': 'can_view',
-      'create': 'can_create',
-      'edit': 'can_edit',
-      'delete': 'can_delete',
-      'export': 'can_export'
-    };
-    
-    const hasResourcePermission = resourcePermissions.some(p => 
-      moduleNames.includes(p.module) && 
-      p[permissionMap[permission]] === true &&
-      (!empresaId || p.empresa_id === empresaId)
-    );
-    
-    return hasResourcePermission;
   };
 
   /**
-   * Check module access considering both current and legacy module names
+   * Check if user has access to a module (can view)
    */
   const hasModuleAccess = (module: AppModule): boolean => {
     if (isAdmin) return true;
     
-    // Get all possible module names (current + legacy that map to this module)
-    const moduleNames: string[] = [module];
-    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
-      if (current === module) moduleNames.push(legacy);
+    const normalizedModule = normalizeModule(module);
+    
+    return modulePermissions.some(p => {
+      const moduleMatch = normalizeModule(p.module) === normalizedModule;
+      return moduleMatch && p.can_view;
     });
-    
-    // Check user_permissions for view access
-    const hasDirectAccess = permissions.some(p => 
-      moduleNames.includes(p.module) && p.permission === 'view'
-    );
-    if (hasDirectAccess) return true;
-    
-    // Check user_resource_permissions - if user has any can_view permission for this module
-    const hasResourceAccess = resourcePermissions.some(p => 
-      moduleNames.includes(p.module) && p.can_view === true
-    );
-    return hasResourceAccess;
   };
 
   /**
-   * Check if user has access to a specific sub-module within a module
+   * Check if user has access to a sub-module (backwards compatible - uses module access)
    */
-  const hasSubModuleAccess = (module: AppModule, subModule: string): boolean => {
-    if (isAdmin) return true;
-    
-    const moduleNames: string[] = [module];
-    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
-      if (current === module) moduleNames.push(legacy);
-    });
-    
-    // Check if user has any view permission for resources in this sub-module
-    return resourcePermissions.some(p => 
-      moduleNames.includes(p.module) && 
-      p.sub_module === subModule && 
-      p.can_view === true
-    );
+  const hasSubModuleAccess = (module: AppModule, _subModule: string): boolean => {
+    // No novo sistema simplificado, sub-módulos herdam permissão do módulo
+    return hasModuleAccess(module);
   };
 
   /**
-   * Check if user has permission for a specific resource within a sub-module
+   * Check if user has permission for a specific resource (backwards compatible)
    */
   const hasResourcePermission = (
     module: AppModule, 
-    subModule: string | null, 
-    resource: string, 
+    _subModule: string | null, 
+    _resource: string, 
     action: PermissionType,
     empresaId?: string
   ): boolean => {
-    if (isAdmin) return true;
-    
-    const moduleNames: string[] = [module];
-    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
-      if (current === module) moduleNames.push(legacy);
-    });
-    
-    const permissionMap: Record<PermissionType, 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export'> = {
-      'view': 'can_view',
-      'create': 'can_create',
-      'edit': 'can_edit',
-      'delete': 'can_delete',
-      'export': 'can_export'
-    };
-    
-    return resourcePermissions.some(p => 
-      moduleNames.includes(p.module) && 
-      (subModule === null || p.sub_module === subModule) &&
-      p.resource === resource &&
-      p[permissionMap[action]] === true &&
-      (!empresaId || p.empresa_id === empresaId)
-    );
+    // No novo sistema simplificado, recursos herdam permissão do módulo
+    return hasPermission(module, action, empresaId);
   };
 
+  /**
+   * Check Pro Mode
+   */
   const hasProMode = (module: AppModule): boolean => {
     if (isAdmin) return true;
     
-    // Get all possible module names
-    const moduleNames: string[] = [module];
-    Object.entries(LEGACY_MODULE_MAP).forEach(([legacy, current]) => {
-      if (current === module) moduleNames.push(legacy);
-    });
+    const normalizedModule = normalizeModule(module);
     
-    return permissions.some(p => moduleNames.includes(p.module) && p.is_pro_mode);
+    return modulePermissions.some(p => {
+      const moduleMatch = normalizeModule(p.module) === normalizedModule;
+      return moduleMatch && p.is_pro_mode;
+    });
   };
 
+  /**
+   * Check empresa access
+   */
   const hasEmpresaAccess = (empresaId: string): boolean => {
     if (isAdmin) return true;
     return userEmpresas.some(ue => ue.empresa_id === empresaId);
   };
 
+  /**
+   * Get accessible empresas
+   */
   const getAccessibleEmpresas = (): string[] => {
-    if (isAdmin) return []; // Admin sees all
+    if (isAdmin) return [];
     return userEmpresas.map(ue => ue.empresa_id);
   };
 
   return {
+    // Dados
     roles,
-    permissions,
-    resourcePermissions,
+    permissions: modulePermissions, // Compatibilidade
+    resourcePermissions: [], // Deprecated - retorna vazio
     userEmpresas,
+    
+    // Flags
     isAdmin,
     isManager,
+    
+    // Checkers
     hasRole,
     hasPermission,
     hasModuleAccess,
@@ -345,7 +256,11 @@ export const usePermissions = () => {
     hasResourcePermission,
     hasProMode,
     hasEmpresaAccess,
+    
+    // Getters
     getAccessibleEmpresas,
-    loading: rolesLoading || permissionsLoading || resourcePermissionsLoading || empresasLoading
+    
+    // Loading
+    loading: rolesLoading || permissionsLoading || empresasLoading
   };
 };
