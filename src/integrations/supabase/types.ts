@@ -2484,6 +2484,59 @@ export type Database = {
           },
         ]
       }
+      user_module_permissions: {
+        Row: {
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_edit: boolean | null
+          can_export: boolean | null
+          can_view: boolean | null
+          created_at: string | null
+          empresa_id: string | null
+          id: string
+          is_pro_mode: boolean | null
+          module: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          empresa_id?: string | null
+          id?: string
+          is_pro_mode?: boolean | null
+          module: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_edit?: boolean | null
+          can_export?: boolean | null
+          can_view?: boolean | null
+          created_at?: string | null
+          empresa_id?: string | null
+          id?: string
+          is_pro_mode?: boolean | null
+          module?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_module_permissions_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_permissions: {
         Row: {
           created_at: string
@@ -2859,8 +2912,46 @@ export type Database = {
           updated_at: string
         }[]
       }
+      get_user_module_permissions: {
+        Args: { p_user_id: string }
+        Returns: {
+          can_create: boolean
+          can_delete: boolean
+          can_edit: boolean
+          can_export: boolean
+          can_view: boolean
+          empresa_id: string
+          id: string
+          is_pro_mode: boolean
+          module: string
+          user_id: string
+        }[]
+      }
+      grant_module_permission: {
+        Args: {
+          p_can_create?: boolean
+          p_can_delete?: boolean
+          p_can_edit?: boolean
+          p_can_export?: boolean
+          p_can_view?: boolean
+          p_empresa_id?: string
+          p_is_pro_mode?: boolean
+          p_module: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       has_empresa_access: {
         Args: { _empresa_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_module_permission: {
+        Args: {
+          p_action?: string
+          p_empresa_id?: string
+          p_module: string
+          p_user_id: string
+        }
         Returns: boolean
       }
       has_permission: {
@@ -2905,6 +2996,10 @@ export type Database = {
       reapply_profile_permissions: {
         Args: { p_profile_id: string }
         Returns: number
+      }
+      revoke_module_permission: {
+        Args: { p_empresa_id?: string; p_module: string; p_user_id: string }
+        Returns: boolean
       }
       sync_missing_profiles: { Args: never; Returns: number }
       user_has_empresa_access: {
