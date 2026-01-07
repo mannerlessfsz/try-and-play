@@ -491,7 +491,7 @@ const FloatingIsland = React.memo(({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+            className="fixed bottom-6 left-0 right-0 z-50 flex justify-center"
           >
             {/* Glow effect */}
             <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-orange-500/30 via-violet-500/30 to-cyan-500/30 blur-2xl scale-150" />
