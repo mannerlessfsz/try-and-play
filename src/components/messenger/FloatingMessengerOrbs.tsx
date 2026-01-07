@@ -748,14 +748,15 @@ const FloatingIsland = React.memo(({
                         />
                       )}
                       
-                      {/* Unread badge - smaller */}
+                      {/* Unread badge - red notification */}
                       {contact.unread && contact.unread > 0 && (
                         <motion.div
-                          className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-white
-                                     flex items-center justify-center text-[9px] font-bold shadow-lg"
-                          style={{ color: tagStyle.from }}
-                          animate={{ scale: [1, 1.1, 1] }}
-                          transition={{ duration: 1, repeat: Infinity }}
+                          className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full 
+                                     bg-gradient-to-br from-red-500 to-red-600
+                                     flex items-center justify-center text-[10px] font-bold text-white
+                                     shadow-lg shadow-red-500/50 border-2 border-white"
+                          animate={{ scale: [1, 1.15, 1] }}
+                          transition={{ duration: 0.8, repeat: Infinity }}
                         >
                           {contact.unread}
                         </motion.div>
