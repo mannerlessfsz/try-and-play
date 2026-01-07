@@ -165,8 +165,7 @@ export function usePermissionProfiles() {
     },
   });
 
-  // Apply profile to user (bulk insert permissions)
-  // empresaId: null = standalone permissions (ferramentas sem empresa)
+  // Apply profile to user using RPC function for reliability
   const applyProfileToUserMutation = useMutation({
     mutationFn: async ({ 
       profileId, 
@@ -179,85 +178,58 @@ export function usePermissionProfiles() {
       empresaId: string | null; // null = standalone
       assignRole?: boolean;
     }) => {
-      // Get profile items
-      const profileItems = (itemsQuery.data || []).filter(item => item.profile_id === profileId);
       const profile = (profilesQuery.data || []).find(p => p.id === profileId);
       
-      if (profileItems.length === 0) {
-        throw new Error('Perfil sem permissões configuradas');
-      }
-
-      // Delete existing permissions for this user/empresa combination
-      let deleteQuery = supabase
-        .from('user_resource_permissions')
-        .delete()
-        .eq('user_id', userId);
-      
-      if (empresaId === null) {
-        deleteQuery = deleteQuery.is('empresa_id', null);
-      } else {
-        deleteQuery = deleteQuery.eq('empresa_id', empresaId);
-      }
-      
-      const { error: deleteError } = await deleteQuery;
-      if (deleteError) throw deleteError;
-
-      // Insert new permissions based on profile
-      const newPermissions = profileItems.map(item => ({
-        user_id: userId,
-        empresa_id: empresaId, // null for standalone
-        module: item.module,
-        sub_module: item.sub_module,
-        resource: item.resource,
-        can_view: item.can_view,
-        can_create: item.can_create,
-        can_edit: item.can_edit,
-        can_delete: item.can_delete,
-        can_export: item.can_export,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('user_resource_permissions')
-        .insert(newPermissions);
-
-      if (insertError) throw insertError;
-
-      // Register which profile was applied (only for empresa-based, not standalone)
       if (empresaId !== null) {
-        const { error: trackError } = await fromTable('user_applied_profiles')
-          .upsert({
-            user_id: userId,
-            empresa_id: empresaId,
-            profile_id: profileId,
-            applied_at: new Date().toISOString(),
-          } as any, { onConflict: 'user_id,empresa_id' });
+        // Use RPC function for empresa-based permissions
+        const { data, error } = await supabase.rpc('apply_permission_profile', {
+          p_user_id: userId,
+          p_empresa_id: empresaId,
+          p_profile_id: profileId,
+          p_assign_role: assignRole
+        });
 
-        if (trackError) {
-          console.warn('Erro ao registrar perfil aplicado:', trackError);
-        }
-      }
-
-      // Optionally assign role
-      if (assignRole && profile?.role_padrao) {
-        const rolePadrao = profile.role_padrao as 'admin' | 'manager' | 'user';
+        if (error) throw error;
+        return { applied: data || 0, profileName: profile?.nome };
+      } else {
+        // For standalone (null empresa), use frontend logic
+        const profileItems = (itemsQuery.data || []).filter(item => item.profile_id === profileId);
         
-        // Check if user already has this role
-        const { data: existingRoles } = await supabase
-          .from('user_roles')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('role', rolePadrao);
-
-        if (!existingRoles || existingRoles.length === 0) {
-          const { error: roleError } = await supabase
-            .from('user_roles')
-            .insert([{ user_id: userId, role: rolePadrao }]);
-          
-          if (roleError) throw roleError;
+        if (profileItems.length === 0) {
+          throw new Error('Perfil sem permissões configuradas');
         }
-      }
 
-      return { applied: newPermissions.length, profileName: profile?.nome };
+        // Delete existing standalone permissions
+        const { error: deleteError } = await supabase
+          .from('user_resource_permissions')
+          .delete()
+          .eq('user_id', userId)
+          .is('empresa_id', null);
+        
+        if (deleteError) throw deleteError;
+
+        // Insert new permissions
+        const newPermissions = profileItems.map(item => ({
+          user_id: userId,
+          empresa_id: null,
+          module: item.module,
+          sub_module: item.sub_module,
+          resource: item.resource,
+          can_view: item.can_view,
+          can_create: item.can_create,
+          can_edit: item.can_edit,
+          can_delete: item.can_delete,
+          can_export: item.can_export,
+        }));
+
+        const { error: insertError } = await supabase
+          .from('user_resource_permissions')
+          .insert(newPermissions);
+
+        if (insertError) throw insertError;
+
+        return { applied: newPermissions.length, profileName: profile?.nome };
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resource-permissions'] });
