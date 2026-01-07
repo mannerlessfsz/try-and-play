@@ -16,7 +16,9 @@ import {
   Building2,
   Palette,
   Moon,
-  Sun
+  Sun,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type MessengerTheme = "colorful" | "dark" | "light";
+type ViewMode = "orbs" | "traditional";
 
 interface NavItem {
   id: string;
@@ -47,9 +50,11 @@ interface MessengerSidebarProps {
   onTabChange: (tab: string) => void;
   theme: MessengerTheme;
   onThemeChange: () => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
-export function MessengerSidebar({ activeTab, onTabChange, theme, onThemeChange }: MessengerSidebarProps) {
+export function MessengerSidebar({ activeTab, onTabChange, theme, onThemeChange, viewMode, onViewModeChange }: MessengerSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -219,6 +224,43 @@ export function MessengerSidebar({ activeTab, onTabChange, theme, onThemeChange 
 
               return <div key={item.id}>{content}</div>;
             })}
+
+            {/* View Mode Toggle */}
+            <div className="pt-4 pb-2 px-3">
+              {isExpanded && (
+                <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase">
+                  Visualização
+                </span>
+              )}
+            </div>
+            <motion.button
+              onClick={() => onViewModeChange(viewMode === "orbs" ? "traditional" : "orbs")}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl",
+                "transition-all duration-200",
+                "border border-transparent",
+                "text-muted-foreground hover:text-foreground hover:bg-white/5"
+              )}
+              whileHover={{ x: isExpanded ? -4 : 0, scale: isExpanded ? 1 : 1.1 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <motion.div>
+                {viewMode === "orbs" ? <LayoutGrid className="w-5 h-5" /> : <List className="w-5 h-5" />}
+              </motion.div>
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.span
+                    variants={itemVariants}
+                    initial="collapsed"
+                    animate="expanded"
+                    exit="collapsed"
+                    className="text-sm font-medium whitespace-nowrap"
+                  >
+                    {viewMode === "orbs" ? "Orbes" : "Tradicional"}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
 
             {/* Theme Toggle */}
             <div className="pt-4 pb-2 px-3">
