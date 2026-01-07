@@ -2821,6 +2821,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_permission_profile: {
+        Args: {
+          p_assign_role?: boolean
+          p_empresa_id: string
+          p_profile_id: string
+          p_user_id: string
+        }
+        Returns: number
+      }
       assign_manager_role: { Args: { _user_id: string }; Returns: undefined }
       assign_user_role: { Args: { _user_id: string }; Returns: undefined }
       create_empresa_for_manager: {
@@ -2892,6 +2901,10 @@ export type Database = {
       link_user_to_empresa: {
         Args: { _empresa_id: string; _is_owner?: boolean; _user_id: string }
         Returns: undefined
+      }
+      reapply_profile_permissions: {
+        Args: { p_profile_id: string }
+        Returns: number
       }
       sync_missing_profiles: { Args: never; Returns: number }
       user_has_empresa_access: {
