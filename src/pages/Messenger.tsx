@@ -1,21 +1,16 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
 import { 
-  MessageCircle, Search, Phone, Video, MoreVertical, 
-  Send, Paperclip, Smile, Mic, 
+  Send, Paperclip, Mic, 
   Check, CheckCheck, Clock, 
-  Star, BellOff, Plus, Zap,
-  ArrowLeft, SlidersHorizontal
+  Sparkles, Zap, Radio,
+  ArrowLeft, X, Search, Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { GradientMesh } from "@/components/GradientMesh";
 
 // Tipos
 interface Contact {
@@ -28,9 +23,8 @@ interface Contact {
   unreadCount?: number;
   isOnline?: boolean;
   isTyping?: boolean;
-  isPinned?: boolean;
-  isMuted?: boolean;
   tag?: "cliente" | "fornecedor" | "interno";
+  energy?: number; // 0-100 nível de atividade
 }
 
 interface Message {
@@ -41,17 +35,16 @@ interface Message {
   isFromMe: boolean;
   status: "sent" | "delivered" | "read" | "pending";
   type: "text" | "image" | "document" | "audio";
-  fileName?: string;
 }
 
-// Dados mock
+// Dados mock com energia
 const mockContacts: Contact[] = [
-  { id: "1", name: "João Silva", phone: "+55 11 99999-1111", lastMessage: "Ok, vou enviar os documentos", lastMessageTime: "10:30", unreadCount: 2, isOnline: true, isPinned: true, tag: "cliente" },
-  { id: "2", name: "Maria Santos", phone: "+55 11 99999-2222", lastMessage: "Obrigada pela informação!", lastMessageTime: "09:45", isOnline: true, tag: "cliente" },
-  { id: "3", name: "Carlos Oliveira", phone: "+55 11 99999-3333", lastMessage: "Quando posso passar aí?", lastMessageTime: "Ontem", unreadCount: 1, tag: "fornecedor" },
-  { id: "4", name: "Ana Costa", phone: "+55 11 99999-4444", lastMessage: "Documento recebido ✓", lastMessageTime: "Ontem", tag: "cliente" },
-  { id: "5", name: "Pedro Lima", phone: "+55 11 99999-5555", lastMessage: "Perfeito!", lastMessageTime: "Seg", isMuted: true, tag: "interno" },
-  { id: "6", name: "Fernanda Souza", phone: "+55 11 99999-6666", lastMessage: "Vou verificar e te retorno", lastMessageTime: "12/01", tag: "cliente" },
+  { id: "1", name: "João Silva", phone: "+55 11 99999-1111", lastMessage: "Ok, vou enviar os documentos", lastMessageTime: "10:30", unreadCount: 2, isOnline: true, tag: "cliente", energy: 85 },
+  { id: "2", name: "Maria Santos", phone: "+55 11 99999-2222", lastMessage: "Obrigada pela informação!", lastMessageTime: "09:45", isOnline: true, tag: "cliente", energy: 72 },
+  { id: "3", name: "Carlos Oliveira", phone: "+55 11 99999-3333", lastMessage: "Quando posso passar aí?", lastMessageTime: "Ontem", unreadCount: 1, tag: "fornecedor", energy: 45 },
+  { id: "4", name: "Ana Costa", phone: "+55 11 99999-4444", lastMessage: "Documento recebido ✓", lastMessageTime: "Ontem", tag: "cliente", energy: 30 },
+  { id: "5", name: "Pedro Lima", phone: "+55 11 99999-5555", lastMessage: "Perfeito!", lastMessageTime: "Seg", tag: "interno", energy: 60 },
+  { id: "6", name: "Fernanda Souza", phone: "+55 11 99999-6666", lastMessage: "Vou verificar e te retorno", lastMessageTime: "12/01", tag: "cliente", energy: 15 },
 ];
 
 const mockMessages: Message[] = [
@@ -62,124 +55,530 @@ const mockMessages: Message[] = [
   { id: "5", contactId: "1", content: "Ok, vou enviar os documentos", timestamp: "10:30", isFromMe: false, status: "read", type: "text" },
 ];
 
-const tagColors: Record<string, string> = {
-  cliente: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  fornecedor: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  interno: "bg-orange-500/20 text-orange-400 border-orange-500/30",
+const tagGradients: Record<string, { from: string; to: string; glow: string }> = {
+  cliente: { from: "#3b82f6", to: "#06b6d4", glow: "rgba(59, 130, 246, 0.5)" },
+  fornecedor: { from: "#a855f7", to: "#ec4899", glow: "rgba(168, 85, 247, 0.5)" },
+  interno: { from: "#f97316", to: "#eab308", glow: "rgba(249, 115, 22, 0.5)" },
 };
 
-// Componente de Status da Mensagem
-const MessageStatus = ({ status }: { status: Message["status"] }) => {
-  switch (status) {
-    case "pending":
-      return <Clock className="w-3 h-3 text-muted-foreground" />;
-    case "sent":
-      return <Check className="w-3 h-3 text-muted-foreground" />;
-    case "delivered":
-      return <CheckCheck className="w-3 h-3 text-muted-foreground" />;
-    case "read":
-      return <CheckCheck className="w-3 h-3 text-orange-400" />;
-    default:
-      return null;
-  }
+// Componente de Partículas Cósmicas
+const CosmicParticles = () => {
+  const particles = useMemo(() => 
+    Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 3 + 1,
+      duration: Math.random() * 20 + 10,
+      delay: Math.random() * 5,
+    })), []
+  );
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full bg-orange-400/30"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            opacity: [0.2, 0.6, 0.2],
+            scale: [1, 1.2, 1],
+          }}
+          transition={{
+            duration: p.duration,
+            delay: p.delay,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
+  );
 };
 
-// Componente de Item de Contato
-const ContactItem = ({ 
+// Componente de Nebulosa de Fundo
+const NebulaBackground = () => (
+  <div className="absolute inset-0 overflow-hidden">
+    {/* Gradiente principal */}
+    <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-orange-950/20" />
+    
+    {/* Nebulosas */}
+    <motion.div 
+      className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] rounded-full"
+      style={{
+        background: "radial-gradient(circle, rgba(249, 115, 22, 0.08) 0%, transparent 70%)",
+        filter: "blur(60px)",
+      }}
+      animate={{ 
+        scale: [1, 1.2, 1],
+        rotate: [0, 180, 360],
+      }}
+      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+    />
+    <motion.div 
+      className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full"
+      style={{
+        background: "radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%)",
+        filter: "blur(50px)",
+      }}
+      animate={{ 
+        scale: [1.2, 1, 1.2],
+        rotate: [360, 180, 0],
+      }}
+      transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+    />
+    <motion.div 
+      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
+      style={{
+        background: "radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 60%)",
+        filter: "blur(80px)",
+      }}
+      animate={{ 
+        scale: [1, 1.1, 1],
+      }}
+      transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+    />
+    
+    <CosmicParticles />
+  </div>
+);
+
+// Componente de Orbe de Contato
+const ContactOrb = ({ 
   contact, 
   isSelected, 
-  onClick 
+  onClick,
+  index,
 }: { 
   contact: Contact; 
   isSelected: boolean;
   onClick: () => void;
-}) => (
-  <div
-    onClick={onClick}
-    className={cn(
-      "flex items-center gap-3 p-3 cursor-pointer transition-all",
-      "hover:bg-orange-500/5 border-b border-foreground/5",
-      isSelected && "bg-orange-500/10 border-l-2 border-l-orange-500"
-    )}
-  >
-    <div className="relative">
-      <Avatar className="h-12 w-12 border-2 border-background shadow-lg">
-        <AvatarImage src={contact.avatar} />
-        <AvatarFallback className="bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-300 font-semibold">
-          {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-        </AvatarFallback>
-      </Avatar>
-      {contact.isOnline && (
-        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-card shadow-lg shadow-green-500/50" />
-      )}
-    </div>
-    
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium text-foreground truncate flex items-center gap-1.5">
-          {contact.name}
-          {contact.isPinned && <Star className="w-3 h-3 text-orange-400 fill-orange-400" />}
-          {contact.isMuted && <BellOff className="w-3 h-3 text-muted-foreground" />}
-        </span>
-        <span className={cn(
-          "text-xs shrink-0",
-          contact.unreadCount ? "text-orange-400 font-medium" : "text-muted-foreground"
-        )}>
-          {contact.lastMessageTime}
-        </span>
-      </div>
-      <div className="flex items-center justify-between mt-0.5 gap-2">
-        <p className="text-sm text-muted-foreground truncate">
-          {contact.isTyping ? (
-            <span className="text-orange-400 italic">digitando...</span>
-          ) : (
-            contact.lastMessage
-          )}
-        </p>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {contact.tag && (
-            <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", tagColors[contact.tag])}>
-              {contact.tag}
-            </span>
-          )}
-          {contact.unreadCount ? (
-            <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center shadow-lg shadow-orange-500/30">
-              {contact.unreadCount}
-            </Badge>
-          ) : null}
-        </div>
-      </div>
-    </div>
-  </div>
-);
-
-// Componente de Mensagem
-const MessageBubble = ({ message }: { message: Message }) => (
-  <div
-    className={cn(
-      "flex",
-      message.isFromMe ? "justify-end" : "justify-start"
-    )}
-  >
-    <div
-      className={cn(
-        "max-w-[70%] rounded-2xl px-4 py-2.5 shadow-lg",
-        message.isFromMe 
-          ? "bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-br-md" 
-          : "bg-card/80 backdrop-blur-xl text-foreground border border-foreground/10 rounded-bl-md"
-      )}
+  index: number;
+}) => {
+  const tagStyle = contact.tag ? tagGradients[contact.tag] : tagGradients.cliente;
+  const energyScale = 0.8 + (contact.energy || 50) / 200;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1, type: "spring", stiffness: 200 }}
+      onClick={onClick}
+      className="relative cursor-pointer group"
     >
-      <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-      <div className={cn(
-        "flex items-center justify-end gap-1 mt-1",
-        message.isFromMe ? "text-orange-100" : "text-muted-foreground"
-      )}>
-        <span className="text-[10px]">{message.timestamp}</span>
-        {message.isFromMe && <MessageStatus status={message.status} />}
+      {/* Anel de energia */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: `conic-gradient(from 0deg, ${tagStyle.from}, ${tagStyle.to}, ${tagStyle.from})`,
+          padding: 2,
+        }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+      >
+        <div className="w-full h-full rounded-full bg-background" />
+      </motion.div>
+      
+      {/* Glow pulsante */}
+      <motion.div
+        className="absolute inset-[-4px] rounded-full opacity-50"
+        style={{
+          background: `radial-gradient(circle, ${tagStyle.glow} 0%, transparent 70%)`,
+        }}
+        animate={{ 
+          scale: [1, 1.3, 1],
+          opacity: [0.3, 0.6, 0.3],
+        }}
+        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+      />
+      
+      {/* Avatar central */}
+      <div 
+        className={cn(
+          "relative w-16 h-16 rounded-full overflow-hidden",
+          "flex items-center justify-center",
+          "bg-gradient-to-br text-white font-bold text-lg",
+          "transition-transform duration-300",
+          isSelected && "ring-2 ring-white ring-offset-2 ring-offset-background"
+        )}
+        style={{
+          background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})`,
+          transform: `scale(${energyScale})`,
+        }}
+      >
+        {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+        
+        {/* Indicador online */}
+        {contact.isOnline && (
+          <motion.div
+            className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-400 border-2 border-background"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+        )}
       </div>
-    </div>
-  </div>
-);
+      
+      {/* Badge de mensagens não lidas */}
+      {contact.unreadCount && contact.unreadCount > 0 && (
+        <motion.div
+          className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: "spring", stiffness: 500 }}
+        >
+          {contact.unreadCount}
+        </motion.div>
+      )}
+      
+      {/* Nome no hover */}
+      <motion.div
+        className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap"
+        initial={{ opacity: 0, y: -5 }}
+        whileHover={{ opacity: 1, y: 0 }}
+      >
+        <span className="text-xs font-medium text-foreground/80 bg-background/80 backdrop-blur px-2 py-1 rounded-lg">
+          {contact.name.split(' ')[0]}
+        </span>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+// Componente de Mensagem Estilo Pulso
+const EnergyMessage = ({ message, index }: { message: Message; index: number }) => {
+  const isFromMe = message.isFromMe;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: isFromMe ? 50 : -50, scale: 0.8 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      transition={{ delay: index * 0.05, type: "spring", stiffness: 200 }}
+      className={cn("flex", isFromMe ? "justify-end" : "justify-start")}
+    >
+      <div className="relative group">
+        {/* Glow de fundo */}
+        <div
+          className={cn(
+            "absolute inset-0 rounded-2xl blur-lg opacity-30",
+            isFromMe ? "bg-orange-500" : "bg-purple-500"
+          )}
+        />
+        
+        {/* Container da mensagem */}
+        <div
+          className={cn(
+            "relative px-4 py-3 rounded-2xl max-w-[300px]",
+            "backdrop-blur-xl border",
+            isFromMe 
+              ? "bg-gradient-to-r from-orange-500/90 to-orange-600/90 border-orange-400/30 text-white rounded-br-md" 
+              : "bg-card/60 border-purple-500/20 text-foreground rounded-bl-md"
+          )}
+        >
+          {/* Efeito de brilho */}
+          <div 
+            className={cn(
+              "absolute inset-0 rounded-2xl opacity-20",
+              isFromMe ? "bg-gradient-to-t from-transparent to-white/30" : "bg-gradient-to-t from-transparent to-purple-400/20"
+            )}
+          />
+          
+          <p className="relative text-sm">{message.content}</p>
+          
+          <div className={cn(
+            "flex items-center justify-end gap-1.5 mt-1.5",
+            isFromMe ? "text-orange-100" : "text-muted-foreground"
+          )}>
+            <span className="text-[10px]">{message.timestamp}</span>
+            {isFromMe && (
+              message.status === "read" 
+                ? <CheckCheck className="w-3 h-3 text-cyan-300" />
+                : message.status === "delivered"
+                ? <CheckCheck className="w-3 h-3" />
+                : message.status === "sent"
+                ? <Check className="w-3 h-3" />
+                : <Clock className="w-3 h-3" />
+            )}
+          </div>
+        </div>
+        
+        {/* Linha de energia conectando */}
+        <motion.div
+          className={cn(
+            "absolute top-1/2 w-8 h-[2px]",
+            isFromMe ? "-right-8 bg-gradient-to-r from-orange-500/50 to-transparent" : "-left-8 bg-gradient-to-l from-purple-500/50 to-transparent"
+          )}
+          animate={{ opacity: [0.3, 0.7, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        />
+      </div>
+    </motion.div>
+  );
+};
+
+// Componente de Input Holográfico
+const HolographicInput = ({ 
+  value, 
+  onChange, 
+  onSend,
+  onKeyDown,
+  inputRef 
+}: { 
+  value: string; 
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSend: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+}) => {
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative"
+    >
+      {/* Glow de fundo */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-orange-500/20 blur-xl" />
+      
+      {/* Container principal */}
+      <div className="relative flex items-center gap-3 p-3 rounded-2xl bg-card/60 backdrop-blur-xl border border-orange-500/20">
+        {/* Botões de mídia */}
+        <div className="flex items-center gap-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="w-9 h-9 rounded-full text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10"
+          >
+            <Paperclip className="w-4 h-4" />
+          </Button>
+        </div>
+        
+        {/* Input */}
+        <div className="flex-1 relative">
+          <Input
+            ref={inputRef}
+            value={value}
+            onChange={onChange}
+            onKeyDown={onKeyDown}
+            placeholder="Digite sua mensagem..."
+            className="bg-transparent border-0 focus-visible:ring-0 px-0 placeholder:text-muted-foreground/50"
+          />
+          
+          {/* Linha de digitação animada */}
+          {value.length > 0 && (
+            <motion.div
+              className="absolute bottom-0 left-0 h-[2px] bg-gradient-to-r from-orange-500 to-purple-500"
+              initial={{ width: 0 }}
+              animate={{ width: `${Math.min(value.length * 3, 100)}%` }}
+              transition={{ type: "spring", stiffness: 300 }}
+            />
+          )}
+        </div>
+        
+        {/* Botão de enviar */}
+        <AnimatePresence mode="wait">
+          {value.trim() ? (
+            <motion.div
+              key="send"
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ scale: 1, rotate: 0 }}
+              exit={{ scale: 0, rotate: 180 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <Button
+                onClick={onSend}
+                size="icon"
+                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 shadow-lg shadow-orange-500/30"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="mic"
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0 }}
+            >
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-10 h-10 rounded-full text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10"
+              >
+                <Mic className="w-4 h-4" />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </motion.div>
+  );
+};
+
+// Painel de Chat Expandido
+const ExpandedChat = ({ 
+  contact, 
+  messages, 
+  onClose,
+  newMessage,
+  onMessageChange,
+  onSendMessage,
+  onKeyDown,
+  inputRef,
+  messagesEndRef,
+}: {
+  contact: Contact;
+  messages: Message[];
+  onClose: () => void;
+  newMessage: string;
+  onMessageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSendMessage: () => void;
+  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  inputRef: React.RefObject<HTMLInputElement>;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
+}) => {
+  const tagStyle = contact.tag ? tagGradients[contact.tag] : tagGradients.cliente;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 50 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 50 }}
+      transition={{ type: "spring", stiffness: 200 }}
+      className="absolute inset-4 md:inset-8 lg:inset-12 z-50 flex flex-col rounded-3xl overflow-hidden"
+    >
+      {/* Fundo com blur */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl" />
+      
+      {/* Borda gradiente */}
+      <div 
+        className="absolute inset-0 rounded-3xl"
+        style={{
+          background: `linear-gradient(135deg, ${tagStyle.from}20, ${tagStyle.to}20)`,
+          padding: 1,
+        }}
+      />
+      
+      {/* Header */}
+      <div className="relative z-10 flex items-center justify-between p-4 border-b border-foreground/10">
+        <div className="flex items-center gap-4">
+          {/* Avatar com animação */}
+          <motion.div
+            className="relative"
+            animate={{ rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 4, repeat: Infinity }}
+          >
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+              style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
+            >
+              {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            </div>
+            {contact.isOnline && (
+              <motion.div
+                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-2 border-background"
+                animate={{ scale: [1, 1.2, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              />
+            )}
+          </motion.div>
+          
+          <div>
+            <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
+              {contact.name}
+              <span 
+                className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                style={{ 
+                  background: `linear-gradient(135deg, ${tagStyle.from}30, ${tagStyle.to}30)`,
+                  color: tagStyle.from 
+                }}
+              >
+                {contact.tag}
+              </span>
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {contact.isOnline ? (
+                <span className="text-green-400 flex items-center gap-1">
+                  <Radio className="w-3 h-3" /> online
+                </span>
+              ) : contact.phone}
+            </p>
+          </div>
+        </div>
+        
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          className="rounded-full hover:bg-foreground/10"
+        >
+          <X className="w-5 h-5" />
+        </Button>
+      </div>
+      
+      {/* Área de mensagens */}
+      <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Linhas de conexão animadas */}
+        <div className="absolute inset-0 pointer-events-none">
+          <svg className="w-full h-full opacity-10">
+            <motion.line
+              x1="10%"
+              y1="0"
+              x2="10%"
+              y2="100%"
+              stroke="url(#lineGradient)"
+              strokeWidth="1"
+              strokeDasharray="10 10"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 2 }}
+            />
+            <motion.line
+              x1="90%"
+              y1="0"
+              x2="90%"
+              y2="100%"
+              stroke="url(#lineGradient)"
+              strokeWidth="1"
+              strokeDasharray="10 10"
+              initial={{ pathLength: 0 }}
+              animate={{ pathLength: 1 }}
+              transition={{ duration: 2, delay: 0.5 }}
+            />
+            <defs>
+              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor={tagStyle.from} stopOpacity="0" />
+                <stop offset="50%" stopColor={tagStyle.from} stopOpacity="1" />
+                <stop offset="100%" stopColor={tagStyle.to} stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        
+        {messages.map((message, index) => (
+          <EnergyMessage key={message.id} message={message} index={index} />
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+      
+      {/* Input */}
+      <div className="relative z-10 p-4">
+        <HolographicInput
+          value={newMessage}
+          onChange={onMessageChange}
+          onSend={onSendMessage}
+          onKeyDown={onKeyDown}
+          inputRef={inputRef}
+        />
+      </div>
+    </motion.div>
+  );
+};
 
 export default function Messenger() {
   const { user } = useAuth();
@@ -190,8 +589,7 @@ export default function Messenger() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showMobileChat, setShowMobileChat] = useState(false);
-  const [activeFilter, setActiveFilter] = useState<"all" | "unread" | "pinned">("all");
+  const [showSearch, setShowSearch] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -200,24 +598,19 @@ export default function Messenger() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, selectedContact?.id]);
 
-  const filteredContacts = contacts.filter(contact => {
-    const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.phone.includes(searchQuery);
-    
-    if (activeFilter === "unread") return matchesSearch && (contact.unreadCount || 0) > 0;
-    if (activeFilter === "pinned") return matchesSearch && contact.isPinned;
-    return matchesSearch;
-  });
+  const filteredContacts = useMemo(() => 
+    contacts.filter(contact => 
+      contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      contact.phone.includes(searchQuery)
+    ), [contacts, searchQuery]
+  );
 
-  const sortedContacts = [...filteredContacts].sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return 0;
-  });
-
-  const contactMessages = selectedContact 
-    ? messages.filter(m => m.contactId === selectedContact.id)
-    : [];
+  const contactMessages = useMemo(() => 
+    selectedContact 
+      ? messages.filter(m => m.contactId === selectedContact.id)
+      : [],
+    [selectedContact, messages]
+  );
 
   const handleSendMessage = useCallback(() => {
     if (!newMessage.trim() || !selectedContact) return;
@@ -251,7 +644,6 @@ export default function Messenger() {
 
   const handleSelectContact = useCallback((contact: Contact) => {
     setSelectedContact(contact);
-    setShowMobileChat(true);
   }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,259 +657,174 @@ export default function Messenger() {
     }
   }, [handleSendMessage]);
 
+  // Organizar contatos por tag
+  const groupedContacts = useMemo(() => {
+    const groups: Record<string, Contact[]> = {
+      cliente: [],
+      fornecedor: [],
+      interno: [],
+    };
+    filteredContacts.forEach(c => {
+      if (c.tag) groups[c.tag].push(c);
+      else groups.cliente.push(c);
+    });
+    return groups;
+  }, [filteredContacts]);
+
   return (
-    <div className="h-screen flex overflow-hidden bg-background relative">
-      <GradientMesh />
-      <div className="relative z-10 flex w-full h-full">
-        {/* Lista de Contatos */}
-        <motion.div 
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className={cn(
-            "flex flex-col h-full",
-            "bg-card/40 backdrop-blur-2xl border-r border-orange-500/10",
-            "w-full md:w-[380px] lg:w-[420px]",
-            showMobileChat && "hidden md:flex"
-          )}
-        >
-          {/* Header */}
-          <div className="p-4 border-b border-orange-500/10">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20">
-                  <MessageCircle className="w-5 h-5 text-orange-400" />
-                </div>
-                <div>
-                  <h1 className="text-lg font-bold text-foreground">Messenger</h1>
-                  <p className="text-xs text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                  <Plus className="w-5 h-5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                  <SlidersHorizontal className="w-5 h-5" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Busca */}
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar conversas..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-background/50 border-orange-500/20 focus-visible:ring-orange-500/50 focus-visible:border-orange-500/40"
-              />
-            </div>
-
-            {/* Filtros */}
-            <div className="flex gap-2">
-              {[
-                { key: "all", label: "Todas" },
-                { key: "unread", label: "Não lidas" },
-                { key: "pinned", label: "Fixadas" },
-              ].map((filter) => (
-                <button
-                  key={filter.key}
-                  onClick={() => setActiveFilter(filter.key as typeof activeFilter)}
-                  className={cn(
-                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                    activeFilter === filter.key
-                      ? "bg-orange-500 text-white shadow-lg shadow-orange-500/25"
-                      : "bg-background/50 text-muted-foreground hover:text-foreground hover:bg-background/80"
-                  )}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+    <div className="h-screen flex flex-col overflow-hidden bg-background relative">
+      <NebulaBackground />
+      
+      {/* Header flutuante */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-20 flex items-center justify-between p-4 md:p-6"
+      >
+        <div className="flex items-center gap-4">
+          <motion.div
+            className="p-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
+            whileHover={{ scale: 1.05, rotate: 5 }}
+          >
+            <Sparkles className="w-6 h-6 text-orange-400" />
+          </motion.div>
+          <div>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+              Nebula Messenger
+            </h1>
+            <p className="text-sm text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
           </div>
-
-          {/* Lista */}
-          <ScrollArea className="flex-1">
-            {sortedContacts.map((contact) => (
-              <ContactItem
-                key={contact.id}
-                contact={contact}
-                isSelected={selectedContact?.id === contact.id}
-                onClick={() => handleSelectContact(contact)}
-              />
-            ))}
-
-            {filteredContacts.length === 0 && (
-              <div className="p-8 text-center text-muted-foreground">
-                <MessageCircle className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                <p>Nenhuma conversa encontrada</p>
-              </div>
-            )}
-          </ScrollArea>
-
-          {/* Status API */}
-          <div className="p-3 border-t border-orange-500/10 bg-orange-500/5">
-            <div className="flex items-center gap-2 text-xs text-orange-400">
-              <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-              <span>Aguardando conexão com API Business</span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Área de Chat */}
-        <div className={cn(
-          "flex-1 flex flex-col h-full relative",
-          !showMobileChat && "hidden md:flex"
-        )}>
-          {/* Background sutil */}
-          <div className="absolute inset-0 opacity-30">
-            <div 
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `radial-gradient(circle at 50% 50%, hsl(var(--orange-500) / 0.03) 0%, transparent 50%)`,
-              }}
-            />
-          </div>
-
-          {selectedContact ? (
-            <>
-              {/* Header do Chat */}
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="relative z-10 flex items-center justify-between p-3 border-b border-orange-500/10 bg-card/60 backdrop-blur-xl"
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <AnimatePresence>
+            {showSearch && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 200, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                className="overflow-hidden"
               >
-                <div className="flex items-center gap-3">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="md:hidden text-muted-foreground hover:text-orange-400"
-                    onClick={() => setShowMobileChat(false)}
-                  >
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <Avatar className="h-10 w-10 border-2 border-orange-500/20">
-                    <AvatarImage src={selectedContact.avatar} />
-                    <AvatarFallback className="bg-gradient-to-br from-orange-500/30 to-orange-600/20 text-orange-300">
-                      {selectedContact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className="font-semibold text-foreground flex items-center gap-2">
-                      {selectedContact.name}
-                      {selectedContact.tag && (
-                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full border", tagColors[selectedContact.tag])}>
-                          {selectedContact.tag}
-                        </span>
-                      )}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      {selectedContact.isOnline ? (
-                        <span className="text-green-400">online</span>
-                      ) : (
-                        selectedContact.phone
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                    <Phone className="w-5 h-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                    <Video className="w-5 h-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10">
-                    <MoreVertical className="w-5 h-5" />
-                  </Button>
-                </div>
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar..."
+                  className="bg-card/60 border-orange-500/20"
+                  autoFocus
+                />
               </motion.div>
-
-              {/* Mensagens */}
-              <ScrollArea className="flex-1 p-4 relative z-10">
-                <div className="space-y-3 max-w-3xl mx-auto">
-                  {contactMessages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-              </ScrollArea>
-
-              {/* Input */}
+            )}
+          </AnimatePresence>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowSearch(!showSearch)}
+            className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+          >
+            <Search className="w-5 h-5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+        </div>
+      </motion.div>
+      
+      {/* Área principal com orbes */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8">
+        {/* Constelações de contatos por grupo */}
+        {Object.entries(groupedContacts).map(([tag, groupContacts], groupIndex) => (
+          groupContacts.length > 0 && (
+            <motion.div
+              key={tag}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: groupIndex * 0.2 }}
+              className="mb-12"
+            >
+              {/* Label do grupo */}
               <motion.div 
+                className="text-center mb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="relative z-10 p-3 border-t border-orange-500/10 bg-card/60 backdrop-blur-xl"
               >
-                <div className="flex items-center gap-2 max-w-3xl mx-auto">
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
-                    <Smile className="w-5 h-5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
-                    <Paperclip className="w-5 h-5" />
-                  </Button>
-                  <Input
-                    ref={inputRef}
-                    placeholder="Digite sua mensagem..."
-                    value={newMessage}
-                    onChange={handleInputChange}
-                    onKeyDown={handleKeyDown}
-                    className="flex-1 bg-background/50 border-orange-500/20 focus-visible:ring-orange-500/50 focus-visible:border-orange-500/40"
-                  />
-                  {newMessage.trim() ? (
-                    <Button 
-                      size="icon" 
-                      className="bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/30 shrink-0"
-                      onClick={handleSendMessage}
-                    >
-                      <Send className="w-5 h-5" />
-                    </Button>
-                  ) : (
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-orange-400 hover:bg-orange-500/10 shrink-0">
-                      <Mic className="w-5 h-5" />
-                    </Button>
-                  )}
-                </div>
-              </motion.div>
-            </>
-          ) : (
-            /* Estado Vazio */
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center relative z-10">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="relative"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/20 to-orange-600/10 rounded-full blur-3xl" />
-                <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/20 flex items-center justify-center mb-6">
-                  <MessageCircle className="w-16 h-16 text-orange-400" />
-                </div>
+                <span 
+                  className="text-xs font-medium px-4 py-1.5 rounded-full border"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${tagGradients[tag].from}20, ${tagGradients[tag].to}20)`,
+                    borderColor: `${tagGradients[tag].from}30`,
+                    color: tagGradients[tag].from 
+                  }}
+                >
+                  <Zap className="w-3 h-3 inline mr-1" />
+                  {tag.charAt(0).toUpperCase() + tag.slice(1)}s
+                </span>
               </motion.div>
               
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
-                <h2 className="text-2xl font-bold text-foreground mb-2">
-                  Messenger <span className="text-orange-400">VAULT</span>
-                </h2>
-                <p className="text-muted-foreground max-w-md mb-8">
-                  Comunicação integrada para envio de documentos, lembretes e atendimento ao cliente.
-                </p>
-                
-                <div className="p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 max-w-md">
-                  <div className="flex items-center gap-3 text-sm text-orange-400">
-                    <Zap className="w-5 h-5" />
-                    <span>Configure a API Business para começar a enviar mensagens</span>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </div>
+              {/* Orbes do grupo */}
+              <div className="flex flex-wrap justify-center gap-8">
+                {groupContacts.map((contact, index) => (
+                  <ContactOrb
+                    key={contact.id}
+                    contact={contact}
+                    isSelected={selectedContact?.id === contact.id}
+                    onClick={() => handleSelectContact(contact)}
+                    index={groupIndex * 10 + index}
+                  />
+                ))}
+              </div>
+            </motion.div>
+          )
+        ))}
+        
+        {/* Mensagem se não houver contatos */}
+        {filteredContacts.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center"
+          >
+            <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+            <p className="text-muted-foreground">Nenhum contato encontrado</p>
+          </motion.div>
+        )}
       </div>
+      
+      {/* Status da API */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative z-10 p-4 flex justify-center"
+      >
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-xl border border-orange-500/20">
+          <motion.div
+            className="w-2 h-2 rounded-full bg-orange-500"
+            animate={{ opacity: [0.5, 1, 0.5] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <span className="text-xs text-orange-400">Aguardando conexão com API Business</span>
+        </div>
+      </motion.div>
+      
+      {/* Chat expandido */}
+      <AnimatePresence>
+        {selectedContact && (
+          <ExpandedChat
+            contact={selectedContact}
+            messages={contactMessages}
+            onClose={() => setSelectedContact(null)}
+            newMessage={newMessage}
+            onMessageChange={handleInputChange}
+            onSendMessage={handleSendMessage}
+            onKeyDown={handleKeyDown}
+            inputRef={inputRef}
+            messagesEndRef={messagesEndRef}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
