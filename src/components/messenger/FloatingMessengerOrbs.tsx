@@ -261,15 +261,26 @@ const ExpandedChatPanel = React.memo(({
   }, [onSendMessage]);
   
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 50 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 50 }}
-      transition={{ type: "spring", stiffness: 200 }}
-      className="fixed inset-4 md:inset-8 lg:inset-12 z-[60] flex flex-col rounded-3xl overflow-hidden"
-    >
-      {/* Fundo com blur */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl" />
+    <>
+      {/* Backdrop - fecha ao clicar fora */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-[59] bg-black/40 backdrop-blur-sm"
+      />
+      
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 50 }}
+        transition={{ type: "spring", stiffness: 200 }}
+        className="fixed inset-4 md:inset-8 lg:inset-12 z-[60] flex flex-col rounded-3xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fundo com blur */}
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl" />
       
       {/* Borda gradiente */}
       <div 
@@ -393,6 +404,7 @@ const ExpandedChatPanel = React.memo(({
         />
       </div>
     </motion.div>
+    </>
   );
 });
 
