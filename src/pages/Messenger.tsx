@@ -6,11 +6,64 @@ import {
   Send, Paperclip, Mic, 
   Check, CheckCheck, Clock, 
   Sparkles, Zap, Radio,
-  ArrowLeft, X, Search, Plus
+  ArrowLeft, X, Search, Plus,
+  Palette, Moon, Sun
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+
+// Tipos de tema
+type MessengerTheme = "colorful" | "dark" | "light";
+
+const THEME_STORAGE_KEY = "messenger-page-theme";
+
+// Configurações visuais por tema
+const themeStyles: Record<MessengerTheme, {
+  bg: string;
+  card: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  input: string;
+  inputBorder: string;
+  chatBg: string;
+  chatBorder: string;
+}> = {
+  colorful: {
+    bg: "bg-background",
+    card: "bg-card/60 backdrop-blur-xl",
+    border: "border-orange-500/20",
+    text: "text-foreground",
+    textMuted: "text-muted-foreground",
+    input: "bg-card/60 backdrop-blur-xl",
+    inputBorder: "border-orange-500/20",
+    chatBg: "bg-background/80 backdrop-blur-2xl",
+    chatBorder: "border-orange-500/20",
+  },
+  dark: {
+    bg: "bg-black",
+    card: "bg-zinc-900/90 backdrop-blur-xl",
+    border: "border-zinc-700",
+    text: "text-white",
+    textMuted: "text-zinc-400",
+    input: "bg-zinc-900/90",
+    inputBorder: "border-zinc-700",
+    chatBg: "bg-zinc-950/95 backdrop-blur-2xl",
+    chatBorder: "border-zinc-700",
+  },
+  light: {
+    bg: "bg-white",
+    card: "bg-white shadow-lg",
+    border: "border-gray-200",
+    text: "text-gray-900",
+    textMuted: "text-gray-500",
+    input: "bg-white",
+    inputBorder: "border-gray-200",
+    chatBg: "bg-white",
+    chatBorder: "border-gray-200",
+  },
+};
 
 // Tipos
 interface Contact {
@@ -24,7 +77,7 @@ interface Contact {
   isOnline?: boolean;
   isTyping?: boolean;
   tag?: "cliente" | "fornecedor" | "interno";
-  energy?: number; // 0-100 nível de atividade
+  energy?: number;
 }
 
 interface Message {
@@ -104,51 +157,67 @@ const CosmicParticles = () => {
 };
 
 // Componente de Nebulosa de Fundo
-const NebulaBackground = () => (
-  <div className="absolute inset-0 overflow-hidden">
-    {/* Gradiente principal */}
-    <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-orange-950/20" />
-    
-    {/* Nebulosas */}
-    <motion.div 
-      className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] rounded-full"
-      style={{
-        background: "radial-gradient(circle, rgba(249, 115, 22, 0.08) 0%, transparent 70%)",
-        filter: "blur(60px)",
-      }}
-      animate={{ 
-        scale: [1, 1.2, 1],
-        rotate: [0, 180, 360],
-      }}
-      transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
-    />
-    <motion.div 
-      className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full"
-      style={{
-        background: "radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%)",
-        filter: "blur(50px)",
-      }}
-      animate={{ 
-        scale: [1.2, 1, 1.2],
-        rotate: [360, 180, 0],
-      }}
-      transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
-    />
-    <motion.div 
-      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
-      style={{
-        background: "radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 60%)",
-        filter: "blur(80px)",
-      }}
-      animate={{ 
-        scale: [1, 1.1, 1],
-      }}
-      transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-    />
-    
-    <CosmicParticles />
-  </div>
-);
+const NebulaBackground = ({ theme }: { theme: MessengerTheme }) => {
+  if (theme === "light") {
+    return (
+      <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-orange-50/30" />
+    );
+  }
+
+  if (theme === "dark") {
+    return (
+      <div className="absolute inset-0 bg-black">
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-black" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Gradiente principal */}
+      <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-orange-950/20" />
+      
+      {/* Nebulosas */}
+      <motion.div 
+        className="absolute top-1/4 -left-1/4 w-[600px] h-[600px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(249, 115, 22, 0.08) 0%, transparent 70%)",
+          filter: "blur(60px)",
+        }}
+        animate={{ 
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+        }}
+        transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div 
+        className="absolute bottom-1/4 -right-1/4 w-[500px] h-[500px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(168, 85, 247, 0.06) 0%, transparent 70%)",
+          filter: "blur(50px)",
+        }}
+        animate={{ 
+          scale: [1.2, 1, 1.2],
+          rotate: [360, 180, 0],
+        }}
+        transition={{ duration: 50, repeat: Infinity, ease: "linear" }}
+      />
+      <motion.div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgba(59, 130, 246, 0.04) 0%, transparent 60%)",
+          filter: "blur(80px)",
+        }}
+        animate={{ 
+          scale: [1, 1.1, 1],
+        }}
+        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
+      />
+      
+      <CosmicParticles />
+    </div>
+  );
+};
 
 // Componente de Orbe de Contato
 const ContactOrb = ({ 
@@ -431,6 +500,7 @@ const ExpandedChat = ({
   onKeyDown,
   inputRef,
   messagesEndRef,
+  theme,
 }: {
   contact: Contact;
   messages: Message[];
@@ -441,142 +511,162 @@ const ExpandedChat = ({
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   inputRef: React.RefObject<HTMLInputElement>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
+  theme: MessengerTheme;
 }) => {
   const tagStyle = contact.tag ? tagGradients[contact.tag] : tagGradients.cliente;
+  const styles = themeStyles[theme];
   
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.9, y: 50 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.9, y: 50 }}
-      transition={{ type: "spring", stiffness: 200 }}
-      className="absolute inset-4 md:inset-8 lg:inset-12 z-50 flex flex-col rounded-3xl overflow-hidden"
-    >
-      {/* Fundo com blur */}
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-2xl" />
-      
-      {/* Borda gradiente */}
-      <div 
-        className="absolute inset-0 rounded-3xl"
-        style={{
-          background: `linear-gradient(135deg, ${tagStyle.from}20, ${tagStyle.to}20)`,
-          padding: 1,
-        }}
+    <>
+      {/* Backdrop clicável */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm"
       />
       
-      {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4 border-b border-foreground/10">
-        <div className="flex items-center gap-4">
-          {/* Avatar com animação */}
-          <motion.div
-            className="relative"
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 4, repeat: Infinity }}
-          >
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-              style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
-            >
-              {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-            </div>
-            {contact.isOnline && (
-              <motion.div
-                className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-2 border-background"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-            )}
-          </motion.div>
-          
-          <div>
-            <h2 className="font-bold text-lg text-foreground flex items-center gap-2">
-              {contact.name}
-              <span 
-                className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                style={{ 
-                  background: `linear-gradient(135deg, ${tagStyle.from}30, ${tagStyle.to}30)`,
-                  color: tagStyle.from 
-                }}
-              >
-                {contact.tag}
-              </span>
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {contact.isOnline ? (
-                <span className="text-green-400 flex items-center gap-1">
-                  <Radio className="w-3 h-3" /> online
-                </span>
-              ) : contact.phone}
-            </p>
-          </div>
-        </div>
+      {/* Painel de chat */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 50 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 50 }}
+        transition={{ type: "spring", stiffness: 200 }}
+        className={cn(
+          "fixed inset-4 md:inset-8 lg:inset-12 z-50 flex flex-col rounded-3xl overflow-hidden border",
+          styles.chatBorder
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Fundo com blur */}
+        <div className={cn("absolute inset-0", styles.chatBg)} />
         
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="rounded-full hover:bg-foreground/10"
-        >
-          <X className="w-5 h-5" />
-        </Button>
-      </div>
-      
-      {/* Área de mensagens */}
-      <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Linhas de conexão animadas */}
-        <div className="absolute inset-0 pointer-events-none">
-          <svg className="w-full h-full opacity-10">
-            <motion.line
-              x1="10%"
-              y1="0"
-              x2="10%"
-              y2="100%"
-              stroke="url(#lineGradient)"
-              strokeWidth="1"
-              strokeDasharray="10 10"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 2 }}
-            />
-            <motion.line
-              x1="90%"
-              y1="0"
-              x2="90%"
-              y2="100%"
-              stroke="url(#lineGradient)"
-              strokeWidth="1"
-              strokeDasharray="10 10"
-              initial={{ pathLength: 0 }}
-              animate={{ pathLength: 1 }}
-              transition={{ duration: 2, delay: 0.5 }}
-            />
-            <defs>
-              <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor={tagStyle.from} stopOpacity="0" />
-                <stop offset="50%" stopColor={tagStyle.from} stopOpacity="1" />
-                <stop offset="100%" stopColor={tagStyle.to} stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        
-        {messages.map((message, index) => (
-          <EnergyMessage key={message.id} message={message} index={index} />
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
-      
-      {/* Input */}
-      <div className="relative z-10 p-4">
-        <HolographicInput
-          value={newMessage}
-          onChange={onMessageChange}
-          onSend={onSendMessage}
-          onKeyDown={onKeyDown}
-          inputRef={inputRef}
+        {/* Borda gradiente */}
+        <div 
+          className="absolute inset-0 rounded-3xl pointer-events-none"
+          style={{
+            background: `linear-gradient(135deg, ${tagStyle.from}20, ${tagStyle.to}20)`,
+            padding: 1,
+          }}
         />
-      </div>
-    </motion.div>
+        
+        {/* Header */}
+        <div className={cn("relative z-10 flex items-center justify-between p-4 border-b", styles.border)}>
+          <div className="flex items-center gap-4">
+            {/* Avatar com animação */}
+            <motion.div
+              className="relative"
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 4, repeat: Infinity }}
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
+              >
+                {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+              </div>
+              {contact.isOnline && (
+                <motion.div
+                  className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-400 border-2 border-background"
+                  animate={{ scale: [1, 1.2, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+              )}
+            </motion.div>
+            
+            <div>
+              <h2 className={cn("font-bold text-lg flex items-center gap-2", styles.text)}>
+                {contact.name}
+                <span 
+                  className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{ 
+                    background: `linear-gradient(135deg, ${tagStyle.from}30, ${tagStyle.to}30)`,
+                    color: tagStyle.from 
+                  }}
+                >
+                  {contact.tag}
+                </span>
+              </h2>
+              <p className={cn("text-sm", styles.textMuted)}>
+                {contact.isOnline ? (
+                  <span className="text-green-400 flex items-center gap-1">
+                    <Radio className="w-3 h-3" /> online
+                  </span>
+                ) : contact.phone}
+              </p>
+            </div>
+          </div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className={cn("rounded-full", theme === "light" ? "hover:bg-gray-100" : "hover:bg-foreground/10")}
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+        
+        {/* Área de mensagens */}
+        <div className="relative z-10 flex-1 overflow-y-auto p-4 space-y-4">
+          {/* Linhas de conexão animadas */}
+          {theme === "colorful" && (
+            <div className="absolute inset-0 pointer-events-none">
+              <svg className="w-full h-full opacity-10">
+                <motion.line
+                  x1="10%"
+                  y1="0"
+                  x2="10%"
+                  y2="100%"
+                  stroke="url(#lineGradient)"
+                  strokeWidth="1"
+                  strokeDasharray="10 10"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 2 }}
+                />
+                <motion.line
+                  x1="90%"
+                  y1="0"
+                  x2="90%"
+                  y2="100%"
+                  stroke="url(#lineGradient)"
+                  strokeWidth="1"
+                  strokeDasharray="10 10"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 2, delay: 0.5 }}
+                />
+                <defs>
+                  <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor={tagStyle.from} stopOpacity="0" />
+                    <stop offset="50%" stopColor={tagStyle.from} stopOpacity="1" />
+                    <stop offset="100%" stopColor={tagStyle.to} stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          )}
+          
+          {messages.map((message, index) => (
+            <EnergyMessage key={message.id} message={message} index={index} />
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Input */}
+        <div className="relative z-10 p-4">
+          <HolographicInput
+            value={newMessage}
+            onChange={onMessageChange}
+            onSend={onSendMessage}
+            onKeyDown={onKeyDown}
+            inputRef={inputRef}
+          />
+        </div>
+      </motion.div>
+    </>
   );
 };
 
@@ -591,12 +681,34 @@ export default function Messenger() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   
+  // Estado do tema persistido
+  const [theme, setTheme] = useState<MessengerTheme>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem(THEME_STORAGE_KEY) as MessengerTheme) || "colorful";
+    }
+    return "colorful";
+  });
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  }, [theme]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, selectedContact?.id]);
+
+  const styles = themeStyles[theme];
+
+  const cycleTheme = useCallback(() => {
+    setTheme(prev => {
+      if (prev === "colorful") return "dark";
+      if (prev === "dark") return "light";
+      return "colorful";
+    });
+  }, []);
 
   const filteredContacts = useMemo(() => 
     contacts.filter(contact => 
@@ -672,8 +784,8 @@ export default function Messenger() {
   }, [filteredContacts]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background relative">
-      <NebulaBackground />
+    <div className={cn("h-screen flex flex-col overflow-hidden relative", styles.bg)}>
+      <NebulaBackground theme={theme} />
       
       {/* Header flutuante */}
       <motion.div 
@@ -683,7 +795,12 @@ export default function Messenger() {
       >
         <div className="flex items-center gap-4">
           <motion.div
-            className="p-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
+            className={cn(
+              "p-3 rounded-2xl border",
+              theme === "light" 
+                ? "bg-orange-50 border-orange-200" 
+                : "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30"
+            )}
             whileHover={{ scale: 1.05, rotate: 5 }}
           >
             <Sparkles className="w-6 h-6 text-orange-400" />
@@ -692,11 +809,29 @@ export default function Messenger() {
             <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
               Nebula Messenger
             </h1>
-            <p className="text-sm text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
+            <p className={cn("text-sm", styles.textMuted)}>{empresaAtiva?.nome || "VAULT"}</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
+          {/* Botão de tema */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={cycleTheme}
+            className={cn(
+              "rounded-full",
+              theme === "light" 
+                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
+                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+            )}
+            title={`Tema: ${theme}`}
+          >
+            {theme === "colorful" && <Palette className="w-5 h-5" />}
+            {theme === "dark" && <Moon className="w-5 h-5" />}
+            {theme === "light" && <Sun className="w-5 h-5" />}
+          </Button>
+          
           <AnimatePresence>
             {showSearch && (
               <motion.div
@@ -709,7 +844,7 @@ export default function Messenger() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Buscar..."
-                  className="bg-card/60 border-orange-500/20"
+                  className={cn(styles.input, styles.inputBorder)}
                   autoFocus
                 />
               </motion.div>
@@ -719,14 +854,24 @@ export default function Messenger() {
             variant="ghost"
             size="icon"
             onClick={() => setShowSearch(!showSearch)}
-            className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+            className={cn(
+              "rounded-full",
+              theme === "light" 
+                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
+                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+            )}
           >
             <Search className="w-5 h-5" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+            className={cn(
+              "rounded-full",
+              theme === "light" 
+                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
+                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+            )}
           >
             <Plus className="w-5 h-5" />
           </Button>
@@ -799,7 +944,12 @@ export default function Messenger() {
         animate={{ opacity: 1, y: 0 }}
         className="relative z-10 p-4 flex justify-center"
       >
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-xl border border-orange-500/20">
+        <div className={cn(
+          "flex items-center gap-2 px-4 py-2 rounded-full border",
+          theme === "light" 
+            ? "bg-white shadow-md border-gray-200" 
+            : "bg-card/40 backdrop-blur-xl border-orange-500/20"
+        )}>
           <motion.div
             className="w-2 h-2 rounded-full bg-orange-500"
             animate={{ opacity: [0.5, 1, 0.5] }}
@@ -822,6 +972,7 @@ export default function Messenger() {
             onKeyDown={handleKeyDown}
             inputRef={inputRef}
             messagesEndRef={messagesEndRef}
+            theme={theme}
           />
         )}
       </AnimatePresence>
