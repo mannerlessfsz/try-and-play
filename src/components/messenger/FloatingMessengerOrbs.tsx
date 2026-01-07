@@ -495,7 +495,7 @@ const FloatingIsland = React.memo(({
         )}
       </AnimatePresence>
 
-      {/* Floating Island */}
+      {/* Floating Island - Compact and positioned to avoid sidebar */}
       <AnimatePresence>
         {isVisible && (
           <motion.div
@@ -503,22 +503,22 @@ const FloatingIsland = React.memo(({
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed bottom-6 left-0 right-0 z-50 flex justify-center"
+            className="fixed bottom-6 left-4 right-72 z-50 flex justify-center pointer-events-none"
           >
             {/* Glow effect */}
-            <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-orange-500/30 via-violet-500/30 to-cyan-500/30 blur-2xl scale-150" />
+            <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-r from-orange-500/30 via-violet-500/30 to-cyan-500/30 blur-2xl scale-110 pointer-events-none" />
             
-            {/* Island container */}
+            {/* Island container - Compact */}
             <div 
               ref={containerRef}
-              className="relative flex items-center gap-2 px-4 py-3 rounded-full 
-                         bg-black/60 backdrop-blur-2xl border border-white/10 shadow-2xl"
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-full 
+                         bg-black/70 backdrop-blur-2xl border border-white/10 shadow-2xl pointer-events-auto"
             >
               {/* Left arrow */}
               <motion.button
                 onClick={scrollLeft}
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                  "w-6 h-6 rounded-full flex items-center justify-center transition-all",
                   canScrollLeft 
                     ? "bg-white/10 hover:bg-white/20 text-white" 
                     : "text-white/20 cursor-not-allowed"
@@ -527,11 +527,11 @@ const FloatingIsland = React.memo(({
                 whileTap={canScrollLeft ? { scale: 0.9 } : {}}
                 disabled={!canScrollLeft}
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-3 h-3" />
               </motion.button>
 
-              {/* Orbs */}
-              <div className="flex items-center gap-3 px-2">
+              {/* Orbs - Compact */}
+              <div className="flex items-center gap-2 px-1">
                 {visibleContacts.map((contact, index) => {
                   const tagStyle = tagGradients[contact.tag];
                   return (
@@ -539,15 +539,15 @@ const FloatingIsland = React.memo(({
                       key={`${contact.id}-${index}`}
                       onClick={() => onContactSelect(contact)}
                       className="relative group"
-                      initial={{ scale: 0, y: 20 }}
+                      initial={{ scale: 0, y: 10 }}
                       animate={{ scale: 1, y: 0 }}
-                      transition={{ delay: index * 0.05, type: 'spring' }}
-                      whileHover={{ scale: 1.2, y: -8 }}
+                      transition={{ delay: index * 0.03, type: 'spring' }}
+                      whileHover={{ scale: 1.15, y: -4 }}
                       whileTap={{ scale: 0.95 }}
                     >
                       {/* Rotating ring */}
                       <motion.div
-                        className="absolute inset-[-3px] rounded-full opacity-60"
+                        className="absolute inset-[-2px] rounded-full opacity-50"
                         style={{ 
                           background: `conic-gradient(from 0deg, ${tagStyle.from}, ${tagStyle.to}, ${tagStyle.from})` 
                         }}
@@ -555,9 +555,9 @@ const FloatingIsland = React.memo(({
                         transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
                       />
                       
-                      {/* Orb */}
+                      {/* Orb - Smaller */}
                       <div
-                        className="relative w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm
+                        className="relative w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs
                                    shadow-lg overflow-hidden"
                         style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
                       >
@@ -567,21 +567,21 @@ const FloatingIsland = React.memo(({
                         <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/20" />
                       </div>
                       
-                      {/* Online indicator */}
+                      {/* Online indicator - smaller */}
                       {contact.isOnline && (
                         <motion.div
-                          className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-400 
+                          className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 
                                      border-2 border-black shadow-lg shadow-green-400/50"
                           animate={{ scale: [1, 1.2, 1] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
                         />
                       )}
                       
-                      {/* Unread badge */}
+                      {/* Unread badge - smaller */}
                       {contact.unread && contact.unread > 0 && (
                         <motion.div
-                          className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-white
-                                     flex items-center justify-center text-[10px] font-bold shadow-lg"
+                          className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-white
+                                     flex items-center justify-center text-[9px] font-bold shadow-lg"
                           style={{ color: tagStyle.from }}
                           animate={{ scale: [1, 1.1, 1] }}
                           transition={{ duration: 1, repeat: Infinity }}
@@ -609,7 +609,7 @@ const FloatingIsland = React.memo(({
               <motion.button
                 onClick={scrollRight}
                 className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center transition-all",
+                  "w-6 h-6 rounded-full flex items-center justify-center transition-all",
                   canScrollRight 
                     ? "bg-white/10 hover:bg-white/20 text-white" 
                     : "text-white/20 cursor-not-allowed"
@@ -618,33 +618,33 @@ const FloatingIsland = React.memo(({
                 whileTap={canScrollRight ? { scale: 0.9 } : {}}
                 disabled={!canScrollRight}
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-3 h-3" />
               </motion.button>
 
               {/* Separator */}
-              <div className="w-px h-8 bg-white/10 mx-1" />
+              <div className="w-px h-6 bg-white/10 mx-0.5" />
 
               {/* Open full messenger */}
               <motion.button
                 onClick={onOpenMessenger}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 
+                className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 
                            flex items-center justify-center text-white/60 hover:text-white transition-colors"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 title="Abrir Messenger"
               >
-                <Sparkles className="w-4 h-4" />
+                <Sparkles className="w-3 h-3" />
               </motion.button>
 
               {/* Close island */}
               <motion.button
                 onClick={onToggle}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-red-500/20 
+                className="w-6 h-6 rounded-full bg-white/10 hover:bg-red-500/20 
                            flex items-center justify-center text-white/60 hover:text-red-400 transition-colors"
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </motion.button>
             </div>
           </motion.div>
