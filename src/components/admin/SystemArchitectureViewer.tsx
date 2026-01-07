@@ -13,6 +13,7 @@ import {
 import { SYSTEM_ROUTES, type RouteType } from '@/constants/routes';
 import DatabaseRelationshipsDiagram from './DatabaseRelationshipsDiagram';
 import MigrationGenerator from './MigrationGenerator';
+import PermissionTreeDiagram from './PermissionTreeDiagram';
 import { 
   Layers, 
   Users, 
@@ -245,92 +246,7 @@ const SystemArchitectureViewer = () => {
 
         {/* Permissões Tab */}
         <TabsContent value="permissions" className="space-y-4 mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="w-5 h-5" />
-                Tipos de Permissão
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {PERMISSION_TYPES.map((perm) => (
-                  <div key={perm.value} className="border rounded-lg p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Badge>{perm.label}</Badge>
-                      <code className="text-xs bg-muted px-2 py-0.5 rounded">
-                        {perm.value}
-                      </code>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {getPermissionDescription(perm.value)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Matriz de Permissões por Recurso</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-2 px-3">Módulo</th>
-                      <th className="text-left py-2 px-3">Recurso</th>
-                      {PERMISSION_TYPES.map(p => (
-                        <th key={p.value} className="text-center py-2 px-2">
-                          {p.label}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {APP_MODULES.filter(m => !['financialace', 'erp', 'ajustasped'].includes(m.value)).map((moduleConfig) => {
-                      const module = moduleConfig.value;
-                      const resources = MODULE_RESOURCES[module] || [];
-                      if (resources.length === 0) {
-                        return (
-                          <tr key={module} className="border-b">
-                            <td className="py-2 px-3">
-                              <Badge variant="outline">{MODULE_LABELS[module]}</Badge>
-                            </td>
-                            <td className="py-2 px-3 text-muted-foreground italic">
-                              (módulo inteiro)
-                            </td>
-                            {PERMISSION_TYPES.map(p => (
-                              <td key={p.value} className="text-center py-2 px-2">
-                                <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
-                              </td>
-                            ))}
-                          </tr>
-                        );
-                      }
-                      return resources.map((resource, idx) => (
-                        <tr key={`${module}-${resource.value}`} className="border-b">
-                          {idx === 0 && (
-                            <td className="py-2 px-3" rowSpan={resources.length}>
-                              <Badge variant="outline">{MODULE_LABELS[module]}</Badge>
-                            </td>
-                          )}
-                          <td className="py-2 px-3">{resource.label}</td>
-                          {PERMISSION_TYPES.map(p => (
-                            <td key={p.value} className="text-center py-2 px-2">
-                              <CheckCircle2 className="w-4 h-4 text-green-500 mx-auto" />
-                            </td>
-                          ))}
-                        </tr>
-                      ));
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
+          <PermissionTreeDiagram />
         </TabsContent>
 
         {/* Hierarquia Tab */}
