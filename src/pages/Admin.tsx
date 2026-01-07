@@ -12,21 +12,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { EmpresaWizard } from '@/components/admin/EmpresaWizard';
 import { EmpresaUsersManager } from '@/components/admin/EmpresaUsersManager';
 import { EmpresaContatosManager } from '@/components/admin/EmpresaContatosManager';
-import { PermissionProfilesManager } from '@/components/admin/PermissionProfilesManager';
-import { PermissionReportExporter } from '@/components/admin/PermissionReportExporter';
 import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import SystemArchitectureViewer from '@/components/admin/SystemArchitectureViewer';
 import { CreationEditionManager } from '@/components/admin/CreationEditionManager';
 
-import { usePermissionProfiles } from '@/hooks/usePermissionProfiles';
 import { 
   ArrowLeft, 
   Users, 
@@ -44,10 +40,7 @@ import {
   ChevronDown,
   ChevronUp,
   Crown,
-  UserCog,
-  Layers,
   LayoutDashboard,
-  FileDown,
   History,
   Workflow,
   Pencil,
@@ -75,15 +68,6 @@ interface UserRole {
   id: string;
   user_id: string;
   role: AppRole;
-}
-
-interface UserPermission {
-  id: string;
-  user_id: string;
-  empresa_id: string | null;
-  module: string; // Usa string para compatibilidade com banco (pode ter valores legados)
-  permission: PermissionType;
-  is_pro_mode: boolean;
 }
 
 interface UserEmpresa {
@@ -115,141 +99,17 @@ interface ContaBancaria {
 // ID do usuário master - nunca pode ter suas permissões alteradas
 const MASTER_USER_ID = 'ea1c9a69-e436-4de2-953b-432e5fff60ae';
 
-const MODULES: { value: string; label: string }[] = [
-  { value: 'taskvault', label: 'TaskVault' },
-  { value: 'gestao', label: 'GESTÃO' },
-  { value: 'conversores', label: 'Conversores' },
-  { value: 'conferesped', label: 'ConfereSped' },
-];
-
-const PERMISSIONS: { value: PermissionType; label: string }[] = [
-  { value: 'view', label: 'Visualizar' },
-  { value: 'create', label: 'Criar' },
-  { value: 'edit', label: 'Editar' },
-  { value: 'delete', label: 'Excluir' },
-  { value: 'export', label: 'Exportar' }
-];
-
 const ROLES: { value: AppRole; label: string; color: string }[] = [
   { value: 'admin', label: 'Administrador', color: 'bg-red-500' },
   { value: 'manager', label: 'Gerente', color: 'bg-yellow-500' },
   { value: 'user', label: 'Usuário', color: 'bg-blue-500' }
 ];
 
-// Componente inline para aplicar perfis de permissão
-interface ApplyProfileInlineProps {
-  userId: string;
-  userEmpresas: UserEmpresa[];
-  empresas: Empresa[];
-  allowStandalone?: boolean; // Permite aplicar permissões sem empresa (standalone)
-}
-
-function ApplyProfileInline({ userId, userEmpresas, empresas, allowStandalone = false }: ApplyProfileInlineProps) {
-  // Se allowStandalone e não tem empresas, usa 'standalone' como valor especial
-  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>(
-    userEmpresas[0]?.empresa_id || (allowStandalone ? 'standalone' : '')
-  );
-  const [selectedProfileId, setSelectedProfileId] = useState<string>('');
-  const { profiles, applyProfileToUser, isApplying } = usePermissionProfiles();
-
-  const activeProfiles = profiles.filter(p => p.ativo);
-  const selectedEmpresa = empresas.find(e => e.id === selectedEmpresaId);
-  const isStandalone = selectedEmpresaId === 'standalone';
-
-  const handleApply = () => {
-    if (!selectedProfileId) return;
-    if (!isStandalone && !selectedEmpresaId) return;
-    
-    applyProfileToUser({
-      profileId: selectedProfileId,
-      userId,
-      empresaId: isStandalone ? null : selectedEmpresaId,
-      assignRole: true,
-    });
-    setSelectedProfileId('');
-  };
-
-  // Opções de empresa: empresas vinculadas + standalone se permitido
-  const empresaOptions = [
-    ...(allowStandalone ? [{ id: 'standalone', nome: '🔧 Standalone (Conversores)' }] : []),
-    ...userEmpresas.map(ue => {
-      const emp = empresas.find(e => e.id === ue.empresa_id);
-      return { id: ue.empresa_id, nome: emp?.nome || 'Empresa desconhecida' };
-    })
-  ];
-
-  return (
-    <div className="space-y-4">
-      {empresaOptions.length > 1 && (
-        <div className="space-y-2">
-          <Label>Contexto</Label>
-          <Select value={selectedEmpresaId} onValueChange={setSelectedEmpresaId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Selecione o contexto" />
-            </SelectTrigger>
-            <SelectContent>
-              {empresaOptions.map(opt => (
-                <SelectItem key={opt.id} value={opt.id}>
-                  {opt.nome}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-      
-      {empresaOptions.length === 1 && (
-        <div className="text-sm text-muted-foreground">
-          Contexto: <span className="font-medium">{empresaOptions[0]?.nome}</span>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <Label>Perfil de Permissões</Label>
-        {activeProfiles.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhum perfil disponível. Crie perfis na aba "Perfis".</p>
-        ) : (
-          <div className="space-y-2">
-            {activeProfiles.map(profile => (
-              <Button
-                key={profile.id}
-                variant={selectedProfileId === profile.id ? 'default' : 'outline'}
-                className="w-full justify-start"
-                onClick={() => setSelectedProfileId(profile.id)}
-              >
-                <Layers className="w-4 h-4 mr-2" />
-                <div className="flex flex-col items-start">
-                  <span>{profile.nome}</span>
-                  {profile.role_padrao && (
-                    <span className="text-xs opacity-70">Role: {profile.role_padrao}</span>
-                  )}
-                </div>
-              </Button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {selectedProfileId && (
-        <Button 
-          onClick={handleApply} 
-          disabled={isApplying || (!isStandalone && !selectedEmpresaId)}
-          className="w-full"
-        >
-          {isApplying && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-          Aplicar Perfil {isStandalone && '(Standalone)'}
-        </Button>
-      )}
-    </div>
-  );
-}
-
 const Admin: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isAdmin } = usePermissions();
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [isAddingEmpresa, setIsAddingEmpresa] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
@@ -288,16 +148,6 @@ const Admin: React.FC = () => {
       const { data, error } = await supabase.from('user_roles').select('*');
       if (error) throw error;
       return data as UserRole[];
-    }
-  });
-
-  // Fetch user permissions
-  const { data: allPermissions = [] } = useQuery({
-    queryKey: ['admin-all-permissions'],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('user_permissions').select('*');
-      if (error) throw error;
-      return data as UserPermission[];
     }
   });
 
@@ -361,33 +211,6 @@ const Admin: React.FC = () => {
     },
     onError: (error) => {
       toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    }
-  });
-
-  // Add permission mutation
-  const addPermissionMutation = useMutation({
-    mutationFn: async (permission: Omit<UserPermission, 'id'>) => {
-      const { error } = await supabase.from('user_permissions').insert(permission as any);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-all-permissions'] });
-      toast({ title: 'Permissão adicionada' });
-    },
-    onError: (error) => {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-    }
-  });
-
-  // Remove permission mutation
-  const removePermissionMutation = useMutation({
-    mutationFn: async (permissionId: string) => {
-      const { error } = await supabase.from('user_permissions').delete().eq('id', permissionId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-all-permissions'] });
-      toast({ title: 'Permissão removida' });
     }
   });
 
@@ -562,9 +385,7 @@ const Admin: React.FC = () => {
   });
 
   const getUserRoles = (userId: string) => allRoles.filter(r => r.user_id === userId);
-  const getUserPermissions = (userId: string) => allPermissions.filter(p => p.user_id === userId);
   const getUserEmpresas = (userId: string) => allUserEmpresas.filter(ue => ue.user_id === userId);
-  const getEmpresaUsers = (empresaId: string) => allUserEmpresas.filter(ue => ue.empresa_id === empresaId);
   const getEmpresaModulos = (empresaId: string) => empresaModulos.filter(m => m.empresa_id === empresaId);
   const getEmpresaContas = (empresaId: string) => contasBancarias.filter(c => c.empresa_id === empresaId);
   const getManagerUser = (managerId: string | null) => users.find(u => u.id === managerId);
@@ -576,7 +397,6 @@ const Admin: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['admin-users'] });
     queryClient.invalidateQueries({ queryKey: ['admin-all-roles'] });
     queryClient.invalidateQueries({ queryKey: ['admin-all-user-empresas'] });
-    queryClient.invalidateQueries({ queryKey: ['admin-all-permissions'] });
   };
 
   if (!isAdmin) {
@@ -604,7 +424,7 @@ const Admin: React.FC = () => {
             </Button>
             <div>
               <h1 className="text-xl font-bold text-foreground">Painel Administrativo</h1>
-              <p className="text-sm text-muted-foreground">Gerenciar usuários, empresas e permissões</p>
+              <p className="text-sm text-muted-foreground">Gerenciar usuários e empresas</p>
             </div>
           </div>
           <Settings className="w-6 h-6 text-primary" />
@@ -623,15 +443,6 @@ const Admin: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="empresas" className="gap-2">
               <Building2 className="w-4 h-4" /> Empresas
-            </TabsTrigger>
-            <TabsTrigger value="profiles" className="gap-2">
-              <Layers className="w-4 h-4" /> Perfis
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="gap-2">
-              <Shield className="w-4 h-4" /> Permissões
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="gap-2">
-              <FileDown className="w-4 h-4" /> Relatórios
             </TabsTrigger>
             <TabsTrigger value="audit" className="gap-2">
               <History className="w-4 h-4" /> Auditoria
@@ -817,29 +628,32 @@ const Admin: React.FC = () => {
                                   {user.id === MASTER_USER_ID && <Crown className="w-3 h-3 text-yellow-500" />}
                                 </Badge>
                               ))}
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-6 px-2">
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-md">
-                                  <DialogHeader>
-                                    <DialogTitle>Aplicar Perfil - {user.full_name || user.email}</DialogTitle>
-                                  </DialogHeader>
-                                   <div className="space-y-4 mt-2">
-                                    <p className="text-sm text-muted-foreground">
-                                      Selecione um perfil para aplicar permissões e role ao usuário.
-                                    </p>
-                                    <ApplyProfileInline
-                                      userId={user.id}
-                                      userEmpresas={getUserEmpresas(user.id)}
-                                      empresas={empresas}
-                                      allowStandalone={true}
-                                    />
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
+                              {user.id !== MASTER_USER_ID && (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="h-6 px-2">
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Adicionar Papel - {user.full_name || user.email}</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      {ROLES.filter(r => !getUserRoles(user.id).some(ur => ur.role === r.value)).map(role => (
+                                        <Button
+                                          key={role.value}
+                                          variant="outline"
+                                          className="w-full justify-start"
+                                          onClick={() => addRoleMutation.mutate({ userId: user.id, role: role.value })}
+                                        >
+                                          <Badge className={role.color + ' mr-2'}>{role.label}</Badge>
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -900,13 +714,6 @@ const Admin: React.FC = () => {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setSelectedUser(user)}
-                            >
-                              <Shield className="w-4 h-4" />
-                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -922,61 +729,62 @@ const Admin: React.FC = () => {
             <Card className="glass">
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Empresas</CardTitle>
-                  <CardDescription>Gerencie as empresas do sistema</CardDescription>
+                  <CardTitle>Empresas Cadastradas</CardTitle>
+                  <CardDescription>Gerenciar empresas e seus usuários</CardDescription>
                 </div>
                 <Button className="gap-2" onClick={() => setIsAddingEmpresa(true)}>
                   <Plus className="w-4 h-4" /> Nova Empresa
                 </Button>
-                <EmpresaWizard 
-                  isOpen={isAddingEmpresa || !!editingEmpresa} 
-                  onClose={() => { setIsAddingEmpresa(false); setEditingEmpresa(null); }}
-                  onSuccess={handleWizardSuccess}
-                  editingEmpresa={editingEmpresa}
-                />
+                <EmpresaWizard isOpen={isAddingEmpresa} onClose={() => setIsAddingEmpresa(false)} onSuccess={handleWizardSuccess} />
+
+                {editingEmpresa && (
+                  <EmpresaWizard 
+                    isOpen={!!editingEmpresa}
+                    editingEmpresa={editingEmpresa} 
+                    onClose={() => setEditingEmpresa(null)} 
+                    onSuccess={handleWizardSuccess} 
+                  />
+                )}
               </CardHeader>
               <CardContent>
                 {empresasLoading ? (
                   <div className="flex justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin" />
                   </div>
-                ) : empresas.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">Nenhuma empresa cadastrada</p>
-                    <Button onClick={() => setIsAddingEmpresa(true)} className="mt-4">
-                      <Plus className="w-4 h-4 mr-2" /> Cadastrar Primeira Empresa
-                    </Button>
-                  </div>
                 ) : (
                   <div className="space-y-3">
-                    {empresas.map((empresa) => {
-                      const empresaUsers = getEmpresaUsers(empresa.id);
+                    {empresas.map(empresa => {
                       const modulos = getEmpresaModulos(empresa.id);
                       const contas = getEmpresaContas(empresa.id);
                       const manager = getManagerUser(empresa.manager_id);
                       const isExpanded = expandedEmpresa === empresa.id;
-
+                      
                       return (
-                        <Card key={empresa.id} className="bg-muted/30 border-border/50 hover:border-primary/50 transition-all">
+                        <Card key={empresa.id} className="bg-muted/30">
                           <CardContent className="p-4">
                             <div 
-                              className="flex items-start justify-between cursor-pointer"
+                              className="flex items-center justify-between cursor-pointer"
                               onClick={() => setExpandedEmpresa(isExpanded ? null : empresa.id)}
                             >
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                                   <Building2 className="w-5 h-5 text-primary" />
                                 </div>
                                 <div>
-                                  <h3 className="font-semibold text-foreground">{empresa.nome}</h3>
-                                  <p className="text-xs text-muted-foreground">{empresa.cnpj || 'CNPJ não informado'}</p>
-                                  <div className="flex gap-1 mt-1 flex-wrap">
-                                    {modulos.map(m => (
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{empresa.nome}</span>
+                                    {empresa.regime_tributario && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {empresa.regime_tributario.replace('_', ' ')}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex gap-1 mt-1">
+                                    {modulos.filter(m => m.ativo).map(m => (
                                       <Badge 
                                         key={m.id} 
-                                        variant={m.modo === 'pro' ? 'default' : 'secondary'} 
-                                        className="text-[10px] h-5"
+                                        variant="secondary" 
+                                        className={`text-xs ${m.modo === 'pro' ? 'bg-primary/20 text-primary' : ''}`}
                                       >
                                         {m.modulo} {m.modo === 'pro' && '★'}
                                       </Badge>
@@ -1070,7 +878,7 @@ const Admin: React.FC = () => {
                                   <EmpresaContatosManager empresaId={empresa.id} />
                                 </div>
 
-                                {/* Usuários vinculados com gerenciamento completo */}
+                                {/* Usuários vinculados */}
                                 <div className="pt-2">
                                   <EmpresaUsersManager 
                                     empresaId={empresa.id} 
@@ -1085,165 +893,8 @@ const Admin: React.FC = () => {
                     })}
                   </div>
                 )}
-
-                {/* Edit Empresa Dialog - now using EmpresaWizard above */}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Permission Profiles Tab */}
-          <TabsContent value="profiles">
-            <PermissionProfilesManager />
-          </TabsContent>
-
-          {/* Permissions Tab */}
-          <TabsContent value="permissions">
-            <Card className="glass">
-              <CardHeader>
-                <CardTitle>Permissões por Módulo</CardTitle>
-                <CardDescription>Configure permissões granulares para cada usuário</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {users.map(user => {
-                    const userRoles = getUserRoles(user.id);
-                    const userPermissions = getUserPermissions(user.id);
-                    const permissionCount = userPermissions.length;
-                    const isExpanded = selectedUser?.id === user.id;
-                    
-                    return (
-                      <div key={user.id} className="border border-border rounded-lg overflow-hidden">
-                        {/* Compact Header - Always visible */}
-                        <div 
-                          className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/50 transition-colors"
-                          onClick={() => setSelectedUser(isExpanded ? null : user)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                              <Users className="w-5 h-5 text-primary" />
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{user.full_name || user.email}</span>
-                                {user.id === MASTER_USER_ID && (
-                                  <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
-                                    <Crown className="w-3 h-3" /> Master
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground">{user.email}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <div className="flex gap-1">
-                              {userRoles.map(role => (
-                                <Badge key={role.id} className={ROLES.find(r => r.value === role.role)?.color}>
-                                  {ROLES.find(r => r.value === role.role)?.label}
-                                </Badge>
-                              ))}
-                            </div>
-                            <Badge variant="secondary">
-                              {permissionCount} permissões
-                            </Badge>
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Expanded Content - Permission checkboxes */}
-                        {isExpanded && (
-                          <div className="border-t border-border p-4 bg-muted/20">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                              {MODULES.map(module => {
-                                const userModulePermissions = userPermissions.filter(p => p.module === module.value);
-                                
-                                return (
-                                  <div key={module.value} className="bg-background/50 rounded-lg p-3 space-y-2 border border-border/50">
-                                    <h4 className="font-medium text-sm text-foreground">{module.label}</h4>
-                                    <div className="space-y-1">
-                                      {PERMISSIONS.map(perm => {
-                                        const hasPermission = userModulePermissions.some(p => p.permission === perm.value);
-                                        
-                                        return (
-                                          <div key={perm.value} className="flex items-center gap-2">
-                                            <Checkbox
-                                              id={`${user.id}-${module.value}-${perm.value}`}
-                                              checked={hasPermission}
-                                              onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                  addPermissionMutation.mutate({
-                                                    user_id: user.id,
-                                                    empresa_id: null,
-                                                    module: module.value,
-                                                    permission: perm.value,
-                                                    is_pro_mode: false
-                                                  });
-                                                } else {
-                                                  const permission = userModulePermissions.find(p => p.permission === perm.value);
-                                                  if (permission) {
-                                                    removePermissionMutation.mutate(permission.id);
-                                                  }
-                                                }
-                                              }}
-                                            />
-                                            <Label 
-                                              htmlFor={`${user.id}-${module.value}-${perm.value}`}
-                                              className="text-xs text-muted-foreground cursor-pointer"
-                                            >
-                                              {perm.label}
-                                            </Label>
-                                          </div>
-                                        );
-                                      })}
-                                      <div className="flex items-center gap-2 pt-1 border-t border-border/50 mt-2">
-                                        <Checkbox
-                                          id={`${user.id}-${module.value}-pro`}
-                                          checked={userModulePermissions.some(p => p.is_pro_mode)}
-                                          onCheckedChange={(checked) => {
-                                            if (checked) {
-                                              addPermissionMutation.mutate({
-                                                user_id: user.id,
-                                                empresa_id: null,
-                                                module: module.value,
-                                                permission: 'view',
-                                                is_pro_mode: true
-                                              });
-                                            } else {
-                                              const permission = userModulePermissions.find(p => p.is_pro_mode);
-                                              if (permission) {
-                                                removePermissionMutation.mutate(permission.id);
-                                              }
-                                            }
-                                          }}
-                                        />
-                                        <Label 
-                                          htmlFor={`${user.id}-${module.value}-pro`}
-                                          className="text-xs text-primary font-medium cursor-pointer"
-                                        >
-                                          Modo Pro
-                                        </Label>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Reports Tab */}
-          <TabsContent value="reports">
-            <PermissionReportExporter />
           </TabsContent>
 
           {/* Audit Tab */}

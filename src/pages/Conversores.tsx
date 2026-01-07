@@ -33,7 +33,7 @@ import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
 import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
 import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
 import { motion, AnimatePresence } from "framer-motion";
-import { useMyResourcePermissions } from "@/hooks/useResourcePermissions";
+import { useModulePermissions } from "@/hooks/useModulePermissions";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useConversoes } from "@/hooks/useConversoes";
@@ -162,15 +162,7 @@ const Conversores = () => {
   const { empresaAtiva, loading: empresaLoading, empresasDisponiveis } = useEmpresaAtiva();
   const { isAdmin } = usePermissions();
   
-  // Determinar o empresaId para permissões:
-  // - undefined: ainda carregando empresas (aguardar)
-  // - null: usuário não tem empresas vinculadas (standalone)
-  // - string: usar empresa ativa
-  const permissionEmpresaId = empresaLoading 
-    ? undefined 
-    : (empresasDisponiveis.length === 0 ? null : empresaAtiva?.id);
-  
-  const { hasResourcePermission, isLoading: permissionsLoading } = useMyResourcePermissions(permissionEmpresaId);
+  const { hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
   const { conversoes } = useConversoes(empresaAtiva?.id);
   
   // Use persistent activities hook
@@ -182,10 +174,10 @@ const Conversores = () => {
   const conversoesErro = conversoes?.filter(c => c.status === 'erro').length || 0;
 
   // Função para verificar se usuário tem acesso a um conversor
-  // Admin tem acesso total; demais verificam permissões (com ou sem empresa)
-  const hasConversorAccess = (conversorId: string): boolean => {
+  // Admin tem acesso total; demais verificam permissões do módulo
+  const hasConversorAccess = (_conversorId: string): boolean => {
     if (isAdmin) return true;
-    return hasResourcePermission('conversores', conversorId, 'can_view');
+    return hasModuleAccess('conversores', empresaAtiva?.id || null);
   };
 
   // Filtrar conversores por categoria

@@ -10,15 +10,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ModulePermissionsEditor } from './ModulePermissionsEditor';
 import { 
   UserPlus, 
   Trash2, 
-  Shield, 
   Crown, 
   Loader2,
-  ChevronDown,
-  ChevronUp,
   User
 } from 'lucide-react';
 
@@ -39,21 +35,19 @@ interface UserEmpresa {
 interface EmpresaUsersManagerProps {
   empresaId: string;
   empresaNome?: string;
-  empresaModulos?: string[]; // Módulos liberados para a empresa
 }
 
-export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: EmpresaUsersManagerProps) {
+export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersManagerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [addMode, setAddMode] = useState<'existing' | 'new'>('existing');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
 
-  // Fetch all users (includes automatic sync of missing profiles)
+  // Fetch all users
   const { data: allUsers = [] } = useQuery({
     queryKey: ['admin-users'],
     queryFn: async () => {
@@ -77,12 +71,10 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
     },
   });
 
-  // Get active users not yet linked
   const availableUsers = allUsers.filter(
     u => u.ativo && !empresaUsers.some(eu => eu.user_id === u.id)
   );
 
-  // Add user to empresa
   const addUserMutation = useMutation({
     mutationFn: async ({ userId, isOwner }: { userId: string; isOwner: boolean }) => {
       const { error } = await supabase
@@ -92,13 +84,8 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['empresa-users', empresaId] });
-      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
       setIsOpen(false);
       setSelectedUserId(null);
-      setNewUserEmail('');
-      setNewUserName('');
-      setNewUserPassword('');
-      setAddMode('existing');
       toast({ title: 'Usuário adicionado à empresa' });
     },
     onError: (error) => {
@@ -106,19 +93,18 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
     },
   });
 
-  // Create new user and add to empresa
   const createUserMutation = useMutation({
     mutationFn: async ({ email, name, password, isOwner }: { email: string; name: string; password: string; isOwner: boolean }) => {
       const existingUser = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
       if (existingUser) {
-        throw new Error('Este e-mail já está cadastrado. Use a aba "Existente" para adicionar.');
+        throw new Error('Este e-mail já está cadastrado.');
       }
       
       const { data: currentSession } = await supabase.auth.getSession();
       const masterSession = currentSession?.session;
       
       if (!masterSession) {
-        throw new Error('Sessão não encontrada. Faça login novamente.');
+        throw new Error('Sessão não encontrada.');
       }
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -130,12 +116,7 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
         },
       });
       
-      if (authError) {
-        if (authError.message.includes('already registered')) {
-          throw new Error('Este e-mail já está cadastrado.');
-        }
-        throw authError;
-      }
+      if (authError) throw authError;
       if (!authData.user) throw new Error('Falha ao criar usuário');
 
       await supabase.auth.setSession({
@@ -148,7 +129,6 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
         .insert({ user_id: authData.user.id, empresa_id: empresaId, is_owner: isOwner });
       
       if (linkError) throw linkError;
-      
       return authData.user;
     },
     onSuccess: () => {
@@ -158,21 +138,16 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
       setNewUserEmail('');
       setNewUserName('');
       setNewUserPassword('');
-      setAddMode('existing');
       toast({ title: 'Usuário criado e adicionado à empresa' });
     },
     onError: (error) => {
-      toast({ title: 'Erro ao criar usuário', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
     },
   });
 
-  // Remove user from empresa
   const removeUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('user_empresas')
-        .delete()
-        .eq('id', id);
+      const { error } = await supabase.from('user_empresas').delete().eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -259,18 +234,16 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
               
               <TabsContent value="new" className="space-y-4 mt-4">
                 <div>
-                  <Label htmlFor="newUserName">Nome completo</Label>
+                  <Label>Nome completo</Label>
                   <Input
-                    id="newUserName"
                     placeholder="Nome do usuário"
                     value={newUserName}
                     onChange={(e) => setNewUserName(e.target.value)}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="newUserEmail">E-mail</Label>
+                  <Label>E-mail</Label>
                   <Input
-                    id="newUserEmail"
                     type="email"
                     placeholder="email@exemplo.com"
                     value={newUserEmail}
@@ -278,9 +251,8 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
                   />
                 </div>
                 <div>
-                  <Label htmlFor="newUserPassword">Senha</Label>
+                  <Label>Senha</Label>
                   <Input
-                    id="newUserPassword"
                     type="password"
                     placeholder="Mínimo 6 caracteres"
                     value={newUserPassword}
@@ -326,71 +298,41 @@ export function EmpresaUsersManager({ empresaId, empresaNome, empresaModulos }: 
           Nenhum usuário vinculado a esta empresa
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2">
           {empresaUsers.map(eu => {
             const user = getUserProfile(eu.user_id);
-            const isExpanded = expandedUser === eu.id;
-
             return (
-              <div key={eu.id} className="border border-border rounded-lg p-4">
-                <div 
-                  className="flex items-center justify-between cursor-pointer"
-                  onClick={() => setExpandedUser(isExpanded ? null : eu.id)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <span className="text-sm font-medium text-primary">
-                        {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{user?.full_name || user?.email || 'N/A'}</span>
-                        {eu.is_owner && (
-                          <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500">
-                            <Crown className="w-3 h-3" /> Proprietário
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">{user?.email}</p>
-                    </div>
+              <div key={eu.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                    <span className="text-xs font-medium text-primary">
+                      {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm('Remover usuário desta empresa?')) {
-                          removeUserMutation.mutate(eu.id);
-                        }
-                      }}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                    {isExpanded ? (
-                      <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                    )}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm">{user?.full_name || user?.email || 'N/A'}</span>
+                      {eu.is_owner && (
+                        <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500 text-xs">
+                          <Crown className="w-3 h-3" /> Proprietário
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
                 </div>
-
-                {isExpanded && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Shield className="w-4 h-4 text-primary" />
-                      <span className="font-medium text-sm">Permissões por Módulo</span>
-                    </div>
-                    
-                    <ModulePermissionsEditor
-                      userId={eu.user_id}
-                      empresaId={empresaId}
-                      empresaModulos={empresaModulos}
-                    />
-                  </div>
-                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-destructive"
+                  onClick={() => {
+                    if (confirm('Remover usuário desta empresa?')) {
+                      removeUserMutation.mutate(eu.id);
+                    }
+                  }}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
               </div>
             );
           })}
