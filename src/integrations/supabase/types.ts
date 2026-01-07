@@ -2874,6 +2874,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      apply_module_mode_to_users: {
+        Args: { _empresa_id: string; _modo: string; _modulo: string }
+        Returns: undefined
+      }
       apply_permission_profile: {
         Args: {
           p_assign_role?: boolean
