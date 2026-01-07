@@ -1,17 +1,17 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
-import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Send, Paperclip, Mic, 
   Check, CheckCheck, Clock, 
   Sparkles, Zap, Radio,
-  ArrowLeft, X, Search, Plus,
-  Palette, Moon, Sun
+  X, Search, Plus
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { MessengerSidebar } from "@/components/messenger/MessengerSidebar";
 
 // Tipos de tema
 type MessengerTheme = "colorful" | "dark" | "light";
@@ -679,7 +679,7 @@ export default function Messenger() {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [showSearch, setShowSearch] = useState(false);
+  const [activeTab, setActiveTab] = useState("todos");
   
   // Estado do tema persistido
   const [theme, setTheme] = useState<MessengerTheme>(() => {
@@ -710,12 +710,24 @@ export default function Messenger() {
     });
   }, []);
 
-  const filteredContacts = useMemo(() => 
-    contacts.filter(contact => 
+  // Filtrar por busca e por tab
+  const filteredContacts = useMemo(() => {
+    let filtered = contacts.filter(contact => 
       contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       contact.phone.includes(searchQuery)
-    ), [contacts, searchQuery]
-  );
+    );
+    
+    // Filtrar por tab
+    if (activeTab === "clientes") {
+      filtered = filtered.filter(c => c.tag === "cliente");
+    } else if (activeTab === "fornecedores") {
+      filtered = filtered.filter(c => c.tag === "fornecedor");
+    } else if (activeTab === "interno") {
+      filtered = filtered.filter(c => c.tag === "interno");
+    }
+    
+    return filtered;
+  }, [contacts, searchQuery, activeTab]);
 
   const contactMessages = useMemo(() => 
     selectedContact 
@@ -769,8 +781,11 @@ export default function Messenger() {
     }
   }, [handleSendMessage]);
 
-  // Organizar contatos por tag
+  // Organizar contatos por tag (somente para tab "todos")
   const groupedContacts = useMemo(() => {
+    if (activeTab !== "todos") {
+      return { [activeTab === "clientes" ? "cliente" : activeTab === "fornecedores" ? "fornecedor" : "interno"]: filteredContacts };
+    }
     const groups: Record<string, Contact[]> = {
       cliente: [],
       fornecedor: [],
@@ -781,183 +796,162 @@ export default function Messenger() {
       else groups.cliente.push(c);
     });
     return groups;
-  }, [filteredContacts]);
+  }, [filteredContacts, activeTab]);
 
   return (
-    <div className={cn("h-screen flex flex-col overflow-hidden relative", styles.bg)}>
+    <div className={cn("min-h-screen overflow-hidden relative", styles.bg)}>
       <NebulaBackground theme={theme} />
       
-      {/* Header flutuante */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-20 flex items-center justify-between p-4 md:p-6"
-      >
-        <div className="flex items-center gap-4">
-          <motion.div
-            className={cn(
-              "p-3 rounded-2xl border",
-              theme === "light" 
-                ? "bg-orange-50 border-orange-200" 
-                : "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30"
-            )}
-            whileHover={{ scale: 1.05, rotate: 5 }}
-          >
-            <Sparkles className="w-6 h-6 text-orange-400" />
-          </motion.div>
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
-              Nebula Messenger
-            </h1>
-            <p className={cn("text-sm", styles.textMuted)}>{empresaAtiva?.nome || "VAULT"}</p>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          {/* Botão de tema */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={cycleTheme}
-            className={cn(
-              "rounded-full",
-              theme === "light" 
-                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
-                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
-            )}
-            title={`Tema: ${theme}`}
-          >
-            {theme === "colorful" && <Palette className="w-5 h-5" />}
-            {theme === "dark" && <Moon className="w-5 h-5" />}
-            {theme === "light" && <Sun className="w-5 h-5" />}
-          </Button>
-          
-          <AnimatePresence>
-            {showSearch && (
-              <motion.div
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 200, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar..."
-                  className={cn(styles.input, styles.inputBorder)}
-                  autoFocus
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowSearch(!showSearch)}
-            className={cn(
-              "rounded-full",
-              theme === "light" 
-                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
-                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
-            )}
-          >
-            <Search className="w-5 h-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "rounded-full",
-              theme === "light" 
-                ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
-                : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
-            )}
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
-        </div>
-      </motion.div>
+      {/* Glass Sidebar */}
+      <MessengerSidebar
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        theme={theme}
+        onThemeChange={cycleTheme}
+      />
       
-      {/* Área principal com orbes */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8">
-        {/* Constelações de contatos por grupo */}
-        {Object.entries(groupedContacts).map(([tag, groupContacts], groupIndex) => (
-          groupContacts.length > 0 && (
+      {/* Main Content - adjusted for right sidebar */}
+      <div className="pt-4 pb-8 pr-[280px] pl-6 transition-all duration-300">
+        {/* Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-20 flex items-center justify-between mb-6"
+        >
+          <div className="flex items-center gap-4">
             <motion.div
-              key={tag}
+              className={cn(
+                "p-3 rounded-2xl border",
+                theme === "light" 
+                  ? "bg-orange-50 border-orange-200" 
+                  : "bg-gradient-to-br from-orange-500/20 to-orange-600/10 border-orange-500/30"
+              )}
+              whileHover={{ scale: 1.05, rotate: 5 }}
+            >
+              <Sparkles className="w-6 h-6 text-orange-400" />
+            </motion.div>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+                Nebula Messenger
+              </h1>
+              <p className={cn("text-sm", styles.textMuted)}>{empresaAtiva?.nome || "VAULT"}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Campo de busca */}
+            <div className={cn(
+              "relative flex items-center rounded-xl border px-3 py-2",
+              styles.inputBorder,
+              styles.input
+            )}>
+              <Search className="w-4 h-4 text-muted-foreground mr-2" />
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar contatos..."
+                className="bg-transparent border-0 outline-none text-sm w-48 placeholder:text-muted-foreground/50"
+              />
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "rounded-full",
+                theme === "light" 
+                  ? "hover:bg-gray-100 text-gray-500 hover:text-orange-500" 
+                  : "hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
+              )}
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
+        </motion.div>
+        
+        {/* Área principal com orbes */}
+        <div className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-200px)] p-8">
+          {/* Constelações de contatos por grupo */}
+          {Object.entries(groupedContacts).map(([tag, groupContacts], groupIndex) => (
+            groupContacts.length > 0 && (
+              <motion.div
+                key={tag}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: groupIndex * 0.2 }}
+                className="mb-12"
+              >
+                {/* Label do grupo - só mostra se tab for "todos" */}
+                {activeTab === "todos" && (
+                  <motion.div 
+                    className="text-center mb-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <span 
+                      className="text-xs font-medium px-4 py-1.5 rounded-full border"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${tagGradients[tag].from}20, ${tagGradients[tag].to}20)`,
+                        borderColor: `${tagGradients[tag].from}30`,
+                        color: tagGradients[tag].from 
+                      }}
+                    >
+                      <Zap className="w-3 h-3 inline mr-1" />
+                      {tag.charAt(0).toUpperCase() + tag.slice(1)}s
+                    </span>
+                  </motion.div>
+                )}
+                
+                {/* Orbes do grupo */}
+                <div className="flex flex-wrap justify-center gap-8">
+                  {groupContacts.map((contact, index) => (
+                    <ContactOrb
+                      key={contact.id}
+                      contact={contact}
+                      isSelected={selectedContact?.id === contact.id}
+                      onClick={() => handleSelectContact(contact)}
+                      index={groupIndex * 10 + index}
+                    />
+                  ))}
+                </div>
+              </motion.div>
+            )
+          ))}
+          
+          {/* Mensagem se não houver contatos */}
+          {filteredContacts.length === 0 && (
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: groupIndex * 0.2 }}
-              className="mb-12"
+              className="text-center"
             >
-              {/* Label do grupo */}
-              <motion.div 
-                className="text-center mb-6"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-              >
-                <span 
-                  className="text-xs font-medium px-4 py-1.5 rounded-full border"
-                  style={{ 
-                    background: `linear-gradient(135deg, ${tagGradients[tag].from}20, ${tagGradients[tag].to}20)`,
-                    borderColor: `${tagGradients[tag].from}30`,
-                    color: tagGradients[tag].from 
-                  }}
-                >
-                  <Zap className="w-3 h-3 inline mr-1" />
-                  {tag.charAt(0).toUpperCase() + tag.slice(1)}s
-                </span>
-              </motion.div>
-              
-              {/* Orbes do grupo */}
-              <div className="flex flex-wrap justify-center gap-8">
-                {groupContacts.map((contact, index) => (
-                  <ContactOrb
-                    key={contact.id}
-                    contact={contact}
-                    isSelected={selectedContact?.id === contact.id}
-                    onClick={() => handleSelectContact(contact)}
-                    index={groupIndex * 10 + index}
-                  />
-                ))}
-              </div>
+              <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
+              <p className="text-muted-foreground">Nenhum contato encontrado</p>
             </motion.div>
-          )
-        ))}
-        
-        {/* Mensagem se não houver contatos */}
-        {filteredContacts.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center"
-          >
-            <Sparkles className="w-16 h-16 mx-auto mb-4 text-muted-foreground/30" />
-            <p className="text-muted-foreground">Nenhum contato encontrado</p>
-          </motion.div>
-        )}
-      </div>
-      
-      {/* Status da API */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 p-4 flex justify-center"
-      >
-        <div className={cn(
-          "flex items-center gap-2 px-4 py-2 rounded-full border",
-          theme === "light" 
-            ? "bg-white shadow-md border-gray-200" 
-            : "bg-card/40 backdrop-blur-xl border-orange-500/20"
-        )}>
-          <motion.div
-            className="w-2 h-2 rounded-full bg-orange-500"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <span className="text-xs text-orange-400">Aguardando conexão com API Business</span>
+          )}
         </div>
-      </motion.div>
+        
+        {/* Status da API */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-10 flex justify-center"
+        >
+          <div className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full border",
+            theme === "light" 
+              ? "bg-white shadow-md border-gray-200" 
+              : "bg-card/40 backdrop-blur-xl border-orange-500/20"
+          )}>
+            <motion.div
+              className="w-2 h-2 rounded-full bg-orange-500"
+              animate={{ opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+            <span className="text-xs text-orange-400">Aguardando conexão com API Business</span>
+          </div>
+        </motion.div>
+      </div>
       
       {/* Chat expandido */}
       <AnimatePresence>
