@@ -16,6 +16,7 @@ import FinancialACE from "./pages/FinancialACE";
 import Conversores from "./pages/Conversores";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import FloatingMessengerOrbs from "./components/messenger/FloatingMessengerOrbs";
 
 const queryClient = new QueryClient();
 
@@ -27,6 +28,7 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <FloatingMessengerOrbs />
             <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/auth" element={<ClientAuth />} />
