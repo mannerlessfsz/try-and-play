@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Send, Paperclip, Mic, 
   Check, CheckCheck, Clock, 
   Sparkles, Zap, Radio, Users, Hash, MessageCircle,
   ArrowLeft, X, Search, Plus, UserPlus, Settings,
-  Phone, Building2, Briefcase
+  Phone, Building2, Briefcase, Home, ChevronLeft, LogOut, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Gradients por tipo
 const typeGradients = {
@@ -36,7 +45,7 @@ const typeGradients = {
 // Componente de Partículas
 const CosmicParticles = () => {
   const particles = useMemo(() => 
-    Array.from({ length: 40 }, (_, i) => ({
+    Array.from({ length: 30 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
@@ -66,14 +75,14 @@ const NebulaBackground = () => (
   <div className="absolute inset-0 overflow-hidden">
     <div className="absolute inset-0 bg-gradient-to-br from-background via-background to-orange-950/10" />
     <motion.div 
-      className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full"
-      style={{ background: "radial-gradient(circle, rgba(249, 115, 22, 0.06) 0%, transparent 70%)", filter: "blur(60px)" }}
+      className="absolute top-1/4 -left-1/4 w-[400px] h-[400px] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(249, 115, 22, 0.04) 0%, transparent 70%)", filter: "blur(60px)" }}
       animate={{ scale: [1, 1.15, 1], rotate: [0, 180, 360] }}
       transition={{ duration: 80, repeat: Infinity, ease: "linear" }}
     />
     <motion.div 
-      className="absolute bottom-1/4 -right-1/4 w-[400px] h-[400px] rounded-full"
-      style={{ background: "radial-gradient(circle, rgba(168, 85, 247, 0.05) 0%, transparent 70%)", filter: "blur(50px)" }}
+      className="absolute bottom-1/4 -right-1/4 w-[300px] h-[300px] rounded-full"
+      style={{ background: "radial-gradient(circle, rgba(168, 85, 247, 0.03) 0%, transparent 70%)", filter: "blur(50px)" }}
       animate={{ scale: [1.1, 1, 1.1] }}
       transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
     />
@@ -98,7 +107,7 @@ const ConversationOrb = ({
   
   return (
     <motion.div
-      whileHover={{ scale: 1.1 }}
+      whileHover={{ scale: 1.08 }}
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       className="relative cursor-pointer group flex flex-col items-center gap-2"
@@ -126,18 +135,18 @@ const ConversationOrb = ({
       {/* Avatar */}
       <div 
         className={cn(
-          "relative w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-sm",
+          "relative w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-sm",
           isSelected && "ring-2 ring-white ring-offset-2 ring-offset-background"
         )}
         style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
       >
-        {type === "channel" ? <Hash className="w-6 h-6" /> : 
-         type === "group" ? <Users className="w-5 h-5" /> : 
+        {type === "channel" ? <Hash className="w-5 h-5" /> : 
+         type === "group" ? <Users className="w-4 h-4" /> : 
          initials}
       </div>
       
       {/* Nome */}
-      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors text-center max-w-[80px] truncate">
+      <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors text-center max-w-[70px] truncate">
         {conversation.name || "Chat"}
       </span>
     </motion.div>
@@ -168,29 +177,29 @@ const OrbSection = ({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mb-8"
+      className="mb-6"
     >
-      <div className="flex items-center justify-center gap-2 mb-4">
+      <div className="flex items-center justify-center gap-2 mb-3">
         <span 
-          className="text-xs font-medium px-3 py-1 rounded-full border flex items-center gap-1.5"
+          className="text-[10px] font-medium px-2.5 py-0.5 rounded-full border flex items-center gap-1"
           style={{ 
             background: `linear-gradient(135deg, ${gradient.from}15, ${gradient.to}15)`,
             borderColor: `${gradient.from}30`,
             color: gradient.from 
           }}
         >
-          <Icon className="w-3 h-3" />
+          <Icon className="w-2.5 h-2.5" />
           {title}
         </span>
       </div>
       
-      <div className="flex flex-wrap justify-center gap-6">
+      <div className="flex flex-wrap justify-center gap-4">
         {items.map((item, index) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, scale: 0 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.05 }}
+            transition={{ delay: index * 0.04 }}
           >
             <ConversationOrb
               conversation={item}
@@ -211,14 +220,14 @@ const EnergyMessage = ({ message, isFromMe }: { message: Message; isFromMe: bool
   
   return (
     <motion.div
-      initial={{ opacity: 0, x: isFromMe ? 30 : -30, scale: 0.9 }}
+      initial={{ opacity: 0, x: isFromMe ? 20 : -20, scale: 0.95 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
       className={cn("flex", isFromMe ? "justify-end" : "justify-start")}
     >
       <div className="relative group max-w-[70%]">
         <div
           className={cn(
-            "absolute inset-0 rounded-2xl blur-md opacity-20",
+            "absolute inset-0 rounded-2xl blur-md opacity-15",
             isFromMe ? "bg-orange-500" : "bg-purple-500"
           )}
         />
@@ -273,10 +282,10 @@ const HolographicInput = ({
 
   return (
     <div className="relative">
-      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-orange-500/20 blur-lg opacity-50" />
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/15 via-purple-500/15 to-orange-500/15 blur-lg opacity-50" />
       
-      <div className="relative flex items-center gap-3 p-3 rounded-2xl bg-card/60 backdrop-blur-xl border border-orange-500/20">
-        <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-orange-400">
+      <div className="relative flex items-center gap-2 p-2.5 rounded-2xl bg-card/60 backdrop-blur-xl border border-orange-500/20">
+        <Button variant="ghost" size="icon" className="shrink-0 w-8 h-8 text-muted-foreground hover:text-orange-400">
           <Paperclip className="w-4 h-4" />
         </Button>
         
@@ -286,7 +295,7 @@ const HolographicInput = ({
           onKeyDown={handleKeyDown}
           placeholder="Digite sua mensagem..."
           disabled={disabled}
-          className="flex-1 bg-transparent border-0 focus-visible:ring-0"
+          className="flex-1 bg-transparent border-0 focus-visible:ring-0 text-sm"
         />
         
         <AnimatePresence mode="wait">
@@ -296,14 +305,14 @@ const HolographicInput = ({
                 onClick={onSend}
                 size="icon"
                 disabled={disabled}
-                className="shrink-0 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
+                className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               </Button>
             </motion.div>
           ) : (
             <motion.div key="mic" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-              <Button variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-orange-400">
+              <Button variant="ghost" size="icon" className="shrink-0 w-8 h-8 text-muted-foreground hover:text-orange-400">
                 <Mic className="w-4 h-4" />
               </Button>
             </motion.div>
@@ -333,8 +342,8 @@ const NewConversationModal = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400">
-          <Plus className="w-5 h-5" />
+        <Button size="sm" className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700">
+          <Plus className="w-4 h-4 mr-1" /> Nova Conversa
         </Button>
       </DialogTrigger>
       <DialogContent className="bg-card/95 backdrop-blur-xl border-orange-500/20">
@@ -344,55 +353,58 @@ const NewConversationModal = ({
         
         <Tabs defaultValue="direct" className="mt-4">
           <TabsList className="grid w-full grid-cols-3 bg-background/50">
-            <TabsTrigger value="direct" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">
-              <MessageCircle className="w-4 h-4 mr-2" /> Direto
+            <TabsTrigger value="direct" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">
+              <MessageCircle className="w-3.5 h-3.5 mr-1.5" /> Direto
             </TabsTrigger>
-            <TabsTrigger value="group" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400">
-              <Users className="w-4 h-4 mr-2" /> Grupo
+            <TabsTrigger value="group" className="data-[state=active]:bg-purple-500/20 data-[state=active]:text-purple-400 text-xs">
+              <Users className="w-3.5 h-3.5 mr-1.5" /> Grupo
             </TabsTrigger>
-            <TabsTrigger value="channel" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
-              <Hash className="w-4 h-4 mr-2" /> Canal
+            <TabsTrigger value="channel" className="data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400 text-xs">
+              <Hash className="w-3.5 h-3.5 mr-1.5" /> Canal
             </TabsTrigger>
           </TabsList>
           
-          <TabsContent value="direct" className="space-y-4 mt-4">
-            <p className="text-sm text-muted-foreground">Selecione um membro da equipe:</p>
-            <ScrollArea className="h-[200px]">
-              <div className="space-y-2">
+          <TabsContent value="direct" className="space-y-3 mt-4">
+            <p className="text-sm text-muted-foreground">Selecione um membro:</p>
+            <ScrollArea className="h-[180px]">
+              <div className="space-y-1.5">
                 {teamMembers.map((member) => (
                   <Button
                     key={member.user_id}
                     variant="ghost"
-                    className="w-full justify-start hover:bg-blue-500/10"
+                    className="w-full justify-start h-auto py-2 hover:bg-blue-500/10"
                     onClick={() => onCreateDirect(member.user_id)}
                   >
-                    <Avatar className="w-8 h-8 mr-3">
-                      <AvatarFallback className="bg-blue-500/20 text-blue-400 text-xs">
+                    <Avatar className="w-7 h-7 mr-2">
+                      <AvatarFallback className="bg-blue-500/20 text-blue-400 text-[10px]">
                         {(member.profiles?.full_name || member.profiles?.email || "?").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <span>{member.profiles?.full_name || member.profiles?.email}</span>
+                    <span className="text-sm">{member.profiles?.full_name || member.profiles?.email}</span>
                   </Button>
                 ))}
+                {teamMembers.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum membro disponível</p>
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
           
-          <TabsContent value="group" className="space-y-4 mt-4">
+          <TabsContent value="group" className="space-y-3 mt-4">
             <div>
-              <Label>Nome do Grupo</Label>
+              <Label className="text-xs">Nome do Grupo</Label>
               <Input
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 placeholder="Ex: Equipe Fiscal"
-                className="mt-1 bg-background/50 border-purple-500/20"
+                className="mt-1 bg-background/50 border-purple-500/20 h-9"
               />
             </div>
             <div>
-              <Label>Membros</Label>
-              <ScrollArea className="h-[150px] mt-2 border rounded-lg border-purple-500/20 p-2">
+              <Label className="text-xs">Membros</Label>
+              <ScrollArea className="h-[120px] mt-1 border rounded-lg border-purple-500/20 p-2">
                 {teamMembers.map((member) => (
-                  <label key={member.user_id} className="flex items-center gap-2 p-2 hover:bg-purple-500/10 rounded cursor-pointer">
+                  <label key={member.user_id} className="flex items-center gap-2 p-1.5 hover:bg-purple-500/10 rounded cursor-pointer">
                     <input
                       type="checkbox"
                       checked={selectedUsers.includes(member.user_id)}
@@ -403,7 +415,7 @@ const NewConversationModal = ({
                           setSelectedUsers(selectedUsers.filter(id => id !== member.user_id));
                         }
                       }}
-                      className="rounded border-purple-500/30"
+                      className="rounded border-purple-500/30 w-3.5 h-3.5"
                     />
                     <span className="text-sm">{member.profiles?.full_name || member.profiles?.email}</span>
                   </label>
@@ -414,25 +426,27 @@ const NewConversationModal = ({
               onClick={() => onCreateGroup(groupName, selectedUsers)}
               disabled={!groupName.trim() || selectedUsers.length === 0}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500"
+              size="sm"
             >
               Criar Grupo
             </Button>
           </TabsContent>
           
-          <TabsContent value="channel" className="space-y-4 mt-4">
+          <TabsContent value="channel" className="space-y-3 mt-4">
             <div>
-              <Label>Nome do Canal</Label>
+              <Label className="text-xs">Nome do Canal</Label>
               <Input
                 value={channelName}
                 onChange={(e) => setChannelName(e.target.value)}
                 placeholder="Ex: anuncios-gerais"
-                className="mt-1 bg-background/50 border-orange-500/20"
+                className="mt-1 bg-background/50 border-orange-500/20 h-9"
               />
             </div>
             <Button
               onClick={() => onCreateChannel(channelName)}
               disabled={!channelName.trim()}
               className="w-full bg-gradient-to-r from-orange-500 to-yellow-500"
+              size="sm"
             >
               Criar Canal
             </Button>
@@ -475,49 +489,50 @@ const ExpandedChat = ({
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 30 }}
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 30 }}
-      className="absolute inset-4 md:inset-8 z-50 flex flex-col rounded-3xl overflow-hidden"
+      exit={{ opacity: 0, scale: 0.95, y: 20 }}
+      className="absolute inset-4 z-50 flex flex-col rounded-2xl overflow-hidden"
     >
-      <div className="absolute inset-0 bg-background/90 backdrop-blur-2xl" />
+      <div className="absolute inset-0 bg-background/95 backdrop-blur-xl" />
       <div 
-        className="absolute inset-0 rounded-3xl opacity-50"
-        style={{ background: `linear-gradient(135deg, ${gradient.from}10, ${gradient.to}10)` }}
+        className="absolute inset-0 rounded-2xl opacity-40"
+        style={{ background: `linear-gradient(135deg, ${gradient.from}08, ${gradient.to}08)` }}
       />
+      <div className="absolute inset-0 border border-foreground/10 rounded-2xl" />
       
       {/* Header */}
-      <div className="relative z-10 flex items-center justify-between p-4 border-b border-foreground/10">
+      <div className="relative z-10 flex items-center justify-between p-3 border-b border-foreground/10">
         <div className="flex items-center gap-3">
           <div
-            className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs"
             style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
           >
-            {conversation.type === "channel" ? <Hash className="w-5 h-5" /> : 
-             conversation.type === "group" ? <Users className="w-4 h-4" /> :
+            {conversation.type === "channel" ? <Hash className="w-4 h-4" /> : 
+             conversation.type === "group" ? <Users className="w-3.5 h-3.5" /> :
              (conversation.name || "?").slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <h2 className="font-semibold text-foreground">{conversation.name || "Chat"}</h2>
-            <p className="text-xs text-muted-foreground">
+            <h2 className="font-medium text-sm text-foreground">{conversation.name || "Chat"}</h2>
+            <p className="text-[10px] text-muted-foreground">
               {conversation.type === "channel" ? "Canal" : 
                conversation.type === "group" ? "Grupo" : "Conversa direta"}
             </p>
           </div>
         </div>
         
-        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-foreground/10">
-          <X className="w-5 h-5" />
+        <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full w-8 h-8 hover:bg-foreground/10">
+          <X className="w-4 h-4" />
         </Button>
       </div>
       
       {/* Mensagens */}
       <ScrollArea className="relative z-10 flex-1 p-4">
-        <div className="space-y-4">
+        <div className="space-y-3">
           {messages.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <Sparkles className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>Inicie a conversa!</p>
+            <div className="text-center py-10 text-muted-foreground">
+              <Sparkles className="w-10 h-10 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">Inicie a conversa!</p>
             </div>
           ) : (
             messages.map((message) => (
@@ -533,7 +548,7 @@ const ExpandedChat = ({
       </ScrollArea>
       
       {/* Input */}
-      <div className="relative z-10 p-4">
+      <div className="relative z-10 p-3">
         <HolographicInput
           value={newMessage}
           onChange={setNewMessage}
@@ -542,6 +557,150 @@ const ExpandedChat = ({
         />
       </div>
     </motion.div>
+  );
+};
+
+// Sidebar do Messenger
+const MessengerSidebar = () => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  const displayName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Usuário';
+  const initials = displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <motion.aside
+        className={cn(
+          "fixed right-0 top-0 bottom-0 z-40 flex flex-col",
+          "bg-gradient-to-b from-background/80 via-background/60 to-background/80",
+          "backdrop-blur-2xl border-l border-white/10",
+          "shadow-2xl shadow-black/20"
+        )}
+        animate={{ width: isExpanded ? 220 : 72 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      >
+        {/* Header */}
+        <div className="p-4 border-b border-white/5">
+          <motion.div className="flex items-center gap-3" animate={{ justifyContent: isExpanded ? "flex-start" : "center" }}>
+            <motion.div 
+              className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Sparkles className="w-5 h-5 text-orange-400" />
+            </motion.div>
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}>
+                  <h2 className="font-bold text-foreground tracking-tight">MESSENGER</h2>
+                  <p className="text-[10px] text-muted-foreground tracking-wider">NEBULA</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 py-4 px-3 overflow-y-auto">
+          <div className="space-y-1">
+            {/* Home */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <motion.button
+                  onClick={() => navigate("/dashboard")}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                  whileHover={{ x: isExpanded ? -4 : 0 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Home className="w-5 h-5" />
+                  {isExpanded && <span className="text-sm font-medium">Dashboard</span>}
+                </motion.button>
+              </TooltipTrigger>
+              {!isExpanded && <TooltipContent side="left">Dashboard</TooltipContent>}
+            </Tooltip>
+
+            {/* Seções */}
+            {isExpanded && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="pt-4 pb-2 px-3">
+                <span className="text-[10px] font-semibold tracking-widest text-muted-foreground/60 uppercase">Conversas</span>
+              </motion.div>
+            )}
+            
+            {[
+              { id: "internal", label: "Interno", icon: Users, color: "from-blue-500/20 to-cyan-500/10" },
+              { id: "external", label: "Externo", icon: Phone, color: "from-green-500/20 to-emerald-500/10" },
+            ].map((item) => (
+              <Tooltip key={item.id}>
+                <TooltipTrigger asChild>
+                  <motion.button
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
+                    whileHover={{ x: isExpanded ? -4 : 0 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <item.icon className="w-5 h-5" />
+                    {isExpanded && <span className="text-sm font-medium">{item.label}</span>}
+                  </motion.button>
+                </TooltipTrigger>
+                {!isExpanded && <TooltipContent side="left">{item.label}</TooltipContent>}
+              </Tooltip>
+            ))}
+          </div>
+        </nav>
+
+        {/* User Profile */}
+        {user && (
+          <div className="p-3 border-t border-white/5">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <motion.button
+                  className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white/5 transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.user_metadata?.avatar_url} />
+                    <AvatarFallback className="bg-orange-500/20 text-orange-400 text-xs">{initials}</AvatarFallback>
+                  </Avatar>
+                  {isExpanded && (
+                    <>
+                      <div className="flex-1 text-left min-w-0">
+                        <p className="text-xs font-medium text-foreground leading-none truncate">{displayName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+                      </div>
+                      <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+                    </>
+                  )}
+                </motion.button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{displayName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+                  <LogOut className="w-4 h-4 mr-2" /> Sair
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+
+        {/* Collapse toggle */}
+        <div className="p-3 border-t border-white/5">
+          <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)} className="w-full justify-center hover:bg-white/5">
+            <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
+              <ChevronLeft className="w-4 h-4" />
+            </motion.div>
+          </Button>
+        </div>
+
+        {/* Decorative line */}
+        <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-transparent via-orange-500/40 to-transparent" />
+      </motion.aside>
+    </TooltipProvider>
   );
 };
 
@@ -600,207 +759,132 @@ export default function Messenger() {
   }, [selectedConversation, sendMessage]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-background relative">
+    <div className="min-h-screen flex bg-background relative">
       <NebulaBackground />
       
-      {/* Header */}
-      <motion.div 
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-20 flex items-center justify-between p-4 md:p-6"
-      >
-        <div className="flex items-center gap-4">
-          <motion.div
-            className="p-3 rounded-2xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
-            whileHover={{ scale: 1.05 }}
-          >
-            <Sparkles className="w-6 h-6 text-orange-400" />
-          </motion.div>
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
-              Nebula Messenger
-            </h1>
-            <p className="text-sm text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
+      {/* Main Content */}
+      <div className="flex-1 mr-[220px] relative">
+        {/* Header */}
+        <motion.header 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-20 px-6 py-4 border-b border-white/5"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <motion.div
+                className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500/20 to-orange-600/10 border border-orange-500/30"
+                whileHover={{ scale: 1.05 }}
+              >
+                <Sparkles className="w-5 h-5 text-orange-400" />
+              </motion.div>
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-orange-400 to-orange-600 bg-clip-text text-transparent">
+                  Nebula Messenger
+                </h1>
+                <p className="text-xs text-muted-foreground">{empresaAtiva?.nome || "VAULT"}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Tabs */}
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-card/40 backdrop-blur border border-foreground/10">
+                <button
+                  onClick={() => setActiveTab("internal")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    activeTab === "internal" ? "bg-orange-500 text-white" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Users className="w-3 h-3 inline mr-1" /> Interno
+                </button>
+                <button
+                  onClick={() => setActiveTab("external")}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                    activeTab === "external" ? "bg-green-500 text-white" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <Phone className="w-3 h-3 inline mr-1" /> Externo
+                </button>
+              </div>
+              
+              <AnimatePresence>
+                {showSearch && (
+                  <motion.div initial={{ width: 0, opacity: 0 }} animate={{ width: 160, opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="overflow-hidden">
+                    <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar..." className="bg-card/60 border-orange-500/20 h-8 text-sm" autoFocus />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
+              <Button variant="ghost" size="icon" onClick={() => setShowSearch(!showSearch)} className="w-8 h-8 rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400">
+                <Search className="w-4 h-4" />
+              </Button>
+              
+              <NewConversationModal teamMembers={teamMembers} onCreateDirect={handleCreateDirect} onCreateGroup={handleCreateGroup} onCreateChannel={handleCreateChannel} />
+            </div>
           </div>
+        </motion.header>
+        
+        {/* Área Principal */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 min-h-[calc(100vh-100px)]">
+          {isLoadingConversations ? (
+            <div className="text-muted-foreground">Carregando...</div>
+          ) : activeTab === "internal" ? (
+            <div className="w-full max-w-3xl">
+              <OrbSection title="Canais" icon={Hash} items={groupedConversations.channel} type="channel" selectedId={selectedConversation?.id} onSelect={setSelectedConversation} gradient={typeGradients.channel} />
+              <OrbSection title="Grupos" icon={Users} items={groupedConversations.group} type="group" selectedId={selectedConversation?.id} onSelect={setSelectedConversation} gradient={typeGradients.group} />
+              <OrbSection title="Conversas Diretas" icon={MessageCircle} items={groupedConversations.direct} type="direct" selectedId={selectedConversation?.id} onSelect={setSelectedConversation} gradient={typeGradients.direct} />
+              
+              {groupedConversations.channel.length === 0 && groupedConversations.group.length === 0 && groupedConversations.direct.length === 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+                  <Sparkles className="w-14 h-14 mx-auto mb-4 text-orange-500/30" />
+                  <p className="text-muted-foreground mb-1">Nenhuma conversa ainda</p>
+                  <p className="text-sm text-muted-foreground/60">Clique em "Nova Conversa" para iniciar</p>
+                </motion.div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full max-w-3xl">
+              <OrbSection title="Clientes" icon={Building2} items={externalContacts.filter(c => c.tag === "cliente").map(c => ({ ...c, type: "direct" as ConversationType }))} type="direct" selectedId={selectedConversation?.id} onSelect={(c) => c.conversation_id && setSelectedConversation({ id: c.conversation_id, name: c.name } as Conversation)} gradient={typeGradients.external} />
+              <OrbSection title="Fornecedores" icon={Briefcase} items={externalContacts.filter(c => c.tag === "fornecedor").map(c => ({ ...c, type: "direct" as ConversationType }))} type="direct" selectedId={selectedConversation?.id} onSelect={(c) => c.conversation_id && setSelectedConversation({ id: c.conversation_id, name: c.name } as Conversation)} gradient={{ from: "#a855f7", to: "#ec4899" }} />
+              
+              {externalContacts.length === 0 && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+                  <Phone className="w-14 h-14 mx-auto mb-4 text-green-500/30" />
+                  <p className="text-muted-foreground mb-1">Nenhum contato externo</p>
+                  <p className="text-sm text-muted-foreground/60">Aguardando integração WhatsApp Business</p>
+                </motion.div>
+              )}
+            </div>
+          )}
         </div>
         
-        <div className="flex items-center gap-2">
-          {/* Tabs */}
-          <div className="hidden sm:flex items-center gap-1 p-1 rounded-xl bg-card/40 backdrop-blur border border-foreground/10">
-            <button
-              onClick={() => setActiveTab("internal")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                activeTab === "internal" 
-                  ? "bg-orange-500 text-white" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Users className="w-3 h-3 inline mr-1" /> Interno
-            </button>
-            <button
-              onClick={() => setActiveTab("external")}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                activeTab === "external" 
-                  ? "bg-green-500 text-white" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Phone className="w-3 h-3 inline mr-1" /> Externo
-            </button>
+        {/* Status */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 p-4 flex justify-center">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-card/40 backdrop-blur-xl border border-orange-500/20">
+            <motion.div className="w-1.5 h-1.5 rounded-full bg-orange-500" animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }} />
+            <span className="text-[10px] text-orange-400">Sistema de mensagens ativo</span>
           </div>
-          
-          <AnimatePresence>
-            {showSearch && (
-              <motion.div
-                initial={{ width: 0, opacity: 0 }}
-                animate={{ width: 180, opacity: 1 }}
-                exit={{ width: 0, opacity: 0 }}
-                className="overflow-hidden"
-              >
-                <Input
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar..."
-                  className="bg-card/60 border-orange-500/20 h-9"
-                  autoFocus
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowSearch(!showSearch)}
-            className="rounded-full hover:bg-orange-500/10 text-muted-foreground hover:text-orange-400"
-          >
-            <Search className="w-5 h-5" />
-          </Button>
-          
-          <NewConversationModal
-            teamMembers={teamMembers}
-            onCreateDirect={handleCreateDirect}
-            onCreateGroup={handleCreateGroup}
-            onCreateChannel={handleCreateChannel}
-          />
-        </div>
-      </motion.div>
-      
-      {/* Área Principal */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto">
-        {isLoadingConversations ? (
-          <div className="text-muted-foreground">Carregando...</div>
-        ) : activeTab === "internal" ? (
-          <>
-            {/* Canais */}
-            <OrbSection
-              title="Canais"
-              icon={Hash}
-              items={groupedConversations.channel}
-              type="channel"
-              selectedId={selectedConversation?.id}
-              onSelect={setSelectedConversation}
-              gradient={typeGradients.channel}
+        </motion.div>
+        
+        {/* Chat Expandido */}
+        <AnimatePresence>
+          {selectedConversation && (
+            <ExpandedChat
+              conversation={selectedConversation}
+              messages={messages}
+              onClose={() => setSelectedConversation(null)}
+              onSendMessage={handleSendMessage}
+              isSending={sendMessage.isPending}
+              currentUserId={user?.id}
             />
-            
-            {/* Grupos */}
-            <OrbSection
-              title="Grupos"
-              icon={Users}
-              items={groupedConversations.group}
-              type="group"
-              selectedId={selectedConversation?.id}
-              onSelect={setSelectedConversation}
-              gradient={typeGradients.group}
-            />
-            
-            {/* Conversas Diretas */}
-            <OrbSection
-              title="Conversas Diretas"
-              icon={MessageCircle}
-              items={groupedConversations.direct}
-              type="direct"
-              selectedId={selectedConversation?.id}
-              onSelect={setSelectedConversation}
-              gradient={typeGradients.direct}
-            />
-            
-            {/* Mensagem vazia */}
-            {groupedConversations.channel.length === 0 && 
-             groupedConversations.group.length === 0 && 
-             groupedConversations.direct.length === 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-                <Sparkles className="w-16 h-16 mx-auto mb-4 text-orange-500/30" />
-                <p className="text-muted-foreground mb-2">Nenhuma conversa ainda</p>
-                <p className="text-sm text-muted-foreground/60">Clique no + para iniciar</p>
-              </motion.div>
-            )}
-          </>
-        ) : (
-          /* Contatos Externos */
-          <div className="w-full max-w-3xl">
-            <OrbSection
-              title="Clientes"
-              icon={Building2}
-              items={externalContacts.filter(c => c.tag === "cliente").map(c => ({ ...c, type: "direct" as ConversationType }))}
-              type="direct"
-              selectedId={selectedConversation?.id}
-              onSelect={(c) => c.conversation_id && setSelectedConversation({ id: c.conversation_id, name: c.name } as Conversation)}
-              gradient={typeGradients.external}
-            />
-            
-            <OrbSection
-              title="Fornecedores"
-              icon={Briefcase}
-              items={externalContacts.filter(c => c.tag === "fornecedor").map(c => ({ ...c, type: "direct" as ConversationType }))}
-              type="direct"
-              selectedId={selectedConversation?.id}
-              onSelect={(c) => c.conversation_id && setSelectedConversation({ id: c.conversation_id, name: c.name } as Conversation)}
-              gradient={{ from: "#a855f7", to: "#ec4899" }}
-            />
-            
-            {externalContacts.length === 0 && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
-                <Phone className="w-16 h-16 mx-auto mb-4 text-green-500/30" />
-                <p className="text-muted-foreground mb-2">Nenhum contato externo</p>
-                <p className="text-sm text-muted-foreground/60">Aguardando integração WhatsApp Business</p>
-              </motion.div>
-            )}
-          </div>
-        )}
+          )}
+        </AnimatePresence>
       </div>
       
-      {/* Status API */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative z-10 p-4 flex justify-center"
-      >
-        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/40 backdrop-blur-xl border border-orange-500/20">
-          <motion.div
-            className="w-2 h-2 rounded-full bg-orange-500"
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          />
-          <span className="text-xs text-orange-400">Sistema de mensagens ativo</span>
-        </div>
-      </motion.div>
-      
-      {/* Chat Expandido */}
-      <AnimatePresence>
-        {selectedConversation && (
-          <ExpandedChat
-            conversation={selectedConversation}
-            messages={messages}
-            onClose={() => setSelectedConversation(null)}
-            onSendMessage={handleSendMessage}
-            isSending={sendMessage.isPending}
-            currentUserId={user?.id}
-          />
-        )}
-      </AnimatePresence>
+      {/* Sidebar */}
+      <MessengerSidebar />
     </div>
   );
 }
