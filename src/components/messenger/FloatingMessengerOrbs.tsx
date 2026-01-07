@@ -238,10 +238,10 @@ const HolographicInput = React.memo(({
   theme
 }: { 
   value: string; 
-  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSend: () => void;
-  onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   theme: IslandTheme;
 }) => {
   const themeConfig = themeConfigs[theme];
@@ -258,13 +258,35 @@ const HolographicInput = React.memo(({
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-orange-500/20 blur-xl" />
       )}
       
+      {/* Barra de progresso de digitação - mais destacada */}
+      <motion.div
+        className={cn(
+          "absolute -top-1 left-3 right-3 h-1 rounded-full overflow-hidden",
+          theme === 'light' ? 'bg-gray-200' : 'bg-white/10'
+        )}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: value.length > 0 ? 1 : 0 }}
+      >
+        <motion.div
+          className={cn(
+            "h-full rounded-full",
+            theme === 'dark' 
+              ? 'bg-gradient-to-r from-zinc-400 to-zinc-300' 
+              : 'bg-gradient-to-r from-orange-500 via-purple-500 to-cyan-500'
+          )}
+          initial={{ width: 0 }}
+          animate={{ width: `${Math.min(value.length * 2, 100)}%` }}
+          transition={{ type: "spring", stiffness: 300 }}
+        />
+      </motion.div>
+      
       {/* Container principal */}
       <div className={cn(
-        "relative flex items-center gap-3 p-3 rounded-2xl backdrop-blur-xl border",
+        "relative flex items-end gap-3 p-3 rounded-2xl backdrop-blur-xl border",
         themeConfig.chat.input
       )}>
         {/* Botões de mídia */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 pb-1">
           <Button 
             variant="ghost" 
             size="icon" 
@@ -279,36 +301,32 @@ const HolographicInput = React.memo(({
           </Button>
         </div>
         
-        {/* Input */}
+        {/* Textarea com quebra de linha */}
         <div className="flex-1 relative">
-          <Input
+          <textarea
             ref={inputRef}
             value={value}
             onChange={onChange}
             onKeyDown={onKeyDown}
             placeholder="Digite sua mensagem..."
+            rows={1}
             className={cn(
-              "bg-transparent border-0 focus-visible:ring-0 px-0",
+              "w-full bg-transparent border-0 focus:outline-none focus:ring-0 px-0 py-1 resize-none",
+              "min-h-[24px] max-h-[120px] overflow-y-auto",
               theme === 'light' 
                 ? 'text-gray-900 placeholder:text-gray-400' 
                 : 'text-white placeholder:text-zinc-500'
             )}
+            style={{
+              height: 'auto',
+              minHeight: '24px',
+            }}
+            onInput={(e) => {
+              const target = e.target as HTMLTextAreaElement;
+              target.style.height = 'auto';
+              target.style.height = `${Math.min(target.scrollHeight, 120)}px`;
+            }}
           />
-          
-          {/* Linha de digitação animada */}
-          {value.length > 0 && (
-            <motion.div
-              className={cn(
-                "absolute bottom-0 left-0 h-[2px]",
-                theme === 'dark' 
-                  ? 'bg-gradient-to-r from-zinc-500 to-zinc-400' 
-                  : 'bg-gradient-to-r from-orange-500 to-purple-500'
-              )}
-              initial={{ width: 0 }}
-              animate={{ width: `${Math.min(value.length * 3, 100)}%` }}
-              transition={{ type: "spring", stiffness: 300 }}
-            />
-          )}
         </div>
         
         {/* Botão de enviar */}
@@ -379,16 +397,16 @@ const ExpandedChatPanel = React.memo(({
   messages: Message[];
   onClose: () => void;
   newMessage: string;
-  onMessageChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onMessageChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => void;
   onSendMessage: () => void;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
   messagesEndRef: React.RefObject<HTMLDivElement>;
   theme: IslandTheme;
 }) => {
   const themeConfig = themeConfigs[theme];
   const tagStyle = contact.tag ? themeConfig.tagGradients[contact.tag] : themeConfig.tagGradients.cliente;
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSendMessage();
@@ -866,7 +884,7 @@ export const FloatingMessengerOrbs = () => {
   });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Don't show on messenger page, auth pages, or landing
   const hiddenRoutes = ['/messenger', '/auth', '/master', '/'];
@@ -904,7 +922,7 @@ export const FloatingMessengerOrbs = () => {
     setIsIslandVisible(prev => !prev);
   }, []);
 
-  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMessageChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setNewMessage(e.target.value);
   }, []);
 
