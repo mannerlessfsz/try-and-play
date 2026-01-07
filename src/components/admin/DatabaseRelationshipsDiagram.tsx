@@ -214,46 +214,29 @@ const DATABASE_SCHEMA: TableSchema[] = [
     ]
   },
   {
-    name: 'permission_profiles',
-    displayName: 'Perfis de Permissão',
+    name: 'user_module_permissions',
+    displayName: 'Permissões de Módulo',
     category: 'config',
     icon: <Shield className="w-4 h-4" />,
-    description: 'Templates de permissões reutilizáveis',
+    description: 'Permissões de usuário por módulo e empresa',
     rlsEnabled: true,
     rlsPolicies: [
       { name: 'Admins can view/manage', command: 'ALL', using: 'is_admin(auth.uid())' },
+      { name: 'Users can view own', command: 'SELECT', using: 'auth.uid() = user_id' },
     ],
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
-      { name: 'nome', type: 'text', nullable: false },
-      { name: 'descricao', type: 'text', nullable: true },
-      { name: 'role_padrao', type: 'text', nullable: true },
-      { name: 'ativo', type: 'boolean', nullable: true, default: 'true' },
-      { name: 'created_at', type: 'timestamptz', nullable: false },
-      { name: 'updated_at', type: 'timestamptz', nullable: false },
-    ]
-  },
-  {
-    name: 'permission_profile_items',
-    displayName: 'Itens de Perfil de Permissão',
-    category: 'config',
-    icon: <List className="w-4 h-4" />,
-    description: 'Permissões detalhadas de cada perfil',
-    rlsEnabled: true,
-    rlsPolicies: [
-      { name: 'Admins can view/manage', command: 'ALL', using: 'is_admin(auth.uid())' },
-    ],
-    columns: [
-      { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
-      { name: 'profile_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'permission_profiles', column: 'id' } },
-      { name: 'module', type: 'text', nullable: false },
-      { name: 'resource', type: 'text', nullable: false },
+      { name: 'user_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'profiles', column: 'id' } },
+      { name: 'empresa_id', type: 'uuid', nullable: true, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
+      { name: 'module', type: 'app_module', nullable: false },
       { name: 'can_view', type: 'boolean', nullable: true, default: 'false' },
       { name: 'can_create', type: 'boolean', nullable: true, default: 'false' },
       { name: 'can_edit', type: 'boolean', nullable: true, default: 'false' },
       { name: 'can_delete', type: 'boolean', nullable: true, default: 'false' },
       { name: 'can_export', type: 'boolean', nullable: true, default: 'false' },
+      { name: 'is_pro_mode', type: 'boolean', nullable: true, default: 'false' },
       { name: 'created_at', type: 'timestamptz', nullable: false },
+      { name: 'updated_at', type: 'timestamptz', nullable: false },
     ]
   },
   // Financial Tables

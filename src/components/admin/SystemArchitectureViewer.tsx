@@ -465,15 +465,15 @@ const SystemArchitectureViewer = () => {
                   </div>
                 </div>
 
-                {/* Resource Permission Flow */}
+                {/* Module Permission Flow */}
                 <div>
-                  <h3 className="font-medium mb-3">3. Autorização por Recurso</h3>
+                  <h3 className="font-medium mb-3">3. Autorização por Módulo</h3>
                   <div className="flex flex-wrap items-center gap-2">
-                    <FlowStep label="Ação no Recurso" sublabel="ex: criar transação" />
+                    <FlowStep label="Ação no Módulo" sublabel="ex: acessar gestão" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <FlowStep label="useResourcePermissions" sublabel="Verificação" />
+                    <FlowStep label="useModulePermissions" sublabel="Verificação" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <FlowStep label="user_resource_permissions" sublabel="Tabela" />
+                    <FlowStep label="user_module_permissions" sublabel="Tabela" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     <div className="flex flex-col gap-2">
                       <FlowStep label="Permitido" variant="success" />
@@ -507,17 +507,12 @@ const SystemArchitectureViewer = () => {
                   fields={['user_id', 'empresa_id', 'is_owner']}
                 />
                 <TableCard 
-                  name="user_permissions" 
+                  name="user_module_permissions" 
                   description="Permissões por módulo"
-                  fields={['user_id', 'empresa_id', 'module', 'permission']}
+                  fields={['user_id', 'empresa_id', 'module', 'can_view', 'can_create', 'can_edit', 'can_delete']}
                 />
                 <TableCard 
-                  name="user_resource_permissions" 
-                  description="Permissões granulares"
-                  fields={['user_id', 'empresa_id', 'module', 'resource', 'can_*']}
-                />
-                <TableCard 
-                  name="permission_profiles" 
+                  name="empresa_modulos"
                   description="Templates de permissão"
                   fields={['id', 'nome', 'role_padrao']}
                 />
@@ -660,25 +655,25 @@ const DevelopmentStandards = () => {
           <div className="space-y-3">
             <ChecklistItem 
               step={1}
-              title="Adicionar recurso em src/constants/modules.ts"
-              description="Incluir no array MODULE_RESOURCES do módulo"
-              code="MODULE_RESOURCES.gestao.push({ value: 'novo_recurso', label: 'Novo Recurso' })"
+              title="Definir módulo em src/constants/modules.ts"
+              description="Incluir o módulo na lista de módulos disponíveis"
+              code="ALL_MODULES.push('novo_modulo')"
             />
             <ChecklistItem 
               step={2}
-              title="Atualizar perfis de permissão"
-              description="Adicionar recurso aos templates em permission_profile_items"
+              title="Configurar permissões via Admin"
+              description="Usar o editor de permissões para conceder acesso aos usuários"
             />
             <ChecklistItem 
               step={3}
               title="Implementar verificação de permissão"
-              description="Usar useResourcePermissions no componente"
-              code="const { canView, canCreate } = useResourcePermissions('gestao', 'novo_recurso')"
+              description="Usar useModulePermissions no componente"
+              code="const { permissions } = useModulePermissions('novo_modulo', empresaId)"
             />
             <ChecklistItem 
               step={4}
               title="Testar no painel Admin"
-              description="Verificar que o recurso aparece na configuração de permissões"
+              description="Verificar que o módulo aparece na configuração de permissões"
             />
           </div>
         </CardContent>
@@ -696,7 +691,7 @@ const DevelopmentStandards = () => {
           <div className="space-y-3">
             <FileReference 
               path="src/constants/modules.ts"
-              description="Definição central de módulos, recursos e permissões"
+              description="Definição central de módulos e permissões"
             />
             <FileReference 
               path="src/constants/routes.ts"
@@ -711,8 +706,8 @@ const DevelopmentStandards = () => {
               description="Hook de verificação de permissões por módulo"
             />
             <FileReference 
-              path="src/hooks/useResourcePermissions.ts"
-              description="Hook de verificação de permissões por recurso"
+              path="src/hooks/useModulePermissions.ts"
+              description="Hook de permissões de módulo por empresa"
             />
             <FileReference 
               path="src/components/ProtectedRoute.tsx"
