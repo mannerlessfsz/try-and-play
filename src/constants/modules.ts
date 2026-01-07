@@ -50,7 +50,8 @@ export type AppSubModule =
   | 'kanban'
   | 'fiscal'
   | 'extrato'
-  | 'conferencia';
+  | 'conferencia'
+  | 'comunicacao';
 
 /**
  * Tipos de permissão por módulo
@@ -157,7 +158,9 @@ export const MODULE_SUB_MODULES: Record<AppModule, SubModuleDefinition[]> = {
     { value: 'fiscal', label: 'Fiscal', description: 'Conversão de arquivos fiscais' },
     { value: 'extrato', label: 'Extrato', description: 'Conversão de extratos bancários' },
   ],
-  messenger: [],
+  messenger: [
+    { value: 'comunicacao', label: 'Comunicação', description: 'Conversas, contatos e mensagens' },
+  ],
   // Legados
   conferesped: [],
   financialace: [],
@@ -236,6 +239,13 @@ export const SUB_MODULE_RESOURCES: Record<AppSubModule, ResourceDefinition[]> = 
   conferencia: [
     { value: 'validacao', label: 'Validação', description: 'Validação de registros SPED' },
     { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
+  ],
+  // Messenger > Comunicação
+  comunicacao: [
+    { value: 'conversas', label: 'Conversas', description: 'Gerenciamento de conversas' },
+    { value: 'contatos', label: 'Contatos', description: 'Lista de contatos internos e externos' },
+    { value: 'templates', label: 'Templates', description: 'Modelos de mensagem' },
+    { value: 'grupos', label: 'Grupos', description: 'Grupos e canais de comunicação' },
   ],
 };
 
