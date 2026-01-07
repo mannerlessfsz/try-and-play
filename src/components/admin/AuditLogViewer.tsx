@@ -15,11 +15,11 @@ import { History, Search, Filter, Eye, ChevronDown, ChevronUp, RefreshCw } from 
 import { Loader2 } from 'lucide-react';
 
 const tableNameLabels: Record<string, string> = {
-  user_permissions: 'Permissões de Usuário',
-  user_resource_permissions: 'Permissões de Recursos',
+  user_module_permissions: 'Permissões de Módulo',
   user_roles: 'Roles de Usuário',
-  permission_profiles: 'Perfis de Permissão',
-  permission_profile_items: 'Itens de Perfil'
+  empresa_modulos: 'Módulos da Empresa',
+  empresas: 'Empresas',
+  profiles: 'Perfis de Usuário'
 };
 
 const actionLabels: Record<string, { label: string; color: string }> = {

@@ -100,11 +100,11 @@ const POSTGRES_TYPES = [
 ];
 
 const EXISTING_TABLES = [
-  "profiles", "empresas", "user_empresas", "user_roles", "user_permissions",
+  "profiles", "empresas", "user_empresas", "user_roles", "user_module_permissions",
   "tarefas", "atividades", "transacoes", "categorias_financeiras", "centros_custo",
   "contas_bancarias", "produtos", "clientes", "fornecedores", "vendas", "compras",
   "orcamentos_servico", "recorrencias", "metas_financeiras", "audit_logs",
-  "permission_profiles", "permission_profile_items", "venda_itens", "compra_itens"
+  "empresa_modulos", "venda_itens", "compra_itens"
 ];
 
 const RESERVED_WORDS = [
