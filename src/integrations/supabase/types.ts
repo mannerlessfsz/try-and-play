@@ -855,6 +855,7 @@ export type Database = {
       }
       empresas: {
         Row: {
+          ativo: boolean
           cnpj: string | null
           created_at: string
           email: string | null
@@ -868,6 +869,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ativo?: boolean
           cnpj?: string | null
           created_at?: string
           email?: string | null
@@ -881,6 +883,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ativo?: boolean
           cnpj?: string | null
           created_at?: string
           email?: string | null
