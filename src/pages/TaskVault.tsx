@@ -394,7 +394,7 @@ export default function TaskVault() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-24">
+    <div className="min-h-screen bg-background pt-14 pb-28">
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
