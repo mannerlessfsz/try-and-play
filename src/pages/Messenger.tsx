@@ -994,9 +994,112 @@ export default function Messenger() {
       ) : (
         /* Traditional WhatsApp-style View */
         <div className="flex h-screen transition-all duration-300">
-          {/* Lista de conversas à esquerda */}
+          {/* Área de chat à esquerda */}
+          <div className="flex-1 flex flex-col">
+            {selectedContact ? (
+              <>
+                {/* Header do chat */}
+                <div className={cn("p-4 border-b flex items-center gap-4", styles.border, styles.card)}>
+                  <div className="relative">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                      style={{ background: `linear-gradient(135deg, ${tagGradients[selectedContact.tag || "cliente"].from}, ${tagGradients[selectedContact.tag || "cliente"].to})` }}
+                    >
+                      {selectedContact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                    </div>
+                    {selectedContact.isOnline && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-background" />
+                    )}
+                  </div>
+                  <div>
+                    <h2 className={cn("font-bold", styles.text)}>{selectedContact.name}</h2>
+                    <p className={cn("text-sm", styles.textMuted)}>
+                      {selectedContact.isOnline ? (
+                        <span className="text-green-400 flex items-center gap-1">
+                          <Radio className="w-3 h-3" /> online
+                        </span>
+                      ) : selectedContact.phone}
+                    </p>
+                  </div>
+                  
+                  {/* Tag */}
+                  <span 
+                    className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium"
+                    style={{ 
+                      background: `linear-gradient(135deg, ${tagGradients[selectedContact.tag || "cliente"].from}30, ${tagGradients[selectedContact.tag || "cliente"].to}30)`,
+                      color: tagGradients[selectedContact.tag || "cliente"].from 
+                    }}
+                  >
+                    {selectedContact.tag}
+                  </span>
+                </div>
+                
+                {/* Área de mensagens */}
+                <div className={cn("flex-1 overflow-y-auto p-4 space-y-4", styles.bg)}>
+                  {contactMessages.map((message, index) => (
+                    <EnergyMessage key={message.id} message={message} index={index} />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+                
+                {/* Input */}
+                <div className={cn("p-4 border-t", styles.border, styles.card)}>
+                  <HolographicInput
+                    value={newMessage}
+                    onChange={handleInputChange}
+                    onSend={handleSendMessage}
+                    onKeyDown={handleKeyDown}
+                    inputRef={inputRef}
+                  />
+                </div>
+              </>
+            ) : (
+              /* Estado vazio */
+              <div className={cn("flex-1 flex flex-col items-center justify-center", styles.bg)}>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center"
+                >
+                  <motion.div
+                    className={cn(
+                      "w-24 h-24 mx-auto mb-6 rounded-3xl flex items-center justify-center",
+                      theme === "light" 
+                        ? "bg-orange-50" 
+                        : "bg-gradient-to-br from-orange-500/20 to-orange-600/10"
+                    )}
+                    animate={{ rotate: [0, 5, -5, 0] }}
+                    transition={{ duration: 4, repeat: Infinity }}
+                  >
+                    <Sparkles className="w-12 h-12 text-orange-400" />
+                  </motion.div>
+                  <h2 className={cn("text-xl font-bold mb-2", styles.text)}>Nebula Messenger</h2>
+                  <p className={cn("text-sm mb-6", styles.textMuted)}>
+                    Selecione uma conversa para começar
+                  </p>
+                  
+                  {/* Status da API */}
+                  <div className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2 rounded-full border",
+                    theme === "light" 
+                      ? "bg-white shadow-md border-gray-200" 
+                      : "bg-card/40 backdrop-blur-xl border-orange-500/20"
+                  )}>
+                    <motion.div
+                      className="w-2 h-2 rounded-full bg-orange-500"
+                      animate={{ opacity: [0.5, 1, 0.5] }}
+                      transition={{ duration: 2, repeat: Infinity }}
+                    />
+                    <span className="text-xs text-orange-400">Aguardando conexão com API Business</span>
+                  </div>
+                </motion.div>
+              </div>
+            )}
+          </div>
+
+          {/* Lista de conversas à direita */}
           <div className={cn(
-            "w-80 flex-shrink-0 border-r flex flex-col",
+            "w-80 flex-shrink-0 border-l flex flex-col",
             styles.border,
             styles.card
           )}>
@@ -1130,7 +1233,7 @@ export default function Messenger() {
                           ? "hover:bg-gray-50"
                           : "hover:bg-white/5"
                     )}
-                    whileHover={{ x: 4 }}
+                    whileHover={{ x: -4 }}
                   >
                     {/* Avatar */}
                     <div className="relative">
@@ -1171,109 +1274,6 @@ export default function Messenger() {
                 </div>
               )}
             </div>
-          </div>
-          
-          {/* Área de chat no centro */}
-          <div className="flex-1 flex flex-col">
-            {selectedContact ? (
-              <>
-                {/* Header do chat */}
-                <div className={cn("p-4 border-b flex items-center gap-4", styles.border, styles.card)}>
-                  <div className="relative">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                      style={{ background: `linear-gradient(135deg, ${tagGradients[selectedContact.tag || "cliente"].from}, ${tagGradients[selectedContact.tag || "cliente"].to})` }}
-                    >
-                      {selectedContact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
-                    {selectedContact.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-400 border-2 border-background" />
-                    )}
-                  </div>
-                  <div>
-                    <h2 className={cn("font-bold", styles.text)}>{selectedContact.name}</h2>
-                    <p className={cn("text-sm", styles.textMuted)}>
-                      {selectedContact.isOnline ? (
-                        <span className="text-green-400 flex items-center gap-1">
-                          <Radio className="w-3 h-3" /> online
-                        </span>
-                      ) : selectedContact.phone}
-                    </p>
-                  </div>
-                  
-                  {/* Tag */}
-                  <span 
-                    className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium"
-                    style={{ 
-                      background: `linear-gradient(135deg, ${tagGradients[selectedContact.tag || "cliente"].from}30, ${tagGradients[selectedContact.tag || "cliente"].to}30)`,
-                      color: tagGradients[selectedContact.tag || "cliente"].from 
-                    }}
-                  >
-                    {selectedContact.tag}
-                  </span>
-                </div>
-                
-                {/* Área de mensagens */}
-                <div className={cn("flex-1 overflow-y-auto p-4 space-y-4", styles.bg)}>
-                  {contactMessages.map((message, index) => (
-                    <EnergyMessage key={message.id} message={message} index={index} />
-                  ))}
-                  <div ref={messagesEndRef} />
-                </div>
-                
-                {/* Input */}
-                <div className={cn("p-4 border-t", styles.border, styles.card)}>
-                  <HolographicInput
-                    value={newMessage}
-                    onChange={handleInputChange}
-                    onSend={handleSendMessage}
-                    onKeyDown={handleKeyDown}
-                    inputRef={inputRef}
-                  />
-                </div>
-              </>
-            ) : (
-              /* Estado vazio */
-              <div className={cn("flex-1 flex flex-col items-center justify-center", styles.bg)}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="text-center"
-                >
-                  <motion.div
-                    className={cn(
-                      "w-24 h-24 mx-auto mb-6 rounded-3xl flex items-center justify-center",
-                      theme === "light" 
-                        ? "bg-orange-50" 
-                        : "bg-gradient-to-br from-orange-500/20 to-orange-600/10"
-                    )}
-                    animate={{ rotate: [0, 5, -5, 0] }}
-                    transition={{ duration: 4, repeat: Infinity }}
-                  >
-                    <Sparkles className="w-12 h-12 text-orange-400" />
-                  </motion.div>
-                  <h2 className={cn("text-xl font-bold mb-2", styles.text)}>Nebula Messenger</h2>
-                  <p className={cn("text-sm mb-6", styles.textMuted)}>
-                    Selecione uma conversa para começar
-                  </p>
-                  
-                  {/* Status da API */}
-                  <div className={cn(
-                    "inline-flex items-center gap-2 px-4 py-2 rounded-full border",
-                    theme === "light" 
-                      ? "bg-white shadow-md border-gray-200" 
-                      : "bg-card/40 backdrop-blur-xl border-orange-500/20"
-                  )}>
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-orange-500"
-                      animate={{ opacity: [0.5, 1, 0.5] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    />
-                    <span className="text-xs text-orange-400">Aguardando conexão com API Business</span>
-                  </div>
-                </motion.div>
-              </div>
-            )}
           </div>
         </div>
       )}
