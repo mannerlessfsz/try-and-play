@@ -26,8 +26,8 @@ const services = [
     icon: <MessageCircle className="w-8 h-8" />,
     title: "Messenger",
     description: "Comunicação integrada via WhatsApp Business para atendimento e envio de documentos aos clientes.",
-    color: "text-emerald-500",
-    bgGlow: "from-emerald-500/20"
+    color: "text-orange",
+    bgGlow: "from-orange/20"
   },
   {
     icon: <FileText className="w-8 h-8" />,

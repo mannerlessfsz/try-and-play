@@ -38,7 +38,7 @@ const features: FeatureConfig[] = [
     icon: <MessageCircle className="w-6 h-6" />,
     title: "MESSENGER",
     description: "Comunicação integrada via WhatsApp Business para atendimento e envio de documentos",
-    variant: "green",
+    variant: "orange",
     href: "/messenger",
     module: "messenger",
   },
