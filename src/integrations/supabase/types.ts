@@ -2905,20 +2905,6 @@ export type Database = {
         Args: { p_ano: number; p_empresa_id: string; p_mes: number }
         Returns: number
       }
-      get_empresas_safe: {
-        Args: never
-        Returns: {
-          cnpj: string
-          created_at: string
-          email: string
-          id: string
-          manager_id: string
-          nome: string
-          regime_tributario: Database["public"]["Enums"]["regime_tributario"]
-          telefone: string
-          updated_at: string
-        }[]
-      }
       get_user_module_permissions: {
         Args: { p_user_id: string }
         Returns: {
