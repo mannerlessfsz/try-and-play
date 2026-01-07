@@ -222,6 +222,46 @@ export function useMessenger() {
     }) => {
       if (!empresaAtiva?.id || !user?.id) throw new Error("Empresa ou usuário não encontrado");
 
+      // For direct messages, check if conversation already exists with same participants
+      if (data.type === "direct" && data.participant_ids.length === 1) {
+        const otherUserId = data.participant_ids[0];
+        
+        // Find existing direct conversations where both users are participants
+        const { data: existingConversations } = await supabase
+          .from("messenger_conversations")
+          .select(`
+            id,
+            type,
+            name,
+            empresa_id,
+            messenger_participants (user_id)
+          `)
+          .eq("empresa_id", empresaAtiva.id)
+          .eq("type", "direct");
+
+        // Check if any existing direct conversation has exactly these two participants
+        const existingConv = existingConversations?.find(conv => {
+          const participantIds = conv.messenger_participants?.map((p: any) => p.user_id) || [];
+          return participantIds.length === 2 && 
+                 participantIds.includes(user.id) && 
+                 participantIds.includes(otherUserId);
+        });
+
+        if (existingConv) {
+          // Return existing conversation instead of creating new one
+          return {
+            ...existingConv,
+            description: null,
+            avatar_url: null,
+            departamento: null,
+            is_private: false,
+            created_by: null,
+            created_at: "",
+            updated_at: "",
+          } as Conversation;
+        }
+      }
+
       // Create conversation - cast departamento properly
       const insertData: {
         empresa_id: string;
@@ -271,7 +311,7 @@ export function useMessenger() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["messenger-conversations"] });
-      setSelectedConversation(data);
+      setSelectedConversation(data as Conversation);
       toast.success("Conversa criada com sucesso!");
     },
     onError: (error: Error) => {
