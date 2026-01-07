@@ -2898,6 +2898,7 @@ export type Database = {
         Args: { check_empresa_id: string }
         Returns: boolean
       }
+      user_in_empresa: { Args: { check_empresa_id: string }; Returns: boolean }
     }
     Enums: {
       app_module:
