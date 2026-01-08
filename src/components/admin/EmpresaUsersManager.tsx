@@ -10,12 +10,16 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { ModulePermissionsEditor } from './ModulePermissionsEditor';
 import { 
   UserPlus, 
   Trash2, 
   Crown, 
   Loader2,
-  User
+  User,
+  Settings,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface Profile {
@@ -46,6 +50,21 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  // Fetch empresa modules
+  const { data: empresaModulos = [] } = useQuery({
+    queryKey: ['empresa-modulos', empresaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('empresa_modulos')
+        .select('modulo')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true);
+      if (error) throw error;
+      return data.map(m => m.modulo);
+    },
+  });
 
   // Fetch all users
   const { data: allUsers = [] } = useQuery({
@@ -298,41 +317,76 @@ export function EmpresaUsersManager({ empresaId, empresaNome }: EmpresaUsersMana
           Nenhum usuário vinculado a esta empresa
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {empresaUsers.map(eu => {
             const user = getUserProfile(eu.user_id);
+            const isExpanded = expandedUserId === eu.user_id;
+            
             return (
-              <div key={eu.id} className="flex items-center justify-between p-3 border border-border rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <span className="text-xs font-medium text-primary">
-                      {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{user?.full_name || user?.email || 'N/A'}</span>
-                      {eu.is_owner && (
-                        <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500 text-xs">
-                          <Crown className="w-3 h-3" /> Proprietário
-                        </Badge>
-                      )}
+              <div 
+                key={eu.id} 
+                className="border border-border rounded-lg overflow-hidden transition-all"
+              >
+                {/* User Header */}
+                <div className="flex items-center justify-between p-3 bg-card">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <span className="text-xs font-medium text-primary">
+                        {(user?.full_name || user?.email || '?').charAt(0).toUpperCase()}
+                      </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{user?.full_name || user?.email || 'N/A'}</span>
+                        {eu.is_owner && (
+                          <Badge variant="outline" className="gap-1 text-yellow-500 border-yellow-500 text-xs">
+                            <Crown className="w-3 h-3" /> Proprietário
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">{user?.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1"
+                      onClick={() => setExpandedUserId(isExpanded ? null : eu.user_id)}
+                    >
+                      <Settings className="w-4 h-4" />
+                      Permissões
+                      {isExpanded ? (
+                        <ChevronUp className="w-4 h-4" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-destructive"
+                      onClick={() => {
+                        if (confirm('Remover usuário desta empresa?')) {
+                          removeUserMutation.mutate(eu.id);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-destructive"
-                  onClick={() => {
-                    if (confirm('Remover usuário desta empresa?')) {
-                      removeUserMutation.mutate(eu.id);
-                    }
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                
+                {/* Permissions Editor (Expandable) */}
+                {isExpanded && (
+                  <div className="border-t border-border bg-muted/30 p-4">
+                    <ModulePermissionsEditor
+                      userId={eu.user_id}
+                      empresaId={empresaId}
+                      empresaModulos={empresaModulos}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
