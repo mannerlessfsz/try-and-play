@@ -239,7 +239,7 @@ export function ModulePermissionsEditor({
                           'is_pro_mode',
                           perm?.is_pro_mode === true
                         )}
-                        disabled={readOnly || isUpdating}
+                        disabled={readOnly || isUpdating || lockProMode}
                       />
                       <Label 
                         htmlFor={`${module.value}-pro`}
