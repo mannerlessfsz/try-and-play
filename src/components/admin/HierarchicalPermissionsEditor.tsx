@@ -385,7 +385,7 @@ export function HierarchicalPermissionsEditor({
                               <div className="mt-2 ml-4 space-y-2">
                                 {/* Recursos */}
                                 {resources.map(resource => {
-                                  const isAvailable = isResourceAvailable(subModule.value, resource.value);
+                                  const isAvailable = isResourceAvailable(module.value as AppModule, subModule.value, resource.value);
                                   const perm = getResourcePermission(module.value, resource.value);
                                   const resourcePermCount = countResourcePermissions(module.value, resource.value);
                                   
