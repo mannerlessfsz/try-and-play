@@ -22,6 +22,7 @@ import { AdminDashboard } from '@/components/admin/AdminDashboard';
 import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import SystemArchitectureViewer from '@/components/admin/SystemArchitectureViewer';
 import { CreationEditionManager } from '@/components/admin/CreationEditionManager';
+import { UserPermissionsManager } from '@/components/admin/UserPermissionsManager';
 
 import { 
   ArrowLeft, 
@@ -603,6 +604,7 @@ const Admin: React.FC = () => {
                         <TableHead>Status</TableHead>
                         <TableHead>Papéis</TableHead>
                         <TableHead>Empresas</TableHead>
+                        <TableHead>Permissões</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -725,6 +727,13 @@ const Admin: React.FC = () => {
                                 </DialogContent>
                               </Dialog>
                             </div>
+                          </TableCell>
+                          <TableCell>
+                            <UserPermissionsManager
+                              userId={user.id}
+                              userName={user.full_name || user.email}
+                              isMaster={user.id === MASTER_USER_ID}
+                            />
                           </TableCell>
                           <TableCell className="text-right">
                             <Button
