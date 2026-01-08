@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { GradientMesh } from "@/components/GradientMesh";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermissions, AppModule } from "@/hooks/usePermissions";
+import { useModulePermissions, AppModule } from "@/hooks/useModulePermissions";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -80,7 +80,7 @@ const itemVariants = {
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { isAdmin, hasModuleAccess } = usePermissions();
+  const { isAdmin, hasModuleAccess } = useModulePermissions();
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">

@@ -55,7 +55,7 @@ export function generateProjectStructure(): ProjectStructure {
         path: 'src/pages/Index.tsx',
         route: '/dashboard',
         components: ['ModularDashboardLayout'],
-        hooks: ['useAuth', 'usePermissions', 'useEmpresaAtiva'],
+        hooks: ['useAuth', 'useModulePermissions', 'useEmpresaAtiva'],
       },
       {
         name: 'Admin',
@@ -64,9 +64,10 @@ export function generateProjectStructure(): ProjectStructure {
         components: [
           'AdminDashboard', 'EmpresaWizard', 'EmpresaUsersManager', 
           'ModulePermissionsEditor', 'AuditLogViewer', 'SystemArchitectureViewer',
-          'PermissionTreeDiagram', 'TarefasModeloManager', 'CreationEditionManager'
+          'PermissionTreeDiagram', 'TarefasModeloManager', 'CreationEditionManager',
+          'ProjectArchitectureViewer'
         ],
-        hooks: ['useAuth', 'usePermissions', 'useEmpresas', 'useSyncProfiles'],
+        hooks: ['useAuth', 'useModulePermissions', 'useEmpresas', 'useSyncProfiles'],
       },
       {
         name: 'TaskVault',
@@ -135,24 +136,15 @@ export function generateProjectStructure(): ProjectStructure {
         status: 'active',
       },
       
-      // ===== PERMISSÕES (CONFLITO!) =====
-      {
-        name: 'usePermissions',
-        path: 'src/hooks/usePermissions.ts',
-        usedBy: ['ProtectedRoute', 'Index', 'Admin', 'some managers'],
-        dependencies: ['useAuth', 'supabase'],
-        tables: ['user_roles', 'user_module_permissions', 'user_empresas'],
-        status: 'duplicate',
-        issues: ['Duplica funcionalidade de useModulePermissions', 'Usa normalizeModule internamente'],
-      },
+      // ===== PERMISSÕES (UNIFICADO) =====
       {
         name: 'useModulePermissions',
         path: 'src/hooks/useModulePermissions.ts',
-        usedBy: ['ModulePermissionsEditor', 'some admin components'],
+        usedBy: ['ProtectedRoute', 'Index', 'Admin', 'Conversores', 'ModulePermissionsEditor', 'all modules'],
         dependencies: ['useAuth', 'supabase'],
         tables: ['user_roles', 'user_module_permissions', 'user_empresas'],
-        status: 'duplicate',
-        issues: ['Duplica funcionalidade de usePermissions', 'Inclui useManageModulePermissions'],
+        status: 'active',
+        issues: [],
       },
       
       // ===== EMPRESAS =====
