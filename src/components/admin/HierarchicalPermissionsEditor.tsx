@@ -81,19 +81,24 @@ interface ResourcePermission {
 interface HierarchicalPermissionsEditorProps {
   userId: string;
   empresaId: string | null;
+  /** fallback (mantido por compatibilidade) */
   isProMode?: boolean;
+  /** quando informado, define Pro/Básico por módulo */
+  moduleProMode?: Partial<Record<AppModule, boolean>>;
+  /** quando informado, restringe a árvore somente a estes módulos */
+  allowedModules?: AppModule[];
   readOnly?: boolean;
 }
 
 // Módulos ativos (excluindo legados)
-const ACTIVE_MODULES = APP_MODULES.filter(m => 
-  !['financialace', 'erp', 'ajustasped', 'conferesped'].includes(m.value)
-);
+const ACTIVE_MODULES = APP_MODULES.filter(m => !['financialace', 'erp', 'ajustasped', 'conferesped'].includes(m.value));
 
 export function HierarchicalPermissionsEditor({
   userId,
   empresaId,
   isProMode = false,
+  moduleProMode,
+  allowedModules,
   readOnly = false,
 }: HierarchicalPermissionsEditorProps) {
   const { toast } = useToast();
@@ -101,21 +106,28 @@ export function HierarchicalPermissionsEditor({
   const [expandedModules, setExpandedModules] = useState<string[]>([]);
   const [expandedSubModules, setExpandedSubModules] = useState<string[]>([]);
 
+  const visibleModules = useMemo(() => {
+    if (!allowedModules) return ACTIVE_MODULES;
+    const allowedSet = new Set<AppModule>(allowedModules);
+    return ACTIVE_MODULES.filter(m => allowedSet.has(m.value as AppModule));
+  }, [allowedModules]);
+
+  const isModulePro = (module: AppModule): boolean => {
+    return moduleProMode?.[module] ?? isProMode;
+  };
+
   // Buscar permissões de recursos do usuário
   const { data: permissions = [], isLoading } = useQuery({
     queryKey: ['user-resource-permissions', userId, empresaId],
     queryFn: async () => {
-      let query = supabase
-        .from('user_resource_permissions')
-        .select('*')
-        .eq('user_id', userId);
-      
+      let query = supabase.from('user_resource_permissions').select('*').eq('user_id', userId);
+
       if (empresaId === null) {
         query = query.is('empresa_id', null);
       } else if (empresaId) {
         query = query.eq('empresa_id', empresaId);
       }
-      
+
       const { data, error } = await query;
       if (error) throw error;
       return data as ResourcePermission[];
@@ -131,8 +143,6 @@ export function HierarchicalPermissionsEditor({
         .eq('user_id', perm.user_id)
         .eq('module', perm.module)
         .eq('resource', perm.resource)
-        .is('empresa_id', perm.empresa_id === null ? null : undefined)
-        .eq('empresa_id', perm.empresa_id || '')
         .maybeSingle();
 
       if (existing) {
@@ -150,9 +160,7 @@ export function HierarchicalPermissionsEditor({
           .eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('user_resource_permissions')
-          .insert(perm);
+        const { error } = await supabase.from('user_resource_permissions').insert(perm);
         if (error) throw error;
       }
     },
@@ -179,7 +187,7 @@ export function HierarchicalPermissionsEditor({
         can_delete: true,
         can_export: true,
       };
-      
+
       const { data: existing } = await supabase
         .from('user_resource_permissions')
         .select('id')
@@ -189,10 +197,13 @@ export function HierarchicalPermissionsEditor({
         .maybeSingle();
 
       if (existing) {
-        await supabase.from('user_resource_permissions').update({
-          ...perm,
-          updated_at: new Date().toISOString(),
-        }).eq('id', existing.id);
+        await supabase
+          .from('user_resource_permissions')
+          .update({
+            ...perm,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existing.id);
       } else {
         await supabase.from('user_resource_permissions').insert(perm);
       }
@@ -223,16 +234,16 @@ export function HierarchicalPermissionsEditor({
   };
 
   const toggleAction = (
-    module: string, 
-    subModule: string, 
-    resource: string, 
+    module: string,
+    subModule: string,
+    resource: string,
     action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export'
   ) => {
     if (readOnly) return;
-    
+
     const existing = getResourcePermission(module, resource);
     const currentValue = existing?.[action] ?? false;
-    
+
     saveMutation.mutate({
       user_id: userId,
       empresa_id: empresaId,
@@ -248,23 +259,15 @@ export function HierarchicalPermissionsEditor({
   };
 
   const toggleModule = (moduleValue: string) => {
-    setExpandedModules(prev => 
-      prev.includes(moduleValue) 
-        ? prev.filter(m => m !== moduleValue)
-        : [...prev, moduleValue]
-    );
+    setExpandedModules(prev => (prev.includes(moduleValue) ? prev.filter(m => m !== moduleValue) : [...prev, moduleValue]));
   };
 
   const toggleSubModule = (subModuleValue: string) => {
-    setExpandedSubModules(prev => 
-      prev.includes(subModuleValue) 
-        ? prev.filter(m => m !== subModuleValue)
-        : [...prev, subModuleValue]
-    );
+    setExpandedSubModules(prev => (prev.includes(subModuleValue) ? prev.filter(m => m !== subModuleValue) : [...prev, subModuleValue]));
   };
 
-  const isResourceAvailable = (subModule: string, resource: string): boolean => {
-    if (isProMode) return true;
+  const isResourceAvailable = (module: AppModule, subModule: string, resource: string): boolean => {
+    if (isModulePro(module)) return true;
     const proResources = PRO_ONLY_RESOURCES[subModule] || [];
     return !proResources.includes(resource);
   };
