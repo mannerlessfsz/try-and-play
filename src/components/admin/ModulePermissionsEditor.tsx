@@ -19,6 +19,10 @@ interface ModulePermissionsEditorProps {
   empresaId: string | null;
   empresaModulos?: string[]; // Módulos liberados para a empresa (se aplicável)
   readOnly?: boolean;
+  /**
+   * Quando true, impede edição do switch Pro Mode (ex.: modo vem da Empresa via configuração/trigger)
+   */
+  lockProMode?: boolean;
 }
 
 const ACTIVE_MODULES = APP_MODULES.filter(m => 
@@ -30,6 +34,7 @@ export function ModulePermissionsEditor({
   empresaId,
   empresaModulos,
   readOnly = false,
+  lockProMode = false,
 }: ModulePermissionsEditorProps) {
   const { 
     permissions, 
