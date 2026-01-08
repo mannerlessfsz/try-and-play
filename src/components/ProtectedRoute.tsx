@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { usePermissions, AppModule } from '@/hooks/usePermissions';
+import { useModulePermissions, AppModule } from '@/hooks/useModulePermissions';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -16,7 +16,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requireAdmin = false 
 }) => {
   const { user, loading: authLoading } = useAuth();
-  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = usePermissions();
+  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
 
   if (authLoading || permissionsLoading) {
     return (

@@ -35,7 +35,6 @@ import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModulePermissions } from "@/hooks/useModulePermissions";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
-import { usePermissions } from "@/hooks/usePermissions";
 import { useConversoes } from "@/hooks/useConversoes";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -160,9 +159,7 @@ const Conversores = () => {
   const [activeTab, setActiveTab] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const { empresaAtiva, loading: empresaLoading, empresasDisponiveis } = useEmpresaAtiva();
-  const { isAdmin } = usePermissions();
-  
-  const { hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
+  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
   const { conversoes } = useConversoes(empresaAtiva?.id);
   
   // Use persistent activities hook

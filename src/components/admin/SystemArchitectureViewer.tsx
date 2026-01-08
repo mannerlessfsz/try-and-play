@@ -14,6 +14,7 @@ import { SYSTEM_ROUTES, type RouteType } from '@/constants/routes';
 import DatabaseRelationshipsDiagram from './DatabaseRelationshipsDiagram';
 import MigrationGenerator from './MigrationGenerator';
 import PermissionTreeDiagram from './PermissionTreeDiagram';
+import ProjectArchitectureViewer from './ProjectArchitectureViewer';
 import { 
   Layers, 
   Users, 
@@ -31,7 +32,8 @@ import {
   CheckSquare,
   AlertTriangle,
   Info,
-  Wand2
+  Wand2,
+  FolderTree
 } from 'lucide-react';
 
 const SystemArchitectureViewer = () => {
@@ -81,8 +83,12 @@ const SystemArchitectureViewer = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="navigation" className="w-full">
-        <TabsList className="grid w-full grid-cols-8">
+      <Tabs defaultValue="project" className="w-full">
+        <TabsList className="grid w-full grid-cols-9">
+          <TabsTrigger value="project" className="flex items-center gap-2">
+            <FolderTree className="w-4 h-4" />
+            <span className="hidden sm:inline">Projeto</span>
+          </TabsTrigger>
           <TabsTrigger value="navigation" className="flex items-center gap-2">
             <Workflow className="w-4 h-4" />
             <span className="hidden sm:inline">Navegação</span>
@@ -116,6 +122,11 @@ const SystemArchitectureViewer = () => {
             <span className="hidden sm:inline">Padrões</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Project Architecture Tab */}
+        <TabsContent value="project" className="space-y-4 mt-4">
+          <ProjectArchitectureViewer />
+        </TabsContent>
 
         {/* Navigation Flow Tab */}
         <TabsContent value="navigation" className="space-y-4 mt-4">

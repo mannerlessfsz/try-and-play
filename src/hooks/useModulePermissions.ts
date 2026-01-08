@@ -1,10 +1,12 @@
 /**
- * Hook simplificado para gerenciar permissões por módulo
+ * Hook ÚNICO de permissões do sistema
  * 
  * MODELO:
  * - Usuário com empresa: permissões são por módulo dentro da empresa
  * - Usuário sem empresa (standalone): permissões são por módulo diretamente
  * - Admin: bypass total
+ * 
+ * ESTE É O ÚNICO HOOK DE PERMISSÕES. usePermissions foi deprecado e removido.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,10 +14,10 @@ import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { AppModule, APP_MODULES, LEGACY_MODULE_MAP } from '@/constants/modules';
+import { AppModule, APP_MODULES, LEGACY_MODULE_MAP, AppRole, PermissionType } from '@/constants/modules';
 
-// Re-export for convenience
-export type { AppModule };
+// Re-export for convenience - tipos unificados
+export type { AppModule, AppRole, PermissionType };
 
 export interface ModulePermission {
   id: string;
@@ -264,11 +266,39 @@ export function useModulePermissions() {
     }) || null;
   };
 
+  /**
+   * Verifica se usuário tem um papel específico
+   */
+  const hasRole = (role: AppRole): boolean => {
+    return roles.some(r => r.role === role);
+  };
+
+  /**
+   * Verifica acesso a submódulo (herda do módulo pai)
+   */
+  const hasSubModuleAccess = (module: AppModule, _subModule: string): boolean => {
+    return hasModuleAccess(module);
+  };
+
+  /**
+   * Verifica permissão em recurso (herda do módulo pai)
+   */
+  const hasResourcePermission = (
+    module: AppModule, 
+    _subModule: string | null, 
+    _resource: string, 
+    action: PermissionType,
+    empresaId?: string | null
+  ): boolean => {
+    return hasPermission(module, action, empresaId);
+  };
+
   return {
     // Data
     roles,
     permissions,
     userEmpresas,
+    resourcePermissions: [], // Deprecated - retorna vazio para compatibilidade
     
     // Flags
     isAdmin,
@@ -276,8 +306,11 @@ export function useModulePermissions() {
     loading: rolesLoading || permissionsLoading || empresasLoading,
     
     // Checkers
+    hasRole,
     hasModuleAccess,
+    hasSubModuleAccess,
     hasPermission,
+    hasResourcePermission,
     hasProMode,
     hasEmpresaAccess,
     
@@ -287,6 +320,12 @@ export function useModulePermissions() {
     getModulePermission,
   };
 }
+
+/**
+ * @deprecated Use useModulePermissions diretamente
+ * Este alias existe apenas para compatibilidade
+ */
+export const usePermissions = useModulePermissions;
 
 /**
  * Hook para admin gerenciar permissões de outros usuários

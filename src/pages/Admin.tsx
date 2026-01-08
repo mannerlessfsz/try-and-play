@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { syncMissingProfiles } from '@/hooks/useSyncProfiles';
-import { usePermissions, AppModule, PermissionType, AppRole } from '@/hooks/usePermissions';
+import { useModulePermissions, AppModule, PermissionType, AppRole } from '@/hooks/useModulePermissions';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -111,7 +111,7 @@ const Admin: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isAdmin } = usePermissions();
+  const { isAdmin } = useModulePermissions();
   const [isAddingEmpresa, setIsAddingEmpresa] = useState(false);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', fullName: '' });
