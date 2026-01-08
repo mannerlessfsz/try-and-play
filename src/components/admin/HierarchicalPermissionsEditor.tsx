@@ -78,13 +78,26 @@ interface ResourcePermission {
   can_export: boolean;
 }
 
+interface ModulePermission {
+  id?: string;
+  user_id: string;
+  empresa_id: string | null;
+  module: string;
+  can_view: boolean;
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  can_export: boolean;
+  is_pro_mode: boolean;
+}
+
 interface HierarchicalPermissionsEditorProps {
   userId: string;
   empresaId: string | null;
-  /** fallback (mantido por compatibilidade) */
-  isProMode?: boolean;
-  /** quando informado, define Pro/Básico por módulo */
+  /** quando informado, define Pro/Básico por módulo externamente (empresa) e trava edição */
   moduleProMode?: Partial<Record<AppModule, boolean>>;
+  /** quando true, bloqueia edição do switch Pro (modo vem da empresa) */
+  lockProMode?: boolean;
   /** quando informado, restringe a árvore somente a estes módulos */
   allowedModules?: AppModule[];
   readOnly?: boolean;
@@ -96,8 +109,8 @@ const ACTIVE_MODULES = APP_MODULES.filter(m => !['financialace', 'erp', 'ajustas
 export function HierarchicalPermissionsEditor({
   userId,
   empresaId,
-  isProMode = false,
   moduleProMode,
+  lockProMode = false,
   allowedModules,
   readOnly = false,
 }: HierarchicalPermissionsEditorProps) {
@@ -112,8 +125,63 @@ export function HierarchicalPermissionsEditor({
     return ACTIVE_MODULES.filter(m => allowedSet.has(m.value as AppModule));
   }, [allowedModules]);
 
+  // Buscar permissões de módulo do usuário (contém is_pro_mode)
+  const { data: modulePermissions = [] } = useQuery({
+    queryKey: ['user-module-permissions-for-hierarchy', userId, empresaId],
+    queryFn: async () => {
+      let query = supabase.from('user_module_permissions').select('*').eq('user_id', userId);
+      if (empresaId === null) {
+        query = query.is('empresa_id', null);
+      } else {
+        query = query.eq('empresa_id', empresaId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data as ModulePermission[];
+    },
+  });
+
+  // Mutation para atualizar Pro Mode do módulo
+  const proModeMutation = useMutation({
+    mutationFn: async ({ module, isPro }: { module: AppModule; isPro: boolean }) => {
+      const { data, error } = await supabase.rpc('grant_module_permission', {
+        p_user_id: userId,
+        p_module: module,
+        p_empresa_id: empresaId,
+        p_can_view: true,
+        p_can_create: false,
+        p_can_edit: false,
+        p_can_delete: false,
+        p_can_export: false,
+        p_is_pro_mode: isPro,
+      });
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user-module-permissions-for-hierarchy', userId, empresaId] });
+      queryClient.invalidateQueries({ queryKey: ['admin-user-module-permissions', userId, empresaId] });
+    },
+    onError: (error) => {
+      toast({ title: 'Erro ao atualizar modo', description: error.message, variant: 'destructive' });
+    },
+  });
+
   const isModulePro = (module: AppModule): boolean => {
-    return moduleProMode?.[module] ?? isProMode;
+    // Se vem da empresa (lockProMode), usa moduleProMode
+    if (lockProMode && moduleProMode) {
+      return moduleProMode[module] ?? false;
+    }
+    // Senão, usa o valor salvo no banco
+    const perm = modulePermissions.find(p => p.module === module);
+    return perm?.is_pro_mode ?? false;
+  };
+
+  const toggleModuleProMode = (module: AppModule, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (readOnly || lockProMode) return;
+    const current = isModulePro(module);
+    proModeMutation.mutate({ module, isPro: !current });
   };
 
   // Buscar permissões de recursos do usuário
@@ -298,12 +366,8 @@ export function HierarchicalPermissionsEditor({
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Shield className="w-4 h-4" />
           <span>Permissões Hierárquicas</span>
-          {isProMode ? (
-            <Badge className="gap-1 bg-gradient-to-r from-amber-500 to-orange-500">
-              <Zap className="w-3 h-3" /> Pro
-            </Badge>
-          ) : (
-            <Badge variant="secondary">Básico</Badge>
+          {lockProMode && (
+            <Badge variant="outline" className="text-xs">Modo definido pela empresa</Badge>
           )}
         </div>
         <div className="flex gap-2 text-xs text-muted-foreground">
@@ -336,7 +400,21 @@ export function HierarchicalPermissionsEditor({
                             <p className="text-xs text-muted-foreground">{module.description}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                          {/* Switch Pro Mode */}
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              id={`pro-${module.value}`}
+                              checked={isModulePro(module.value as AppModule)}
+                              onCheckedChange={() => {}}
+                              onClick={(e) => toggleModuleProMode(module.value as AppModule, e)}
+                              disabled={readOnly || lockProMode || proModeMutation.isPending}
+                            />
+                            <Label htmlFor={`pro-${module.value}`} className="text-xs flex items-center gap-1 cursor-pointer">
+                              <Zap className="w-3 h-3" />
+                              {isModulePro(module.value as AppModule) ? 'Pro' : 'Básico'}
+                            </Label>
+                          </div>
                           {subModules.length > 0 && (
                             <Badge variant="outline" className="text-xs">
                               {subModules.length} sub-módulos
