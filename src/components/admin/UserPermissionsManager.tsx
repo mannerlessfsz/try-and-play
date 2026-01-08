@@ -7,12 +7,15 @@
  * Usa o editor hierárquico completo: Módulo → Sub-módulo → Recurso → Ações
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { HierarchicalPermissionsEditor } from './HierarchicalPermissionsEditor';
+import { ModulePermissionsEditor } from './ModulePermissionsEditor';
+import type { AppModule } from '@/constants/modules';
+import type { ModulePermission } from '@/hooks/useModulePermissions';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Settings, Globe, Building2, Loader2, Zap } from 'lucide-react';
@@ -94,7 +97,30 @@ export function UserPermissionsManager({
     enabled: isOpen && userEmpresas.length > 0,
   });
 
-  const getEmpresaName = (empresaId: string) => 
+  // Standalone: Pro/Básico é definido por módulo diretamente no usuário
+  const { data: standaloneModulePermissions = [] } = useQuery({
+    queryKey: ['admin-user-module-permissions', userId, null],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_module_permissions')
+        .select('*')
+        .eq('user_id', userId)
+        .is('empresa_id', null);
+      if (error) throw error;
+      return data as ModulePermission[];
+    },
+    enabled: isOpen,
+  });
+
+  const standaloneModuleProMode = useMemo(() => {
+    const map: Partial<Record<AppModule, boolean>> = {};
+    for (const p of standaloneModulePermissions) {
+      map[p.module as AppModule] = p.is_pro_mode === true;
+    }
+    return map;
+  }, [standaloneModulePermissions]);
+
+  const getEmpresaName = (empresaId: string) =>
     empresas.find(e => e.id === empresaId)?.nome || 'Empresa';
 
   // Verifica se a empresa tem pelo menos um módulo em modo Pro
@@ -161,10 +187,14 @@ export function UserPermissionsManager({
                     ou para funcionalidades que não dependem de empresa.
                   </p>
                 </div>
+                <ModulePermissionsEditor
+                  userId={userId}
+                  empresaId={null}
+                />
                 <HierarchicalPermissionsEditor
                   userId={userId}
                   empresaId={null}
-                  isProMode={true} // Global sempre tem acesso a tudo
+                  moduleProMode={standaloneModuleProMode}
                 />
               </div>
             </TabsContent>
