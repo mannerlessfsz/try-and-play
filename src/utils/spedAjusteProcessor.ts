@@ -38,13 +38,46 @@ export interface ProcessamentoResultado {
  * - SEM separador de milhar
  * Ex: 19943.73 -> "19943,73"
  */
+/**
+ * Parse de número que pode estar em notação científica ou formato brasileiro
+ * Ex: "1.23E+05" -> 123000, "1234,56" -> 1234.56
+ */
+export function parseNumeroSeguro(value: string | number | null | undefined): number {
+  if (value === null || value === undefined || value === '') {
+    return 0;
+  }
+  
+  let strValue = String(value).trim();
+  
+  // Se contém E ou e (notação científica), parseFloat já lida
+  if (/[eE]/.test(strValue)) {
+    const parsed = parseFloat(strValue);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  
+  // Remove pontos de milhar e troca vírgula decimal por ponto
+  // Detecta se é formato brasileiro (1.234,56) ou americano (1,234.56)
+  if (strValue.includes(',')) {
+    // Se tem vírgula seguida de apenas 1-2 dígitos no final, é decimal brasileiro
+    if (/,\d{1,2}$/.test(strValue)) {
+      strValue = strValue.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Formato americano com vírgula como milhar
+      strValue = strValue.replace(/,/g, '');
+    }
+  }
+  
+  const parsed = parseFloat(strValue);
+  return isNaN(parsed) ? 0 : parsed;
+}
+
 export function formatBrlCorrect(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === '' || (typeof value === 'number' && isNaN(value))) {
     return '';
   }
   
   try {
-    const floatValue = typeof value === 'string' ? parseFloat(value) : value;
+    const floatValue = typeof value === 'number' ? value : parseNumeroSeguro(value);
     if (isNaN(floatValue)) {
       return String(value);
     }
@@ -277,9 +310,9 @@ export function parseAjustesFromCsv(csvContent: string): AjusteData[] {
         DT_VENC: obj['DT_VENC'] as string,
         DT_PAG: obj['DT_PAG'] as string,
         DT_DOC_ENTRADA: obj['DT_DOC_ENTRADA'] as string,
-        VL_AJ_APUR: parseFloat(String(obj['VL_AJ_APUR'] || '0').replace(',', '.')),
-        ICMS_PROPRIO: parseFloat(String(obj['ICMS_PROPRIO'] || '0').replace(',', '.')),
-        ICMS_ST: parseFloat(String(obj['ICMS_ST'] || '0').replace(',', '.')),
+        VL_AJ_APUR: parseNumeroSeguro(obj['VL_AJ_APUR']),
+        ICMS_PROPRIO: parseNumeroSeguro(obj['ICMS_PROPRIO']),
+        ICMS_ST: parseNumeroSeguro(obj['ICMS_ST']),
         NUM_NF_ENTRADA: obj['NUM_NF_ENTRADA'] as string,
         AUTENTICACAO: String(obj['AUTENTICACAO'] || ''),
         COD_PART: parseInt(String(obj['COD_PART'] || '0')),
