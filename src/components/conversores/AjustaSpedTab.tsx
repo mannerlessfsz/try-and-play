@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { 
   FileText, Upload, Download, Play, Eye,
   CheckCircle, AlertTriangle, Clock, XCircle, 
   CheckSquare, FileWarning, Trash2, Zap,
-  List, LayoutGrid
+  List, LayoutGrid, Settings2, FileSpreadsheet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { 
+  processarSpedComAjustes, 
+  parseAjustesFromCsv, 
+  type AjusteData, 
+  type ProcessamentoResultado 
+} from "@/utils/spedAjusteProcessor";
 
 interface ArquivoSped {
   id: string;
@@ -17,16 +26,30 @@ interface ArquivoSped {
   erros: number;
   ajustes: number;
   dataUpload: string;
+  conteudo?: string;
+  resultado?: ProcessamentoResultado;
 }
 
 type FilterType = "all" | "pendente" | "ajustado" | "erro";
 
 export function AjustaSpedTab() {
-  const [activeTab, setActiveTab] = useState<"arquivos" | "erros">("arquivos");
+  const [activeTab, setActiveTab] = useState<"arquivos" | "erros" | "config">("arquivos");
   const [viewMode, setViewMode] = useState<"lista" | "grid">("lista");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
+  
+  // Configurações do processamento
+  const [gerarAmbosC197, setGerarAmbosC197] = useState(true);
+  
+  // Dados carregados
+  const [arquivoSped, setArquivoSped] = useState<{ nome: string; conteudo: string } | null>(null);
+  const [ajustes, setAjustes] = useState<AjusteData[]>([]);
+  const [resultado, setResultado] = useState<ProcessamentoResultado | null>(null);
+  const [processando, setProcessando] = useState(false);
 
-  const [arquivos] = useState<ArquivoSped[]>([
+  const spedInputRef = useRef<HTMLInputElement>(null);
+  const ajustesInputRef = useRef<HTMLInputElement>(null);
+
+  const [arquivos, setArquivos] = useState<ArquivoSped[]>([
     { id: "1", nome: "EFD_ICMS_122024.txt", tipo: "EFD_ICMS", competencia: "12/2024", status: "pendente", erros: 15, ajustes: 0, dataUpload: "2024-12-20" },
     { id: "2", nome: "EFD_CONTRIB_122024.txt", tipo: "EFD_CONTRIB", competencia: "12/2024", status: "processando", erros: 8, ajustes: 3, dataUpload: "2024-12-19" },
     { id: "3", nome: "ECF_2024.txt", tipo: "ECF", competencia: "2024", status: "ajustado", erros: 0, ajustes: 42, dataUpload: "2024-12-18" },
@@ -68,6 +91,106 @@ export function AjustaSpedTab() {
     }
   };
 
+  // Handler para carregar arquivo SPED
+  const handleSpedUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      setArquivoSped({ nome: file.name, conteudo: content });
+      toast.success(`Arquivo SPED carregado: ${file.name}`);
+    } catch (err) {
+      toast.error("Erro ao ler arquivo SPED");
+      console.error(err);
+    }
+  };
+
+  // Handler para carregar planilha de ajustes (CSV)
+  const handleAjustesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const parsed = parseAjustesFromCsv(content);
+      setAjustes(parsed);
+      toast.success(`Planilha carregada: ${parsed.length} ajustes encontrados`);
+    } catch (err) {
+      toast.error("Erro ao ler planilha de ajustes");
+      console.error(err);
+    }
+  };
+
+  // Processar SPED com ajustes
+  const handleProcessar = async () => {
+    if (!arquivoSped) {
+      toast.error("Carregue um arquivo SPED primeiro");
+      return;
+    }
+    if (ajustes.length === 0) {
+      toast.error("Carregue a planilha de ajustes");
+      return;
+    }
+
+    setProcessando(true);
+    try {
+      const res = processarSpedComAjustes(arquivoSped.conteudo, ajustes, { gerarAmbosC197 });
+      setResultado(res);
+
+      // Adiciona à lista de arquivos
+      const novoArquivo: ArquivoSped = {
+        id: crypto.randomUUID(),
+        nome: arquivoSped.nome.replace('.txt', '_ajustado.txt'),
+        tipo: "EFD_ICMS",
+        competencia: new Date().toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }),
+        status: res.sucesso ? "ajustado" : "erro",
+        erros: res.erros.length,
+        ajustes: res.notasProcessadas,
+        dataUpload: new Date().toISOString().split('T')[0],
+        conteudo: res.conteudoAjustado,
+        resultado: res
+      };
+      setArquivos(prev => [novoArquivo, ...prev]);
+
+      if (res.sucesso) {
+        toast.success(`Processamento concluído: ${res.notasProcessadas} notas ajustadas`);
+      } else {
+        toast.warning(`Processamento com erros: ${res.erros.length} erros`);
+      }
+    } catch (err) {
+      toast.error("Erro no processamento");
+      console.error(err);
+    } finally {
+      setProcessando(false);
+    }
+  };
+
+  // Baixar arquivo ajustado
+  const handleDownload = (arquivo: ArquivoSped) => {
+    if (!arquivo.conteudo) {
+      toast.error("Arquivo não possui conteúdo para download");
+      return;
+    }
+
+    const blob = new Blob([arquivo.conteudo], { type: 'text/plain;charset=ISO-8859-1' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = arquivo.nome;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Download iniciado");
+  };
+
+  // Remover arquivo
+  const handleRemover = (id: string) => {
+    setArquivos(prev => prev.filter(a => a.id !== id));
+    toast.success("Arquivo removido");
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -77,10 +200,134 @@ export function AjustaSpedTab() {
             Ajusta SPED
           </CardTitle>
           <CardDescription>
-            Corrija e ajuste arquivos SPED automaticamente. Suporta EFD ICMS/IPI, EFD Contribuições, ECF e ECD.
+            Processa arquivos SPED aplicando ajustes de C110, C112, C113, C195 e C197 (ICMS Próprio/ST).
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Área de Upload e Configuração */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg bg-muted/30">
+            {/* Upload SPED */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <FileText className="w-4 h-4" /> Arquivo SPED (.txt)
+              </Label>
+              <input
+                ref={spedInputRef}
+                type="file"
+                accept=".txt"
+                onChange={handleSpedUpload}
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => spedInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {arquivoSped ? arquivoSped.nome : "Selecionar SPED..."}
+              </Button>
+              {arquivoSped && (
+                <p className="text-xs text-green-500 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> Arquivo carregado
+                </p>
+              )}
+            </div>
+
+            {/* Upload Planilha Ajustes */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <FileSpreadsheet className="w-4 h-4" /> Planilha Ajustes (.csv)
+              </Label>
+              <input
+                ref={ajustesInputRef}
+                type="file"
+                accept=".csv,.txt"
+                onChange={handleAjustesUpload}
+                className="hidden"
+              />
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={() => ajustesInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {ajustes.length > 0 ? `${ajustes.length} ajustes` : "Selecionar planilha..."}
+              </Button>
+              {ajustes.length > 0 && (
+                <p className="text-xs text-green-500 flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3" /> {ajustes.length} NFs para ajustar
+                </p>
+              )}
+            </div>
+
+            {/* Configuração e Processar */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Settings2 className="w-4 h-4" /> Configuração C197
+              </Label>
+              <div className="flex items-center justify-between p-2 border rounded-md bg-background">
+                <span className="text-sm">Gerar ambos C197</span>
+                <Switch
+                  checked={gerarAmbosC197}
+                  onCheckedChange={setGerarAmbosC197}
+                />
+              </div>
+              <Button 
+                className="w-full bg-cyan-500 hover:bg-cyan-600"
+                onClick={handleProcessar}
+                disabled={processando || !arquivoSped || ajustes.length === 0}
+              >
+                {processando ? (
+                  <>
+                    <Clock className="w-4 h-4 mr-2 animate-spin" /> Processando...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" /> Processar SPED
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Resultado do último processamento */}
+          {resultado && (
+            <div className={`p-4 rounded-lg border ${resultado.sucesso ? 'border-green-500/30 bg-green-500/10' : 'border-red-500/30 bg-red-500/10'}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {resultado.sucesso ? (
+                    <CheckCircle className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                  )}
+                  <div>
+                    <p className="font-medium">
+                      {resultado.sucesso ? 'Processamento concluído' : 'Processamento com erros'}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {resultado.notasProcessadas} notas fiscais ajustadas
+                    </p>
+                  </div>
+                </div>
+                {resultado.erros.length > 0 && (
+                  <span className="px-3 py-1 rounded-full text-sm font-bold bg-red-500/20 text-red-500">
+                    {resultado.erros.length} erros
+                  </span>
+                )}
+              </div>
+              {resultado.erros.length > 0 && (
+                <div className="mt-3 text-sm text-red-400">
+                  {resultado.erros.slice(0, 5).map((err, i) => (
+                    <p key={i}>• {err}</p>
+                  ))}
+                  {resultado.erros.length > 5 && (
+                    <p className="text-muted-foreground">...e mais {resultado.erros.length - 5} erros</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-3">
             <button
@@ -152,9 +399,6 @@ export function AjustaSpedTab() {
                   <LayoutGrid className="w-4 h-4" />
                 </Button>
               </div>
-              <Button size="sm" className="bg-cyan-500 hover:bg-cyan-600">
-                <Upload className="w-4 h-4 mr-1" /> Importar SPED
-              </Button>
             </div>
           </div>
 
@@ -202,9 +446,27 @@ export function AjustaSpedTab() {
                       <td className="p-3 text-center font-medium">{arquivo.ajustes}</td>
                       <td className="p-3">
                         <div className="flex justify-center gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8"><Play className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500"><Trash2 className="w-4 h-4" /></Button>
+                          {arquivo.conteudo && (
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8"
+                              onClick={() => handleDownload(arquivo)}
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-red-500"
+                            onClick={() => handleRemover(arquivo.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -230,6 +492,13 @@ export function AjustaSpedTab() {
                       {arquivo.erros} erros
                     </span>
                   </div>
+                  {arquivo.resultado?.erros && arquivo.resultado.erros.length > 0 && (
+                    <div className="mt-3 text-sm text-red-400 border-t border-red-500/20 pt-3">
+                      {arquivo.resultado.erros.map((err, i) => (
+                        <p key={i}>• {err}</p>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
