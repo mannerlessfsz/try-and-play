@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useFornecedores } from "@/hooks/useFornecedores";
-import { Upload, Download, FileText, Building2, Loader2, CheckCircle, AlertCircle, FileSpreadsheet, Trash2, Table as TableIcon } from "lucide-react";
+import { Upload, Download, FileText, Building2, Loader2, CheckCircle, AlertCircle, FileSpreadsheet, Trash2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
@@ -34,6 +34,8 @@ interface RemessaItem {
   selecionado: boolean;
 }
 
+const ITEMS_PER_PAGE = 15;
+
 const ConversorItauSispag = () => {
   const { toast } = useToast();
   const { empresaAtiva } = useEmpresaAtiva();
@@ -49,7 +51,27 @@ const ConversorItauSispag = () => {
   const [planoContas, setPlanoContas] = useState<PlanoContasItem[]>([]);
   const [planoContasNome, setPlanoContasNome] = useState<string>("");
   const [loadingPlano, setLoadingPlano] = useState(false);
+  const [planoPagina, setPlanoPagina] = useState(1);
+  const [planoBusca, setPlanoBusca] = useState("");
   const planoInputRef = useRef<HTMLInputElement>(null);
+
+  // Filtrar e paginar plano de contas
+  const planoContasFiltrado = useMemo(() => {
+    if (!planoBusca.trim()) return planoContas;
+    const termo = planoBusca.toLowerCase();
+    return planoContas.filter(
+      c => c.codigo.toLowerCase().includes(termo) || 
+           c.descricao.toLowerCase().includes(termo) ||
+           (c.tipo?.toLowerCase().includes(termo)) ||
+           (c.natureza?.toLowerCase().includes(termo))
+    );
+  }, [planoContas, planoBusca]);
+
+  const totalPaginasPlano = Math.ceil(planoContasFiltrado.length / ITEMS_PER_PAGE);
+  const planoContasPaginado = useMemo(() => {
+    const inicio = (planoPagina - 1) * ITEMS_PER_PAGE;
+    return planoContasFiltrado.slice(inicio, inicio + ITEMS_PER_PAGE);
+  }, [planoContasFiltrado, planoPagina]);
 
   const parseExcelPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
     return new Promise((resolve, reject) => {
@@ -490,6 +512,8 @@ const ConversorItauSispag = () => {
                 onClick={() => {
                   setPlanoContas([]);
                   setPlanoContasNome("");
+                  setPlanoPagina(1);
+                  setPlanoBusca("");
                 }}
                 title="Remover plano de contas"
               >
@@ -506,41 +530,123 @@ const ConversorItauSispag = () => {
           )}
 
           {planoContas.length > 0 && (
-            <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-4 h-4 text-green-500" />
-                <span className="text-sm font-medium">{planoContasNome}</span>
+            <div className="space-y-3">
+              {/* Header com info e busca */}
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm font-medium">{planoContasNome}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({planoContas.length} contas)
+                  </span>
+                </div>
+                <div className="relative flex-1 max-w-xs">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar código ou descrição..."
+                    value={planoBusca}
+                    onChange={(e) => {
+                      setPlanoBusca(e.target.value);
+                      setPlanoPagina(1);
+                    }}
+                    className="pl-8 h-8 text-sm"
+                  />
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                {planoContas.length} contas carregadas
-              </p>
-              
-              {/* Preview das primeiras contas */}
-              <div className="mt-3 max-h-40 overflow-y-auto">
+
+              {/* Tabela completa paginada */}
+              <div className="border rounded-lg overflow-hidden">
                 <Table>
                   <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Código</TableHead>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="text-xs w-32">Código</TableHead>
                       <TableHead className="text-xs">Descrição</TableHead>
+                      {planoContas.some(c => c.tipo) && (
+                        <TableHead className="text-xs w-24">Tipo</TableHead>
+                      )}
+                      {planoContas.some(c => c.natureza) && (
+                        <TableHead className="text-xs w-24">Natureza</TableHead>
+                      )}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {planoContas.slice(0, 10).map((conta, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-xs py-1 font-mono">{conta.codigo}</TableCell>
-                        <TableCell className="text-xs py-1">{conta.descricao}</TableCell>
-                      </TableRow>
-                    ))}
-                    {planoContas.length > 10 && (
+                    {planoContasPaginado.length > 0 ? (
+                      planoContasPaginado.map((conta, idx) => (
+                        <TableRow key={idx} className="hover:bg-muted/30">
+                          <TableCell className="text-xs py-2 font-mono">{conta.codigo}</TableCell>
+                          <TableCell className="text-xs py-2">{conta.descricao}</TableCell>
+                          {planoContas.some(c => c.tipo) && (
+                            <TableCell className="text-xs py-2">{conta.tipo || '-'}</TableCell>
+                          )}
+                          {planoContas.some(c => c.natureza) && (
+                            <TableCell className="text-xs py-2">{conta.natureza || '-'}</TableCell>
+                          )}
+                        </TableRow>
+                      ))
+                    ) : (
                       <TableRow>
-                        <TableCell colSpan={2} className="text-xs text-center text-muted-foreground py-1">
-                          ... e mais {planoContas.length - 10} contas
+                        <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-4">
+                          Nenhuma conta encontrada para "{planoBusca}"
                         </TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Paginação */}
+              {totalPaginasPlano > 1 && (
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Mostrando {((planoPagina - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(planoPagina * ITEMS_PER_PAGE, planoContasFiltrado.length)} de {planoContasFiltrado.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setPlanoPagina(p => Math.max(1, p - 1))}
+                      disabled={planoPagina === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    <div className="flex items-center gap-1 px-2">
+                      {Array.from({ length: Math.min(5, totalPaginasPlano) }, (_, i) => {
+                        let pageNum: number;
+                        if (totalPaginasPlano <= 5) {
+                          pageNum = i + 1;
+                        } else if (planoPagina <= 3) {
+                          pageNum = i + 1;
+                        } else if (planoPagina >= totalPaginasPlano - 2) {
+                          pageNum = totalPaginasPlano - 4 + i;
+                        } else {
+                          pageNum = planoPagina - 2 + i;
+                        }
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={planoPagina === pageNum ? "default" : "ghost"}
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => setPlanoPagina(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => setPlanoPagina(p => Math.min(totalPaginasPlano, p + 1))}
+                      disabled={planoPagina === totalPaginasPlano}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
