@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Settings2, ArrowLeft, Download, Search, CheckCircle, AlertCircle, 
+  Settings2, ArrowLeft, ArrowRight, Search, CheckCircle, AlertCircle, 
   ChevronLeft, ChevronRight, Building2
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +16,9 @@ import { cn } from "@/lib/utils";
 import { type PlanoContasItem } from "@/utils/planoContasParser";
 import { type ItauPagamentoItem } from "@/utils/itauReportParser";
 
-const ITEMS_PER_PAGE = 12;
+const ITEMS_PER_PAGE = 50;
+
+type FiltroStatus = "todos" | "vinculados" | "pendentes";
 
 // Remove acentos e caracteres especiais
 const removerAcentos = (str: string): string => {
@@ -53,6 +55,7 @@ type Props = {
   competenciaMes: string;
   competenciaAno: string;
   onVoltar: () => void;
+  onProsseguir: (lancamentos: LancamentoAjustado[], contaCredito: string, codigoEmpresa: string) => void;
 };
 
 const AjustarLancamentosStep = ({
@@ -61,6 +64,7 @@ const AjustarLancamentosStep = ({
   competenciaMes,
   competenciaAno,
   onVoltar,
+  onProsseguir,
 }: Props) => {
   const { toast } = useToast();
   
@@ -69,6 +73,7 @@ const AjustarLancamentosStep = ({
   const [codigoEmpresa, setCodigoEmpresa] = useState("");
   const [pagina, setPagina] = useState(1);
   const [busca, setBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   
   // Estado dos lançamentos ajustados
   const [lancamentosAjustados, setLancamentosAjustados] = useState<Map<string, string>>(() => new Map());
@@ -132,17 +137,36 @@ const AjustarLancamentosStep = ({
     });
   }, [lancamentosEfetuados, planoContas, contaCredito, codigoEmpresa, lancamentosAjustados, buscarContaPorFavorecido]);
 
-  // Filtrar e paginar
+  // Filtrar por status e busca
   const lancamentosFiltrados = useMemo(() => {
-    if (!busca.trim()) return lancamentosProcessados;
-    const termo = busca.toLowerCase();
-    return lancamentosProcessados.filter(
-      (l) =>
-        l.favorecidoOriginal.toLowerCase().includes(termo) ||
-        l.contaDebito.includes(termo) ||
-        l.contaDebitoDescricao.toLowerCase().includes(termo)
-    );
-  }, [lancamentosProcessados, busca]);
+    let resultado = lancamentosProcessados;
+    
+    // Filtro por status
+    if (filtroStatus === "vinculados") {
+      resultado = resultado.filter(l => l.contaDebito);
+    } else if (filtroStatus === "pendentes") {
+      resultado = resultado.filter(l => !l.contaDebito);
+    }
+    
+    // Filtro por busca
+    if (busca.trim()) {
+      const termo = busca.toLowerCase();
+      resultado = resultado.filter(
+        (l) =>
+          l.favorecidoOriginal.toLowerCase().includes(termo) ||
+          l.contaDebito.includes(termo) ||
+          l.contaDebitoDescricao.toLowerCase().includes(termo)
+      );
+    }
+    
+    return resultado;
+  }, [lancamentosProcessados, busca, filtroStatus]);
+
+  // Handler para clicar nos cards de filtro
+  const handleFiltroClick = (novoFiltro: FiltroStatus) => {
+    setFiltroStatus(prev => prev === novoFiltro ? "todos" : novoFiltro);
+    setPagina(1);
+  };
 
   const totalPaginas = Math.ceil(lancamentosFiltrados.length / ITEMS_PER_PAGE);
   const lancamentosPaginados = useMemo(() => {
@@ -172,12 +196,12 @@ const AjustarLancamentosStep = ({
     });
   };
 
-  // Exportar CSV
-  const handleExportar = () => {
+  // Prosseguir para o Passo 4
+  const handleProsseguir = () => {
     if (!codigoEmpresa.trim()) {
       toast({
         title: "Código da empresa obrigatório",
-        description: "Preencha o código da empresa antes de exportar.",
+        description: "Preencha o código da empresa antes de prosseguir.",
         variant: "destructive",
       });
       return;
@@ -186,7 +210,7 @@ const AjustarLancamentosStep = ({
     if (!contaCredito.trim()) {
       toast({
         title: "Conta crédito obrigatória",
-        description: "Selecione a conta a crédito antes de exportar.",
+        description: "Selecione a conta a crédito antes de prosseguir.",
         variant: "destructive",
       });
       return;
@@ -202,33 +226,7 @@ const AjustarLancamentosStep = ({
       return;
     }
 
-    // Gerar CSV
-    const headers = ["DATA", "CONTA_DEBITO", "CONTA_CREDITO", "VALOR", "HISTORICO", "LOTE", "CODIGO_EMPRESA"];
-    const rows = lancamentosProcessados.map(l => [
-      l.data,
-      l.contaDebito,
-      contaCredito,
-      l.valor.toFixed(2).replace(".", ","),
-      `"${l.historico}"`,
-      l.lote.toString(),
-      codigoEmpresa,
-    ]);
-
-    const csvContent = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lancamentos_ajustados_${competenciaMes}_${competenciaAno}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast({
-      title: "Arquivo exportado",
-      description: `${lancamentosProcessados.length} lançamentos exportados com sucesso.`,
-    });
+    onProsseguir(lancamentosProcessados, contaCredito, codigoEmpresa);
   };
 
   const MESES_LABEL: Record<string, string> = {
@@ -291,26 +289,47 @@ const AjustarLancamentosStep = ({
           </div>
         </div>
 
-        {/* Resumo */}
+        {/* Resumo com filtros clicáveis */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="p-3 bg-muted/30 rounded-lg border">
             <p className="text-xs text-muted-foreground">Total Lançamentos</p>
             <p className="text-lg font-semibold">{lancamentosProcessados.length}</p>
           </div>
-          <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+          <div 
+            onClick={() => handleFiltroClick("vinculados")}
+            className={cn(
+              "p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.02]",
+              filtroStatus === "vinculados" 
+                ? "bg-green-500/20 border-green-500 ring-2 ring-green-500/50" 
+                : "bg-green-500/10 border-green-500/20 hover:border-green-500/40"
+            )}
+          >
             <p className="text-xs text-green-400">Vinculados</p>
             <p className="text-lg font-semibold text-green-500">{estatisticas.vinculados}</p>
+            {filtroStatus === "vinculados" && (
+              <p className="text-[10px] text-green-400 mt-1">✓ Filtro ativo</p>
+            )}
           </div>
-          <div className={cn(
-            "p-3 rounded-lg border",
-            estatisticas.naoVinculados > 0 ? "bg-red-500/10 border-red-500/20" : "bg-muted/30"
-          )}>
+          <div 
+            onClick={() => handleFiltroClick("pendentes")}
+            className={cn(
+              "p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.02]",
+              filtroStatus === "pendentes"
+                ? "bg-red-500/20 border-red-500 ring-2 ring-red-500/50"
+                : estatisticas.naoVinculados > 0 
+                  ? "bg-red-500/10 border-red-500/20 hover:border-red-500/40" 
+                  : "bg-muted/30 hover:bg-muted/50"
+            )}
+          >
             <p className={cn("text-xs", estatisticas.naoVinculados > 0 ? "text-red-400" : "text-muted-foreground")}>
               Pendentes
             </p>
             <p className={cn("text-lg font-semibold", estatisticas.naoVinculados > 0 && "text-red-500")}>
               {estatisticas.naoVinculados}
             </p>
+            {filtroStatus === "pendentes" && (
+              <p className="text-[10px] text-red-400 mt-1">✓ Filtro ativo</p>
+            )}
           </div>
           <div className="p-3 bg-muted/30 rounded-lg border">
             <p className="text-xs text-muted-foreground">Valor Total</p>
@@ -318,6 +337,49 @@ const AjustarLancamentosStep = ({
           </div>
         </div>
 
+        {/* Indicador de filtro ativo */}
+        {filtroStatus !== "todos" && (
+          <div className="flex items-center gap-2 text-sm">
+            <Badge variant="outline" className={cn(
+              filtroStatus === "vinculados" ? "border-green-500 text-green-500" : "border-red-500 text-red-500"
+            )}>
+              Mostrando: {filtroStatus === "vinculados" ? "Vinculados" : "Pendentes"}
+            </Badge>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setFiltroStatus("todos")}
+              className="h-6 text-xs"
+            >
+              Limpar filtro
+            </Button>
+          </div>
+        )}
+
+        {/* Status message */}
+        <div className="flex items-center justify-end text-xs text-muted-foreground">
+          {estatisticas.naoVinculados > 0 ? (
+            <span className="text-red-500">
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+              Vincule todas as contas para prosseguir
+            </span>
+          ) : !contaCredito ? (
+            <span className="text-amber-500">
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+              Selecione a conta crédito
+            </span>
+          ) : !codigoEmpresa ? (
+            <span className="text-amber-500">
+              <AlertCircle className="w-4 h-4 inline mr-1" />
+              Preencha o código da empresa
+            </span>
+          ) : (
+            <span className="text-green-500">
+              <CheckCircle className="w-4 h-4 inline mr-1" />
+              Pronto para prosseguir
+            </span>
+          )}
+        </div>
         {/* Busca */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-xs">
@@ -329,14 +391,6 @@ const AjustarLancamentosStep = ({
               className="pl-8 h-8 text-sm"
             />
           </div>
-          <Button 
-            onClick={handleExportar} 
-            disabled={estatisticas.naoVinculados > 0 || !contaCredito || !codigoEmpresa}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Exportar CSV
-          </Button>
         </div>
 
         {/* Tabela de Lançamentos */}
@@ -460,19 +514,14 @@ const AjustarLancamentosStep = ({
             <ArrowLeft className="w-4 h-4 mr-2" />
             Voltar: Relatório do Banco
           </Button>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            {estatisticas.naoVinculados > 0 ? (
-              <span className="text-red-500">
-                <AlertCircle className="w-4 h-4 inline mr-1" />
-                Vincule todas as contas para exportar
-              </span>
-            ) : (
-              <span className="text-green-500">
-                <CheckCircle className="w-4 h-4 inline mr-1" />
-                Pronto para exportar
-              </span>
-            )}
-          </div>
+          <Button 
+            onClick={handleProsseguir} 
+            disabled={estatisticas.naoVinculados > 0 || !contaCredito || !codigoEmpresa}
+            className="bg-amber-600 hover:bg-amber-700"
+          >
+            Próximo: Gerar CSV
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
         </div>
       </CardContent>
     </Card>
