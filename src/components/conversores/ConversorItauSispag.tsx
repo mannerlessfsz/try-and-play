@@ -24,6 +24,7 @@ import {
   parseItauReportFromExcelFile,
   type ItauPagamentoItem,
 } from "@/utils/itauReportParser";
+import AjustarLancamentosStep from "./AjustarLancamentosStep";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -143,6 +144,14 @@ const ConversorItauSispag = () => {
     
     return { lancamentosDentro: dentro, lancamentosForaCompetencia: fora };
   }, [relatorioItau, competenciaMes, competenciaAno]);
+
+  // Filtrar apenas lançamentos com status "efetuado" para o Passo 3
+  const lancamentosEfetuados = useMemo(() => {
+    return lancamentosDentro.filter(item => {
+      const status = item.status.toLowerCase();
+      return status.includes("efetuado") && !status.includes("não");
+    });
+  }, [lancamentosDentro]);
 
   // Agrupar lançamentos fora da competência por mês/ano
   const lancamentosForaAgrupados = useMemo(() => {
@@ -332,7 +341,7 @@ const ConversorItauSispag = () => {
 
   const canProceedToStep = (step: Step): boolean => {
     if (step === 2) return planoContas.length > 0;
-    if (step === 3) return planoContas.length > 0 && relatorioItau.length > 0;
+    if (step === 3) return planoContas.length > 0 && lancamentosEfetuados.length > 0;
     return true;
   };
 
@@ -617,7 +626,7 @@ const ConversorItauSispag = () => {
             {relatorioItau.length > 0 && (
               <div className="space-y-4">
                 {/* Resumo por Competência */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="p-3 bg-muted/30 rounded-lg border">
                     <p className="text-xs text-muted-foreground">Total do Arquivo</p>
                     <p className="text-lg font-semibold">{formatCurrency(totalValorRelatorio)}</p>
@@ -627,6 +636,11 @@ const ConversorItauSispag = () => {
                     <p className="text-xs text-green-400">Competência {MESES.find(m => m.value === competenciaMes)?.label}/{competenciaAno}</p>
                     <p className="text-lg font-semibold text-green-500">{formatCurrency(totalValorCompetencia)}</p>
                     <p className="text-xs text-green-400">{lancamentosDentro.length} lançamentos</p>
+                  </div>
+                  <div className="p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                    <p className="text-xs text-blue-400">Efetuados (para Ajuste)</p>
+                    <p className="text-lg font-semibold text-blue-500">{lancamentosEfetuados.length}</p>
+                    <p className="text-xs text-blue-400">serão processados</p>
                   </div>
                   <div className={cn(
                     "p-3 rounded-lg border",
@@ -764,8 +778,8 @@ const ConversorItauSispag = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Voltar: Plano de Contas
               </Button>
-              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3) || lancamentosDentro.length === 0}>
-                Próximo: Ajustar Lançamentos
+              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3) || lancamentosEfetuados.length === 0}>
+                Próximo: Ajustar Lançamentos ({lancamentosEfetuados.length} efetuados)
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
@@ -775,37 +789,13 @@ const ConversorItauSispag = () => {
 
       {/* Step 3: Ajustar Lançamentos */}
       {currentStep === 3 && (
-        <Card className="border-amber-500/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                <Settings2 className="w-5 h-5 text-amber-500" />
-              </div>
-              <div className="flex-1">
-                <CardTitle className="text-lg">Ajustar Lançamentos</CardTitle>
-                <CardDescription>Vincule os pagamentos às contas do plano de contas</CardDescription>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-8 text-center bg-muted/30 rounded-lg border border-dashed">
-              <Settings2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground/50" />
-              <h3 className="text-lg font-medium mb-2">Em desenvolvimento</h3>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Neste passo você poderá vincular cada pagamento do relatório do banco 
-                a uma conta do plano de contas e gerar o arquivo de lançamentos.
-              </p>
-            </div>
-
-            {/* Navigation */}
-            <div className="flex justify-start pt-4 border-t">
-              <Button variant="outline" onClick={() => goToStep(2)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Voltar: Relatório do Banco
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <AjustarLancamentosStep
+          lancamentosEfetuados={lancamentosEfetuados}
+          planoContas={planoContas}
+          competenciaMes={competenciaMes}
+          competenciaAno={competenciaAno}
+          onVoltar={() => goToStep(2)}
+        />
       )}
     </div>
   );
