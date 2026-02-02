@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useFornecedores } from "@/hooks/useFornecedores";
-import { Upload, Download, FileText, Building2, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Upload, Download, FileText, Building2, Loader2, CheckCircle, AlertCircle, FileSpreadsheet, Trash2, Table as TableIcon } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
+import * as XLSX from "xlsx";
+
+interface PlanoContasItem {
+  codigo: string;
+  descricao: string;
+  tipo?: string;
+  natureza?: string;
+}
 
 interface RemessaItem {
   id: string;
@@ -22,6 +30,7 @@ interface RemessaItem {
   cpf_cnpj: string;
   valor: number;
   data_pagamento: string;
+  conta_contabil?: string;
   selecionado: boolean;
 }
 
@@ -35,6 +44,148 @@ const ConversorItauSispag = () => {
   const [arquivoGerado, setArquivoGerado] = useState<string | null>(null);
   const [tipoRemessa, setTipoRemessa] = useState<string>("pagamento");
   const [dataRemessa, setDataRemessa] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  
+  // Plano de contas
+  const [planoContas, setPlanoContas] = useState<PlanoContasItem[]>([]);
+  const [planoContasNome, setPlanoContasNome] = useState<string>("");
+  const [loadingPlano, setLoadingPlano] = useState(false);
+  const planoInputRef = useRef<HTMLInputElement>(null);
+
+  const parseExcelPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = e.target?.result;
+          const workbook = XLSX.read(data, { type: "binary" });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+          if (jsonData.length < 2) {
+            reject(new Error("Arquivo vazio ou sem dados"));
+            return;
+          }
+
+          // Detectar colunas
+          const headers = jsonData[0].map((h: any) => String(h || "").toLowerCase().trim());
+          
+          // Tentar identificar colunas de código e descrição
+          let codigoIdx = headers.findIndex((h: string) => 
+            h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
+          );
+          let descricaoIdx = headers.findIndex((h: string) => 
+            h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
+          );
+          let tipoIdx = headers.findIndex((h: string) => h.includes("tipo"));
+          let naturezaIdx = headers.findIndex((h: string) => 
+            h.includes("natureza") || h.includes("nat")
+          );
+
+          // Se não encontrou, usar as primeiras colunas
+          if (codigoIdx === -1) codigoIdx = 0;
+          if (descricaoIdx === -1) descricaoIdx = 1;
+
+          const items: PlanoContasItem[] = [];
+          for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || !row[codigoIdx]) continue;
+            
+            items.push({
+              codigo: String(row[codigoIdx] || "").trim(),
+              descricao: String(row[descricaoIdx] || "").trim(),
+              tipo: tipoIdx >= 0 ? String(row[tipoIdx] || "").trim() : undefined,
+              natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] || "").trim() : undefined,
+            });
+          }
+
+          resolve(items);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error("Erro ao ler arquivo"));
+      reader.readAsBinaryString(file);
+    });
+  };
+
+  const parseCsvPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
+    const text = await file.text();
+    const lines = text.split("\n").filter(l => l.trim());
+    
+    if (lines.length < 2) {
+      throw new Error("Arquivo vazio ou sem dados");
+    }
+
+    const delimiter = lines[0].includes(";") ? ";" : ",";
+    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ""));
+
+    let codigoIdx = headers.findIndex(h => 
+      h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
+    );
+    let descricaoIdx = headers.findIndex(h => 
+      h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
+    );
+    let tipoIdx = headers.findIndex(h => h.includes("tipo"));
+    let naturezaIdx = headers.findIndex(h => 
+      h.includes("natureza") || h.includes("nat")
+    );
+
+    if (codigoIdx === -1) codigoIdx = 0;
+    if (descricaoIdx === -1) descricaoIdx = 1;
+
+    const items: PlanoContasItem[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ""));
+      if (!values[codigoIdx]) continue;
+      
+      items.push({
+        codigo: values[codigoIdx] || "",
+        descricao: values[descricaoIdx] || "",
+        tipo: tipoIdx >= 0 ? values[tipoIdx] : undefined,
+        natureza: naturezaIdx >= 0 ? values[naturezaIdx] : undefined,
+      });
+    }
+
+    return items;
+  };
+
+  const handlePlanoContasUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setLoadingPlano(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let items: PlanoContasItem[];
+
+      if (ext === "xls" || ext === "xlsx") {
+        items = await parseExcelPlanoContas(file);
+      } else if (ext === "csv") {
+        items = await parseCsvPlanoContas(file);
+      } else {
+        throw new Error("Formato não suportado. Use XLS, XLSX ou CSV.");
+      }
+
+      setPlanoContas(items);
+      setPlanoContasNome(file.name);
+      toast({
+        title: "Plano de contas carregado",
+        description: `${items.length} contas importadas com sucesso.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro ao carregar plano de contas",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingPlano(false);
+      if (planoInputRef.current) {
+        planoInputRef.current.value = "";
+      }
+    }
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -45,7 +196,6 @@ const ConversorItauSispag = () => {
       const text = await file.text();
       const lines = text.split('\n').filter(l => l.trim());
       
-      // Parse CSV/TXT com dados de pagamento
       const parsedItems: RemessaItem[] = [];
       
       for (let i = 1; i < lines.length; i++) {
@@ -67,6 +217,7 @@ const ConversorItauSispag = () => {
             conta: cols[4] || '',
             valor: parseFloat(cols[5]?.replace(',', '.') || '0'),
             data_pagamento: cols[6] || dataRemessa,
+            conta_contabil: cols[7] || '',
             selecionado: true,
           });
         }
@@ -96,6 +247,12 @@ const ConversorItauSispag = () => {
 
   const toggleAll = (checked: boolean) => {
     setItens(prev => prev.map(item => ({ ...item, selecionado: checked })));
+  };
+
+  const updateItemContaContabil = (id: string, contaContabil: string) => {
+    setItens(prev => prev.map(item => 
+      item.id === id ? { ...item, conta_contabil: contaContabil } : item
+    ));
   };
 
   const formatCNAB = (value: string, length: number, type: 'alpha' | 'num' = 'alpha', padChar = ' '): string => {
@@ -132,50 +289,49 @@ const ConversorItauSispag = () => {
       
       // Header do arquivo (registro 0)
       const headerArquivo = [
-        '0',                                    // Tipo registro
-        '2',                                    // Operação (2 = Remessa)
-        '2',                                    // Literal
-        formatCNAB('PAGAMENTOS', 17),          // Serviço
-        formatCNAB(empresaAtiva?.cnpj || '', 20, 'num'), // CNPJ empresa
-        formatCNAB('341', 3, 'num'),           // Código banco
-        formatCNAB('BANCO ITAU SA', 30),       // Nome banco
-        dataFormatada,                          // Data geração
-        horaFormatada,                          // Hora geração
-        sequencial,                             // Sequencial
-        formatCNAB('08', 2),                   // Layout
-        formatCNAB('', 69),                    // Brancos
+        '0',
+        '2',
+        '2',
+        formatCNAB('PAGAMENTOS', 17),
+        formatCNAB(empresaAtiva?.cnpj || '', 20, 'num'),
+        formatCNAB('341', 3, 'num'),
+        formatCNAB('BANCO ITAU SA', 30),
+        dataFormatada,
+        horaFormatada,
+        sequencial,
+        formatCNAB('08', 2),
+        formatCNAB('', 69),
       ].join('');
       lines.push(headerArquivo);
 
       // Header do lote (registro 1)
       const headerLote = [
-        '1',                                    // Tipo registro
-        formatCNAB('C', 1),                    // Operação
-        formatCNAB('20', 2),                   // Tipo pagamento (20 = Fornecedores)
-        formatCNAB('01', 2),                   // Forma pagamento (01 = Crédito CC)
-        formatCNAB('045', 3),                  // Layout lote
-        ' ',                                   // Branco
-        formatCNAB(empresaAtiva?.cnpj || '', 14, 'num'), // CNPJ
-        formatCNAB('', 20),                    // Convênio
-        formatCNAB('0', 5, 'num'),             // Agência
-        ' ',                                   // DV agência
-        formatCNAB('0', 12, 'num'),            // Conta
-        ' ',                                   // DV conta
-        ' ',                                   // DV agência/conta
-        formatCNAB(empresaAtiva?.nome || '', 30), // Nome empresa
-        formatCNAB('', 40),                    // Mensagem 1
-        formatCNAB('', 30),                    // Logradouro
-        formatCNAB('', 5, 'num'),              // Número
-        formatCNAB('', 15),                    // Complemento
-        formatCNAB('', 20),                    // Cidade
-        formatCNAB('', 5, 'num'),              // CEP
-        formatCNAB('', 3, 'num'),              // Complemento CEP
-        formatCNAB('', 2),                     // Estado
-        formatCNAB('', 8),                     // Brancos
+        '1',
+        formatCNAB('C', 1),
+        formatCNAB('20', 2),
+        formatCNAB('01', 2),
+        formatCNAB('045', 3),
+        ' ',
+        formatCNAB(empresaAtiva?.cnpj || '', 14, 'num'),
+        formatCNAB('', 20),
+        formatCNAB('0', 5, 'num'),
+        ' ',
+        formatCNAB('0', 12, 'num'),
+        ' ',
+        ' ',
+        formatCNAB(empresaAtiva?.nome || '', 30),
+        formatCNAB('', 40),
+        formatCNAB('', 30),
+        formatCNAB('', 5, 'num'),
+        formatCNAB('', 15),
+        formatCNAB('', 20),
+        formatCNAB('', 5, 'num'),
+        formatCNAB('', 3, 'num'),
+        formatCNAB('', 2),
+        formatCNAB('', 8),
       ].join('');
       lines.push(headerLote);
 
-      // Detalhe (registros 3)
       let sequencialDetalhe = 1;
       let totalValor = 0;
 
@@ -185,57 +341,57 @@ const ConversorItauSispag = () => {
         
         // Segmento A
         const segmentoA = [
-          '3',                                  // Tipo registro
-          formatCNAB(sequencialDetalhe.toString(), 5, 'num'), // Sequencial
-          'A',                                  // Segmento
-          formatCNAB('0', 3),                  // Tipo movimento
-          formatCNAB(item.banco, 3, 'num'),    // Banco favorecido
-          formatCNAB(item.agencia, 5, 'num'),  // Agência
-          ' ',                                 // DV agência
-          formatCNAB(item.conta, 12, 'num'),   // Conta
-          ' ',                                 // DV conta
-          ' ',                                 // DV agência/conta
-          formatCNAB(item.fornecedor_nome, 30), // Nome favorecido
-          formatCNAB('', 20),                  // Número documento
-          dataFormatadaPag.slice(0, 8).padStart(8, '0'), // Data pagamento
-          formatCNAB('BRL', 3),                // Moeda
-          formatCNAB('0', 15, 'num'),          // Quantidade moeda
-          formatValor(item.valor),              // Valor pagamento
-          formatCNAB('', 20),                  // Número documento banco
-          dataFormatadaPag.slice(0, 8).padStart(8, '0'), // Data real
-          formatValor(item.valor),              // Valor real
-          formatCNAB('', 40),                  // Informação 2
-          formatCNAB('', 2),                   // Finalidade DOC/TED
-          formatCNAB('', 10),                  // Brancos
-          formatCNAB('', 1),                   // Aviso
-          formatCNAB('', 10),                  // Códigos
+          '3',
+          formatCNAB(sequencialDetalhe.toString(), 5, 'num'),
+          'A',
+          formatCNAB('0', 3),
+          formatCNAB(item.banco, 3, 'num'),
+          formatCNAB(item.agencia, 5, 'num'),
+          ' ',
+          formatCNAB(item.conta, 12, 'num'),
+          ' ',
+          ' ',
+          formatCNAB(item.fornecedor_nome, 30),
+          formatCNAB('', 20),
+          dataFormatadaPag.slice(0, 8).padStart(8, '0'),
+          formatCNAB('BRL', 3),
+          formatCNAB('0', 15, 'num'),
+          formatValor(item.valor),
+          formatCNAB('', 20),
+          dataFormatadaPag.slice(0, 8).padStart(8, '0'),
+          formatValor(item.valor),
+          formatCNAB('', 40),
+          formatCNAB('', 2),
+          formatCNAB('', 10),
+          formatCNAB('', 1),
+          formatCNAB('', 10),
         ].join('');
         lines.push(segmentoA);
 
         // Segmento B
         const segmentoB = [
-          '3',                                  // Tipo registro
-          formatCNAB(sequencialDetalhe.toString(), 5, 'num'), // Sequencial
-          'B',                                  // Segmento
-          formatCNAB('', 3),                   // Brancos
-          tipoDoc,                              // Tipo inscrição
-          formatCNAB(item.cpf_cnpj, 14, 'num'), // CPF/CNPJ
-          formatCNAB('', 30),                  // Logradouro
-          formatCNAB('', 5, 'num'),            // Número
-          formatCNAB('', 15),                  // Complemento
-          formatCNAB('', 15),                  // Bairro
-          formatCNAB('', 20),                  // Cidade
-          formatCNAB('', 8, 'num'),            // CEP
-          formatCNAB('', 2),                   // Estado
-          dataFormatadaPag.slice(0, 8).padStart(8, '0'), // Data vencimento
-          formatValor(item.valor),              // Valor documento
-          formatValor(0),                       // Abatimento
-          formatValor(0),                       // Desconto
-          formatValor(0),                       // Mora
-          formatValor(0),                       // Multa
-          formatCNAB('', 15),                  // Código documento
-          formatCNAB('', 1),                   // Aviso
-          formatCNAB('', 6),                   // Códigos ISPB
+          '3',
+          formatCNAB(sequencialDetalhe.toString(), 5, 'num'),
+          'B',
+          formatCNAB('', 3),
+          tipoDoc,
+          formatCNAB(item.cpf_cnpj, 14, 'num'),
+          formatCNAB('', 30),
+          formatCNAB('', 5, 'num'),
+          formatCNAB('', 15),
+          formatCNAB('', 15),
+          formatCNAB('', 20),
+          formatCNAB('', 8, 'num'),
+          formatCNAB('', 2),
+          dataFormatadaPag.slice(0, 8).padStart(8, '0'),
+          formatValor(item.valor),
+          formatValor(0),
+          formatValor(0),
+          formatValor(0),
+          formatValor(0),
+          formatCNAB('', 15),
+          formatCNAB('', 1),
+          formatCNAB('', 6),
         ].join('');
         lines.push(segmentoB);
 
@@ -245,23 +401,23 @@ const ConversorItauSispag = () => {
 
       // Trailer do lote (registro 5)
       const trailerLote = [
-        '5',                                    // Tipo registro
-        formatCNAB('', 9),                     // Brancos
-        formatCNAB((sequencialDetalhe + 2).toString(), 6, 'num'), // Quantidade registros
-        formatValor(totalValor),                // Somatório valores
-        formatCNAB('0', 18, 'num'),            // Quantidade moedas
-        formatCNAB('', 171),                   // Brancos
+        '5',
+        formatCNAB('', 9),
+        formatCNAB((sequencialDetalhe + 2).toString(), 6, 'num'),
+        formatValor(totalValor),
+        formatCNAB('0', 18, 'num'),
+        formatCNAB('', 171),
       ].join('');
       lines.push(trailerLote);
 
       // Trailer do arquivo (registro 9)
       const trailerArquivo = [
-        '9',                                    // Tipo registro
-        formatCNAB('', 9),                     // Brancos
-        formatCNAB('1', 6, 'num'),             // Quantidade lotes
-        formatCNAB((lines.length + 1).toString(), 6, 'num'), // Quantidade registros
-        formatCNAB('', 6),                     // Brancos
-        formatCNAB('', 205),                   // Brancos
+        '9',
+        formatCNAB('', 9),
+        formatCNAB('1', 6, 'num'),
+        formatCNAB((lines.length + 1).toString(), 6, 'num'),
+        formatCNAB('', 6),
+        formatCNAB('', 205),
       ].join('');
       lines.push(trailerArquivo);
 
@@ -299,6 +455,98 @@ const ConversorItauSispag = () => {
 
   return (
     <div className="space-y-4">
+      {/* Card do Plano de Contas */}
+      <Card className="border-purple-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+              <FileSpreadsheet className="w-5 h-5 text-purple-500" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-lg">Plano de Contas</CardTitle>
+              <CardDescription>Carregue o plano de contas para vincular aos pagamentos</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="flex-1">
+              <Input
+                ref={planoInputRef}
+                type="file"
+                accept=".xls,.xlsx,.csv"
+                onChange={handlePlanoContasUpload}
+                disabled={loadingPlano}
+                className="cursor-pointer"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Arquivos suportados: XLS, XLSX ou CSV
+              </p>
+            </div>
+            {planoContas.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => {
+                  setPlanoContas([]);
+                  setPlanoContasNome("");
+                }}
+                title="Remover plano de contas"
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            )}
+          </div>
+
+          {loadingPlano && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Carregando plano de contas...
+            </div>
+          )}
+
+          {planoContas.length > 0 && (
+            <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-green-500" />
+                <span className="text-sm font-medium">{planoContasNome}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {planoContas.length} contas carregadas
+              </p>
+              
+              {/* Preview das primeiras contas */}
+              <div className="mt-3 max-h-40 overflow-y-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs">Código</TableHead>
+                      <TableHead className="text-xs">Descrição</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {planoContas.slice(0, 10).map((conta, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="text-xs py-1 font-mono">{conta.codigo}</TableCell>
+                        <TableCell className="text-xs py-1">{conta.descricao}</TableCell>
+                      </TableRow>
+                    ))}
+                    {planoContas.length > 10 && (
+                      <TableRow>
+                        <TableCell colSpan={2} className="text-xs text-center text-muted-foreground py-1">
+                          ... e mais {planoContas.length - 10} contas
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Card Principal */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3">
@@ -335,7 +583,7 @@ const ConversorItauSispag = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Importar Dados</Label>
+              <Label>Importar Dados de Pagamento</Label>
               <div className="relative">
                 <Input
                   type="file"
@@ -365,6 +613,9 @@ const ConversorItauSispag = () => {
                     <TableHead>Banco</TableHead>
                     <TableHead>Agência</TableHead>
                     <TableHead>Conta</TableHead>
+                    {planoContas.length > 0 && (
+                      <TableHead>Conta Contábil</TableHead>
+                    )}
                     <TableHead className="text-right">Valor</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -382,6 +633,25 @@ const ConversorItauSispag = () => {
                       <TableCell>{item.banco}</TableCell>
                       <TableCell>{item.agencia}</TableCell>
                       <TableCell>{item.conta}</TableCell>
+                      {planoContas.length > 0 && (
+                        <TableCell>
+                          <Select 
+                            value={item.conta_contabil || ""} 
+                            onValueChange={(v) => updateItemContaContabil(item.id, v)}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Selecione..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {planoContas.map((conta, idx) => (
+                                <SelectItem key={idx} value={conta.codigo}>
+                                  {conta.codigo} - {conta.descricao}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                       </TableCell>
@@ -447,7 +717,7 @@ const ConversorItauSispag = () => {
               O arquivo CSV/TXT deve conter as colunas separadas por ponto e vírgula (;):
             </p>
             <code className="text-xs bg-background/50 p-2 rounded block mt-2">
-              FORNECEDOR;CPF_CNPJ;BANCO;AGENCIA;CONTA;VALOR;DATA_PAGAMENTO
+              FORNECEDOR;CPF_CNPJ;BANCO;AGENCIA;CONTA;VALOR;DATA_PAGAMENTO{planoContas.length > 0 ? ";CONTA_CONTABIL" : ""}
             </code>
           </div>
         </CardContent>
