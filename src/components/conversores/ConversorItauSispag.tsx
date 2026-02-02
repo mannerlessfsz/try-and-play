@@ -79,10 +79,24 @@ const ConversorItauSispag = () => {
       reader.onload = (e) => {
         try {
           const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: "binary" });
+          if (!data) {
+            reject(new Error("Falha ao ler o arquivo"));
+            return;
+          }
+          
+          // Usar ArrayBuffer para melhor compatibilidade
+          const workbook = XLSX.read(data, { type: "array" });
           const sheetName = workbook.SheetNames[0];
+          
+          if (!sheetName) {
+            reject(new Error("Planilha vazia"));
+            return;
+          }
+          
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+
+          console.log("Dados lidos do Excel:", jsonData.length, "linhas");
 
           if (jsonData.length < 2) {
             reject(new Error("Arquivo vazio ou sem dados"));
@@ -91,6 +105,7 @@ const ConversorItauSispag = () => {
 
           // Detectar colunas
           const headers = jsonData[0].map((h: any) => String(h || "").toLowerCase().trim());
+          console.log("Headers encontrados:", headers);
           
           // Tentar identificar colunas de código e descrição
           let codigoIdx = headers.findIndex((h: string) => 
@@ -108,26 +123,37 @@ const ConversorItauSispag = () => {
           if (codigoIdx === -1) codigoIdx = 0;
           if (descricaoIdx === -1) descricaoIdx = 1;
 
+          console.log("Índices:", { codigoIdx, descricaoIdx, tipoIdx, naturezaIdx });
+
           const items: PlanoContasItem[] = [];
           for (let i = 1; i < jsonData.length; i++) {
             const row = jsonData[i];
-            if (!row || !row[codigoIdx]) continue;
+            if (!row || row.length === 0) continue;
+            
+            const codigo = String(row[codigoIdx] ?? "").trim();
+            if (!codigo) continue;
             
             items.push({
-              codigo: String(row[codigoIdx] || "").trim(),
-              descricao: String(row[descricaoIdx] || "").trim(),
-              tipo: tipoIdx >= 0 ? String(row[tipoIdx] || "").trim() : undefined,
-              natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] || "").trim() : undefined,
+              codigo,
+              descricao: String(row[descricaoIdx] ?? "").trim(),
+              tipo: tipoIdx >= 0 ? String(row[tipoIdx] ?? "").trim() : undefined,
+              natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] ?? "").trim() : undefined,
             });
           }
 
+          console.log("Items parseados:", items.length);
           resolve(items);
         } catch (err) {
+          console.error("Erro ao parsear Excel:", err);
           reject(err);
         }
       };
-      reader.onerror = () => reject(new Error("Erro ao ler arquivo"));
-      reader.readAsBinaryString(file);
+      reader.onerror = (err) => {
+        console.error("Erro FileReader:", err);
+        reject(new Error("Erro ao ler arquivo"));
+      };
+      // Usar ArrayBuffer em vez de BinaryString para melhor compatibilidade
+      reader.readAsArrayBuffer(file);
     });
   };
 
