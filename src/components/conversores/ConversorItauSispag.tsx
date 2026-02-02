@@ -11,14 +11,11 @@ import { Upload, Download, FileText, Building2, Loader2, CheckCircle, AlertCircl
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format } from "date-fns";
-import * as XLSX from "xlsx";
-
-interface PlanoContasItem {
-  codigo: string;
-  descricao: string;
-  tipo?: string;
-  natureza?: string;
-}
+import {
+  parsePlanoContasFromCsvFile,
+  parsePlanoContasFromExcelFile,
+  type PlanoContasItem,
+} from "@/utils/planoContasParser";
 
 interface RemessaItem {
   id: string;
@@ -60,10 +57,11 @@ const ConversorItauSispag = () => {
     if (!planoBusca.trim()) return planoContas;
     const termo = planoBusca.toLowerCase();
     return planoContas.filter(
-      c => c.codigo.toLowerCase().includes(termo) || 
-           c.descricao.toLowerCase().includes(termo) ||
-           (c.tipo?.toLowerCase().includes(termo)) ||
-           (c.natureza?.toLowerCase().includes(termo))
+      (c) =>
+        c.descricao.toLowerCase().includes(termo) ||
+        c.codigo.toLowerCase().includes(termo) ||
+        c.classificacao.toLowerCase().includes(termo) ||
+        c.cnpj.toLowerCase().includes(termo)
     );
   }, [planoContas, planoBusca]);
 
@@ -73,135 +71,7 @@ const ConversorItauSispag = () => {
     return planoContasFiltrado.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [planoContasFiltrado, planoPagina]);
 
-  const parseExcelPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
-    const arrayBuffer = await file.arrayBuffer();
-
-    // XLSX.read lida melhor quando passamos Uint8Array no browser
-    const workbook = XLSX.read(new Uint8Array(arrayBuffer), {
-      type: "array",
-      cellDates: true,
-      sheetStubs: true,
-    });
-
-    const sheetName =
-      workbook.SheetNames.find((name) => {
-        const ws = workbook.Sheets[name];
-        return !!ws && !!(ws as any)["!ref"];
-      }) ?? workbook.SheetNames[0];
-
-    if (!sheetName) {
-      throw new Error("Nenhuma planilha encontrada no arquivo.");
-    }
-
-    const worksheet = workbook.Sheets[sheetName];
-    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1,
-      defval: "",
-      blankrows: false,
-      raw: false,
-    }) as any[][];
-
-    console.log("Dados lidos do Excel:", jsonData.length, "linhas");
-
-    if (jsonData.length === 0) {
-      throw new Error(
-        "Não foi possível ler linhas do XLS. Se continuar, tente salvar como XLSX ou CSV e reenviar."
-      );
-    }
-
-    // Alguns XLS têm linhas em branco no topo: achar a primeira linha com conteúdo
-    const headerRowIndex = jsonData.findIndex(
-      (row) => Array.isArray(row) && row.some((cell) => String(cell ?? "").trim() !== "")
-    );
-    if (headerRowIndex === -1) {
-      throw new Error("Planilha sem dados (apenas linhas vazias).");
-    }
-
-    const headerRow = (jsonData[headerRowIndex] ?? []) as any[];
-    const headers = headerRow.map((h: any) => String(h || "").toLowerCase().trim());
-    console.log("Headers encontrados:", headers);
-
-    // Tentar identificar colunas de código e descrição
-    let codigoIdx = headers.findIndex(
-      (h: string) => h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
-    );
-    let descricaoIdx = headers.findIndex(
-      (h: string) => h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
-    );
-    let tipoIdx = headers.findIndex((h: string) => h.includes("tipo"));
-    let naturezaIdx = headers.findIndex((h: string) => h.includes("natureza") || h.includes("nat"));
-
-    // Se não encontrou, usar as primeiras colunas
-    if (codigoIdx === -1) codigoIdx = 0;
-    if (descricaoIdx === -1) descricaoIdx = 1;
-    console.log("Índices:", { codigoIdx, descricaoIdx, tipoIdx, naturezaIdx, headerRowIndex });
-
-    const items: PlanoContasItem[] = [];
-    for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
-      const row = jsonData[i];
-      if (!row || row.length === 0) continue;
-
-      const codigo = String(row[codigoIdx] ?? "").trim();
-      if (!codigo) continue;
-
-      items.push({
-        codigo,
-        descricao: String(row[descricaoIdx] ?? "").trim(),
-        tipo: tipoIdx >= 0 ? String(row[tipoIdx] ?? "").trim() : undefined,
-        natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] ?? "").trim() : undefined,
-      });
-    }
-
-    console.log("Items parseados:", items.length);
-    if (items.length === 0) {
-      throw new Error(
-        "O XLS foi lido, mas não encontrei linhas de contas após o cabeçalho. Verifique se a 1ª linha tem as colunas (ex: código/descrição)."
-      );
-    }
-
-    return items;
-  };
-
-  const parseCsvPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
-    const text = await file.text();
-    const lines = text.split("\n").filter(l => l.trim());
-    
-    if (lines.length < 2) {
-      throw new Error("Arquivo vazio ou sem dados");
-    }
-
-    const delimiter = lines[0].includes(";") ? ";" : ",";
-    const headers = lines[0].split(delimiter).map(h => h.trim().toLowerCase().replace(/"/g, ""));
-
-    let codigoIdx = headers.findIndex(h => 
-      h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
-    );
-    let descricaoIdx = headers.findIndex(h => 
-      h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
-    );
-    let tipoIdx = headers.findIndex(h => h.includes("tipo"));
-    let naturezaIdx = headers.findIndex(h => 
-      h.includes("natureza") || h.includes("nat")
-    );
-
-    if (codigoIdx === -1) codigoIdx = 0;
-    if (descricaoIdx === -1) descricaoIdx = 1;
-
-    const items: PlanoContasItem[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(delimiter).map(v => v.trim().replace(/"/g, ""));
-      if (!values[codigoIdx]) continue;
-      
-      items.push({
-        codigo: values[codigoIdx] || "",
-        descricao: values[descricaoIdx] || "",
-        tipo: tipoIdx >= 0 ? values[tipoIdx] : undefined,
-        natureza: naturezaIdx >= 0 ? values[naturezaIdx] : undefined,
-      });
-    }
-
-    return items;
-  };
+  // parsing do plano de contas está em src/utils/planoContasParser.ts
 
   const handlePlanoContasUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -213,11 +83,17 @@ const ConversorItauSispag = () => {
       let items: PlanoContasItem[];
 
       if (ext === "xls" || ext === "xlsx") {
-        items = await parseExcelPlanoContas(file);
+        items = await parsePlanoContasFromExcelFile(file);
       } else if (ext === "csv") {
-        items = await parseCsvPlanoContas(file);
+        items = await parsePlanoContasFromCsvFile(file);
       } else {
         throw new Error("Formato não suportado. Use XLS, XLSX ou CSV.");
+      }
+
+      if (!items || items.length === 0) {
+        throw new Error(
+          "Arquivo carregado, mas não encontrei linhas do plano de contas. Verifique se ele contém as colunas Classificação/Código/Descrição/CNPJ (ou envie como XLSX/CSV)."
+        );
       }
 
       setPlanoContas(items);
@@ -592,28 +468,20 @@ const ConversorItauSispag = () => {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-muted/50">
-                      <TableHead className="text-xs w-32">Código</TableHead>
                       <TableHead className="text-xs">Descrição</TableHead>
-                      {planoContas.some(c => c.tipo) && (
-                        <TableHead className="text-xs w-24">Tipo</TableHead>
-                      )}
-                      {planoContas.some(c => c.natureza) && (
-                        <TableHead className="text-xs w-24">Natureza</TableHead>
-                      )}
+                      <TableHead className="text-xs w-28">Código</TableHead>
+                      <TableHead className="text-xs w-36">Classificação</TableHead>
+                      <TableHead className="text-xs w-36">CNPJ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {planoContasPaginado.length > 0 ? (
                       planoContasPaginado.map((conta, idx) => (
                         <TableRow key={idx} className="hover:bg-muted/30">
-                          <TableCell className="text-xs py-2 font-mono">{conta.codigo}</TableCell>
                           <TableCell className="text-xs py-2">{conta.descricao}</TableCell>
-                          {planoContas.some(c => c.tipo) && (
-                            <TableCell className="text-xs py-2">{conta.tipo || '-'}</TableCell>
-                          )}
-                          {planoContas.some(c => c.natureza) && (
-                            <TableCell className="text-xs py-2">{conta.natureza || '-'}</TableCell>
-                          )}
+                          <TableCell className="text-xs py-2 font-mono">{conta.codigo}</TableCell>
+                          <TableCell className="text-xs py-2 font-mono">{conta.classificacao}</TableCell>
+                          <TableCell className="text-xs py-2 font-mono">{conta.cnpj || "00000000000000"}</TableCell>
                         </TableRow>
                       ))
                     ) : (
