@@ -5,16 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { 
   Settings2, ArrowLeft, ArrowRight, Search, CheckCircle, AlertCircle, 
   ChevronLeft, ChevronRight, Building2
 } from "lucide-react";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/formatters";
+import { formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 import { type PlanoContasItem } from "@/utils/planoContasParser";
 import { type ItauPagamentoItem } from "@/utils/itauReportParser";
+import LancamentoTableRow, { type LancamentoRowData } from "./LancamentoTableRow";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -58,6 +60,12 @@ type Props = {
   onProsseguir: (lancamentos: LancamentoAjustado[], contaCredito: string, codigoEmpresa: string) => void;
 };
 
+const MESES_LABEL: Record<string, string> = {
+  "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
+  "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
+  "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro",
+};
+
 const AjustarLancamentosStep = ({
   lancamentosEfetuados,
   planoContas,
@@ -75,10 +83,13 @@ const AjustarLancamentosStep = ({
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
   
+  // Debounce da busca para evitar re-renders excessivos
+  const buscaDebounced = useDebouncedValue(busca, 300);
+  
   // Estado dos lançamentos ajustados
   const [lancamentosAjustados, setLancamentosAjustados] = useState<Map<string, string>>(() => new Map());
 
-  // Busca conta no plano de contas pelo favorecido
+  // Busca conta no plano de contas pelo favorecido - memoizado
   const buscarContaPorFavorecido = useCallback((favorecido: string, cnpj: string): PlanoContasItem | null => {
     const termoFavorecido = favorecido.toLowerCase().trim();
     const cnpjLimpo = cnpj.replace(/\D/g, "");
@@ -109,7 +120,7 @@ const AjustarLancamentosStep = ({
     return null;
   }, [planoContas]);
 
-  // Gera os lançamentos processados
+  // Gera os lançamentos processados - memoizado com dependências mínimas
   const lancamentosProcessados = useMemo(() => {
     return lancamentosEfetuados.map((item, index) => {
       const id = `${item.favorecido}-${item.data_pagamento}-${item.valor}-${index}`;
@@ -137,7 +148,15 @@ const AjustarLancamentosStep = ({
     });
   }, [lancamentosEfetuados, planoContas, contaCredito, codigoEmpresa, lancamentosAjustados, buscarContaPorFavorecido]);
 
-  // Filtrar por status e busca
+  // Estatísticas - calculadas uma vez
+  const estatisticas = useMemo(() => {
+    const vinculados = lancamentosProcessados.filter(l => l.contaDebito).length;
+    const naoVinculados = lancamentosProcessados.length - vinculados;
+    const valorTotal = lancamentosProcessados.reduce((sum, l) => sum + l.valor, 0);
+    return { vinculados, naoVinculados, valorTotal };
+  }, [lancamentosProcessados]);
+
+  // Filtrar por status e busca - usa busca debounced
   const lancamentosFiltrados = useMemo(() => {
     let resultado = lancamentosProcessados;
     
@@ -148,9 +167,9 @@ const AjustarLancamentosStep = ({
       resultado = resultado.filter(l => !l.contaDebito);
     }
     
-    // Filtro por busca
-    if (busca.trim()) {
-      const termo = busca.toLowerCase();
+    // Filtro por busca (debounced)
+    if (buscaDebounced.trim()) {
+      const termo = buscaDebounced.toLowerCase();
       resultado = resultado.filter(
         (l) =>
           l.favorecidoOriginal.toLowerCase().includes(termo) ||
@@ -160,31 +179,38 @@ const AjustarLancamentosStep = ({
     }
     
     return resultado;
-  }, [lancamentosProcessados, busca, filtroStatus]);
+  }, [lancamentosProcessados, buscaDebounced, filtroStatus]);
 
   // Handler para clicar nos cards de filtro
-  const handleFiltroClick = (novoFiltro: FiltroStatus) => {
+  const handleFiltroClick = useCallback((novoFiltro: FiltroStatus) => {
     setFiltroStatus(prev => prev === novoFiltro ? "todos" : novoFiltro);
     setPagina(1);
-  };
+  }, []);
 
   const totalPaginas = Math.ceil(lancamentosFiltrados.length / ITEMS_PER_PAGE);
+  
   const lancamentosPaginados = useMemo(() => {
     const inicio = (pagina - 1) * ITEMS_PER_PAGE;
     return lancamentosFiltrados.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [lancamentosFiltrados, pagina]);
 
-  // Estatísticas
-  const estatisticas = useMemo(() => {
-    const vinculados = lancamentosProcessados.filter(l => l.contaDebito).length;
-    const naoVinculados = lancamentosProcessados.length - vinculados;
-    const valorTotal = lancamentosProcessados.reduce((sum, l) => sum + l.valor, 0);
-    const valorVinculado = lancamentosProcessados.filter(l => l.contaDebito).reduce((sum, l) => sum + l.valor, 0);
-    return { vinculados, naoVinculados, valorTotal, valorVinculado };
-  }, [lancamentosProcessados]);
+  // Dados para a tabela - mapeados para o formato do componente de linha
+  const rowsData: LancamentoRowData[] = useMemo(() => {
+    return lancamentosPaginados.map(item => ({
+      id: item.id,
+      lote: item.lote,
+      data: item.data,
+      favorecidoOriginal: item.favorecidoOriginal,
+      historico: item.historico,
+      contaDebito: item.contaDebito,
+      contaDebitoDescricao: item.contaDebitoDescricao,
+      valor: item.valor,
+      vinculoAutomatico: item.vinculoAutomatico,
+    }));
+  }, [lancamentosPaginados]);
 
   // Atualizar conta débito manualmente
-  const handleContaDebitoChange = (id: string, codigo: string) => {
+  const handleContaDebitoChange = useCallback((id: string, codigo: string) => {
     setLancamentosAjustados(prev => {
       const novo = new Map(prev);
       if (codigo) {
@@ -194,10 +220,10 @@ const AjustarLancamentosStep = ({
       }
       return novo;
     });
-  };
+  }, []);
 
   // Prosseguir para o Passo 4
-  const handleProsseguir = () => {
+  const handleProsseguir = useCallback(() => {
     if (!codigoEmpresa.trim()) {
       toast({
         title: "Código da empresa obrigatório",
@@ -216,24 +242,25 @@ const AjustarLancamentosStep = ({
       return;
     }
 
-    const naoVinculados = lancamentosProcessados.filter(l => !l.contaDebito);
-    if (naoVinculados.length > 0) {
+    if (estatisticas.naoVinculados > 0) {
       toast({
         title: "Existem lançamentos sem vínculo",
-        description: `${naoVinculados.length} lançamentos ainda não têm conta débito definida.`,
+        description: `${estatisticas.naoVinculados} lançamentos ainda não têm conta débito definida.`,
         variant: "destructive",
       });
       return;
     }
 
     onProsseguir(lancamentosProcessados, contaCredito, codigoEmpresa);
-  };
+  }, [codigoEmpresa, contaCredito, estatisticas.naoVinculados, lancamentosProcessados, onProsseguir, toast]);
 
-  const MESES_LABEL: Record<string, string> = {
-    "01": "Janeiro", "02": "Fevereiro", "03": "Março", "04": "Abril",
-    "05": "Maio", "06": "Junho", "07": "Julho", "08": "Agosto",
-    "09": "Setembro", "10": "Outubro", "11": "Novembro", "12": "Dezembro",
-  };
+  const handleBuscaChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setBusca(e.target.value);
+    setPagina(1);
+  }, []);
+
+  const handlePaginaAnterior = useCallback(() => setPagina(p => Math.max(1, p - 1)), []);
+  const handlePaginaProxima = useCallback(() => setPagina(p => Math.min(totalPaginas, p + 1)), [totalPaginas]);
 
   return (
     <Card className="border-amber-500/20">
@@ -295,10 +322,11 @@ const AjustarLancamentosStep = ({
             <p className="text-xs text-muted-foreground">Total Lançamentos</p>
             <p className="text-lg font-semibold">{lancamentosProcessados.length}</p>
           </div>
-          <div 
+          <button 
+            type="button"
             onClick={() => handleFiltroClick("vinculados")}
             className={cn(
-              "p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.02]",
+              "p-3 rounded-lg border text-left transition-all hover:scale-[1.02]",
               filtroStatus === "vinculados" 
                 ? "bg-green-500/20 border-green-500 ring-2 ring-green-500/50" 
                 : "bg-green-500/10 border-green-500/20 hover:border-green-500/40"
@@ -309,11 +337,12 @@ const AjustarLancamentosStep = ({
             {filtroStatus === "vinculados" && (
               <p className="text-[10px] text-green-400 mt-1">✓ Filtro ativo</p>
             )}
-          </div>
-          <div 
+          </button>
+          <button 
+            type="button"
             onClick={() => handleFiltroClick("pendentes")}
             className={cn(
-              "p-3 rounded-lg border cursor-pointer transition-all hover:scale-[1.02]",
+              "p-3 rounded-lg border text-left transition-all hover:scale-[1.02]",
               filtroStatus === "pendentes"
                 ? "bg-red-500/20 border-red-500 ring-2 ring-red-500/50"
                 : estatisticas.naoVinculados > 0 
@@ -330,7 +359,7 @@ const AjustarLancamentosStep = ({
             {filtroStatus === "pendentes" && (
               <p className="text-[10px] text-red-400 mt-1">✓ Filtro ativo</p>
             )}
-          </div>
+          </button>
           <div className="p-3 bg-muted/30 rounded-lg border">
             <p className="text-xs text-muted-foreground">Valor Total</p>
             <p className="text-lg font-semibold">{formatCurrency(estatisticas.valorTotal)}</p>
@@ -380,6 +409,7 @@ const AjustarLancamentosStep = ({
             </span>
           )}
         </div>
+
         {/* Busca */}
         <div className="flex items-center gap-4">
           <div className="relative flex-1 max-w-xs">
@@ -387,7 +417,7 @@ const AjustarLancamentosStep = ({
             <Input
               placeholder="Buscar favorecido ou conta..."
               value={busca}
-              onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
+              onChange={handleBuscaChange}
               className="pl-8 h-8 text-sm"
             />
           </div>
@@ -407,83 +437,22 @@ const AjustarLancamentosStep = ({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {lancamentosPaginados.length > 0 ? (
-                lancamentosPaginados.map((item) => (
-                  <TableRow key={item.id} className={cn(
-                    "hover:bg-muted/30",
-                    !item.contaDebito && "bg-red-500/5"
-                  )}>
-                    <TableCell className="text-xs py-2 font-mono text-muted-foreground">
-                      {item.lote}
-                    </TableCell>
-                    <TableCell className="text-xs py-2">
-                      {item.data ? formatDate(item.data) : "-"}
-                    </TableCell>
-                    <TableCell className="text-xs py-2">
-                      <div>
-                        <p className="font-medium truncate max-w-[200px]" title={item.favorecidoOriginal}>
-                          {item.favorecidoOriginal}
-                        </p>
-                        <p className="text-muted-foreground text-[10px] truncate max-w-[280px]" title={item.historico}>
-                          {item.historico}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs py-2">
-                      <Select 
-                        value={item.contaDebito} 
-                        onValueChange={(v) => handleContaDebitoChange(item.id, v)}
-                      >
-                        <SelectTrigger className={cn(
-                          "h-8 text-xs",
-                          !item.contaDebito && "border-red-500 bg-red-500/10"
-                        )}>
-                          <SelectValue placeholder="Selecionar conta..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-60">
-                          {planoContas.map((conta) => (
-                            <SelectItem key={conta.codigo} value={conta.codigo}>
-                              <span className="font-mono text-xs mr-2">{conta.codigo}</span>
-                              <span className="text-xs truncate">{conta.descricao}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {item.contaDebitoDescricao && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
-                          {item.contaDebitoDescricao}
-                        </p>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-xs py-2 text-right font-mono">
-                      {formatCurrency(item.valor)}
-                    </TableCell>
-                    <TableCell className="text-xs py-2 text-center">
-                      {item.contaDebito ? (
-                        <Badge variant="outline" className={cn(
-                          "text-[10px]",
-                          item.vinculoAutomatico 
-                            ? "border-blue-500 text-blue-500" 
-                            : "border-green-500 text-green-500"
-                        )}>
-                          {item.vinculoAutomatico ? "Auto" : "Manual"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive" className="text-[10px]">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Pendente
-                        </Badge>
-                      )}
-                    </TableCell>
-                  </TableRow>
+              {rowsData.length > 0 ? (
+                rowsData.map((item) => (
+                  <LancamentoTableRow
+                    key={item.id}
+                    item={item}
+                    planoContas={planoContas}
+                    onContaDebitoChange={handleContaDebitoChange}
+                  />
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
+                  <td colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                     {lancamentosEfetuados.length === 0 
                       ? "Nenhum lançamento com status 'Efetuado' encontrado"
                       : "Nenhum resultado para a busca"}
-                  </TableCell>
+                  </td>
                 </TableRow>
               )}
             </TableBody>
@@ -497,11 +466,11 @@ const AjustarLancamentosStep = ({
               {((pagina - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(pagina * ITEMS_PER_PAGE, lancamentosFiltrados.length)} de {lancamentosFiltrados.length}
             </p>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1}>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={handlePaginaAnterior} disabled={pagina === 1}>
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <span className="px-2 text-sm">{pagina}/{totalPaginas}</span>
-              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas}>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={handlePaginaProxima} disabled={pagina === totalPaginas}>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
