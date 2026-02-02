@@ -27,7 +27,7 @@ import {
 import { ConversorFiscal } from "@/components/conversores/ConversorFiscal";
 import { ConversorExtrato } from "@/components/conversores/ConversorExtrato";
 import { ConversorDocumentos } from "@/components/conversores/ConversorDocumentos";
-import { ConversorContabil } from "@/components/conversores/ConversorContabil";
+import ConversorItauSispag from "@/components/conversores/ConversorItauSispag";
 import { AjustaSpedTab } from "@/components/conversores/AjustaSpedTab";
 import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
 import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
@@ -72,14 +72,14 @@ const conversores = [
     category: "geral",
   },
   {
-    id: "contabil",
+    id: "itausispag",
     icon: Calculator,
-    title: "Dados Contábeis",
-    description: "Balancete, DRE, plano de contas",
+    title: "ITAU SISPAG",
+    description: "Remessa para fornecedores",
     color: "text-purple-500",
     bgColor: "bg-purple-500/10",
     borderColor: "border-purple-500/20",
-    category: "contabil",
+    category: "financeiro",
   },
   {
     id: "ajustasped",
@@ -403,7 +403,7 @@ const Conversores = () => {
               {activeTab === "fiscal" && <ConversorFiscal />}
               {activeTab === "extrato" && <ConversorExtrato />}
               {activeTab === "documentos" && <ConversorDocumentos />}
-              {activeTab === "contabil" && <ConversorContabil />}
+              {activeTab === "itausispag" && <ConversorItauSispag />}
               {activeTab === "ajustasped" && <AjustaSpedTab />}
               {activeTab === "lancaapae" && <LancaApaeTab />}
               {activeTab === "casa" && <ConversorCasaTab />}
