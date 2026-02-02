@@ -2,12 +2,14 @@ import { useState, useRef, useMemo, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useConversoes } from "@/hooks/useConversoes";
 import { 
   Loader2, CheckCircle, FileSpreadsheet, Trash2, ChevronLeft, ChevronRight, 
-  Search, Building2, AlertCircle, ArrowRight, ArrowLeft, Settings2
+  Search, Building2, AlertCircle, ArrowRight, ArrowLeft, Settings2, Calendar
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +35,24 @@ const steps = [
   { id: 3, title: "Ajustar Lançamentos", description: "Vincule às contas", icon: Settings2 },
 ] as const;
 
+const MESES = [
+  { value: "01", label: "Janeiro" },
+  { value: "02", label: "Fevereiro" },
+  { value: "03", label: "Março" },
+  { value: "04", label: "Abril" },
+  { value: "05", label: "Maio" },
+  { value: "06", label: "Junho" },
+  { value: "07", label: "Julho" },
+  { value: "08", label: "Agosto" },
+  { value: "09", label: "Setembro" },
+  { value: "10", label: "Outubro" },
+  { value: "11", label: "Novembro" },
+  { value: "12", label: "Dezembro" },
+];
+
+// Gera anos de 2020 até o ano atual + 1
+const ANOS = Array.from({ length: new Date().getFullYear() - 2020 + 2 }, (_, i) => (2020 + i).toString());
+
 const ConversorItauSispag = () => {
   const { toast } = useToast();
   const { empresaAtiva } = useEmpresaAtiva();
@@ -55,6 +75,11 @@ const ConversorItauSispag = () => {
   const [relatorioPagina, setRelatorioPagina] = useState(1);
   const [relatorioBusca, setRelatorioBusca] = useState("");
   const relatorioInputRef = useRef<HTMLInputElement>(null);
+  
+  // Competência
+  const currentDate = new Date();
+  const [competenciaMes, setCompetenciaMes] = useState<string>(String(currentDate.getMonth() + 1).padStart(2, "0"));
+  const [competenciaAno, setCompetenciaAno] = useState<string>(String(currentDate.getFullYear()));
 
   // Carregar dados salvos
   useEffect(() => {
@@ -96,17 +121,66 @@ const ConversorItauSispag = () => {
     return planoContasFiltrado.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [planoContasFiltrado, planoPagina]);
 
-  // Filtrar e paginar relatório Itaú
+  // Função para verificar se a data está dentro da competência
+  const isDataDentroCompetencia = (dataStr: string): boolean => {
+    if (!dataStr) return false;
+    const [ano, mes] = dataStr.split("-");
+    return ano === competenciaAno && mes === competenciaMes;
+  };
+
+  // Separar lançamentos por competência
+  const { lancamentosDentro, lancamentosForaCompetencia } = useMemo(() => {
+    const dentro: ItauPagamentoItem[] = [];
+    const fora: ItauPagamentoItem[] = [];
+    
+    relatorioItau.forEach(item => {
+      if (isDataDentroCompetencia(item.data_pagamento)) {
+        dentro.push(item);
+      } else {
+        fora.push(item);
+      }
+    });
+    
+    return { lancamentosDentro: dentro, lancamentosForaCompetencia: fora };
+  }, [relatorioItau, competenciaMes, competenciaAno]);
+
+  // Agrupar lançamentos fora da competência por mês/ano
+  const lancamentosForaAgrupados = useMemo(() => {
+    const grupos: Record<string, { competencia: string; items: ItauPagamentoItem[]; total: number }> = {};
+    
+    lancamentosForaCompetencia.forEach(item => {
+      if (!item.data_pagamento) return;
+      const [ano, mes] = item.data_pagamento.split("-");
+      const key = `${ano}-${mes}`;
+      const mesNome = MESES.find(m => m.value === mes)?.label || mes;
+      
+      if (!grupos[key]) {
+        grupos[key] = { competencia: `${mesNome}/${ano}`, items: [], total: 0 };
+      }
+      grupos[key].items.push(item);
+      grupos[key].total += item.valor;
+    });
+    
+    return Object.values(grupos).sort((a, b) => {
+      const [mesA, anoA] = a.competencia.split("/");
+      const [mesB, anoB] = b.competencia.split("/");
+      if (anoA !== anoB) return anoB.localeCompare(anoA);
+      return mesB.localeCompare(mesA);
+    });
+  }, [lancamentosForaCompetencia]);
+
+  // Filtrar e paginar relatório Itaú (somente dentro da competência)
   const relatorioFiltrado = useMemo(() => {
-    if (!relatorioBusca.trim()) return relatorioItau;
+    const base = lancamentosDentro;
+    if (!relatorioBusca.trim()) return base;
     const termo = relatorioBusca.toLowerCase();
-    return relatorioItau.filter(
+    return base.filter(
       (r) =>
         r.favorecido.toLowerCase().includes(termo) ||
         r.cpf_cnpj.includes(termo) ||
         r.tipo_pagamento.toLowerCase().includes(termo)
     );
-  }, [relatorioItau, relatorioBusca]);
+  }, [lancamentosDentro, relatorioBusca]);
 
   const totalPaginasRelatorio = Math.ceil(relatorioFiltrado.length / ITEMS_PER_PAGE);
   const relatorioPaginado = useMemo(() => {
@@ -246,6 +320,8 @@ const ConversorItauSispag = () => {
   };
 
   const totalValorRelatorio = useMemo(() => relatorioItau.reduce((sum, r) => sum + r.valor, 0), [relatorioItau]);
+  const totalValorCompetencia = useMemo(() => lancamentosDentro.reduce((sum, r) => sum + r.valor, 0), [lancamentosDentro]);
+  const totalValorFora = useMemo(() => lancamentosForaCompetencia.reduce((sum, r) => sum + r.valor, 0), [lancamentosForaCompetencia]);
 
   const getStatusBadge = (status: string) => {
     if (status.toLowerCase().includes("efetuado") && !status.toLowerCase().includes("não")) {
@@ -475,6 +551,43 @@ const ConversorItauSispag = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Competência Selector */}
+            <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <Calendar className="w-4 h-4 text-blue-400" />
+                <Label className="font-medium text-blue-400">Competência</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 max-w-[160px]">
+                  <Select value={competenciaMes} onValueChange={setCompetenciaMes}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MESES.map(mes => (
+                        <SelectItem key={mes.value} value={mes.value}>{mes.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1 max-w-[120px]">
+                  <Select value={competenciaAno} onValueChange={setCompetenciaAno}>
+                    <SelectTrigger className="h-9">
+                      <SelectValue placeholder="Ano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ANOS.map(ano => (
+                        <SelectItem key={ano} value={ano}>{ano}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  Período: 01/{competenciaMes}/{competenciaAno} a {new Date(Number(competenciaAno), Number(competenciaMes), 0).getDate()}/{competenciaMes}/{competenciaAno}
+                </span>
+              </div>
+            </div>
+
             <div className="flex items-center gap-4">
               <div className="flex-1">
                 <Input
@@ -502,83 +615,141 @@ const ConversorItauSispag = () => {
             )}
 
             {relatorioItau.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium">{relatorioNome}</span>
-                    <span className="text-xs text-muted-foreground">({relatorioItau.length} pagamentos)</span>
-                    <span className="text-xs font-semibold text-blue-500">Total: {formatCurrency(totalValorRelatorio)}</span>
+              <div className="space-y-4">
+                {/* Resumo por Competência */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div className="p-3 bg-muted/30 rounded-lg border">
+                    <p className="text-xs text-muted-foreground">Total do Arquivo</p>
+                    <p className="text-lg font-semibold">{formatCurrency(totalValorRelatorio)}</p>
+                    <p className="text-xs text-muted-foreground">{relatorioItau.length} lançamentos</p>
                   </div>
-                  <div className="relative flex-1 max-w-xs">
-                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar..."
-                      value={relatorioBusca}
-                      onChange={(e) => { setRelatorioBusca(e.target.value); setRelatorioPagina(1); }}
-                      className="pl-8 h-8 text-sm"
-                    />
+                  <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <p className="text-xs text-green-400">Competência {MESES.find(m => m.value === competenciaMes)?.label}/{competenciaAno}</p>
+                    <p className="text-lg font-semibold text-green-500">{formatCurrency(totalValorCompetencia)}</p>
+                    <p className="text-xs text-green-400">{lancamentosDentro.length} lançamentos</p>
                   </div>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/50">
-                        <TableHead className="text-xs">Favorecido</TableHead>
-                        <TableHead className="text-xs w-32">CPF/CNPJ</TableHead>
-                        <TableHead className="text-xs w-36">Tipo</TableHead>
-                        <TableHead className="text-xs w-24">Data</TableHead>
-                        <TableHead className="text-xs w-28 text-right">Valor</TableHead>
-                        <TableHead className="text-xs w-24 text-center">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {relatorioPaginado.length > 0 ? (
-                        relatorioPaginado.map((item, idx) => (
-                          <TableRow key={idx} className="hover:bg-muted/30">
-                            <TableCell className="text-xs py-2">{item.favorecido}</TableCell>
-                            <TableCell className="text-xs py-2 font-mono">{item.cpf_cnpj || "-"}</TableCell>
-                            <TableCell className="text-xs py-2">{item.tipo_pagamento}</TableCell>
-                            <TableCell className="text-xs py-2">{item.data_pagamento ? formatDate(item.data_pagamento) : "-"}</TableCell>
-                            <TableCell className="text-xs py-2 text-right font-mono">{formatCurrency(item.valor)}</TableCell>
-                            <TableCell className="text-xs py-2 text-center">{getStatusBadge(item.status)}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-4">
-                            Nenhum pagamento encontrado
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                {totalPaginasRelatorio > 1 && (
-                  <div className="flex items-center justify-between pt-2">
-                    <p className="text-xs text-muted-foreground">
-                      {((relatorioPagina - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(relatorioPagina * ITEMS_PER_PAGE, relatorioFiltrado.length)} de {relatorioFiltrado.length}
+                  <div className={cn(
+                    "p-3 rounded-lg border",
+                    lancamentosForaCompetencia.length > 0 ? "bg-amber-500/10 border-amber-500/20" : "bg-muted/30"
+                  )}>
+                    <p className={cn("text-xs", lancamentosForaCompetencia.length > 0 ? "text-amber-400" : "text-muted-foreground")}>
+                      Fora da Competência
                     </p>
-                    <div className="flex items-center gap-1">
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioPagina(p => Math.max(1, p - 1))} disabled={relatorioPagina === 1}>
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      <span className="px-2 text-sm">{relatorioPagina}/{totalPaginasRelatorio}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioPagina(p => Math.min(totalPaginasRelatorio, p + 1))} disabled={relatorioPagina === totalPaginasRelatorio}>
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
+                    <p className={cn("text-lg font-semibold", lancamentosForaCompetencia.length > 0 && "text-amber-500")}>
+                      {formatCurrency(totalValorFora)}
+                    </p>
+                    <p className={cn("text-xs", lancamentosForaCompetencia.length > 0 ? "text-amber-400" : "text-muted-foreground")}>
+                      {lancamentosForaCompetencia.length} lançamentos
+                    </p>
+                  </div>
+                </div>
+
+                {/* Alerta de Lançamentos Fora da Competência */}
+                {lancamentosForaCompetencia.length > 0 && (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <h4 className="font-medium text-amber-400 mb-2 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Lançamentos fora da competência selecionada
+                    </h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Foram encontrados {lancamentosForaCompetencia.length} lançamentos com datas fora de {MESES.find(m => m.value === competenciaMes)?.label}/{competenciaAno}. 
+                      Esses lançamentos devem ser processados em suas respectivas competências.
+                    </p>
+                    <div className="space-y-2">
+                      {lancamentosForaAgrupados.map(grupo => (
+                        <div key={grupo.competencia} className="flex items-center justify-between p-2 bg-background/50 rounded">
+                          <span className="text-sm font-medium">{grupo.competencia}</span>
+                          <div className="flex items-center gap-4">
+                            <span className="text-xs text-muted-foreground">{grupo.items.length} lançamentos</span>
+                            <span className="text-sm font-semibold text-amber-500">{formatCurrency(grupo.total)}</span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
+
+                {/* Tabela de Lançamentos da Competência */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium">
+                        Lançamentos de {MESES.find(m => m.value === competenciaMes)?.label}/{competenciaAno}
+                      </span>
+                      <Badge variant="secondary" className="text-xs">{lancamentosDentro.length}</Badge>
+                    </div>
+                    <div className="relative flex-1 max-w-xs">
+                      <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar..."
+                        value={relatorioBusca}
+                        onChange={(e) => { setRelatorioBusca(e.target.value); setRelatorioPagina(1); }}
+                        className="pl-8 h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="border rounded-lg overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs">Favorecido</TableHead>
+                          <TableHead className="text-xs w-32">CPF/CNPJ</TableHead>
+                          <TableHead className="text-xs w-36">Tipo</TableHead>
+                          <TableHead className="text-xs w-24">Data</TableHead>
+                          <TableHead className="text-xs w-28 text-right">Valor</TableHead>
+                          <TableHead className="text-xs w-24 text-center">Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {relatorioPaginado.length > 0 ? (
+                          relatorioPaginado.map((item, idx) => (
+                            <TableRow key={idx} className="hover:bg-muted/30">
+                              <TableCell className="text-xs py-2">{item.favorecido}</TableCell>
+                              <TableCell className="text-xs py-2 font-mono">{item.cpf_cnpj || "-"}</TableCell>
+                              <TableCell className="text-xs py-2">{item.tipo_pagamento}</TableCell>
+                              <TableCell className="text-xs py-2">{item.data_pagamento ? formatDate(item.data_pagamento) : "-"}</TableCell>
+                              <TableCell className="text-xs py-2 text-right font-mono">{formatCurrency(item.valor)}</TableCell>
+                              <TableCell className="text-xs py-2 text-center">{getStatusBadge(item.status)}</TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-4">
+                              {lancamentosDentro.length === 0 
+                                ? `Nenhum lançamento na competência ${MESES.find(m => m.value === competenciaMes)?.label}/${competenciaAno}`
+                                : "Nenhum resultado para a busca"}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {totalPaginasRelatorio > 1 && (
+                    <div className="flex items-center justify-between pt-2">
+                      <p className="text-xs text-muted-foreground">
+                        {((relatorioPagina - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(relatorioPagina * ITEMS_PER_PAGE, relatorioFiltrado.length)} de {relatorioFiltrado.length}
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioPagina(p => Math.max(1, p - 1))} disabled={relatorioPagina === 1}>
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <span className="px-2 text-sm">{relatorioPagina}/{totalPaginasRelatorio}</span>
+                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setRelatorioPagina(p => Math.min(totalPaginasRelatorio, p + 1))} disabled={relatorioPagina === totalPaginasRelatorio}>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
             {relatorioItau.length === 0 && (
-              <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <h4 className="font-medium text-blue-400 mb-2 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
+              <div className="p-4 bg-muted/30 border border-dashed rounded-lg">
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-muted-foreground" />
                   Formato esperado
                 </h4>
                 <p className="text-sm text-muted-foreground">
@@ -593,7 +764,7 @@ const ConversorItauSispag = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Voltar: Plano de Contas
               </Button>
-              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3)}>
+              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3) || lancamentosDentro.length === 0}>
                 Próximo: Ajustar Lançamentos
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
