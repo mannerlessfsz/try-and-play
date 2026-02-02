@@ -74,87 +74,92 @@ const ConversorItauSispag = () => {
   }, [planoContasFiltrado, planoPagina]);
 
   const parseExcelPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          if (!data) {
-            reject(new Error("Falha ao ler o arquivo"));
-            return;
-          }
-          
-          // Usar ArrayBuffer para melhor compatibilidade
-          const workbook = XLSX.read(data, { type: "array" });
-          const sheetName = workbook.SheetNames[0];
-          
-          if (!sheetName) {
-            reject(new Error("Planilha vazia"));
-            return;
-          }
-          
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" }) as any[][];
+    const arrayBuffer = await file.arrayBuffer();
 
-          console.log("Dados lidos do Excel:", jsonData.length, "linhas");
-
-          if (jsonData.length < 2) {
-            reject(new Error("Arquivo vazio ou sem dados"));
-            return;
-          }
-
-          // Detectar colunas
-          const headers = jsonData[0].map((h: any) => String(h || "").toLowerCase().trim());
-          console.log("Headers encontrados:", headers);
-          
-          // Tentar identificar colunas de código e descrição
-          let codigoIdx = headers.findIndex((h: string) => 
-            h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
-          );
-          let descricaoIdx = headers.findIndex((h: string) => 
-            h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
-          );
-          let tipoIdx = headers.findIndex((h: string) => h.includes("tipo"));
-          let naturezaIdx = headers.findIndex((h: string) => 
-            h.includes("natureza") || h.includes("nat")
-          );
-
-          // Se não encontrou, usar as primeiras colunas
-          if (codigoIdx === -1) codigoIdx = 0;
-          if (descricaoIdx === -1) descricaoIdx = 1;
-
-          console.log("Índices:", { codigoIdx, descricaoIdx, tipoIdx, naturezaIdx });
-
-          const items: PlanoContasItem[] = [];
-          for (let i = 1; i < jsonData.length; i++) {
-            const row = jsonData[i];
-            if (!row || row.length === 0) continue;
-            
-            const codigo = String(row[codigoIdx] ?? "").trim();
-            if (!codigo) continue;
-            
-            items.push({
-              codigo,
-              descricao: String(row[descricaoIdx] ?? "").trim(),
-              tipo: tipoIdx >= 0 ? String(row[tipoIdx] ?? "").trim() : undefined,
-              natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] ?? "").trim() : undefined,
-            });
-          }
-
-          console.log("Items parseados:", items.length);
-          resolve(items);
-        } catch (err) {
-          console.error("Erro ao parsear Excel:", err);
-          reject(err);
-        }
-      };
-      reader.onerror = (err) => {
-        console.error("Erro FileReader:", err);
-        reject(new Error("Erro ao ler arquivo"));
-      };
-      // Usar ArrayBuffer em vez de BinaryString para melhor compatibilidade
-      reader.readAsArrayBuffer(file);
+    // XLSX.read lida melhor quando passamos Uint8Array no browser
+    const workbook = XLSX.read(new Uint8Array(arrayBuffer), {
+      type: "array",
+      cellDates: true,
+      sheetStubs: true,
     });
+
+    const sheetName =
+      workbook.SheetNames.find((name) => {
+        const ws = workbook.Sheets[name];
+        return !!ws && !!(ws as any)["!ref"];
+      }) ?? workbook.SheetNames[0];
+
+    if (!sheetName) {
+      throw new Error("Nenhuma planilha encontrada no arquivo.");
+    }
+
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: "",
+      blankrows: false,
+      raw: false,
+    }) as any[][];
+
+    console.log("Dados lidos do Excel:", jsonData.length, "linhas");
+
+    if (jsonData.length === 0) {
+      throw new Error(
+        "Não foi possível ler linhas do XLS. Se continuar, tente salvar como XLSX ou CSV e reenviar."
+      );
+    }
+
+    // Alguns XLS têm linhas em branco no topo: achar a primeira linha com conteúdo
+    const headerRowIndex = jsonData.findIndex(
+      (row) => Array.isArray(row) && row.some((cell) => String(cell ?? "").trim() !== "")
+    );
+    if (headerRowIndex === -1) {
+      throw new Error("Planilha sem dados (apenas linhas vazias).");
+    }
+
+    const headerRow = (jsonData[headerRowIndex] ?? []) as any[];
+    const headers = headerRow.map((h: any) => String(h || "").toLowerCase().trim());
+    console.log("Headers encontrados:", headers);
+
+    // Tentar identificar colunas de código e descrição
+    let codigoIdx = headers.findIndex(
+      (h: string) => h.includes("codigo") || h.includes("código") || h.includes("cod") || h.includes("conta")
+    );
+    let descricaoIdx = headers.findIndex(
+      (h: string) => h.includes("descricao") || h.includes("descrição") || h.includes("nome") || h.includes("desc")
+    );
+    let tipoIdx = headers.findIndex((h: string) => h.includes("tipo"));
+    let naturezaIdx = headers.findIndex((h: string) => h.includes("natureza") || h.includes("nat"));
+
+    // Se não encontrou, usar as primeiras colunas
+    if (codigoIdx === -1) codigoIdx = 0;
+    if (descricaoIdx === -1) descricaoIdx = 1;
+    console.log("Índices:", { codigoIdx, descricaoIdx, tipoIdx, naturezaIdx, headerRowIndex });
+
+    const items: PlanoContasItem[] = [];
+    for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+      const row = jsonData[i];
+      if (!row || row.length === 0) continue;
+
+      const codigo = String(row[codigoIdx] ?? "").trim();
+      if (!codigo) continue;
+
+      items.push({
+        codigo,
+        descricao: String(row[descricaoIdx] ?? "").trim(),
+        tipo: tipoIdx >= 0 ? String(row[tipoIdx] ?? "").trim() : undefined,
+        natureza: naturezaIdx >= 0 ? String(row[naturezaIdx] ?? "").trim() : undefined,
+      });
+    }
+
+    console.log("Items parseados:", items.length);
+    if (items.length === 0) {
+      throw new Error(
+        "O XLS foi lido, mas não encontrei linhas de contas após o cabeçalho. Verifique se a 1ª linha tem as colunas (ex: código/descrição)."
+      );
+    }
+
+    return items;
   };
 
   const parseCsvPlanoContas = async (file: File): Promise<PlanoContasItem[]> => {
@@ -217,6 +222,8 @@ const ConversorItauSispag = () => {
 
       setPlanoContas(items);
       setPlanoContasNome(file.name);
+      setPlanoPagina(1);
+      setPlanoBusca("");
       toast({
         title: "Plano de contas carregado",
         description: `${items.length} contas importadas com sucesso.`,
