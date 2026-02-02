@@ -9,7 +9,7 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useConversoes } from "@/hooks/useConversoes";
 import { 
   Loader2, CheckCircle, FileSpreadsheet, Trash2, ChevronLeft, ChevronRight, 
-  Search, Building2, AlertCircle, ArrowRight, ArrowLeft, Settings2, Calendar
+  Search, Building2, AlertCircle, ArrowRight, ArrowLeft, Settings2, Calendar, Download
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -24,16 +24,18 @@ import {
   parseItauReportFromExcelFile,
   type ItauPagamentoItem,
 } from "@/utils/itauReportParser";
-import AjustarLancamentosStep from "./AjustarLancamentosStep";
+import AjustarLancamentosStep, { type LancamentoAjustado } from "./AjustarLancamentosStep";
+import ExportarCsvStep from "./ExportarCsvStep";
 
 const ITEMS_PER_PAGE = 15;
 
-type Step = 1 | 2 | 3;
+type Step = 1 | 2 | 3 | 4;
 
 const steps = [
   { id: 1, title: "Plano de Contas", description: "Carregue o plano de contas", icon: FileSpreadsheet },
   { id: 2, title: "Relatório do Banco", description: "Importe os pagamentos", icon: Building2 },
   { id: 3, title: "Ajustar Lançamentos", description: "Vincule às contas", icon: Settings2 },
+  { id: 4, title: "Exportar CSV", description: "Baixe o arquivo", icon: Download },
 ] as const;
 
 const MESES = [
@@ -81,6 +83,11 @@ const ConversorItauSispag = () => {
   const currentDate = new Date();
   const [competenciaMes, setCompetenciaMes] = useState<string>(String(currentDate.getMonth() + 1).padStart(2, "0"));
   const [competenciaAno, setCompetenciaAno] = useState<string>(String(currentDate.getFullYear()));
+
+  // Passo 4: Dados para exportação
+  const [lancamentosAjustados, setLancamentosAjustados] = useState<LancamentoAjustado[]>([]);
+  const [contaCreditoFinal, setContaCreditoFinal] = useState<string>("");
+  const [codigoEmpresaFinal, setCodigoEmpresaFinal] = useState<string>("");
 
   // Carregar dados salvos
   useEffect(() => {
@@ -342,11 +349,19 @@ const ConversorItauSispag = () => {
   const canProceedToStep = (step: Step): boolean => {
     if (step === 2) return planoContas.length > 0;
     if (step === 3) return planoContas.length > 0 && lancamentosEfetuados.length > 0;
+    if (step === 4) return lancamentosAjustados.length > 0;
     return true;
   };
 
   const goToStep = (step: Step) => {
     if (canProceedToStep(step)) setCurrentStep(step);
+  };
+
+  const handleProsseguirParaExportar = (lancamentos: LancamentoAjustado[], contaCredito: string, codigoEmpresa: string) => {
+    setLancamentosAjustados(lancamentos);
+    setContaCreditoFinal(contaCredito);
+    setCodigoEmpresaFinal(codigoEmpresa);
+    setCurrentStep(4);
   };
 
   if (loadingConversoes) {
@@ -795,6 +810,19 @@ const ConversorItauSispag = () => {
           competenciaMes={competenciaMes}
           competenciaAno={competenciaAno}
           onVoltar={() => goToStep(2)}
+          onProsseguir={handleProsseguirParaExportar}
+        />
+      )}
+
+      {/* Step 4: Exportar CSV */}
+      {currentStep === 4 && (
+        <ExportarCsvStep
+          lancamentos={lancamentosAjustados}
+          contaCredito={contaCreditoFinal}
+          codigoEmpresa={codigoEmpresaFinal}
+          competenciaMes={competenciaMes}
+          competenciaAno={competenciaAno}
+          onVoltar={() => goToStep(3)}
         />
       )}
     </div>
