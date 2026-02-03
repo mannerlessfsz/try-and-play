@@ -505,137 +505,117 @@ export function transformarLancamentos(content: string): TransformResult {
         continue;
       }
 
-      // Permite múltiplos PAGTO somente se a conta crédito for única
-      const creditosPagto = [...new Set(pagtos.map(x => x.lan.detalhe.contaCredito))].sort();
-      if (creditosPagto.length !== 1) {
-        warnings.push(`Grupo ${key}: múltiplas contas_credito em PAGTO (${creditosPagto.join(', ')}). Mantido original.`);
-        emitOriginal(g);
-        continue;
-      }
-
       const pagtosSorted = [...pagtos].sort((a, b) => a.idx - b.idx);
       const tarifasSorted = [...tarifas].sort((a, b) => a.idx - b.idx);
       const descontosSorted = [...descontos].sort((a, b) => a.idx - b.idx);
 
-      const somaPagto = pagtosSorted.reduce((acc, p) => acc + p.lan.detalhe.valor, 0);
-      const somaTarifas = tarifasSorted.reduce((acc, t) => acc + t.lan.detalhe.valor, 0);
-      const credito = creditosPagto[0];
+      // NOVA LÓGICA: Emparelhar 1 PAGTO + 1 TARIFA por vez
+      // Cada par gera: 2 débitos (PAGTO + TARIFA) → 1 crédito (soma)
+      const numPares = Math.min(pagtosSorted.length, tarifasSorted.length);
+      
+      // PAGTOs ou TARIFAs excedentes (sem par) serão emitidos como original
+      const pagtosExcedentes = pagtosSorted.slice(numPares);
+      const tarifasExcedentes = tarifasSorted.slice(numPares);
 
-      // Buffer para validar antes de efetivar
-      const bufRows: Array<{
-        data: Date;
-        deb: string | null;
-        cred: string | null;
-        val: number;
-        hist: string;
-        loteFlag: boolean;
-        requerRevisao?: boolean;
-        origDeb?: string | null;
-        origCred?: string | null;
-      }> = [];
+      // Processar cada par PAGTO + TARIFA
+      for (let i = 0; i < numPares; i++) {
+        const pagto = pagtosSorted[i];
+        const tarifa = tarifasSorted[i];
+        const lanP = pagto.lan;
+        const lanT = tarifa.lan;
 
-      // 1) PAGTO(s) só débito: lote_flag=True somente na primeira linha
-      pagtosSorted.forEach((p, i) => {
-        const lanP = p.lan;
-        bufRows.push({
-          data: lanP.header.data,
-          deb: lanP.detalhe.contaDebito,
-          cred: null,
-          val: lanP.detalhe.valor,
-          hist: lanP.detalhe.historico,
-          loteFlag: i === 0,
-          requerRevisao: lanP.detalhe.requerRevisao,
-          origDeb: lanP.detalhe.contaDebito,
-          origCred: lanP.detalhe.contaCredito,
-        });
-      });
+        const valorPagto = lanP.detalhe.valor;
+        const valorTarifa = lanT.detalhe.valor;
+        const valorCredito = valorPagto + valorTarifa;
+        const credito = lanP.detalhe.contaCredito;
 
-      // 2) TARIFA(s) só débito: lote_flag=False
-      for (const t of tarifasSorted) {
-        const lanT = t.lan;
-        bufRows.push({
-          data: lanT.header.data,
-          deb: lanT.detalhe.contaDebito,
-          cred: null,
-          val: lanT.detalhe.valor,
-          hist: lanT.detalhe.historico,
-          loteFlag: false,
-          requerRevisao: lanT.detalhe.requerRevisao,
-          origDeb: lanT.detalhe.contaDebito,
-          origCred: lanT.detalhe.contaCredito,
-        });
-      }
+        const anyRequerRevisao = lanP.detalhe.requerRevisao || lanT.detalhe.requerRevisao;
 
-      // 3) NOVA linha só crédito: lote_flag=False
-      // Se qualquer pagto ou tarifa requer revisão, a nova linha também requer
-      const anyRequerRevisao = [...pagtosSorted, ...tarifasSorted].some(x => x.lan.detalhe.requerRevisao);
-      const histRef = pagtosSorted[0].lan.detalhe.historico;
-      const dataRef = pagtosSorted[0].lan.header.data;
-      bufRows.push({
-        data: dataRef,
-        deb: null,
-        cred: credito,
-        val: somaPagto + somaTarifas,
-        hist: histRef,
-        loteFlag: false,
-        requerRevisao: anyRequerRevisao,
-        origDeb: null,
-        origCred: credito,
-      });
-
-      // 4) DESCONTO(s) original(is): lote_flag=True
-      for (const dsc of descontosSorted) {
-        const lanD = dsc.lan;
-        bufRows.push({
-          data: lanD.header.data,
-          deb: lanD.detalhe.contaDebito,
-          cred: lanD.detalhe.contaCredito,
-          val: lanD.detalhe.valor,
-          hist: lanD.detalhe.historico,
-          loteFlag: true,
-          requerRevisao: lanD.detalhe.requerRevisao,
-          origDeb: lanD.detalhe.contaDebito,
-          origCred: lanD.detalhe.contaCredito,
-        });
-      }
-
-      // Validação de balanceamento
-      let debTotal = somaPagto + somaTarifas;
-      let creTotal = somaPagto + somaTarifas;
-
-      for (const dsc of descontosSorted) {
-        const lanD = dsc.lan;
-        const hasDeb = lanD.detalhe.contaDebito && lanD.detalhe.contaDebito !== "0000000";
-        const hasCre = lanD.detalhe.contaCredito && lanD.detalhe.contaCredito !== "0000000";
-
-        if (hasDeb && !hasCre) {
-          debTotal += lanD.detalhe.valor;
-        } else if (hasCre && !hasDeb) {
-          creTotal += lanD.detalhe.valor;
-        } else if (hasDeb && hasCre) {
-          debTotal += lanD.detalhe.valor;
-          creTotal += lanD.detalhe.valor;
-        }
-      }
-
-      if (Math.abs(debTotal - creTotal) > 0.01) {
-        warnings.push(`Grupo ${key}: balanceamento falhou (D=${debTotal.toFixed(2)}, C=${creTotal.toFixed(2)}). Mantido original.`);
-        emitOriginal(g);
-        continue;
-      }
-
-      // Efetivar
-      for (const row of bufRows) {
+        // 1) PAGTO só débito: lote_flag=True (inicia novo lote)
         emitRow(
-          row.data,
-          row.deb,
-          row.cred,
-          row.val,
-          row.hist,
-          row.loteFlag,
-          row.requerRevisao,
-          row.origDeb,
-          row.origCred
+          lanP.header.data,
+          lanP.detalhe.contaDebito,
+          null,
+          valorPagto,
+          lanP.detalhe.historico,
+          true, // lote_flag = true (novo lote)
+          lanP.detalhe.requerRevisao,
+          lanP.detalhe.contaDebito,
+          lanP.detalhe.contaCredito
+        );
+
+        // 2) TARIFA só débito: lote_flag=False
+        emitRow(
+          lanT.header.data,
+          lanT.detalhe.contaDebito,
+          null,
+          valorTarifa,
+          lanT.detalhe.historico,
+          false, // lote_flag = false
+          lanT.detalhe.requerRevisao,
+          lanT.detalhe.contaDebito,
+          lanT.detalhe.contaCredito
+        );
+
+        // 3) NOVA linha só crédito: lote_flag=False
+        emitRow(
+          lanP.header.data,
+          null,
+          credito,
+          valorCredito,
+          lanP.detalhe.historico,
+          false, // lote_flag = false
+          anyRequerRevisao,
+          null,
+          credito
+        );
+      }
+
+      // Emitir PAGTOs excedentes (sem TARIFA correspondente) como original
+      for (const p of pagtosExcedentes) {
+        const lan = p.lan;
+        emitRow(
+          lan.header.data,
+          lan.detalhe.contaDebito,
+          lan.detalhe.contaCredito,
+          lan.detalhe.valor,
+          lan.detalhe.historico,
+          true,
+          lan.detalhe.requerRevisao,
+          lan.detalhe.contaDebito,
+          lan.detalhe.contaCredito
+        );
+      }
+
+      // Emitir TARIFAs excedentes (sem PAGTO correspondente) como original
+      for (const t of tarifasExcedentes) {
+        const lan = t.lan;
+        emitRow(
+          lan.header.data,
+          lan.detalhe.contaDebito,
+          lan.detalhe.contaCredito,
+          lan.detalhe.valor,
+          lan.detalhe.historico,
+          true,
+          lan.detalhe.requerRevisao,
+          lan.detalhe.contaDebito,
+          lan.detalhe.contaCredito
+        );
+      }
+
+      // 4) DESCONTO(s) original(is): lote_flag=True (cada um é lote separado)
+      for (const dsc of descontosSorted) {
+        const lanD = dsc.lan;
+        emitRow(
+          lanD.header.data,
+          lanD.detalhe.contaDebito,
+          lanD.detalhe.contaCredito,
+          lanD.detalhe.valor,
+          lanD.detalhe.historico,
+          true,
+          lanD.detalhe.requerRevisao,
+          lanD.detalhe.contaDebito,
+          lanD.detalhe.contaCredito
         );
       }
     } else {
