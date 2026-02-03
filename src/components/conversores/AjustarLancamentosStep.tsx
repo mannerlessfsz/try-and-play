@@ -56,6 +56,7 @@ type Props = {
   planoContas: PlanoContasItem[];
   competenciaMes: string;
   competenciaAno: string;
+  codigoEmpresa: string;
   onVoltar: () => void;
   onProsseguir: (lancamentos: LancamentoAjustado[], contaCredito: string, codigoEmpresa: string) => void;
 };
@@ -71,6 +72,7 @@ const AjustarLancamentosStep = ({
   planoContas,
   competenciaMes,
   competenciaAno,
+  codigoEmpresa,
   onVoltar,
   onProsseguir,
 }: Props) => {
@@ -78,7 +80,6 @@ const AjustarLancamentosStep = ({
   
   // Estado global
   const [contaCredito, setContaCredito] = useState("");
-  const [codigoEmpresa, setCodigoEmpresa] = useState("");
   const [pagina, setPagina] = useState(1);
   const [busca, setBusca] = useState("");
   const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>("todos");
@@ -224,15 +225,6 @@ const AjustarLancamentosStep = ({
 
   // Prosseguir para o Passo 4
   const handleProsseguir = useCallback(() => {
-    if (!codigoEmpresa.trim()) {
-      toast({
-        title: "Código da empresa obrigatório",
-        description: "Preencha o código da empresa antes de prosseguir.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     if (!contaCredito.trim()) {
       toast({
         title: "Conta crédito obrigatória",
@@ -252,7 +244,7 @@ const AjustarLancamentosStep = ({
     }
 
     onProsseguir(lancamentosProcessados, contaCredito, codigoEmpresa);
-  }, [codigoEmpresa, contaCredito, estatisticas.naoVinculados, lancamentosProcessados, onProsseguir, toast]);
+  }, [contaCredito, codigoEmpresa, estatisticas.naoVinculados, lancamentosProcessados, onProsseguir, toast]);
 
   const handleBuscaChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setBusca(e.target.value);
@@ -283,19 +275,12 @@ const AjustarLancamentosStep = ({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Configurações Globais */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Building2 className="w-4 h-4" />
-              Código da Empresa
-            </Label>
-            <Input
-              placeholder="Ex: 001"
-              value={codigoEmpresa}
-              onChange={(e) => setCodigoEmpresa(e.target.value)}
-              className="h-9"
-            />
-            <p className="text-xs text-muted-foreground">Será usado em todas as linhas</p>
+        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-amber-500" />
+              <span className="text-sm font-medium">Empresa: <span className="font-mono">{codigoEmpresa}</span></span>
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-sm font-medium">Conta a Crédito (Banco)</Label>
@@ -397,11 +382,6 @@ const AjustarLancamentosStep = ({
               <AlertCircle className="w-4 h-4 inline mr-1" />
               Selecione a conta crédito
             </span>
-          ) : !codigoEmpresa ? (
-            <span className="text-amber-500">
-              <AlertCircle className="w-4 h-4 inline mr-1" />
-              Preencha o código da empresa
-            </span>
           ) : (
             <span className="text-green-500">
               <CheckCircle className="w-4 h-4 inline mr-1" />
@@ -485,7 +465,7 @@ const AjustarLancamentosStep = ({
           </Button>
           <Button 
             onClick={handleProsseguir} 
-            disabled={estatisticas.naoVinculados > 0 || !contaCredito || !codigoEmpresa}
+            disabled={estatisticas.naoVinculados > 0 || !contaCredito}
             className="bg-amber-600 hover:bg-amber-700"
           >
             Próximo: Gerar CSV
