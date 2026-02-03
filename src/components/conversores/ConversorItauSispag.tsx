@@ -798,14 +798,6 @@ const ConversorItauSispag = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Competências Confirmadas (Histórico) */}
-            {competenciasConfirmadas.length > 0 && (
-              <CompetenciasConfirmadas
-                competencias={competenciasConfirmadas}
-                onEditar={handleEditarCompetencia}
-              />
-            )}
-
             {/* Competência Selector */}
             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
@@ -1016,6 +1008,14 @@ const ConversorItauSispag = () => {
                   O arquivo deve ser exportado do Itaú (Consulta de Pagamentos - Modalidade Fornecedores).
                 </p>
               </div>
+            )}
+
+            {/* Competências Confirmadas (Histórico) */}
+            {competenciasConfirmadas.length > 0 && (
+              <CompetenciasConfirmadas
+                competencias={competenciasConfirmadas}
+                onEditar={handleEditarCompetencia}
+              />
             )}
 
             {/* Navigation */}
