@@ -72,13 +72,13 @@ export function ConversorBase({
   hideOutputCard = false,
 }: ConversorBaseProps) {
   const { empresaAtiva } = useEmpresaAtiva();
-  const { isAdmin, hasPermission } = useModulePermissions();
+  const { isAdmin, hasPermissionFlexible } = useModulePermissions();
   
-  // Verificar permissões granulares - admin tem acesso total
-  const canCreate = isAdmin || hasPermission('conversores', 'create', empresaAtiva?.id || null);
-  const canEdit = isAdmin || hasPermission('conversores', 'edit', empresaAtiva?.id || null);
-  const canExport = isAdmin || hasPermission('conversores', 'export', empresaAtiva?.id || null);
-  const canDelete = isAdmin || hasPermission('conversores', 'delete', empresaAtiva?.id || null);
+  // Verificar permissões granulares usando verificação flexível
+  const canCreate = isAdmin || hasPermissionFlexible('conversores', 'create', empresaAtiva?.id);
+  const canEdit = isAdmin || hasPermissionFlexible('conversores', 'edit', empresaAtiva?.id);
+  const canExport = isAdmin || hasPermissionFlexible('conversores', 'export', empresaAtiva?.id);
+  const canDelete = isAdmin || hasPermissionFlexible('conversores', 'delete', empresaAtiva?.id);
   const { 
     conversoes, 
     isLoading: isLoadingConversoes, 

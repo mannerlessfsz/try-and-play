@@ -159,7 +159,7 @@ const Conversores = () => {
   const [activeTab, setActiveTab] = useState("");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const { empresaAtiva, loading: empresaLoading, empresasDisponiveis } = useEmpresaAtiva();
-  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
+  const { isAdmin, hasModuleAccessFlexible, hasPermissionFlexible, loading: permissionsLoading } = useModulePermissions();
   const { conversoes } = useConversoes(empresaAtiva?.id);
   
   // Use persistent activities hook
@@ -171,14 +171,15 @@ const Conversores = () => {
   const conversoesErro = conversoes?.filter(c => c.status === 'erro').length || 0;
 
   // Função para verificar se usuário tem acesso a um conversor
-  // Admin tem acesso total; demais verificam permissões do módulo
+  // Usa verificação flexível: empresa ativa, standalone ou qualquer
   const hasConversorAccess = (_conversorId: string): boolean => {
     if (isAdmin) return true;
-    // Verificar permissão: primeiro com empresa ativa, depois standalone (null), depois sem filtro
-    if (empresaAtiva?.id && hasModuleAccess('conversores', empresaAtiva.id)) return true;
-    if (hasModuleAccess('conversores', null)) return true; // Permissão standalone
-    return hasModuleAccess('conversores'); // Qualquer permissão ao módulo
+    return hasModuleAccessFlexible('conversores', empresaAtiva?.id);
   };
+
+  // Verificar permissões granulares para ações
+  const canCreate = hasPermissionFlexible('conversores', 'create', empresaAtiva?.id);
+  const canExport = hasPermissionFlexible('conversores', 'export', empresaAtiva?.id);
 
   // Filtrar conversores por categoria
   const getFilteredConversores = () => {
