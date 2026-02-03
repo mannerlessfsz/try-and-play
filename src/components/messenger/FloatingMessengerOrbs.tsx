@@ -874,7 +874,7 @@ export const FloatingMessengerOrbs = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
+  const { isAdmin, hasModuleAccessFlexible, loading: permissionsLoading } = useModulePermissions();
   const { empresaAtiva } = useEmpresaAtiva();
 
   const [isIslandVisible, setIsIslandVisible] = useState(true);
@@ -890,15 +890,12 @@ export const FloatingMessengerOrbs = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Verificar se usuário tem permissão ao módulo messenger
+  // Verificar se usuário tem permissão ao módulo messenger usando verificação flexível
   const hasMessengerAccess = useMemo(() => {
     if (isAdmin) return true;
     if (permissionsLoading) return false;
-    // Verificar permissão: empresa ativa, standalone, ou qualquer
-    if (empresaAtiva?.id && hasModuleAccess('messenger', empresaAtiva.id)) return true;
-    if (hasModuleAccess('messenger', null)) return true; // Standalone
-    return hasModuleAccess('messenger'); // Qualquer permissão
-  }, [isAdmin, permissionsLoading, empresaAtiva?.id, hasModuleAccess]);
+    return hasModuleAccessFlexible('messenger', empresaAtiva?.id);
+  }, [isAdmin, permissionsLoading, empresaAtiva?.id, hasModuleAccessFlexible]);
 
   // Don't show on messenger page, auth pages, landing, or if no permission
   const hiddenRoutes = ['/messenger', '/auth', '/master', '/'];

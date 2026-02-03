@@ -5,6 +5,7 @@ import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { GradientMesh } from "@/components/GradientMesh";
 import { useAuth } from "@/contexts/AuthContext";
 import { useModulePermissions, AppModule } from "@/hooks/useModulePermissions";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
@@ -80,7 +81,8 @@ const itemVariants = {
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { isAdmin, hasModuleAccess } = useModulePermissions();
+  const { isAdmin, hasModuleAccessFlexible } = useModulePermissions();
+  const { empresaAtiva } = useEmpresaAtiva();
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -214,8 +216,8 @@ const Index = () => {
           initial="hidden"
           animate="visible"
         >
-          {features.map((feature) => {
-            const hasAccess = hasModuleAccess(feature.module);
+        {features.map((feature) => {
+            const hasAccess = hasModuleAccessFlexible(feature.module, empresaAtiva?.id);
             return (
               <motion.div
                 key={feature.title}

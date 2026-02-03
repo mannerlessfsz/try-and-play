@@ -149,6 +149,9 @@ export function useModulePermissions() {
 
   /**
    * Verifica se usuário tem acesso a um módulo
+   * Quando empresaId é undefined, verifica qualquer permissão ao módulo
+   * Quando empresaId é null, verifica permissão standalone
+   * Quando empresaId é string, verifica permissão para aquela empresa
    */
   const hasModuleAccess = (module: AppModule, empresaId?: string | null): boolean => {
     if (isAdmin) return true;
@@ -158,13 +161,27 @@ export function useModulePermissions() {
     return permissions.some(p => {
       const moduleMatch = normalizeModule(p.module) === normalizedModule;
       const empresaMatch = empresaId === undefined 
-        ? true  // Não filtrar por empresa
+        ? true  // Não filtrar por empresa - qualquer permissão serve
         : empresaId === null 
           ? p.empresa_id === null  // Standalone
           : p.empresa_id === empresaId;  // Empresa específica
       
       return moduleMatch && empresaMatch && p.can_view;
     });
+  };
+
+  /**
+   * Verifica acesso a módulo de forma flexível (empresa ativa, standalone ou qualquer)
+   * Útil para verificações em páginas de módulos
+   */
+  const hasModuleAccessFlexible = (module: AppModule, empresaAtivaId?: string | null): boolean => {
+    if (isAdmin) return true;
+    // 1. Verifica permissão para empresa ativa
+    if (empresaAtivaId && hasModuleAccess(module, empresaAtivaId)) return true;
+    // 2. Verifica permissão standalone
+    if (hasModuleAccess(module, null)) return true;
+    // 3. Verifica qualquer permissão ao módulo
+    return hasModuleAccess(module);
   };
 
   /**
@@ -190,6 +207,23 @@ export function useModulePermissions() {
       
       return moduleMatch && empresaMatch && p[actionKey] === true;
     });
+  };
+
+  /**
+   * Verifica permissão de forma flexível (empresa ativa, standalone ou qualquer)
+   */
+  const hasPermissionFlexible = (
+    module: AppModule,
+    action: 'view' | 'create' | 'edit' | 'delete' | 'export',
+    empresaAtivaId?: string | null
+  ): boolean => {
+    if (isAdmin) return true;
+    // 1. Permissão para empresa ativa
+    if (empresaAtivaId && hasPermission(module, action, empresaAtivaId)) return true;
+    // 2. Permissão standalone
+    if (hasPermission(module, action, null)) return true;
+    // 3. Qualquer permissão ao módulo
+    return hasPermission(module, action);
   };
 
   /**
@@ -308,8 +342,10 @@ export function useModulePermissions() {
     // Checkers
     hasRole,
     hasModuleAccess,
+    hasModuleAccessFlexible,
     hasSubModuleAccess,
     hasPermission,
+    hasPermissionFlexible,
     hasResourcePermission,
     hasProMode,
     hasEmpresaAccess,
