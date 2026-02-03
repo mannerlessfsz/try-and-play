@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import {
 } from "@/utils/itauReportParser";
 import AjustarLancamentosStep, { type LancamentoAjustado } from "./AjustarLancamentosStep";
 import ExportarCsvStep from "./ExportarCsvStep";
+import CompetenciasConfirmadas, { type CompetenciaConfirmada } from "./CompetenciasConfirmadas";
 
 const ITEMS_PER_PAGE = 15;
 
@@ -118,6 +119,35 @@ const ConversorItauSispag = () => {
   const [lancamentosAjustados, setLancamentosAjustados] = useState<LancamentoAjustado[]>([]);
   const [contaCreditoFinal, setContaCreditoFinal] = useState<string>("");
   const [codigoEmpresaFinal, setCodigoEmpresaFinal] = useState<string>("");
+
+  // Competências confirmadas (histórico)
+  const competenciasConfirmadas = useMemo<CompetenciaConfirmada[]>(() => {
+    if (!empresaExternaId) return [];
+    
+    return conversoes
+      .filter(c => {
+        const meta = c.metadados as any;
+        return meta?.tipo === "competencia-confirmada" && meta?.empresaExternaId === empresaExternaId;
+      })
+      .map(c => {
+        const meta = c.metadados as any;
+        return {
+          id: c.id,
+          mes: meta.mes,
+          ano: meta.ano,
+          lancamentos: meta.lancamentos || [],
+          contaCredito: meta.contaCredito,
+          codigoEmpresa: meta.codigoEmpresa,
+          dataExportacao: c.created_at,
+          valorTotal: (meta.lancamentos || []).reduce((sum: number, l: LancamentoAjustado) => sum + l.valor, 0),
+        };
+      })
+      .sort((a, b) => {
+        // Ordenar por ano/mês decrescente
+        if (a.ano !== b.ano) return Number(b.ano) - Number(a.ano);
+        return Number(b.mes) - Number(a.mes);
+      });
+  }, [conversoes, empresaExternaId]);
 
   // Carregar dados salvos - filtrar por empresa externa
   useEffect(() => {
@@ -435,6 +465,76 @@ const ConversorItauSispag = () => {
     setCurrentStep(5);
   };
 
+  // Salvar competência confirmada após exportação
+  const handleExportConfirmed = useCallback(async () => {
+    if (!empresaExternaId || lancamentosAjustados.length === 0) return;
+
+    // Verificar se já existe essa competência confirmada
+    const existente = competenciasConfirmadas.find(
+      c => c.mes === competenciaMes && c.ano === competenciaAno
+    );
+
+    // Se existir, atualizar
+    if (existente) {
+      await atualizarConversao.mutateAsync({
+        id: existente.id,
+        status: "concluido",
+        totalLinhas: lancamentosAjustados.length,
+        linhasProcessadas: lancamentosAjustados.length,
+        metadados: {
+          tipo: "competencia-confirmada",
+          empresaExternaId,
+          mes: competenciaMes,
+          ano: competenciaAno,
+          lancamentos: lancamentosAjustados,
+          contaCredito: contaCreditoFinal,
+          codigoEmpresa: codigoEmpresaFinal,
+        },
+      });
+    } else {
+      // Criar nova
+      const novaConversao = await criarConversao.mutateAsync({
+        modulo: "itau-sispag",
+        nomeArquivoOriginal: `competencia_${competenciaMes}_${competenciaAno}.json`,
+      });
+
+      await atualizarConversao.mutateAsync({
+        id: novaConversao.id,
+        status: "concluido",
+        totalLinhas: lancamentosAjustados.length,
+        linhasProcessadas: lancamentosAjustados.length,
+        metadados: {
+          tipo: "competencia-confirmada",
+          empresaExternaId,
+          mes: competenciaMes,
+          ano: competenciaAno,
+          lancamentos: lancamentosAjustados,
+          contaCredito: contaCreditoFinal,
+          codigoEmpresa: codigoEmpresaFinal,
+        },
+      });
+    }
+
+    toast({
+      title: "Competência confirmada",
+      description: `${MESES.find(m => m.value === competenciaMes)?.label}/${competenciaAno} salvo no histórico.`,
+    });
+  }, [empresaExternaId, lancamentosAjustados, competenciaMes, competenciaAno, contaCreditoFinal, codigoEmpresaFinal, competenciasConfirmadas, criarConversao, atualizarConversao, toast]);
+
+  // Editar competência confirmada
+  const handleEditarCompetencia = useCallback((competencia: CompetenciaConfirmada) => {
+    setCompetenciaMes(competencia.mes);
+    setCompetenciaAno(competencia.ano);
+    setLancamentosAjustados(competencia.lancamentos);
+    setContaCreditoFinal(competencia.contaCredito);
+    setCodigoEmpresaFinal(competencia.codigoEmpresa);
+    setCurrentStep(4);
+    toast({
+      title: "Editando competência",
+      description: `Carregados ${competencia.lancamentos.length} lançamentos de ${MESES.find(m => m.value === competencia.mes)?.label}/${competencia.ano}.`,
+    });
+  }, [toast]);
+
   if (loadingConversoes) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -698,6 +798,14 @@ const ConversorItauSispag = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Competências Confirmadas (Histórico) */}
+            {competenciasConfirmadas.length > 0 && (
+              <CompetenciasConfirmadas
+                competencias={competenciasConfirmadas}
+                onEditar={handleEditarCompetencia}
+              />
+            )}
+
             {/* Competência Selector */}
             <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <div className="flex items-center gap-2 mb-3">
@@ -946,6 +1054,7 @@ const ConversorItauSispag = () => {
           competenciaMes={competenciaMes}
           competenciaAno={competenciaAno}
           onVoltar={() => goToStep(4)}
+          onExportConfirmed={handleExportConfirmed}
         />
       )}
     </div>
