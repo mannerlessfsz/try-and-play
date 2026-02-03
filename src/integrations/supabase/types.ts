@@ -898,6 +898,39 @@ export type Database = {
         }
         Relationships: []
       }
+      empresas_externas_conversores: {
+        Row: {
+          ativo: boolean | null
+          cnpj: string | null
+          codigo_empresa: string
+          created_at: string
+          created_by: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          codigo_empresa: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean | null
+          cnpj?: string | null
+          codigo_empresa?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       estoque_movimentos: {
         Row: {
           created_at: string
@@ -1731,6 +1764,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      planos_contas_externos: {
+        Row: {
+          arquivo_url: string | null
+          ativo: boolean | null
+          created_at: string
+          created_by: string | null
+          empresa_externa_id: string
+          id: string
+          metadados: Json | null
+          nome_arquivo: string
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          arquivo_url?: string | null
+          ativo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          empresa_externa_id: string
+          id?: string
+          metadados?: Json | null
+          nome_arquivo: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          arquivo_url?: string | null
+          ativo?: boolean | null
+          created_at?: string
+          created_by?: string | null
+          empresa_externa_id?: string
+          id?: string
+          metadados?: Json | null
+          nome_arquivo?: string
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "planos_contas_externos_empresa_externa_id_fkey"
+            columns: ["empresa_externa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas_externas_conversores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       produtos: {
         Row: {
