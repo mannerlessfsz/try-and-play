@@ -1,7 +1,7 @@
 import { useState, useCallback, ReactNode } from "react";
 import { 
   Upload, Download, FileText, AlertCircle, CheckCircle2, Loader2, 
-  History, RefreshCw, Trash2, Eye, Clock
+  History, RefreshCw, Trash2, Eye, Clock, Lock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,8 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useConversoes, type ConversaoArquivo } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { useModulePermissions } from "@/hooks/useModulePermissions";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -70,6 +72,13 @@ export function ConversorBase({
   hideOutputCard = false,
 }: ConversorBaseProps) {
   const { empresaAtiva } = useEmpresaAtiva();
+  const { isAdmin, hasPermission } = useModulePermissions();
+  
+  // Verificar permissões granulares - admin tem acesso total
+  const canCreate = isAdmin || hasPermission('conversores', 'create', empresaAtiva?.id || null);
+  const canEdit = isAdmin || hasPermission('conversores', 'edit', empresaAtiva?.id || null);
+  const canExport = isAdmin || hasPermission('conversores', 'export', empresaAtiva?.id || null);
+  const canDelete = isAdmin || hasPermission('conversores', 'delete', empresaAtiva?.id || null);
   const { 
     conversoes, 
     isLoading: isLoadingConversoes, 
@@ -248,23 +257,39 @@ export function ConversorBase({
                   </Alert>
                 )}
 
-                <Button 
-                  onClick={onConvert} 
-                  className="w-full" 
-                  disabled={files.length === 0 || isConverting || !empresaAtiva}
-                >
-                  {isConverting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Convertendo...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      Converter {files.length > 0 && `(${files.length})`}
-                    </>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="w-full">
+                      <Button 
+                        onClick={onConvert} 
+                        className="w-full" 
+                        disabled={files.length === 0 || isConverting || !empresaAtiva || !canCreate}
+                      >
+                        {isConverting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Convertendo...
+                          </>
+                        ) : !canCreate ? (
+                          <>
+                            <Lock className="w-4 h-4 mr-2" />
+                            Sem permissão
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4 mr-2" />
+                            Converter {files.length > 0 && `(${files.length})`}
+                          </>
+                        )}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  {!canCreate && (
+                    <TooltipContent>
+                      <p>Você não tem permissão para criar conversões</p>
+                    </TooltipContent>
                   )}
-                </Button>
+                </Tooltip>
                 
                 {!empresaAtiva && (
                   <p className="text-xs text-center text-yellow-600">
