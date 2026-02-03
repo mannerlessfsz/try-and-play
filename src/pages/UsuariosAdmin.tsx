@@ -7,7 +7,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useModulePermissions } from '@/hooks/useModulePermissions';
+import { useModulePermissions, useManageModulePermissions } from '@/hooks/useModulePermissions';
 import { syncMissingProfiles } from '@/hooks/useSyncProfiles';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -105,21 +105,13 @@ export default function UsuariosAdmin() {
     enabled: isAdmin,
   });
 
-  // Fetch module permissions for selected user
-  const { data: userPermissions = [], isLoading: loadingPermissions } = useQuery({
-    queryKey: ['user-module-permissions-admin', selectedUser?.id],
-    queryFn: async () => {
-      if (!selectedUser) return [];
-      const { data, error } = await supabase
-        .from('user_module_permissions')
-        .select('*')
-        .eq('user_id', selectedUser.id)
-        .is('empresa_id', null);
-      if (error) throw error;
-      return data as ModulePermission[];
-    },
-    enabled: !!selectedUser && showPermissionsDialog,
-  });
+  // Use centralized hook for managing permissions
+  const { 
+    permissions: userPermissions, 
+    isLoading: loadingPermissions, 
+    grantPermission,
+    isUpdating: updatePermissionPending 
+  } = useManageModulePermissions(selectedUser?.id, null);
 
   // Create user mutation
   const createUserMutation = useMutation({
@@ -146,39 +138,6 @@ export default function UsuariosAdmin() {
     },
   });
 
-  // Update module permission mutation
-  const updatePermissionMutation = useMutation({
-    mutationFn: async ({ 
-      userId, 
-      module, 
-      permissions 
-    }: { 
-      userId: string; 
-      module: string; 
-      permissions: Partial<ModulePermission> 
-    }) => {
-      const { data, error } = await supabase.rpc('grant_module_permission', {
-        p_user_id: userId,
-        p_module: module,
-        p_empresa_id: null,
-        p_can_view: permissions.can_view ?? false,
-        p_can_create: permissions.can_create ?? false,
-        p_can_edit: permissions.can_edit ?? false,
-        p_can_delete: permissions.can_delete ?? false,
-        p_can_export: permissions.can_export ?? false,
-        p_is_pro_mode: permissions.is_pro_mode ?? false,
-      });
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['user-module-permissions-admin', selectedUser?.id] });
-      toast({ title: 'Permissão atualizada!' });
-    },
-    onError: (error: Error) => {
-      toast({ title: 'Erro ao atualizar permissão', description: error.message, variant: 'destructive' });
-    },
-  });
 
   // Filter users by search
   const filteredProfiles = profiles.filter(p => 
@@ -200,53 +159,53 @@ export default function UsuariosAdmin() {
     const existing = getUserPermission(module);
     const newValue = !(existing?.[action] ?? false);
     
-    updatePermissionMutation.mutate({
-      userId: selectedUser.id,
+    grantPermission({
+      user_id: selectedUser.id,
       module,
-      permissions: {
-        ...existing,
-        [action]: newValue,
-        // If enabling view, keep other permissions as is
-        // If disabling view, disable all
-        ...(action === 'can_view' && !newValue ? {
-          can_create: false,
-          can_edit: false,
-          can_delete: false,
-          can_export: false,
-        } : {}),
-      },
+      empresa_id: null,
+      can_view: action === 'can_view' ? newValue : existing?.can_view ?? false,
+      can_create: action === 'can_create' ? newValue : existing?.can_create ?? false,
+      can_edit: action === 'can_edit' ? newValue : existing?.can_edit ?? false,
+      can_delete: action === 'can_delete' ? newValue : existing?.can_delete ?? false,
+      can_export: action === 'can_export' ? newValue : existing?.can_export ?? false,
+      is_pro_mode: action === 'is_pro_mode' ? newValue : existing?.is_pro_mode ?? false,
+      // If disabling view, disable all
+      ...(action === 'can_view' && !newValue ? {
+        can_create: false,
+        can_edit: false,
+        can_delete: false,
+        can_export: false,
+      } : {}),
     });
   };
 
   const grantFullAccess = (module: string) => {
     if (!selectedUser) return;
-    updatePermissionMutation.mutate({
-      userId: selectedUser.id,
+    grantPermission({
+      user_id: selectedUser.id,
       module,
-      permissions: {
-        can_view: true,
-        can_create: true,
-        can_edit: true,
-        can_delete: true,
-        can_export: true,
-        is_pro_mode: true,
-      },
+      empresa_id: null,
+      can_view: true,
+      can_create: true,
+      can_edit: true,
+      can_delete: true,
+      can_export: true,
+      is_pro_mode: true,
     });
   };
 
   const revokeAllAccess = (module: string) => {
     if (!selectedUser) return;
-    updatePermissionMutation.mutate({
-      userId: selectedUser.id,
+    grantPermission({
+      user_id: selectedUser.id,
       module,
-      permissions: {
-        can_view: false,
-        can_create: false,
-        can_edit: false,
-        can_delete: false,
-        can_export: false,
-        is_pro_mode: false,
-      },
+      empresa_id: null,
+      can_view: false,
+      can_create: false,
+      can_edit: false,
+      can_delete: false,
+      can_export: false,
+      is_pro_mode: false,
     });
   };
 
@@ -537,7 +496,7 @@ export default function UsuariosAdmin() {
                               variant="ghost"
                               size="sm"
                               onClick={() => grantFullAccess(module.value)}
-                              disabled={updatePermissionMutation.isPending}
+                              disabled={updatePermissionPending}
                             >
                               <CheckCircle className="w-4 h-4 mr-1" />
                               Liberar Tudo
@@ -546,7 +505,7 @@ export default function UsuariosAdmin() {
                               variant="ghost"
                               size="sm"
                               onClick={() => revokeAllAccess(module.value)}
-                              disabled={updatePermissionMutation.isPending}
+                              disabled={updatePermissionPending}
                             >
                               <XCircle className="w-4 h-4 mr-1" />
                               Revogar
@@ -561,7 +520,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-view`}
                               checked={perm?.can_view ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'can_view')}
-                              disabled={updatePermissionMutation.isPending}
+                              disabled={updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-view`} className="text-xs">Ver</Label>
                           </div>
@@ -570,7 +529,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-create`}
                               checked={perm?.can_create ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'can_create')}
-                              disabled={!hasAccess || updatePermissionMutation.isPending}
+                              disabled={!hasAccess || updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-create`} className="text-xs">Criar</Label>
                           </div>
@@ -579,7 +538,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-edit`}
                               checked={perm?.can_edit ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'can_edit')}
-                              disabled={!hasAccess || updatePermissionMutation.isPending}
+                              disabled={!hasAccess || updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-edit`} className="text-xs">Editar</Label>
                           </div>
@@ -588,7 +547,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-delete`}
                               checked={perm?.can_delete ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'can_delete')}
-                              disabled={!hasAccess || updatePermissionMutation.isPending}
+                              disabled={!hasAccess || updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-delete`} className="text-xs">Excluir</Label>
                           </div>
@@ -597,7 +556,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-export`}
                               checked={perm?.can_export ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'can_export')}
-                              disabled={!hasAccess || updatePermissionMutation.isPending}
+                              disabled={!hasAccess || updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-export`} className="text-xs">Exportar</Label>
                           </div>
@@ -606,7 +565,7 @@ export default function UsuariosAdmin() {
                               id={`${module.value}-pro`}
                               checked={perm?.is_pro_mode ?? false}
                               onCheckedChange={() => toggleModuleAccess(module.value, 'is_pro_mode')}
-                              disabled={!hasAccess || updatePermissionMutation.isPending}
+                              disabled={!hasAccess || updatePermissionPending}
                             />
                             <Label htmlFor={`${module.value}-pro`} className="text-xs flex items-center gap-1">
                               <Zap className="w-3 h-3" /> Pro

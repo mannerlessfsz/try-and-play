@@ -93,7 +93,7 @@ export function generateProjectStructure(): ProjectStructure {
           'useTransacoes', 'useContasBancarias', 'useCategorias', 'useCentrosCusto',
           'useRecorrencias', 'useMetasFinanceiras', 'useClientes', 'useFornecedores',
           'useProdutos', 'useVendas', 'useCompras', 'useOrcamentos', 'useEstoque',
-          'useEmpresaAtiva', 'usePermissions'
+          'useEmpresaAtiva', 'useModulePermissions'
         ],
       },
       {
@@ -123,7 +123,7 @@ export function generateProjectStructure(): ProjectStructure {
       {
         name: 'useAuth',
         path: 'src/contexts/AuthContext.tsx',
-        usedBy: ['ProtectedRoute', 'Admin', 'ClientAuth', 'MasterAuth', 'Index', 'usePermissions', 'useModulePermissions'],
+        usedBy: ['ProtectedRoute', 'Admin', 'ClientAuth', 'MasterAuth', 'Index', 'useModulePermissions'],
         dependencies: ['supabase'],
         status: 'active',
       },
@@ -457,7 +457,7 @@ export function generateProjectStructure(): ProjectStructure {
         name: 'AuthContext',
         path: 'src/contexts/AuthContext.tsx',
         provides: ['user', 'session', 'loading', 'signIn', 'signUp', 'signOut'],
-        usedBy: ['ProtectedRoute', 'usePermissions', 'useModulePermissions', 'all protected pages'],
+        usedBy: ['ProtectedRoute', 'useModulePermissions', 'all protected pages'],
       },
       {
         name: 'EmpresaAtivaContext',
@@ -473,7 +473,7 @@ export function generateProjectStructure(): ProjectStructure {
         name: 'modules',
         path: 'src/constants/modules.ts',
         exports: ['AppModule', 'AppRole', 'PermissionType', 'APP_MODULES', 'MODULE_LABELS', 'LEGACY_MODULE_MAP'],
-        usedBy: ['usePermissions', 'useModulePermissions', 'ProtectedRoute', 'Admin', 'ModulePermissionsEditor'],
+        usedBy: ['useModulePermissions', 'ProtectedRoute', 'Admin', 'ModulePermissionsEditor'],
       },
       {
         name: 'routes',
@@ -487,9 +487,9 @@ export function generateProjectStructure(): ProjectStructure {
     database: {
       tables: [
         { name: 'profiles', columns: ['id', 'email', 'full_name', 'ativo', 'avatar_url'], hasRLS: true, policies: ['Users can view own', 'Admin can view all'], usedByHooks: ['useSyncProfiles'] },
-        { name: 'user_roles', columns: ['id', 'user_id', 'role'], hasRLS: true, policies: ['Admin only'], usedByHooks: ['usePermissions', 'useModulePermissions'] },
-        { name: 'user_module_permissions', columns: ['id', 'user_id', 'empresa_id', 'module', 'can_*', 'is_pro_mode'], hasRLS: true, policies: ['Admin only'], usedByHooks: ['usePermissions', 'useModulePermissions'] },
-        { name: 'user_empresas', columns: ['id', 'user_id', 'empresa_id', 'is_owner'], hasRLS: true, policies: ['User can view own'], usedByHooks: ['usePermissions', 'useEmpresaAtiva'] },
+        { name: 'user_roles', columns: ['id', 'user_id', 'role'], hasRLS: true, policies: ['Admin only'], usedByHooks: ['useModulePermissions'] },
+        { name: 'user_module_permissions', columns: ['id', 'user_id', 'empresa_id', 'module', 'can_*', 'is_pro_mode'], hasRLS: true, policies: ['Admin only'], usedByHooks: ['useModulePermissions'] },
+        { name: 'user_empresas', columns: ['id', 'user_id', 'empresa_id', 'is_owner'], hasRLS: true, policies: ['User can view own'], usedByHooks: ['useModulePermissions', 'useEmpresaAtiva'] },
         { name: 'empresas', columns: ['id', 'nome', 'cnpj', 'ativo', 'regime_tributario'], hasRLS: true, policies: ['Admin or member'], usedByHooks: ['useEmpresas', 'useEmpresaAtiva'] },
         { name: 'empresa_modulos', columns: ['id', 'empresa_id', 'modulo', 'modo', 'ativo'], hasRLS: true, policies: ['Admin only'], usedByHooks: ['useModulePermissions'] },
         { name: 'empresa_contatos', columns: ['id', 'empresa_id', 'nome', 'email', 'cargo'], hasRLS: true, policies: ['Member can view'], usedByHooks: ['useEmpresaContatos'] },

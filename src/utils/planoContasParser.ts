@@ -1,4 +1,16 @@
-import * as XLSX from "xlsx";
+/**
+ * Parser de Plano de Contas (Excel/CSV)
+ * Utiliza utilitários compartilhados de src/utils/fileParserUtils.ts
+ */
+
+import { 
+  normalizeKey, 
+  expandMergedCells, 
+  asStringCell, 
+  readExcelFile,
+  decodeCsvBuffer,
+  parseCsvContent 
+} from "./fileParserUtils";
 
 export type PlanoContasItem = {
   descricao: string;
@@ -6,16 +18,6 @@ export type PlanoContasItem = {
   classificacao: string;
   cnpj: string; // "00000000000000" quando não existir
 };
-
-function normalizeKey(value: unknown): string {
-  return String(value ?? "")
-    .toLowerCase()
-    .normalize("NFD")
-    // remove diacríticos
-    .replace(/\p{Diacritic}/gu, "")
-    // remove qualquer coisa que atrapalhe o match
-    .replace(/[^a-z0-9]/g, "");
-}
 
 function findHeaderRow(rows: any[][]): { rowIndex: number; colIndex: Record<string, number> } | null {
   const maxScan = Math.min(rows.length, 80);
@@ -46,11 +48,6 @@ function findHeaderRow(rows: any[][]): { rowIndex: number; colIndex: Record<stri
   }
 
   return null;
-}
-
-function asStringCell(row: any[], idx: number): string {
-  if (idx < 0) return "";
-  return String(row?.[idx] ?? "").trim();
 }
 
 export function parsePlanoContasFromRows(rows: any[][]): PlanoContasItem[] {
@@ -98,82 +95,14 @@ export function parsePlanoContasFromRows(rows: any[][]): PlanoContasItem[] {
   return out;
 }
 
-function decodeCsvSmart(buffer: ArrayBuffer): string {
-  // Primeiro tenta UTF-8
-  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
-
-  // Heurística simples de "mojibake" / replacement
-  if (utf8.includes("\uFFFD") || utf8.includes("Ã") || utf8.includes("�")) {
-    // latin1 (ISO-8859-1) costuma ser o padrão desses exports
-    return new TextDecoder("latin1").decode(buffer);
-  }
-
-  return utf8;
-}
-
 export async function parsePlanoContasFromCsvFile(file: File): Promise<PlanoContasItem[]> {
   const buffer = await file.arrayBuffer();
-  const text = decodeCsvSmart(buffer);
-
-  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return [];
-
-  // Normalmente vem em ';' (como seu exemplo). Se não, tenta ','
-  const delimiter = lines[0].includes(";") ? ";" : ",";
-  const rows = lines.map((line) => line.split(delimiter));
-
+  const text = decodeCsvBuffer(buffer);
+  const rows = parseCsvContent(text);
   return parsePlanoContasFromRows(rows);
 }
 
-function expandMergedCells(worksheet: XLSX.WorkSheet) {
-  const merges = (worksheet as any)["!merges"] as XLSX.Range[] | undefined;
-  if (!merges || merges.length === 0) return;
-
-  for (const merge of merges) {
-    const startAddr = XLSX.utils.encode_cell(merge.s);
-    const startCell = (worksheet as any)[startAddr];
-    if (!startCell || startCell.v === undefined) continue;
-
-    for (let r = merge.s.r; r <= merge.e.r; r++) {
-      for (let c = merge.s.c; c <= merge.e.c; c++) {
-        const addr = XLSX.utils.encode_cell({ r, c });
-        const cell = (worksheet as any)[addr];
-        if (!cell || cell.v === undefined || String(cell.v).trim() === "") {
-          (worksheet as any)[addr] = { t: startCell.t ?? "s", v: startCell.v };
-        }
-      }
-    }
-  }
-}
-
 export async function parsePlanoContasFromExcelFile(file: File): Promise<PlanoContasItem[]> {
-  const arrayBuffer = await file.arrayBuffer();
-
-  const workbook = XLSX.read(new Uint8Array(arrayBuffer), {
-    type: "array",
-    cellDates: true,
-    sheetStubs: true,
-  });
-
-  const sheetName =
-    workbook.SheetNames.find((name) => {
-      const ws = workbook.Sheets[name];
-      return !!ws && !!(ws as any)["!ref"];
-    }) ?? workbook.SheetNames[0];
-
-  if (!sheetName) {
-    return [];
-  }
-
-  const worksheet = workbook.Sheets[sheetName];
-  expandMergedCells(worksheet);
-
-  const rows = XLSX.utils.sheet_to_json(worksheet, {
-    header: 1,
-    defval: "",
-    blankrows: false,
-    raw: false,
-  }) as any[][];
-
+  const rows = await readExcelFile(file);
   return parsePlanoContasFromRows(rows);
 }
