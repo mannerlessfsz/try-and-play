@@ -124,8 +124,8 @@ export default function UsuariosAdmin() {
   // Create user mutation
   const createUserMutation = useMutation({
     mutationFn: async () => {
-      // Call RPC to create user
-      const { data, error } = await supabase.rpc('create_user_by_admin', {
+      // Call RPC to create user (using any cast due to types being auto-generated)
+      const { data, error } = await supabase.rpc('create_user_by_admin' as any, {
         p_email: newUserEmail.trim().toLowerCase(),
         p_password: newUserPassword,
         p_full_name: newUserName.trim() || null,
