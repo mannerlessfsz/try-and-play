@@ -7,6 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useConversoes } from "@/hooks/useConversoes";
+import { EmpresaExternaSelector } from "./EmpresaExternaSelector";
+import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 import { 
   Loader2, CheckCircle, FileSpreadsheet, Trash2, ChevronLeft, ChevronRight, 
   Search, Building2, AlertCircle, ArrowRight, ArrowLeft, Settings2, Calendar, Download
@@ -62,6 +64,15 @@ const ConversorItauSispag = () => {
   const { conversoes, criarConversao, atualizarConversao, deletarConversao, isLoading: loadingConversoes } = useConversoes("itau-sispag");
   
   const [currentStep, setCurrentStep] = useState<Step>(1);
+
+  // Empresa externa
+  const [empresaExternaId, setEmpresaExternaId] = useState<string | undefined>();
+  const [empresaExterna, setEmpresaExterna] = useState<EmpresaExterna | undefined>();
+
+  const handleEmpresaExternaChange = (id: string | undefined, empresa?: EmpresaExterna) => {
+    setEmpresaExternaId(id);
+    setEmpresaExterna(empresa);
+  };
 
   // Passo 1: Plano de contas
   const [planoContas, setPlanoContas] = useState<PlanoContasItem[]>([]);
@@ -374,6 +385,16 @@ const ConversorItauSispag = () => {
 
   return (
     <div className="space-y-6">
+      {/* Empresa Externa Selector */}
+      <Card className="border-purple-500/20">
+        <CardContent className="pt-4">
+          <EmpresaExternaSelector
+            value={empresaExternaId}
+            onChange={handleEmpresaExternaChange}
+          />
+        </CardContent>
+      </Card>
+
       {/* Stepper Header */}
       <div className="flex items-center justify-center">
         <div className="flex items-center gap-2">

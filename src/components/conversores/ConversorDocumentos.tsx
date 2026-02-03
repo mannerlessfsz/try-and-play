@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ConversorBase, type ConvertedFile } from "./ConversorBase";
 import { useConversoes } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 
 const formatosSaida = [
   { value: "txt", label: "TXT (Texto puro)" },
@@ -21,6 +22,15 @@ export const ConversorDocumentos = () => {
   const [isConverting, setIsConverting] = useState(false);
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Empresa externa
+  const [empresaExternaId, setEmpresaExternaId] = useState<string | undefined>();
+  const [empresaExterna, setEmpresaExterna] = useState<EmpresaExterna | undefined>();
+
+  const handleEmpresaExternaChange = (id: string | undefined, empresa?: EmpresaExterna) => {
+    setEmpresaExternaId(id);
+    setEmpresaExterna(empresa);
+  };
 
   const extractTextFromFile = async (file: File): Promise<string> => {
     if (file.type.startsWith('text/') || 
@@ -178,6 +188,9 @@ export const ConversorDocumentos = () => {
       onDownload={downloadFile}
       onDownloadAll={downloadAll}
       error={error}
+      showEmpresaExterna={true}
+      empresaExternaId={empresaExternaId}
+      onEmpresaExternaChange={handleEmpresaExternaChange}
     >
       <div className="space-y-2">
         <label className="text-sm font-medium">Formato de saída</label>
