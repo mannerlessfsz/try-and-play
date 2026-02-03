@@ -14,6 +14,7 @@ import TaskVault from "./pages/TaskVault";
 import Messenger from "./pages/Messenger";
 import FinancialACE from "./pages/FinancialACE";
 import Conversores from "./pages/Conversores";
+import UsuariosAdmin from "./pages/UsuariosAdmin";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import FloatingMessengerOrbs from "./components/messenger/FloatingMessengerOrbs";
@@ -35,6 +36,7 @@ const App = () => (
               <Route path="/master" element={<MasterAuth />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
+              <Route path="/usuarios" element={<ProtectedRoute requireAdmin><UsuariosAdmin /></ProtectedRoute>} />
               <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
               <Route path="/ajustasped" element={<Navigate to="/conversores" replace />} />
               <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />

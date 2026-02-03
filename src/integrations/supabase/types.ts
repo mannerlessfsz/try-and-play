@@ -2907,6 +2907,10 @@ export type Database = {
         }
         Returns: string
       }
+      create_user_by_admin: {
+        Args: { p_email: string; p_full_name?: string; p_password: string }
+        Returns: string
+      }
       fix_permission_inconsistencies: { Args: never; Returns: Json }
       gerar_tarefas_empresa: {
         Args: { p_ano: number; p_empresa_id: string; p_mes: number }
