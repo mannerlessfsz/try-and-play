@@ -1040,6 +1040,7 @@ const ConversorItauSispag = () => {
           planoContas={planoContas}
           competenciaMes={competenciaMes}
           competenciaAno={competenciaAno}
+          codigoEmpresa={empresaExterna?.codigo_empresa || ""}
           onVoltar={() => goToStep(3)}
           onProsseguir={handleProsseguirParaExportar}
         />
