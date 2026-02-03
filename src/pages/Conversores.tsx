@@ -174,7 +174,10 @@ const Conversores = () => {
   // Admin tem acesso total; demais verificam permissões do módulo
   const hasConversorAccess = (_conversorId: string): boolean => {
     if (isAdmin) return true;
-    return hasModuleAccess('conversores', empresaAtiva?.id || null);
+    // Verificar permissão: primeiro com empresa ativa, depois standalone (null), depois sem filtro
+    if (empresaAtiva?.id && hasModuleAccess('conversores', empresaAtiva.id)) return true;
+    if (hasModuleAccess('conversores', null)) return true; // Permissão standalone
+    return hasModuleAccess('conversores'); // Qualquer permissão ao módulo
   };
 
   // Filtrar conversores por categoria

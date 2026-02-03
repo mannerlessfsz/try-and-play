@@ -7,6 +7,8 @@ import {
   Sparkles, Palette, Sun, Moon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useModulePermissions } from '@/hooks/useModulePermissions';
+import { useEmpresaAtiva } from '@/hooks/useEmpresaAtiva';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -872,6 +874,8 @@ export const FloatingMessengerOrbs = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { isAdmin, hasModuleAccess, loading: permissionsLoading } = useModulePermissions();
+  const { empresaAtiva } = useEmpresaAtiva();
 
   const [isIslandVisible, setIsIslandVisible] = useState(true);
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -886,11 +890,21 @@ export const FloatingMessengerOrbs = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Don't show on messenger page, auth pages, or landing
+  // Verificar se usuário tem permissão ao módulo messenger
+  const hasMessengerAccess = useMemo(() => {
+    if (isAdmin) return true;
+    if (permissionsLoading) return false;
+    // Verificar permissão: empresa ativa, standalone, ou qualquer
+    if (empresaAtiva?.id && hasModuleAccess('messenger', empresaAtiva.id)) return true;
+    if (hasModuleAccess('messenger', null)) return true; // Standalone
+    return hasModuleAccess('messenger'); // Qualquer permissão
+  }, [isAdmin, permissionsLoading, empresaAtiva?.id, hasModuleAccess]);
+
+  // Don't show on messenger page, auth pages, landing, or if no permission
   const hiddenRoutes = ['/messenger', '/auth', '/master', '/'];
   const shouldShow = useMemo(() => {
-    return user && !hiddenRoutes.includes(location.pathname);
-  }, [user, location.pathname]);
+    return user && hasMessengerAccess && !hiddenRoutes.includes(location.pathname);
+  }, [user, hasMessengerAccess, location.pathname]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
