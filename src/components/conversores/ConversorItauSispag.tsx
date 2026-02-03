@@ -71,6 +71,24 @@ const ConversorItauSispag = () => {
   const [empresaExterna, setEmpresaExterna] = useState<EmpresaExterna | undefined>();
 
   const handleEmpresaExternaChange = (id: string | undefined, empresa?: EmpresaExterna) => {
+    // Se trocou de empresa, resetar todos os dados
+    if (id !== empresaExternaId) {
+      setPlanoContas([]);
+      setPlanoContasNome("");
+      setPlanoPagina(1);
+      setPlanoBusca("");
+      setRelatorioItau([]);
+      setRelatorioNome("");
+      setRelatorioPagina(1);
+      setRelatorioBusca("");
+      setLancamentosAjustados([]);
+      setContaCreditoFinal("");
+      setCodigoEmpresaFinal("");
+      // Voltar para o passo 1 se estava em outro passo
+      if (currentStep > 1) {
+        setCurrentStep(1);
+      }
+    }
     setEmpresaExternaId(id);
     setEmpresaExterna(empresa);
   };
@@ -101,26 +119,51 @@ const ConversorItauSispag = () => {
   const [contaCreditoFinal, setContaCreditoFinal] = useState<string>("");
   const [codigoEmpresaFinal, setCodigoEmpresaFinal] = useState<string>("");
 
-  // Carregar dados salvos
+  // Carregar dados salvos - filtrar por empresa externa
   useEffect(() => {
-    const planoSalvo = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "plano-contas");
+    if (!empresaExternaId) {
+      // Se não tem empresa selecionada, limpar dados
+      setPlanoContas([]);
+      setPlanoContasNome("");
+      setRelatorioItau([]);
+      setRelatorioNome("");
+      return;
+    }
+
+    // Buscar plano de contas da empresa selecionada
+    const planoSalvo = conversoes.find(c => {
+      const meta = c.metadados as any;
+      return meta?.tipo === "plano-contas" && meta?.empresaExternaId === empresaExternaId;
+    });
+    
     if (planoSalvo && planoSalvo.metadados) {
       const meta = planoSalvo.metadados as any;
       if (meta.dados && Array.isArray(meta.dados)) {
         setPlanoContas(meta.dados);
         setPlanoContasNome(planoSalvo.nome_arquivo_original);
       }
+    } else {
+      setPlanoContas([]);
+      setPlanoContasNome("");
     }
 
-    const relatorioSalvo = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "relatorio-itau");
+    // Buscar relatório da empresa selecionada
+    const relatorioSalvo = conversoes.find(c => {
+      const meta = c.metadados as any;
+      return meta?.tipo === "relatorio-itau" && meta?.empresaExternaId === empresaExternaId;
+    });
+    
     if (relatorioSalvo && relatorioSalvo.metadados) {
       const meta = relatorioSalvo.metadados as any;
       if (meta.dados && Array.isArray(meta.dados)) {
         setRelatorioItau(meta.dados);
         setRelatorioNome(relatorioSalvo.nome_arquivo_original);
       }
+    } else {
+      setRelatorioItau([]);
+      setRelatorioNome("");
     }
-  }, [conversoes]);
+  }, [conversoes, empresaExternaId]);
 
   // Filtrar e paginar plano de contas
   const planoContasFiltrado = useMemo(() => {
@@ -238,7 +281,11 @@ const ConversorItauSispag = () => {
         throw new Error("Arquivo carregado, mas não encontrei linhas do plano de contas.");
       }
 
-      const planoAnterior = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "plano-contas");
+      // Remover plano anterior desta empresa
+      const planoAnterior = conversoes.find(c => {
+        const meta = c.metadados as any;
+        return meta?.tipo === "plano-contas" && meta?.empresaExternaId === empresaExternaId;
+      });
       if (planoAnterior) {
         await deletarConversao.mutateAsync(planoAnterior);
       }
@@ -253,7 +300,7 @@ const ConversorItauSispag = () => {
         status: "concluido",
         totalLinhas: items.length,
         linhasProcessadas: items.length,
-        metadados: { tipo: "plano-contas", dados: items },
+        metadados: { tipo: "plano-contas", empresaExternaId, dados: items },
       });
 
       setPlanoContas(items);
@@ -277,7 +324,10 @@ const ConversorItauSispag = () => {
   };
 
   const handleRemoverPlano = async () => {
-    const planoSalvo = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "plano-contas");
+    const planoSalvo = conversoes.find(c => {
+      const meta = c.metadados as any;
+      return meta?.tipo === "plano-contas" && meta?.empresaExternaId === empresaExternaId;
+    });
     if (planoSalvo) await deletarConversao.mutateAsync(planoSalvo);
     setPlanoContas([]);
     setPlanoContasNome("");
@@ -302,7 +352,11 @@ const ConversorItauSispag = () => {
         throw new Error("Arquivo carregado, mas não encontrei pagamentos.");
       }
 
-      const relatorioAnterior = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "relatorio-itau");
+      // Remover relatório anterior desta empresa
+      const relatorioAnterior = conversoes.find(c => {
+        const meta = c.metadados as any;
+        return meta?.tipo === "relatorio-itau" && meta?.empresaExternaId === empresaExternaId;
+      });
       if (relatorioAnterior) await deletarConversao.mutateAsync(relatorioAnterior);
 
       const novaConversao = await criarConversao.mutateAsync({
@@ -315,7 +369,7 @@ const ConversorItauSispag = () => {
         status: "concluido",
         totalLinhas: items.length,
         linhasProcessadas: items.length,
-        metadados: { tipo: "relatorio-itau", dados: items },
+        metadados: { tipo: "relatorio-itau", empresaExternaId, dados: items },
       });
 
       setRelatorioItau(items);
@@ -339,7 +393,10 @@ const ConversorItauSispag = () => {
   };
 
   const handleRemoverRelatorio = async () => {
-    const relatorioSalvo = conversoes.find(c => c.metadados && (c.metadados as any).tipo === "relatorio-itau");
+    const relatorioSalvo = conversoes.find(c => {
+      const meta = c.metadados as any;
+      return meta?.tipo === "relatorio-itau" && meta?.empresaExternaId === empresaExternaId;
+    });
     if (relatorioSalvo) await deletarConversao.mutateAsync(relatorioSalvo);
     setRelatorioItau([]);
     setRelatorioNome("");
