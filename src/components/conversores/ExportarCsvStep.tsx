@@ -20,6 +20,7 @@ type Props = {
   competenciaMes: string;
   competenciaAno: string;
   onVoltar: () => void;
+  onExportConfirmed?: () => void;
 };
 
 const MESES_LABEL: Record<string, string> = {
@@ -35,6 +36,7 @@ const ExportarCsvStep = ({
   competenciaMes,
   competenciaAno,
   onVoltar,
+  onExportConfirmed,
 }: Props) => {
   const { toast } = useToast();
   const [pagina, setPagina] = useState(1);
@@ -76,6 +78,9 @@ const ExportarCsvStep = ({
       title: "Arquivo exportado com sucesso",
       description: `${lancamentos.length} lançamentos exportados para CSV.`,
     });
+
+    // Notificar que a competência foi confirmada
+    onExportConfirmed?.();
   };
 
   return (
