@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { ConversorBase, type ConvertedFile } from "./ConversorBase";
 import { useConversoes } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 
 const formatosEntrada = [
   { value: "xml-nfe", label: "XML NF-e" },
@@ -29,6 +30,15 @@ export const ConversorFiscal = () => {
   const [isConverting, setIsConverting] = useState(false);
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Empresa externa
+  const [empresaExternaId, setEmpresaExternaId] = useState<string | undefined>();
+  const [empresaExterna, setEmpresaExterna] = useState<EmpresaExterna | undefined>();
+
+  const handleEmpresaExternaChange = (id: string | undefined, empresa?: EmpresaExterna) => {
+    setEmpresaExternaId(id);
+    setEmpresaExterna(empresa);
+  };
 
   const parseXMLToData = (xmlContent: string): Record<string, string>[] => {
     const parser = new DOMParser();
@@ -241,6 +251,9 @@ export const ConversorFiscal = () => {
       onDownload={downloadFile}
       onDownloadAll={downloadAll}
       error={error}
+      showEmpresaExterna={true}
+      empresaExternaId={empresaExternaId}
+      onEmpresaExternaChange={handleEmpresaExternaChange}
     >
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">

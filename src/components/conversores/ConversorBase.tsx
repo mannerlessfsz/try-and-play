@@ -20,6 +20,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useConversoes, type ConversaoArquivo } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useModulePermissions } from "@/hooks/useModulePermissions";
+import { EmpresaExternaSelector } from "./EmpresaExternaSelector";
+import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -49,6 +51,10 @@ interface ConversorBaseProps {
   onDownloadAll?: () => void;
   error: string | null;
   hideOutputCard?: boolean;
+  // Empresa externa props
+  empresaExternaId?: string;
+  onEmpresaExternaChange?: (empresaId: string | undefined, empresa?: EmpresaExterna) => void;
+  showEmpresaExterna?: boolean;
 }
 
 export function ConversorBase({
@@ -70,6 +76,9 @@ export function ConversorBase({
   onDownloadAll,
   error,
   hideOutputCard = false,
+  empresaExternaId,
+  onEmpresaExternaChange,
+  showEmpresaExterna = false,
 }: ConversorBaseProps) {
   const { empresaAtiva } = useEmpresaAtiva();
   const { isAdmin, hasPermissionFlexible } = useModulePermissions();
@@ -247,6 +256,14 @@ export function ConversorBase({
                       </div>
                     </ScrollArea>
                   </div>
+                )}
+
+                {/* Empresa Externa Selector */}
+                {showEmpresaExterna && onEmpresaExternaChange && (
+                  <EmpresaExternaSelector
+                    value={empresaExternaId}
+                    onChange={onEmpresaExternaChange}
+                  />
                 )}
 
                 {/* Extra options from parent */}
