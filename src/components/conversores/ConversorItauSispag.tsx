@@ -31,13 +31,14 @@ import ExportarCsvStep from "./ExportarCsvStep";
 
 const ITEMS_PER_PAGE = 15;
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
 
 const steps = [
-  { id: 1, title: "Plano de Contas", description: "Carregue o plano de contas", icon: FileSpreadsheet },
-  { id: 2, title: "Relatório do Banco", description: "Importe os pagamentos", icon: Building2 },
-  { id: 3, title: "Ajustar Lançamentos", description: "Vincule às contas", icon: Settings2 },
-  { id: 4, title: "Exportar CSV", description: "Baixe o arquivo", icon: Download },
+  { id: 1, title: "Empresa", description: "Selecione a empresa", icon: Building2 },
+  { id: 2, title: "Plano de Contas", description: "Carregue o plano de contas", icon: FileSpreadsheet },
+  { id: 3, title: "Relatório do Banco", description: "Importe os pagamentos", icon: Building2 },
+  { id: 4, title: "Ajustar Lançamentos", description: "Vincule às contas", icon: Settings2 },
+  { id: 5, title: "Exportar CSV", description: "Baixe o arquivo", icon: Download },
 ] as const;
 
 const MESES = [
@@ -358,9 +359,11 @@ const ConversorItauSispag = () => {
   };
 
   const canProceedToStep = (step: Step): boolean => {
-    if (step === 2) return planoContas.length > 0;
-    if (step === 3) return planoContas.length > 0 && lancamentosEfetuados.length > 0;
-    if (step === 4) return lancamentosAjustados.length > 0;
+    if (step === 1) return true;
+    if (step === 2) return !!empresaExternaId;
+    if (step === 3) return !!empresaExternaId && planoContas.length > 0;
+    if (step === 4) return !!empresaExternaId && planoContas.length > 0 && lancamentosEfetuados.length > 0;
+    if (step === 5) return lancamentosAjustados.length > 0;
     return true;
   };
 
@@ -372,7 +375,7 @@ const ConversorItauSispag = () => {
     setLancamentosAjustados(lancamentos);
     setContaCreditoFinal(contaCredito);
     setCodigoEmpresaFinal(codigoEmpresa);
-    setCurrentStep(4);
+    setCurrentStep(5);
   };
 
   if (loadingConversoes) {
@@ -385,15 +388,6 @@ const ConversorItauSispag = () => {
 
   return (
     <div className="space-y-6">
-      {/* Empresa Externa Selector */}
-      <Card className="border-purple-500/20">
-        <CardContent className="pt-4">
-          <EmpresaExternaSelector
-            value={empresaExternaId}
-            onChange={handleEmpresaExternaChange}
-          />
-        </CardContent>
-      </Card>
 
       {/* Stepper Header */}
       <div className="flex items-center justify-center">
@@ -402,8 +396,9 @@ const ConversorItauSispag = () => {
             const Icon = step.icon;
             const isActive = currentStep === step.id;
             const isCompleted = 
-              (step.id === 1 && planoContas.length > 0) ||
-              (step.id === 2 && relatorioItau.length > 0);
+              (step.id === 1 && !!empresaExternaId) ||
+              (step.id === 2 && planoContas.length > 0) ||
+              (step.id === 3 && relatorioItau.length > 0);
             const isAccessible = canProceedToStep(step.id as Step);
 
             return (
@@ -448,8 +443,54 @@ const ConversorItauSispag = () => {
         </div>
       </div>
 
-      {/* Step 1: Plano de Contas */}
+      {/* Step 1: Selecionar Empresa */}
       {currentStep === 1 && (
+        <Card className="border-purple-500/20">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-purple-500" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-lg">Selecionar Empresa</CardTitle>
+                <CardDescription>Selecione ou cadastre a empresa externa para o conversor</CardDescription>
+              </div>
+              {empresaExternaId && (
+                <Badge variant="outline" className="border-green-500 text-green-500">
+                  <CheckCircle className="w-3 h-3 mr-1" />
+                  Selecionada
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <EmpresaExternaSelector
+              value={empresaExternaId}
+              onChange={handleEmpresaExternaChange}
+            />
+            
+            {!empresaExternaId && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <div className="flex items-center gap-2 text-amber-400">
+                  <AlertCircle className="w-4 h-4" />
+                  <span className="text-sm">Selecione uma empresa para continuar</span>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation */}
+            <div className="flex justify-end pt-4 border-t">
+              <Button onClick={() => goToStep(2)} disabled={!empresaExternaId}>
+                Próximo: Plano de Contas
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Step 2: Plano de Contas */}
+      {currentStep === 2 && (
         <Card className="border-purple-500/20">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
@@ -565,8 +606,12 @@ const ConversorItauSispag = () => {
             )}
 
             {/* Navigation */}
-            <div className="flex justify-end pt-4 border-t">
-              <Button onClick={() => goToStep(2)} disabled={!canProceedToStep(2)}>
+            <div className="flex justify-between pt-4 border-t">
+              <Button variant="outline" onClick={() => goToStep(1)}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Voltar: Empresa
+              </Button>
+              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3)}>
                 Próximo: Relatório do Banco
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -575,8 +620,8 @@ const ConversorItauSispag = () => {
         </Card>
       )}
 
-      {/* Step 2: Relatório Itaú */}
-      {currentStep === 2 && (
+      {/* Step 3: Relatório Itaú */}
+      {currentStep === 3 && (
         <Card className="border-blue-500/20">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
@@ -810,11 +855,11 @@ const ConversorItauSispag = () => {
 
             {/* Navigation */}
             <div className="flex justify-between pt-4 border-t">
-              <Button variant="outline" onClick={() => goToStep(1)}>
+              <Button variant="outline" onClick={() => goToStep(2)}>
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Voltar: Plano de Contas
               </Button>
-              <Button onClick={() => goToStep(3)} disabled={!canProceedToStep(3) || lancamentosEfetuados.length === 0}>
+              <Button onClick={() => goToStep(4)} disabled={!canProceedToStep(4) || lancamentosEfetuados.length === 0}>
                 Próximo: Ajustar Lançamentos ({lancamentosEfetuados.length} efetuados)
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -823,27 +868,27 @@ const ConversorItauSispag = () => {
         </Card>
       )}
 
-      {/* Step 3: Ajustar Lançamentos */}
-      {currentStep === 3 && (
+      {/* Step 4: Ajustar Lançamentos */}
+      {currentStep === 4 && (
         <AjustarLancamentosStep
           lancamentosEfetuados={lancamentosEfetuados}
           planoContas={planoContas}
           competenciaMes={competenciaMes}
           competenciaAno={competenciaAno}
-          onVoltar={() => goToStep(2)}
+          onVoltar={() => goToStep(3)}
           onProsseguir={handleProsseguirParaExportar}
         />
       )}
 
-      {/* Step 4: Exportar CSV */}
-      {currentStep === 4 && (
+      {/* Step 5: Exportar CSV */}
+      {currentStep === 5 && (
         <ExportarCsvStep
           lancamentos={lancamentosAjustados}
           contaCredito={contaCreditoFinal}
           codigoEmpresa={codigoEmpresaFinal}
           competenciaMes={competenciaMes}
           competenciaAno={competenciaAno}
-          onVoltar={() => goToStep(3)}
+          onVoltar={() => goToStep(4)}
         />
       )}
     </div>
