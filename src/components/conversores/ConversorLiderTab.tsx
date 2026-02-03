@@ -3,7 +3,7 @@ import {
   Crown, FileText, Upload, Download, 
   CheckCircle, AlertTriangle, Eye, Trash2,
   FileSpreadsheet, Loader2, History, RefreshCw,
-  Check, Edit3, Save, X, ChevronRight, Filter, Plus, Ban
+  Check, Edit3, Save, X, ChevronRight, Filter, Plus, Ban, Building2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +38,8 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRegrasExclusaoLider, type RegraExclusaoLider } from "@/hooks/useRegrasExclusaoLider";
+import { EmpresaExternaSelector } from "./EmpresaExternaSelector";
+import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 
 interface ArquivoProcessadoLocal {
   id: string;
@@ -59,7 +61,7 @@ interface LancamentoEditavel extends OutputRow {
   marcadoExclusao?: boolean; // true = será excluído do arquivo final
 }
 
-type FluxoStep = "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
+type FluxoStep = "empresa" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
 
 export function ConversorLiderTab() {
   const { toast } = useToast();
@@ -74,6 +76,10 @@ export function ConversorLiderTab() {
     refetch 
   } = useConversoes("lider");
 
+  // Estado da empresa externa selecionada
+  const [empresaExternaId, setEmpresaExternaId] = useState<string | undefined>();
+  const [empresaExternaSelecionada, setEmpresaExternaSelecionada] = useState<EmpresaExterna | undefined>();
+
   // Hook de regras de exclusão persistentes
   const { 
     regras: regrasExclusao, 
@@ -84,7 +90,7 @@ export function ConversorLiderTab() {
   } = useRegrasExclusaoLider(empresaAtiva?.id);
 
   // Estado do fluxo
-  const [currentStep, setCurrentStep] = useState<FluxoStep>("regras");
+  const [currentStep, setCurrentStep] = useState<FluxoStep>("empresa");
   const [arquivoAtual, setArquivoAtual] = useState<ArquivoProcessadoLocal | null>(null);
   const [lancamentosEditaveis, setLancamentosEditaveis] = useState<LancamentoEditavel[]>([]);
   const [todosConfirmados, setTodosConfirmados] = useState(false);
@@ -105,6 +111,19 @@ export function ConversorLiderTab() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<OutputRow>>({});
   const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
+
+  // Auto-popular código da empresa quando empresa externa for selecionada
+  useEffect(() => {
+    if (empresaExternaSelecionada) {
+      setCodigoEmpresa(empresaExternaSelecionada.codigo_empresa);
+    }
+  }, [empresaExternaSelecionada]);
+
+  // Handler para seleção de empresa externa
+  const handleEmpresaExternaChange = (empresaId: string | undefined, empresa?: EmpresaExterna) => {
+    setEmpresaExternaId(empresaId);
+    setEmpresaExternaSelecionada(empresa);
+  };
 
   // Calcula se todos foram confirmados e erros corrigidos
   // Considera apenas lançamentos que não casam com regra (esses vão para exclusões)
@@ -363,8 +382,8 @@ export function ConversorLiderTab() {
   };
 
   const handleProcessar = async () => {
-    if (!codigoEmpresa.trim()) {
-      toast({ title: "Informe o código da empresa", description: "O código da empresa é obrigatório para prosseguir.", variant: "destructive" });
+    if (!empresaExternaId || !codigoEmpresa.trim()) {
+      toast({ title: "Selecione uma empresa", description: "A empresa externa é obrigatória para prosseguir.", variant: "destructive" });
       return;
     }
     if (!selectedFile) {
@@ -499,12 +518,14 @@ export function ConversorLiderTab() {
   };
 
   const resetarFluxo = () => {
-    setCurrentStep("regras");
+    setCurrentStep("empresa");
     setArquivoAtual(null);
     setLancamentosEditaveis([]);
     setTodosConfirmados(false);
     setErrosCorrigidos(false);
     setCodigoEmpresa("");
+    setEmpresaExternaId(undefined);
+    setEmpresaExternaSelecionada(undefined);
     // Mantém regrasExclusao para reutilização
   };
 
@@ -599,6 +620,7 @@ export function ConversorLiderTab() {
   const totalHistoricoSucesso = conversoes.filter(c => c.status === "sucesso").length;
 
   const steps = [
+    { id: "empresa", label: "Empresa", icon: Building2 },
     { id: "regras", label: "Regras", icon: Filter },
     { id: "importar", label: "Importar", icon: Upload },
     { id: "revisar", label: "Revisar", icon: Eye },
@@ -659,6 +681,57 @@ export function ConversorLiderTab() {
           </div>
 
           {/* Step Content */}
+          {currentStep === "empresa" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-violet-500" />
+                    Selecionar Empresa
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Selecione ou cadastre a empresa externa para iniciar a conversão
+                  </p>
+                </div>
+                <Button 
+                  className="bg-violet-500 hover:bg-violet-600"
+                  onClick={() => setCurrentStep("regras")}
+                  disabled={!empresaExternaId}
+                >
+                  Próximo
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <div className="p-6 rounded-lg border bg-muted/30">
+                <Label className="text-base font-medium mb-4 block">Empresa Externa *</Label>
+                <EmpresaExternaSelector
+                  value={empresaExternaId}
+                  onChange={handleEmpresaExternaChange}
+                />
+                <p className="text-sm text-muted-foreground mt-3">
+                  O código da empresa será preenchido automaticamente a partir do cadastro.
+                </p>
+                
+                {empresaExternaSelecionada && (
+                  <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/30">
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                      <CheckCircle className="w-4 h-4" />
+                      <span className="font-medium">Empresa selecionada</span>
+                    </div>
+                    <div className="mt-2 text-sm">
+                      <p><strong>Nome:</strong> {empresaExternaSelecionada.nome}</p>
+                      <p><strong>Código:</strong> {empresaExternaSelecionada.codigo_empresa}</p>
+                      {empresaExternaSelecionada.cnpj && (
+                        <p><strong>CNPJ:</strong> {empresaExternaSelecionada.cnpj}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {currentStep === "regras" && (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
@@ -855,23 +928,20 @@ export function ConversorLiderTab() {
                 </div>
               </div>
 
-              {/* Código da Empresa */}
-              <div className="p-4 rounded-lg border bg-amber-500/10 border-amber-500/30">
-                <Label htmlFor="codigo-empresa" className="flex items-center gap-2 text-amber-700 dark:text-amber-400 font-medium mb-2">
-                  <Crown className="w-4 h-4" />
-                  Código da Empresa (obrigatório)
+              {/* Empresa Selecionada (read-only) */}
+              <div className="p-4 rounded-lg border bg-green-500/10 border-green-500/30">
+                <Label className="flex items-center gap-2 text-green-700 dark:text-green-400 font-medium mb-2">
+                  <Building2 className="w-4 h-4" />
+                  Empresa Selecionada
                 </Label>
-                <Input 
-                  id="codigo-empresa"
-                  type="text"
-                  placeholder="Ex: 001, ABC123..."
-                  value={codigoEmpresa}
-                  onChange={(e) => setCodigoEmpresa(e.target.value)}
-                  className="max-w-xs border-amber-500/50 focus:border-amber-500"
-                />
-                <p className="text-sm text-muted-foreground mt-2">
-                  Este código será adicionado na coluna G de todas as linhas do arquivo final.
-                </p>
+                {empresaExternaSelecionada ? (
+                  <div className="text-sm space-y-1">
+                    <p><strong>{empresaExternaSelecionada.nome}</strong></p>
+                    <p className="text-muted-foreground">Código: <span className="font-mono">{codigoEmpresa}</span></p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Nenhuma empresa selecionada</p>
+                )}
               </div>
 
               {/* Upload Area */}
