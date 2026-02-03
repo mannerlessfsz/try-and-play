@@ -141,19 +141,35 @@ export function HierarchicalPermissionsEditor({
     },
   });
 
-  // Mutation para atualizar Pro Mode do módulo
-  const proModeMutation = useMutation({
-    mutationFn: async ({ module, isPro }: { module: AppModule; isPro: boolean }) => {
+  // Mutation para atualizar permissões do módulo (preservando valores existentes)
+  const modulePermissionMutation = useMutation({
+    mutationFn: async ({ 
+      module, 
+      updates 
+    }: { 
+      module: AppModule; 
+      updates: Partial<{
+        can_view: boolean;
+        can_create: boolean;
+        can_edit: boolean;
+        can_delete: boolean;
+        can_export: boolean;
+        is_pro_mode: boolean;
+      }>;
+    }) => {
+      // Buscar permissão existente para preservar valores
+      const existing = modulePermissions.find(p => p.module === module);
+      
       const { data, error } = await supabase.rpc('grant_module_permission', {
         p_user_id: userId,
         p_module: module,
         p_empresa_id: empresaId,
-        p_can_view: true,
-        p_can_create: false,
-        p_can_edit: false,
-        p_can_delete: false,
-        p_can_export: false,
-        p_is_pro_mode: isPro,
+        p_can_view: updates.can_view ?? existing?.can_view ?? false,
+        p_can_create: updates.can_create ?? existing?.can_create ?? false,
+        p_can_edit: updates.can_edit ?? existing?.can_edit ?? false,
+        p_can_delete: updates.can_delete ?? existing?.can_delete ?? false,
+        p_can_export: updates.can_export ?? existing?.can_export ?? false,
+        p_is_pro_mode: updates.is_pro_mode ?? existing?.is_pro_mode ?? false,
       });
       if (error) throw error;
       return data;
@@ -161,11 +177,15 @@ export function HierarchicalPermissionsEditor({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user-module-permissions-for-hierarchy', userId, empresaId] });
       queryClient.invalidateQueries({ queryKey: ['admin-user-module-permissions', userId, empresaId] });
+      queryClient.invalidateQueries({ queryKey: ['user-module-permissions', userId] });
     },
     onError: (error) => {
-      toast({ title: 'Erro ao atualizar modo', description: error.message, variant: 'destructive' });
+      toast({ title: 'Erro ao atualizar permissão', description: error.message, variant: 'destructive' });
     },
   });
+
+  // Alias para compatibilidade
+  const proModeMutation = modulePermissionMutation;
 
   const isModulePro = (module: AppModule): boolean => {
     // Se vem da empresa (lockProMode), usa moduleProMode
@@ -181,7 +201,56 @@ export function HierarchicalPermissionsEditor({
     e.stopPropagation();
     if (readOnly || lockProMode) return;
     const current = isModulePro(module);
-    proModeMutation.mutate({ module, isPro: !current });
+    modulePermissionMutation.mutate({ module, updates: { is_pro_mode: !current } });
+  };
+
+  // Obter permissão do módulo
+  const getModulePermission = (module: string): ModulePermission | undefined => {
+    return modulePermissions.find(p => p.module === module);
+  };
+
+  // Toggle de ação no nível do módulo
+  const toggleModuleAction = (
+    module: AppModule,
+    action: 'can_view' | 'can_create' | 'can_edit' | 'can_delete' | 'can_export'
+  ) => {
+    if (readOnly) return;
+    const existing = getModulePermission(module);
+    const currentValue = existing?.[action] ?? false;
+    modulePermissionMutation.mutate({ 
+      module, 
+      updates: { [action]: !currentValue } 
+    });
+  };
+
+  // Conceder todas as permissões do módulo
+  const grantAllModulePermissions = (module: AppModule) => {
+    if (readOnly) return;
+    modulePermissionMutation.mutate({ 
+      module, 
+      updates: { 
+        can_view: true, 
+        can_create: true, 
+        can_edit: true, 
+        can_delete: true, 
+        can_export: true 
+      } 
+    });
+  };
+
+  // Revogar todas as permissões do módulo
+  const revokeAllModulePermissions = (module: AppModule) => {
+    if (readOnly) return;
+    modulePermissionMutation.mutate({ 
+      module, 
+      updates: { 
+        can_view: false, 
+        can_create: false, 
+        can_edit: false, 
+        can_delete: false, 
+        can_export: false 
+      } 
+    });
   };
 
   // Buscar permissões de recursos do usuário
@@ -408,7 +477,7 @@ export function HierarchicalPermissionsEditor({
                               checked={isModulePro(module.value as AppModule)}
                               onCheckedChange={() => {}}
                               onClick={(e) => toggleModuleProMode(module.value as AppModule, e)}
-                              disabled={readOnly || lockProMode || proModeMutation.isPending}
+                              disabled={readOnly || lockProMode || modulePermissionMutation.isPending}
                             />
                             <Label htmlFor={`pro-${module.value}`} className="text-xs flex items-center gap-1 cursor-pointer">
                               <Zap className="w-3 h-3" />
@@ -426,7 +495,71 @@ export function HierarchicalPermissionsEditor({
                   </CollapsibleTrigger>
                   
                   <CollapsibleContent>
-                    <CardContent className="pt-0 space-y-3">
+                    <CardContent className="pt-0 space-y-4">
+                      {/* Permissões no nível do Módulo */}
+                      <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Shield className="w-4 h-4 text-primary" />
+                            <span className="text-sm font-semibold">Permissões do Módulo</span>
+                            <Badge variant="secondary" className="text-xs">
+                              {[
+                                getModulePermission(module.value)?.can_view,
+                                getModulePermission(module.value)?.can_create,
+                                getModulePermission(module.value)?.can_edit,
+                                getModulePermission(module.value)?.can_delete,
+                                getModulePermission(module.value)?.can_export,
+                              ].filter(Boolean).length}/5
+                            </Badge>
+                          </div>
+                          {!readOnly && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => grantAllModulePermissions(module.value as AppModule)}
+                                className="text-xs text-primary hover:underline"
+                              >
+                                Todos
+                              </button>
+                              <span className="text-muted-foreground">|</span>
+                              <button
+                                onClick={() => revokeAllModulePermissions(module.value as AppModule)}
+                                className="text-xs text-muted-foreground hover:underline"
+                              >
+                                Limpar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-4">
+                          {(['can_view', 'can_create', 'can_edit', 'can_delete', 'can_export'] as const).map(action => {
+                            const perm = getModulePermission(module.value);
+                            return (
+                              <div key={action} className="flex items-center gap-2">
+                                <Checkbox
+                                  id={`module-${module.value}-${action}`}
+                                  checked={perm?.[action] === true}
+                                  onCheckedChange={() => toggleModuleAction(module.value as AppModule, action)}
+                                  disabled={readOnly || modulePermissionMutation.isPending}
+                                />
+                                <Label 
+                                  htmlFor={`module-${module.value}-${action}`}
+                                  className="text-xs cursor-pointer"
+                                >
+                                  {action === 'can_view' && 'Visualizar'}
+                                  {action === 'can_create' && 'Criar'}
+                                  {action === 'can_edit' && 'Editar'}
+                                  {action === 'can_delete' && 'Excluir'}
+                                  {action === 'can_export' && 'Exportar'}
+                                </Label>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Estas permissões controlam o acesso às ferramentas do módulo
+                        </p>
+                      </div>
+
                       {/* Sub-módulos */}
                       {subModules.map(subModule => {
                         const resources = getSubModuleResources(subModule.value);
