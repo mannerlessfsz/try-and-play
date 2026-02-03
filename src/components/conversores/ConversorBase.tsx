@@ -74,11 +74,13 @@ export function ConversorBase({
   const { empresaAtiva } = useEmpresaAtiva();
   const { isAdmin, hasPermissionFlexible } = useModulePermissions();
   
-  // Verificar permissões granulares usando verificação flexível
-  const canCreate = isAdmin || hasPermissionFlexible('conversores', 'create', empresaAtiva?.id);
-  const canEdit = isAdmin || hasPermissionFlexible('conversores', 'edit', empresaAtiva?.id);
-  const canExport = isAdmin || hasPermissionFlexible('conversores', 'export', empresaAtiva?.id);
-  const canDelete = isAdmin || hasPermissionFlexible('conversores', 'delete', empresaAtiva?.id);
+  // Verificar permissões granulares usando o módulo passado como prop
+  // Mapeia módulos específicos para o módulo base 'conversores' para checagem de permissão
+  const permissionModule = 'conversores' as const;
+  const canCreate = isAdmin || hasPermissionFlexible(permissionModule, 'create', empresaAtiva?.id);
+  const canEdit = isAdmin || hasPermissionFlexible(permissionModule, 'edit', empresaAtiva?.id);
+  const canExport = isAdmin || hasPermissionFlexible(permissionModule, 'export', empresaAtiva?.id);
+  const canDelete = isAdmin || hasPermissionFlexible(permissionModule, 'delete', empresaAtiva?.id);
   const { 
     conversoes, 
     isLoading: isLoadingConversoes, 
