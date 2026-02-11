@@ -105,7 +105,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const contaDebitoRaw = (d.col_c || "").trim();     // Col C ímpar = Conta débito
         const centroCusto = (d.col_d || "").trim();        // Col D ímpar = Centro custo
         const historicoOriginal = (h?.col_b || "").trim(); // Col B par = Histórico
-        const contaCreditoRaw = (h?.col_c || "").trim();   // Col C par = Conta crédito (banco)
+        const contaCreditoRaw = (d.col_c || "").trim();    // Col C par (linha par) = Conta crédito (banco)
         const nDoc = (h?.col_e || "").trim();              // Col E par = N° Doc
         const dataPagto = (d.col_h || "").trim();          // Col H ímpar = Data
         const valorPago = (d.col_i || "").trim();          // Col I ímpar = Valor
