@@ -6,6 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
+import type { RazaoEntry } from "@/utils/razaoParser";
+import { buildFornecedorDebitoLookup, buildCentroDebitoLookup } from "@/utils/razaoParser";
 import { LancamentoCard } from "./LancamentoCard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
@@ -22,13 +24,14 @@ interface Props {
   mapeamentos: ApaeBancoAplicacao[];
   codigoEmpresa: string;
   resultados: ApaeResultado[];
+  razaoEntries?: RazaoEntry[];
   onProcessar: (resultados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[]) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, razaoEntries = [], onProcessar, onNext, onBack, saving }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -132,6 +135,10 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     try {
       const resultadosProcessados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] = [];
 
+      // Build Razão lookups for fallback matching
+      const razaoFornecedorLookup = razaoEntries.length > 0 ? buildFornecedorDebitoLookup(razaoEntries) : new Map<string, string>();
+      const razaoCentroLookup = razaoEntries.length > 0 ? buildCentroDebitoLookup(razaoEntries) : new Map<string, string>();
+
       let lote = 1;
       for (const par of pares) {
         const d = par.dados;
@@ -146,9 +153,33 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const dataPagto = (d.col_h || "").trim();
         const valorPago = (d.col_i || "").trim();
 
+        // === FALLBACK CHAIN for conta débito ===
+        // 1. Match fornecedor name in plano de contas
         let contaDebitoCodigo: string | null = null;
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
-        if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
+        if (matchDebito) {
+          contaDebitoCodigo = matchDebito.codigo;
+        }
+
+        // 2. If not found, search fornecedor in Razão (credit entries → Cta.C.Part. = debit account)
+        if (!contaDebitoCodigo && razaoFornecedorLookup.size > 0) {
+          const fornecedorNorm = toUpperNoAccents(fornecedor);
+          for (const [histKey, ctaCPart] of razaoFornecedorLookup) {
+            if (histKey.includes(fornecedorNorm) || fornecedorNorm.includes(histKey)) {
+              contaDebitoCodigo = ctaCPart;
+              break;
+            }
+          }
+        }
+
+        // 3. If still not found, extract CENTRO from histórico/centro_custo and find in Razão
+        if (!contaDebitoCodigo && razaoCentroLookup.size > 0 && centroCusto) {
+          const centroCode = centroCusto.trim();
+          const matchCentro = razaoCentroLookup.get(centroCode);
+          if (matchCentro) {
+            contaDebitoCodigo = matchCentro;
+          }
+        }
 
         // Match credit account using nome_relatorio from Step 2 mappings
         let contaCreditoCodigo: string | null = null;
