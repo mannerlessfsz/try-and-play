@@ -284,25 +284,23 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                 />
               </div>
 
-              <ScrollArea className="max-h-[70vh]">
-                <div className="space-y-2 pr-2">
-                  {paginado.map((r, idx) => {
-                    const loteNum = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
-                    return (
-                      <LancamentoCard
-                        key={r.id}
-                        resultado={r}
-                        lote={loteNum}
-                        codigoEmpresa={codigoEmpresa}
-                        planoOptions={planoOptions}
-                        bancoOptions={bancoOptions}
-                        onUpdateDebito={handleUpdateDebito}
-                        onUpdateCredito={handleUpdateCredito}
-                      />
-                    );
-                  })}
-                </div>
-              </ScrollArea>
+              <div className="space-y-2">
+                {paginado.map((r, idx) => {
+                  const loteNum = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
+                  return (
+                    <LancamentoCard
+                      key={r.id}
+                      resultado={r}
+                      lote={loteNum}
+                      codigoEmpresa={codigoEmpresa}
+                      planoOptions={planoOptions}
+                      bancoOptions={bancoOptions}
+                      onUpdateDebito={handleUpdateDebito}
+                      onUpdateCredito={handleUpdateCredito}
+                    />
+                  );
+                })}
+              </div>
 
               {totalPaginas > 1 && (
                 <div className="flex items-center justify-between">
