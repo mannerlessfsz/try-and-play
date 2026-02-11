@@ -117,7 +117,7 @@ export function ApaeStep2ContasBanco({ planoContas, onToggleBanco, onToggleAplic
             </div>
           </div>
 
-          <ScrollArea className="max-h-[400px]">
+          <ScrollArea className="max-h-[70vh]">
             <Table>
               <TableHeader>
                 <TableRow>
