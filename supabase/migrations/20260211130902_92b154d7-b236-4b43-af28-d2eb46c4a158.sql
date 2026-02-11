@@ -1,0 +1,1 @@
+ALTER TABLE public.apae_plano_contas ADD COLUMN ordem integer DEFAULT 0;

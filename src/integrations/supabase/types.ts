@@ -140,6 +140,7 @@ export type Database = {
           id: string
           is_aplicacao: boolean | null
           is_banco: boolean | null
+          ordem: number | null
           sessao_id: string
         }
         Insert: {
@@ -151,6 +152,7 @@ export type Database = {
           id?: string
           is_aplicacao?: boolean | null
           is_banco?: boolean | null
+          ordem?: number | null
           sessao_id: string
         }
         Update: {
@@ -162,6 +164,7 @@ export type Database = {
           id?: string
           is_aplicacao?: boolean | null
           is_banco?: boolean | null
+          ordem?: number | null
           sessao_id?: string
         }
         Relationships: [
