@@ -243,90 +243,108 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
                       hasMapeamento ? "bg-card border-border" : "bg-muted/30 border-dashed border-muted-foreground/30"
                     }`}
                   >
+                    {/* Header with confirm/edit button */}
                     <div className="flex items-center gap-2">
                       <Landmark className="w-4 h-4 text-primary shrink-0" />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-mono text-muted-foreground">{banco.codigo}</p>
                         <p className="text-sm font-medium truncate">{banco.descricao}</p>
                       </div>
+                      {hasMapeamento && (
+                        editMode[banco.codigo] ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs gap-1 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/10"
+                            onClick={async () => {
+                              const nomeVal = editingRelatorio[banco.codigo]?.trim();
+                              if (nomeVal !== undefined && nomeVal !== (mapeamento.nome_relatorio || "")) {
+                                await atualizar(mapeamento.id, { nome_relatorio: nomeVal || null });
+                              }
+                              setEditMode((prev) => ({ ...prev, [banco.codigo]: false }));
+                              toast.success("Configuração confirmada!");
+                            }}
+                          >
+                            <Check className="w-3.5 h-3.5" /> Confirmar
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                              setEditingRelatorio((prev) => ({ ...prev, [banco.codigo]: mapeamento.nome_relatorio || "" }));
+                              setEditMode((prev) => ({ ...prev, [banco.codigo]: true }));
+                            }}
+                          >
+                            <Pencil className="w-3 h-3" /> Editar
+                          </Button>
+                        )
+                      )}
                     </div>
 
-                    {/* Nome no Relatório */}
-                    {hasMapeamento && (
-                      <div className="space-y-1">
-                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                          Nome no Relatório
-                        </label>
-                        {editMode[banco.codigo] || !mapeamento.nome_relatorio ? (
-                          <div className="flex gap-1">
+                    {hasMapeamento ? (
+                      <>
+                        {/* Nome no Relatório */}
+                        <div className="space-y-1">
+                          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                            Nome no Relatório
+                          </label>
+                          {editMode[banco.codigo] ? (
                             <Input
                               value={editingRelatorio[banco.codigo] ?? mapeamento.nome_relatorio ?? ""}
                               onChange={(e) => setEditingRelatorio((prev) => ({ ...prev, [banco.codigo]: e.target.value }))}
                               placeholder="Ex: APAE GRAMADO CER II - 37.493-8"
-                              className="h-7 text-xs flex-1"
+                              className="h-7 text-xs"
                             />
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
-                              onClick={async () => {
-                                const val = editingRelatorio[banco.codigo]?.trim();
-                                if (!val) return;
-                                await atualizar(mapeamento.id, { nome_relatorio: val });
-                                setEditMode((prev) => ({ ...prev, [banco.codigo]: false }));
-                                toast.success("Nome no relatório salvo!");
-                              }}
-                            >
-                              <Check className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded flex-1 truncate">
-                              {mapeamento.nome_relatorio}
+                          ) : (
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded block truncate">
+                              {mapeamento.nome_relatorio || <span className="italic text-muted-foreground">Não informado</span>}
                             </span>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-                              onClick={() => {
-                                setEditingRelatorio((prev) => ({ ...prev, [banco.codigo]: mapeamento.nome_relatorio || "" }));
-                                setEditMode((prev) => ({ ...prev, [banco.codigo]: true }));
-                              }}
-                            >
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
 
-                    {hasMapeamento ? (
-                      <div className="space-y-1.5">
-                        {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col, idx) => {
-                          const currentVal = mapeamento[col] || "0";
-                          const disponiveis = getAplicacoesDisponiveis(banco.codigo, currentVal);
-                          return (
-                            <Select
-                              key={col}
-                              value={currentVal}
-                              onValueChange={(v) => handleAtualizarAplicacao(mapeamento.id, col, v, banco.codigo)}
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue placeholder={`Aplicação ${idx + 1}`} />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-[300px]">
-                                <SelectItem value="0">— Nenhuma</SelectItem>
-                                {disponiveis.map((c) => (
-                                  <SelectItem key={c.codigo} value={c.codigo}>
-                                    {c.codigo} - {c.descricao}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          );
-                        })}
-                      </div>
+                        {/* Aplicações */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                            Aplicações
+                          </label>
+                          {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col, idx) => {
+                            const currentVal = mapeamento[col] || "0";
+                            const disponiveis = getAplicacoesDisponiveis(banco.codigo, currentVal);
+                            const contaAplicacao = currentVal !== "0" ? contasAplicacao.find(c => c.codigo === currentVal) : null;
+
+                            if (!editMode[banco.codigo]) {
+                              if (!contaAplicacao) return null;
+                              return (
+                                <span key={col} className="text-xs bg-muted px-2 py-0.5 rounded block truncate">
+                                  {contaAplicacao.codigo} - {contaAplicacao.descricao}
+                                </span>
+                              );
+                            }
+
+                            return (
+                              <Select
+                                key={col}
+                                value={currentVal}
+                                onValueChange={(v) => handleAtualizarAplicacao(mapeamento.id, col, v, banco.codigo)}
+                              >
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue placeholder={`Aplicação ${idx + 1}`} />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[300px]">
+                                  <SelectItem value="0">— Nenhuma</SelectItem>
+                                  {disponiveis.map((c) => (
+                                    <SelectItem key={c.codigo} value={c.codigo}>
+                                      {c.codigo} - {c.descricao}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            );
+                          })}
+                        </div>
+                      </>
                     ) : (
                       <p className="text-xs text-muted-foreground italic">
                         Salve o mapeamento para vincular aplicações
