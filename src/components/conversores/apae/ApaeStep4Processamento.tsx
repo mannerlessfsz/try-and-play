@@ -48,20 +48,17 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     return map;
   }, [planoContas]);
 
-  const bancoByCodigo = useMemo(() => {
-    const map = new Map<string, ApaePlanoContas>();
-    planoContas.filter(c => c.is_banco).forEach((c) => {
-      map.set(c.codigo, c);
-      map.set(c.descricao.toLowerCase().trim(), c);
-    });
-    return map;
-  }, [planoContas]);
+  // Only use bank accounts mapped in step 2 (not applications)
+  const bancosMapeados = useMemo(() => {
+    const bancosCodigos = new Set(mapeamentos.map(m => m.banco_codigo));
+    return planoContas.filter(c => bancosCodigos.has(c.codigo));
+  }, [mapeamentos, planoContas]);
 
-  const bancos = useMemo(() => planoContas.filter(c => c.is_banco), [planoContas]);
+  const bancos = bancosMapeados;
 
   // Pre-compute lightweight option arrays (stable references for memo)
   const planoOptions = useMemo(() => planoContas.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [planoContas]);
-  const bancoOptions = useMemo(() => bancos.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [bancos]);
+  const bancoOptions = useMemo(() => bancosMapeados.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [bancosMapeados]);
 
   const pares = useMemo(() => {
     const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
@@ -136,16 +133,15 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
+        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "37.493-8"
         let contaCreditoCodigo: string | null = null;
-        const matchCredito = bancoByCodigo.get(contaCreditoRaw.toLowerCase()) || bancoByCodigo.get(contaCreditoRaw);
-        if (matchCredito) {
-          contaCreditoCodigo = matchCredito.codigo;
-        } else {
-          for (const [key, conta] of bancoByCodigo.entries()) {
-            if (contaCreditoRaw.toLowerCase().includes(key) || key.includes(contaCreditoRaw.toLowerCase())) {
-              contaCreditoCodigo = conta.codigo;
-              break;
-            }
+        const dashIdx = contaCreditoRaw.lastIndexOf(" - ");
+        const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw;
+        // Search only in mapped bank accounts from step 2
+        for (const banco of bancosMapeados) {
+          if (banco.descricao.includes(numeroConta) || banco.codigo.includes(numeroConta)) {
+            contaCreditoCodigo = banco.codigo;
+            break;
           }
         }
 
