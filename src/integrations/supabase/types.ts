@@ -130,6 +130,50 @@ export type Database = {
         }
         Relationships: []
       }
+      apae_banco_aplicacoes: {
+        Row: {
+          aplicacao1_codigo: string | null
+          aplicacao2_codigo: string | null
+          aplicacao3_codigo: string | null
+          aplicacao4_codigo: string | null
+          aplicacao5_codigo: string | null
+          banco_codigo: string
+          created_at: string
+          id: string
+          sessao_id: string
+        }
+        Insert: {
+          aplicacao1_codigo?: string | null
+          aplicacao2_codigo?: string | null
+          aplicacao3_codigo?: string | null
+          aplicacao4_codigo?: string | null
+          aplicacao5_codigo?: string | null
+          banco_codigo: string
+          created_at?: string
+          id?: string
+          sessao_id: string
+        }
+        Update: {
+          aplicacao1_codigo?: string | null
+          aplicacao2_codigo?: string | null
+          aplicacao3_codigo?: string | null
+          aplicacao4_codigo?: string | null
+          aplicacao5_codigo?: string | null
+          banco_codigo?: string
+          created_at?: string
+          id?: string
+          sessao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_banco_aplicacoes_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "apae_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apae_plano_contas: {
         Row: {
           classificacao: string | null

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,8 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Link2 } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
+import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -16,9 +18,7 @@ function sugerirBanco(conta: ApaePlanoContas): boolean {
   const desc = conta.descricao.toLowerCase();
   const cod = conta.codigo.toLowerCase();
   const cls = (conta.classificacao || "").toLowerCase();
-  // Classificações típicas de banco: 1.1.1, 1.1.01, etc.
   if (cls.match(/^1\.1\.(0?[1-9]|[1-9]\d)/)) return true;
-  // Palavras-chave
   const keywords = ["banco", "caixa", "bradesco", "itau", "itaú", "santander", "bb ", "sicredi", "sicoob", "cef ", "nubank", "inter", "c/c", "conta corrente"];
   return keywords.some((k) => desc.includes(k) || cod.includes(k));
 }
@@ -33,6 +33,7 @@ function sugerirAplicacao(conta: ApaePlanoContas): boolean {
 }
 
 interface Props {
+  sessaoId: string;
   planoContas: ApaePlanoContas[];
   onToggleBanco: (id: string, value: boolean) => Promise<void>;
   onToggleAplicacao: (id: string, value: boolean) => Promise<void>;
@@ -42,12 +43,29 @@ interface Props {
   saving: boolean;
 }
 
-export function ApaeStep2ContasBanco({ planoContas, onToggleBanco, onToggleAplicacao, onAutoSugerir, onNext, onBack, saving }: Props) {
+export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onAutoSugerir, onNext, onBack, saving }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [filtro, setFiltro] = useState<"todos" | "banco" | "aplicacao" | "selecionados">("todos");
+  const [novoBancoCodigo, setNovoBancoCodigo] = useState("");
+
+  const { mapeamentos, loading: loadingMap, buscar, adicionar, atualizar, remover } = useApaeBancoAplicacoes(sessaoId);
+
+  useEffect(() => { buscar(); }, [buscar]);
 
   const contasSelecionadas = useMemo(() => planoContas.filter((c) => c.is_banco || c.is_aplicacao), [planoContas]);
+
+  // Build a map of codigo -> conta for quick lookup
+  const contasByCodigo = useMemo(() => {
+    const map = new Map<string, ApaePlanoContas>();
+    planoContas.forEach((c) => map.set(c.codigo, c));
+    return map;
+  }, [planoContas]);
+
+  // Available codes for select (all plano de contas codes)
+  const codigosDisponiveis = useMemo(() => {
+    return planoContas.map((c) => ({ codigo: c.codigo, descricao: c.descricao }));
+  }, [planoContas]);
 
   const filtrado = useMemo(() => {
     let lista = planoContas;
@@ -71,8 +89,112 @@ export function ApaeStep2ContasBanco({ planoContas, onToggleBanco, onToggleAplic
     return filtrado.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtrado, pagina]);
 
+  const handleAdicionarMapeamento = async () => {
+    if (!novoBancoCodigo) return;
+    await adicionar(novoBancoCodigo);
+    setNovoBancoCodigo("");
+  };
+
+  const getContaLabel = (codigo: string) => {
+    if (!codigo || codigo === "0") return "—";
+    const conta = contasByCodigo.get(codigo);
+    return conta ? `${codigo} - ${conta.descricao}` : codigo;
+  };
+
   return (
     <div className="space-y-4">
+      {/* Mapeamento Banco → Aplicações */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Link2 className="w-5 h-5 text-primary" />
+            Mapeamento Banco → Aplicações
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Vincule cada conta de banco às suas contas de aplicação (somente contas do plano de contas)
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Add new mapping */}
+          <div className="flex items-center gap-2">
+            <Select value={novoBancoCodigo} onValueChange={setNovoBancoCodigo}>
+              <SelectTrigger className="w-[300px]">
+                <SelectValue placeholder="Selecione a conta de banco..." />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {codigosDisponiveis.map((c) => (
+                  <SelectItem key={c.codigo} value={c.codigo}>
+                    {c.codigo} - {c.descricao}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={handleAdicionarMapeamento} disabled={!novoBancoCodigo}>
+              <Plus className="w-4 h-4 mr-1" /> Adicionar
+            </Button>
+          </div>
+
+          {loadingMap ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin" />
+            </div>
+          ) : mapeamentos.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-4">Nenhum mapeamento cadastrado.</p>
+          ) : (
+            <ScrollArea className="max-h-[50vh]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-28">Banco</TableHead>
+                    <TableHead>Aplicação 1</TableHead>
+                    <TableHead>Aplicação 2</TableHead>
+                    <TableHead>Aplicação 3</TableHead>
+                    <TableHead>Aplicação 4</TableHead>
+                    <TableHead>Aplicação 5</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {mapeamentos.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableCell className="font-mono text-xs font-medium">
+                        {getContaLabel(m.banco_codigo)}
+                      </TableCell>
+                      {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col) => (
+                        <TableCell key={col}>
+                          <Select
+                            value={m[col] || "0"}
+                            onValueChange={(v) => atualizar(m.id, { [col]: v })}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[300px]">
+                              <SelectItem value="0">— Nenhuma</SelectItem>
+                              {codigosDisponiveis.map((c) => (
+                                <SelectItem key={c.codigo} value={c.codigo}>
+                                  {c.codigo} - {c.descricao}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                      ))}
+                      <TableCell>
+                        <Button variant="ghost" size="sm" onClick={() => remover(m.id)}>
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Contas de Banco e Aplicações (checkboxes) */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
