@@ -7,30 +7,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Link2 } from "lucide-react";
+import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Link2, Check } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
+import { toast } from "sonner";
 
 const ITEMS_PER_PAGE = 100;
-
-/** Heurística para sugerir contas bancárias */
-function sugerirBanco(conta: ApaePlanoContas): boolean {
-  const desc = conta.descricao.toLowerCase();
-  const cod = conta.codigo.toLowerCase();
-  const cls = (conta.classificacao || "").toLowerCase();
-  if (cls.match(/^1\.1\.(0?[1-9]|[1-9]\d)/)) return true;
-  const keywords = ["banco", "caixa", "bradesco", "itau", "itaú", "santander", "bb ", "sicredi", "sicoob", "cef ", "nubank", "inter", "c/c", "conta corrente"];
-  return keywords.some((k) => desc.includes(k) || cod.includes(k));
-}
-
-/** Heurística para sugerir aplicações */
-function sugerirAplicacao(conta: ApaePlanoContas): boolean {
-  const desc = conta.descricao.toLowerCase();
-  const cls = (conta.classificacao || "").toLowerCase();
-  if (cls.match(/^1\.1\.(2|3)/)) return true;
-  const keywords = ["aplicaç", "investimento", "poupança", "poupanca", "renda fixa", "cdb", "lci", "lca", "fundo"];
-  return keywords.some((k) => desc.includes(k));
-}
 
 interface Props {
   sessaoId: string;
@@ -46,6 +28,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [novoBancoCodigo, setNovoBancoCodigo] = useState("");
+  const [confirmado, setConfirmado] = useState(false);
 
   const { mapeamentos, loading: loadingMap, buscar, adicionar, atualizar, remover } = useApaeBancoAplicacoes(sessaoId);
 
@@ -82,6 +65,22 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     return filtradoPlano.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtradoPlano, pagina]);
 
+  // Reset confirmado when user changes banco/aplicacao selections
+  const handleToggleBancoWrapped = async (id: string, value: boolean) => {
+    setConfirmado(false);
+    await onToggleBanco(id, value);
+  };
+
+  const handleToggleAplicacaoWrapped = async (id: string, value: boolean) => {
+    setConfirmado(false);
+    await onToggleAplicacao(id, value);
+  };
+
+  const handleConfirmar = () => {
+    setConfirmado(true);
+    toast.success(`${contasBancoAplicacao.length} conta(s) confirmadas como banco/aplicação`);
+  };
+
   const handleAdicionarMapeamento = async () => {
     if (!novoBancoCodigo) return;
     await adicionar(novoBancoCodigo);
@@ -89,7 +88,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
   };
 
   const getContaLabel = (codigo: string) => {
-    if (!codigo || codigo === "0") return "—";
+    if (!codigo || codigo === "0") return "— Nenhuma";
     const conta = contasByCodigo.get(codigo);
     return conta ? `${codigo} - ${conta.descricao}` : codigo;
   };
@@ -111,6 +110,9 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
           <div className="flex items-center gap-2 flex-wrap">
             <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_banco).length} banco(s)</Badge>
             <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_aplicacao).length} aplicação(ões)</Badge>
+            {confirmado && (
+              <Badge variant="default" className="bg-green-600">✓ Confirmado</Badge>
+            )}
           </div>
 
           <div className="relative">
@@ -140,13 +142,13 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
                     <TableCell className="text-center">
                       <Checkbox
                         checked={conta.is_banco}
-                        onCheckedChange={(v) => onToggleBanco(conta.id, !!v)}
+                        onCheckedChange={(v) => handleToggleBancoWrapped(conta.id, !!v)}
                       />
                     </TableCell>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={conta.is_aplicacao}
-                        onCheckedChange={(v) => onToggleAplicacao(conta.id, !!v)}
+                        onCheckedChange={(v) => handleToggleAplicacaoWrapped(conta.id, !!v)}
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{conta.codigo}</TableCell>
@@ -173,11 +175,20 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
               </div>
             </div>
           )}
+
+          {contasBancoAplicacao.length > 0 && !confirmado && (
+            <div className="flex justify-end pt-2 border-t">
+              <Button onClick={handleConfirmar} disabled={saving}>
+                <Check className="w-4 h-4 mr-2" />
+                Confirmar Seleção ({contasBancoAplicacao.length} conta(s))
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Seção 2: Mapeamento Banco → Aplicações */}
-      {contasBancoAplicacao.length > 0 && (
+      {/* Seção 2: Mapeamento Banco → Aplicações — sempre mostra se há mapeamentos OU contas confirmadas */}
+      {(mapeamentos.length > 0 || (confirmado && contasBancoAplicacao.length > 0)) && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -272,12 +283,10 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button onClick={onNext} disabled={contasBancoAplicacao.length === 0}>
+        <Button onClick={onNext} disabled={contasBancoAplicacao.length === 0 || !confirmado}>
           Próximo: Relatório <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
   );
 }
-
-export { sugerirBanco, sugerirAplicacao };

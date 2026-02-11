@@ -6,7 +6,7 @@ import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type Apa
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
 import { ApaeStep1PlanoContas } from "./apae/ApaeStep1PlanoContas";
-import { ApaeStep2ContasBanco, sugerirBanco, sugerirAplicacao } from "./apae/ApaeStep2ContasBanco";
+import { ApaeStep2ContasBanco } from "./apae/ApaeStep2ContasBanco";
 import { ApaeStep3Relatorio } from "./apae/ApaeStep3Relatorio";
 import { ApaeStep4Processamento } from "./apae/ApaeStep4Processamento";
 import { ApaeStep5Conferencia } from "./apae/ApaeStep5Conferencia";
@@ -136,23 +136,7 @@ export function LancaApaeTab() {
     setPlanoContas((prev) => prev.map((c) => (c.id === id ? { ...c, is_aplicacao: value } : c)));
   };
 
-  const handleAutoSugerir = async () => {
-    setSaving(true);
-    try {
-      for (const conta of planoContas) {
-        const isBanco = sugerirBanco(conta);
-        const isAplic = sugerirAplicacao(conta);
-        if (isBanco !== conta.is_banco || isAplic !== conta.is_aplicacao) {
-          await atualizarContaBanco.mutateAsync({ id: conta.id, is_banco: isBanco, is_aplicacao: isAplic });
-        }
-      }
-      const plano = await buscarPlanoContas(sessaoAtiva!);
-      setPlanoContas(plano);
-      toast.success("Sugestão automática aplicada!");
-    } finally {
-      setSaving(false);
-    }
-  };
+  // handleAutoSugerir removed — user marks manually
 
   const handleSalvarRelatorio = async (linhas: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[], nomeArquivo: string) => {
     if (!sessaoAtiva) return;
