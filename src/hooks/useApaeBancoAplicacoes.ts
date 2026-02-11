@@ -19,8 +19,8 @@ export function useApaeBancoAplicacoes(sessaoId: string | null) {
   const [mapeamentos, setMapeamentos] = useState<ApaeBancoAplicacao[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const buscar = useCallback(async () => {
-    if (!sessaoId) return;
+  const buscar = useCallback(async (): Promise<ApaeBancoAplicacao[]> => {
+    if (!sessaoId) return [];
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -29,9 +29,12 @@ export function useApaeBancoAplicacoes(sessaoId: string | null) {
         .eq("sessao_id", sessaoId)
         .order("banco_codigo");
       if (error) throw error;
-      setMapeamentos((data as ApaeBancoAplicacao[]) || []);
+      const rows = (data as ApaeBancoAplicacao[]) || [];
+      setMapeamentos(rows);
+      return rows;
     } catch (e: any) {
       toast.error("Erro ao buscar mapeamentos: " + e.message);
+      return [];
     } finally {
       setLoading(false);
     }

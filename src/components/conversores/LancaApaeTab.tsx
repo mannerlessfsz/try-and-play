@@ -32,7 +32,13 @@ export function LancaApaeTab() {
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
-  const { mapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
+  const { mapeamentos, loading: loadingMapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
+
+  // Sempre que mudar de sessão, recarrega os mapeamentos (usados no Passo 4)
+  useEffect(() => {
+    if (!sessaoAtiva) return;
+    buscarMapeamentos();
+  }, [sessaoAtiva, buscarMapeamentos]);
 
   const sessaoInfo = sessoes.find((s) => s.id === sessaoAtiva);
   const codigoEmpresa = empresaAtiva?.cnpj || empresaAtiva?.nome || "";
@@ -49,7 +55,7 @@ export function LancaApaeTab() {
       setPlanoContas(plano);
       setRelatorioLinhas(linhas);
       setResultados(res);
-      buscarMapeamentos();
+      // mapeamentos são carregados via useEffect acima
 
       // Determinar passo baseado nos dados
       if (res.length > 0) setStep(5);
@@ -285,7 +291,7 @@ export function LancaApaeTab() {
           planoContas={planoContas}
           onToggleBanco={handleToggleBanco}
           onToggleAplicacao={handleToggleAplicacao}
-          onNext={() => { buscarMapeamentos(); setStep(3); }}
+          onNext={async () => { await buscarMapeamentos(); setStep(3); }}
           onBack={() => setStep(1)}
           saving={saving}
         />
@@ -308,6 +314,8 @@ export function LancaApaeTab() {
           linhas={relatorioLinhas}
           planoContas={planoContas}
           mapeamentos={mapeamentos}
+          mapeamentosLoading={loadingMapeamentos}
+          refreshMapeamentos={buscarMapeamentos}
           codigoEmpresa={codigoEmpresa}
           resultados={resultados}
           onProcessar={handleProcessar}

@@ -16,10 +16,19 @@ function toUpperNoAccents(str: string): string {
   return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase().trim();
 }
 
+function normalizeRelatorioName(str: string): string {
+  return toUpperNoAccents(str)
+    .replace(/[–—−]/g, "-")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 interface Props {
   linhas: ApaeRelatorioLinha[];
   planoContas: ApaePlanoContas[];
   mapeamentos: ApaeBancoAplicacao[];
+  mapeamentosLoading?: boolean;
+  refreshMapeamentos?: () => Promise<ApaeBancoAplicacao[]>;
   codigoEmpresa: string;
   resultados: ApaeResultado[];
   onProcessar: (resultados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[]) => Promise<void>;
@@ -28,7 +37,7 @@ interface Props {
   saving: boolean;
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -130,6 +139,26 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   const handleProcessar = async () => {
     setProcessing(true);
     try {
+      const mapeamentosAtual = refreshMapeamentos ? await refreshMapeamentos() : mapeamentos;
+
+      // Build lookup: normalized nome_relatorio → banco_codigo
+      const lookup = new Map<string, string>();
+      const textKeys: string[] = [];
+      for (const m of mapeamentosAtual) {
+        if (!m.nome_relatorio) continue;
+        const key = normalizeRelatorioName(m.nome_relatorio);
+        if (key) {
+          const codigo = String(m.banco_codigo).trim();
+          lookup.set(key, codigo);
+          textKeys.push(key);
+        }
+        const digitsOnly = m.nome_relatorio.replace(/\D/g, "");
+        if (digitsOnly.length >= 3) {
+          lookup.set(`__digits__${digitsOnly}`, String(m.banco_codigo).trim());
+        }
+      }
+      textKeys.sort((a, b) => b.length - a.length);
+
       const resultadosProcessados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] = [];
 
       let lote = 1;
@@ -152,26 +181,27 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
 
         // Match credit account using nome_relatorio from Step 2 mappings
         let contaCreditoCodigo: string | null = null;
-        const contaCreditoNorm = contaCreditoRaw.trim().toLowerCase();
+        const contaCreditoNorm = normalizeRelatorioName(contaCreditoRaw);
 
-        // 1. Try exact match on nome_relatorio
-        const exactMatch = creditoLookup.lookup.get(contaCreditoNorm);
+        // 1) Exact match
+        const exactMatch = lookup.get(contaCreditoNorm);
         if (exactMatch) {
           contaCreditoCodigo = exactMatch;
-        } else {
-          // 2. Try partial match: check if any nome_relatorio is contained in col_c or vice-versa
-          for (const [key, codigo] of creditoLookup.lookup.entries()) {
-            if (key.startsWith("__digits__")) continue;
+        } else if (contaCreditoNorm) {
+          // 2) Partial match (prefer longest key)
+          for (const key of textKeys) {
+            if (key.length < 4) continue;
             if (contaCreditoNorm.includes(key) || key.includes(contaCreditoNorm)) {
-              contaCreditoCodigo = codigo;
+              contaCreditoCodigo = lookup.get(key) || null;
               break;
             }
           }
-          // 3. Fallback: digits-only comparison
+
+          // 3) Fallback: digits-only comparison
           if (!contaCreditoCodigo) {
             const reportDigits = contaCreditoRaw.replace(/\D/g, "");
             if (reportDigits.length >= 3) {
-              for (const [key, codigo] of creditoLookup.lookup.entries()) {
+              for (const [key, codigo] of lookup.entries()) {
                 if (!key.startsWith("__digits__")) continue;
                 const bancoDigits = key.replace("__digits__", "");
                 if (bancoDigits.includes(reportDigits) || reportDigits.includes(bancoDigits)) {
@@ -294,7 +324,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
               <p className="text-muted-foreground mb-4">
                 Clique em "Processar" para gerar os lançamentos
               </p>
-              <Button onClick={handleProcessar} disabled={processing || saving || pares.length === 0}>
+              <Button onClick={handleProcessar} disabled={processing || saving || pares.length === 0 || mapeamentosLoading}>
                 {processing || saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-2" />}
                 Processar Relatório
               </Button>
@@ -302,7 +332,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
           ) : (
             <>
               <div className="flex items-center gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={handleProcessar} disabled={processing || saving}>
+                <Button variant="outline" size="sm" onClick={handleProcessar} disabled={processing || saving || mapeamentosLoading}>
                   {processing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-1" />}
                   Reprocessar
                 </Button>
