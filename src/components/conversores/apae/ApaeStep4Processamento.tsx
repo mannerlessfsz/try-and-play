@@ -133,17 +133,19 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
-        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "37.493-8"
+        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "37493-8"
         let contaCreditoCodigo: string | null = null;
         const dashIdx = contaCreditoRaw.lastIndexOf(" - ");
         const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw.trim();
-        // Normalize: remove dots/spaces for comparison (e.g. "37.493-8" vs "37493-8")
-        const numNorm = numeroConta.replace(/[.\s]/g, "");
-        for (const banco of bancosMapeados) {
-          const descNorm = banco.descricao.replace(/[.\s]/g, "");
-          if (descNorm.includes(numNorm) || numNorm.includes(descNorm.replace(/[^0-9-]/g, ""))) {
-            contaCreditoCodigo = banco.codigo;
-            break;
+        // Keep only digits and hyphens for comparison (strips dots, spaces, etc.)
+        const numDigits = numeroConta.replace(/[^0-9-]/g, "");
+        if (numDigits.length >= 3) {
+          for (const banco of bancosMapeados) {
+            const bancoDigits = banco.descricao.replace(/[^0-9-]/g, "");
+            if (bancoDigits.includes(numDigits) || numDigits.includes(bancoDigits)) {
+              contaCreditoCodigo = banco.codigo;
+              break;
+            }
           }
         }
 
