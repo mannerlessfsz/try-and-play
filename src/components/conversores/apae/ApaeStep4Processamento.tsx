@@ -2,12 +2,12 @@ import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const ITEMS_PER_PAGE = 50;
 
@@ -31,6 +31,7 @@ interface Props {
 export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
+  const buscaDebounced = useDebouncedValue(busca, 250);
   const [pagina, setPagina] = useState(1);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
   const [editados, setEditados] = useState<Record<string, { debito?: string; credito?: string }>>({});
@@ -57,6 +58,10 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   }, [planoContas]);
 
   const bancos = useMemo(() => planoContas.filter(c => c.is_banco), [planoContas]);
+
+  // Pre-compute lightweight option arrays (stable references for memo)
+  const planoOptions = useMemo(() => planoContas.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [planoContas]);
+  const bancoOptions = useMemo(() => bancos.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [bancos]);
 
   const pares = useMemo(() => {
     const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
@@ -90,8 +95,8 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     if (filtroStatus !== "todos") {
       lista = lista.filter((r) => r.status === filtroStatus);
     }
-    if (!busca.trim()) return lista;
-    const termo = busca.toLowerCase();
+    if (!buscaDebounced.trim()) return lista;
+    const termo = buscaDebounced.toLowerCase();
     return lista.filter((r) =>
       r.historico_concatenado?.toLowerCase().includes(termo) ||
       r.conta_debito?.toLowerCase().includes(termo) ||
@@ -100,7 +105,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       r.fornecedor?.toLowerCase().includes(termo) ||
       r.data_pagto?.toLowerCase().includes(termo)
     );
-  }, [resultadosComEdits, busca, filtroStatus]);
+  }, [resultadosComEdits, buscaDebounced, filtroStatus]);
 
   const totalPaginas = Math.ceil(filtrado.length / ITEMS_PER_PAGE);
   const paginado = useMemo(() => {
@@ -289,8 +294,8 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                         resultado={r}
                         lote={loteNum}
                         codigoEmpresa={codigoEmpresa}
-                        planoContas={planoContas}
-                        bancos={bancos}
+                        planoOptions={planoOptions}
+                        bancoOptions={bancoOptions}
                         onUpdateDebito={handleUpdateDebito}
                         onUpdateCredito={handleUpdateCredito}
                       />
