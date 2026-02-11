@@ -34,6 +34,13 @@ export function LancaApaeTab() {
 
   const { mapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
 
+  // Garante que o Step 4 sempre processe com o mapeamento mais recente
+  useEffect(() => {
+    if (step === 4 && sessaoAtiva) {
+      buscarMapeamentos();
+    }
+  }, [step, sessaoAtiva, buscarMapeamentos]);
+
   const sessaoInfo = sessoes.find((s) => s.id === sessaoAtiva);
   const codigoEmpresa = empresaAtiva?.cnpj || empresaAtiva?.nome || "";
 
@@ -285,6 +292,7 @@ export function LancaApaeTab() {
           planoContas={planoContas}
           onToggleBanco={handleToggleBanco}
           onToggleAplicacao={handleToggleAplicacao}
+          onRefreshMapeamentos={buscarMapeamentos}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}
           saving={saving}
