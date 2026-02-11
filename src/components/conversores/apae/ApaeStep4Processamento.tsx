@@ -100,32 +100,39 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const h = par.historico;
         if (!d) continue;
 
-        // Dados brutos do relatório
-        const fornecedor = (d.col_b || "").trim();        // Col B ímpar = Fornecedor
-        const contaDebitoRaw = (d.col_c || "").trim();     // Col C ímpar = Conta débito
-        const centroCusto = (d.col_d || "").trim();        // Col D ímpar = Centro custo
-        const historicoOriginal = (h?.col_b || "").trim(); // Col B par = Histórico
-        const contaCreditoRaw = (d.col_c || "").trim();    // Col C par (linha par) = Conta crédito (banco)
-        const nDoc = (h?.col_e || "").trim();              // Col E par = N° Doc
-        const dataPagto = (d.col_h || "").trim();          // Col H ímpar = Data
-        const valorPago = (d.col_i || "").trim();          // Col I ímpar = Valor
+        // Dados brutos do relatório (d = linha par/even, h = linha ímpar/odd)
+        const fornecedor = (d.col_b || "").trim();         // Col B par = Fornecedor
+        const contaCreditoRaw = (d.col_c || "").trim();    // Col C par = Banco (para conta crédito)
+        const centroCusto = (d.col_d || "").trim();        // Col D par = Centro custo
+        const historicoOriginal = (h?.col_b || "").trim(); // Col B ímpar = Histórico
+        const nDoc = (h?.col_e || "").trim();              // Col E ímpar = N° Doc
+        const dataPagto = (d.col_h || "").trim();          // Col H par = Data
+        const valorPago = (d.col_i || "").trim();          // Col I par = Valor
 
-        // --- Conta Débito: procurar fornecedor (Col B par) no plano de contas ---
+        // --- Conta Débito: procurar fornecedor (Col B) no plano de contas ---
         let contaDebitoCodigo: string | null = null;
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) {
           contaDebitoCodigo = matchDebito.codigo;
         }
 
-        // --- Conta Crédito: procurar col C par (conta pagamento) nas contas banco ---
+        // --- Conta Crédito: procurar Col C (banco) nas contas marcadas como banco ---
         let contaCreditoCodigo: string | null = null;
+        // Tentativa exata
         const matchCredito = bancoByCodigo.get(contaCreditoRaw.toLowerCase()) || bancoByCodigo.get(contaCreditoRaw);
         if (matchCredito) {
           contaCreditoCodigo = matchCredito.codigo;
+        } else {
+          // Tentativa parcial: verificar se algum banco está contido no texto ou vice-versa
+          for (const [key, conta] of bancoByCodigo.entries()) {
+            if (contaCreditoRaw.toLowerCase().includes(key) || key.includes(contaCreditoRaw.toLowerCase())) {
+              contaCreditoCodigo = conta.codigo;
+              break;
+            }
+          }
         }
 
         // --- Histórico concatenado ---
-        // [Fornecedor (Col B odd) + History (Col B even) + Doc # (Col E even, if present) + (CENTRO + Cost Center Col D odd) + PAGO EM + Account (Col C even)]
         const parts: string[] = [fornecedor, historicoOriginal];
         if (nDoc) parts.push(nDoc);
         if (centroCusto) parts.push(`(CENTRO ${centroCusto})`);
@@ -137,7 +144,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         resultadosProcessados.push({
           par_id: par.parId,
           fornecedor,
-          conta_debito: contaDebitoRaw,
+          conta_debito: fornecedor,
           conta_debito_codigo: contaDebitoCodigo,
           centro_custo: centroCusto,
           n_doc: nDoc || null,
