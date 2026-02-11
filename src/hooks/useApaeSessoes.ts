@@ -243,13 +243,23 @@ export function useApaeSessoes() {
 
   // --- Resultados ---
   const buscarResultados = async (sessaoId: string) => {
-    const { data, error } = await supabase
-      .from("apae_resultados")
-      .select("*")
-      .eq("sessao_id", sessaoId)
-      .order("par_id");
-    if (error) throw error;
-    return data as ApaeResultado[];
+    const allRows: ApaeResultado[] = [];
+    const PAGE = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("apae_resultados")
+        .select("*")
+        .eq("sessao_id", sessaoId)
+        .order("par_id")
+        .range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRows.push(...(data as ApaeResultado[]));
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+    return allRows;
   };
 
   const salvarResultados = useMutation({
