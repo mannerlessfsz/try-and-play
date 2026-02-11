@@ -49,10 +49,27 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   }, [planoContas]);
 
   // Only use bank accounts mapped in step 2 (not applications)
-  const bancosMapeados = useMemo(() => {
+  // Build a lookup: nome_relatorio (normalized) → banco.codigo
+  const creditoLookup = useMemo(() => {
     const bancosCodigos = new Set(mapeamentos.map((m) => String(m.banco_codigo).trim()));
-    return planoContas.filter((c) => c.is_banco && bancosCodigos.has(String(c.codigo).trim()));
+    const bancosList = planoContas.filter((c) => c.is_banco && bancosCodigos.has(String(c.codigo).trim()));
+
+    const lookup = new Map<string, string>(); // normalized nome_relatorio → banco.codigo
+    for (const m of mapeamentos) {
+      if (m.nome_relatorio) {
+        // Store both exact and normalized versions
+        lookup.set(m.nome_relatorio.trim().toLowerCase(), m.banco_codigo);
+        // Also store digits-only for fallback
+        const digitsOnly = m.nome_relatorio.replace(/\D/g, "");
+        if (digitsOnly.length >= 3) {
+          lookup.set(`__digits__${digitsOnly}`, m.banco_codigo);
+        }
+      }
+    }
+    return { bancosList, lookup };
   }, [mapeamentos, planoContas]);
+
+  const bancosMapeados = creditoLookup.bancosList;
 
   const bancos = bancosMapeados;
 
@@ -133,21 +150,35 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
-        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "374938"
+        // Match credit account using nome_relatorio from Step 2 mappings
         let contaCreditoCodigo: string | null = null;
-        const dashIdx = contaCreditoRaw.lastIndexOf(" - ");
-        const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw.trim();
+        const contaCreditoNorm = contaCreditoRaw.trim().toLowerCase();
 
-        // Normalize to DIGITS ONLY (ignores dot, spaces, and any hyphen variant)
-        const numDigitsOnly = numeroConta.replace(/\D/g, "");
-
-        if (numDigitsOnly.length >= 3) {
-          for (const banco of bancosMapeados) {
-            const bancoDigitsOnly = (banco.descricao || "").replace(/\D/g, "");
-            // exact or partial matching
-            if (bancoDigitsOnly === numDigitsOnly || bancoDigitsOnly.includes(numDigitsOnly) || numDigitsOnly.includes(bancoDigitsOnly)) {
-              contaCreditoCodigo = banco.codigo;
+        // 1. Try exact match on nome_relatorio
+        const exactMatch = creditoLookup.lookup.get(contaCreditoNorm);
+        if (exactMatch) {
+          contaCreditoCodigo = exactMatch;
+        } else {
+          // 2. Try partial match: check if any nome_relatorio is contained in col_c or vice-versa
+          for (const [key, codigo] of creditoLookup.lookup.entries()) {
+            if (key.startsWith("__digits__")) continue;
+            if (contaCreditoNorm.includes(key) || key.includes(contaCreditoNorm)) {
+              contaCreditoCodigo = codigo;
               break;
+            }
+          }
+          // 3. Fallback: digits-only comparison
+          if (!contaCreditoCodigo) {
+            const reportDigits = contaCreditoRaw.replace(/\D/g, "");
+            if (reportDigits.length >= 3) {
+              for (const [key, codigo] of creditoLookup.lookup.entries()) {
+                if (!key.startsWith("__digits__")) continue;
+                const bancoDigits = key.replace("__digits__", "");
+                if (bancoDigits.includes(reportDigits) || reportDigits.includes(bancoDigits)) {
+                  contaCreditoCodigo = codigo;
+                  break;
+                }
+              }
             }
           }
         }
