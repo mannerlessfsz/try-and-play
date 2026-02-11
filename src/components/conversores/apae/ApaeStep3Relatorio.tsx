@@ -28,34 +28,27 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
   const [pagina, setPagina] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Agrupa linhas em pares para exibição
-  const pares = useMemo(() => {
-    const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
-    linhas.forEach((l) => {
-      if (l.par_id == null) return;
-      if (!map[l.par_id]) map[l.par_id] = {};
-      if (l.tipo_linha === "dados") map[l.par_id].dados = l;
-      else map[l.par_id].historico = l;
-    });
-    return Object.entries(map)
-      .map(([parId, pair]) => ({ parId: Number(parId), ...pair }))
-      .sort((a, b) => a.parId - b.parId);
-  }, [linhas]);
+  // Exibir todas as linhas na ordem original, sem agrupar
+  const ordenadas = useMemo(
+    () => [...linhas].sort((a, b) => a.linha_numero - b.linha_numero),
+    [linhas]
+  );
 
   const filtrado = useMemo(() => {
-    if (!busca.trim()) return pares;
+    if (!busca.trim()) return ordenadas;
     const termo = busca.toLowerCase();
-    return pares.filter((p) => {
-      const d = p.dados;
-      const h = p.historico;
-      return (
-        d?.col_b?.toLowerCase().includes(termo) ||
-        d?.col_c?.toLowerCase().includes(termo) ||
-        h?.col_b?.toLowerCase().includes(termo) ||
-        h?.col_c?.toLowerCase().includes(termo)
-      );
-    });
-  }, [pares, busca]);
+    return ordenadas.filter((l) =>
+      l.col_a?.toLowerCase().includes(termo) ||
+      l.col_b?.toLowerCase().includes(termo) ||
+      l.col_c?.toLowerCase().includes(termo) ||
+      l.col_d?.toLowerCase().includes(termo) ||
+      l.col_e?.toLowerCase().includes(termo) ||
+      l.col_f?.toLowerCase().includes(termo) ||
+      l.col_g?.toLowerCase().includes(termo) ||
+      l.col_h?.toLowerCase().includes(termo) ||
+      l.col_i?.toLowerCase().includes(termo)
+    );
+  }, [ordenadas, busca]);
 
   const totalPaginas = Math.ceil(filtrado.length / ITEMS_PER_PAGE);
   const paginado = useMemo(() => {
@@ -84,7 +77,6 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
         const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim() || null;
         parCounter++;
 
-        // Linha de dados (ímpar)
         resultado.push({
           linha_numero: i + 1,
           tipo_linha: "dados",
@@ -100,7 +92,6 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
           col_i: col(oddRow, 8),
         });
 
-        // Linha de histórico (par)
         if (evenRow) {
           resultado.push({
             linha_numero: i + 2,
@@ -124,7 +115,7 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
       await onSalvarRelatorio(resultado, file.name);
       setPagina(1);
       setBusca("");
-      toast.success(`${Math.floor(resultado.length / 2)} registro(s) importados!`);
+      toast.success(`${resultado.length} linha(s) importadas (${Math.floor(resultado.length / 2)} pares)!`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao processar arquivo");
     } finally {
@@ -139,10 +130,10 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <FileText className="w-5 h-5 text-primary" />
-            Passo 3: Relatório Original
+            Passo 3: Relatório Original (Leitura Bruta)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Carregue o relatório de contas a pagar APAE (.xls, .xlsx)
+            Visualize exatamente como o relatório foi lido. O processamento será feito no Passo 4.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -159,9 +150,10 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
           ) : (
             <>
               <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="secondary">{relatorioArquivo}</Badge>
-                  <Badge>{pares.length} registro(s)</Badge>
+                  <Badge>{ordenadas.length} linha(s)</Badge>
+                  <Badge variant="outline">{new Set(ordenadas.map(l => l.par_id)).size} par(es)</Badge>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={loading || saving}>
@@ -178,41 +170,54 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por fornecedor, conta..."
+                  placeholder="Buscar em qualquer coluna..."
                   value={busca}
                   onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
                   className="pl-9"
                 />
               </div>
 
-              <ScrollArea className="max-h-[450px]">
-                <div className="min-w-[800px]">
+              <ScrollArea className="max-h-[70vh]">
+                <div className="min-w-[900px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Fornecedor</TableHead>
-                        <TableHead>Conta Débito</TableHead>
-                        <TableHead>Centro Custo</TableHead>
-                        <TableHead>Valor</TableHead>
-                        <TableHead>Data Pagto</TableHead>
-                        <TableHead>Valor Pago</TableHead>
-                        <TableHead className="min-w-[200px]">Histórico (linha par)</TableHead>
-                        <TableHead>Conta (par)</TableHead>
+                        <TableHead className="w-12">Linha</TableHead>
+                        <TableHead className="w-14">Tipo</TableHead>
+                        <TableHead className="w-10">Par</TableHead>
+                        <TableHead>Col A</TableHead>
+                        <TableHead>Col B</TableHead>
+                        <TableHead>Col C</TableHead>
+                        <TableHead>Col D</TableHead>
+                        <TableHead>Col E</TableHead>
+                        <TableHead>Col F</TableHead>
+                        <TableHead>Col G</TableHead>
+                        <TableHead>Col H</TableHead>
+                        <TableHead>Col I</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {paginado.map((par) => (
-                        <TableRow key={par.parId}>
-                          <TableCell className="text-xs text-muted-foreground">{par.parId}</TableCell>
-                          <TableCell className="text-sm font-medium max-w-[150px] truncate">{par.dados?.col_b}</TableCell>
-                          <TableCell className="text-sm">{par.dados?.col_c}</TableCell>
-                          <TableCell className="text-sm">{par.dados?.col_d}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{par.dados?.col_g}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{par.dados?.col_h}</TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">{par.dados?.col_i}</TableCell>
-                          <TableCell className="text-xs max-w-[200px] truncate">{par.historico?.col_b}</TableCell>
-                          <TableCell className="text-xs">{par.historico?.col_c}</TableCell>
+                      {paginado.map((l) => (
+                        <TableRow
+                          key={l.id}
+                          className={l.tipo_linha === "dados" ? "bg-primary/5" : "bg-muted/30"}
+                        >
+                          <TableCell className="text-xs text-muted-foreground font-mono">{l.linha_numero}</TableCell>
+                          <TableCell>
+                            <Badge variant={l.tipo_linha === "dados" ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+                              {l.tipo_linha === "dados" ? "Ímpar" : "Par"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-xs font-mono">{l.par_id}</TableCell>
+                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_a || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[120px] truncate">{l.col_b || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_c || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_d || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_e || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_f || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_g || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_h || "—"}</TableCell>
+                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_i || "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -223,7 +228,7 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
               {totalPaginas > 1 && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-muted-foreground">
-                    {filtrado.length} par(es) — Página {pagina}/{totalPaginas}
+                    {filtrado.length} linha(s) — Página {pagina}/{totalPaginas}
                   </span>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
