@@ -74,5 +74,65 @@ export function useApaeBancoAplicacoes(sessaoId: string | null) {
     setMapeamentos((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  return { mapeamentos, loading, buscar, adicionar, atualizar, remover };
+  /** Sincroniza mapeamentos com a lista de bancos atual.
+   *  - Busca do DB diretamente (evita stale state)
+   *  - Adiciona faltantes, remove os que não são mais banco
+   *  - Retorna o total final
+   */
+  const sincronizar = useCallback(async (bancoCodigos: string[]): Promise<number> => {
+    if (!sessaoId) return 0;
+    setLoading(true);
+    try {
+      // 1. Fetch current from DB
+      const { data: existentes, error: fetchErr } = await supabase
+        .from("apae_banco_aplicacoes")
+        .select("*")
+        .eq("sessao_id", sessaoId);
+      if (fetchErr) throw fetchErr;
+
+      const existing = (existentes as ApaeBancoAplicacao[]) || [];
+      const existingSet = new Set(existing.map((m) => m.banco_codigo));
+      const desiredSet = new Set(bancoCodigos);
+
+      // 2. Add missing
+      const toAdd = bancoCodigos.filter((c) => !existingSet.has(c));
+      if (toAdd.length > 0) {
+        const rows = toAdd.map((banco_codigo) => ({ sessao_id: sessaoId, banco_codigo }));
+        const { error: insertErr } = await supabase
+          .from("apae_banco_aplicacoes")
+          .insert(rows);
+        if (insertErr) throw insertErr;
+      }
+
+      // 3. Remove no longer banco
+      const toRemove = existing.filter((m) => !desiredSet.has(m.banco_codigo));
+      if (toRemove.length > 0) {
+        const ids = toRemove.map((m) => m.id);
+        const { error: delErr } = await supabase
+          .from("apae_banco_aplicacoes")
+          .delete()
+          .in("id", ids);
+        if (delErr) throw delErr;
+      }
+
+      // 4. Re-fetch final state
+      const { data: final, error: finalErr } = await supabase
+        .from("apae_banco_aplicacoes")
+        .select("*")
+        .eq("sessao_id", sessaoId)
+        .order("banco_codigo");
+      if (finalErr) throw finalErr;
+
+      const result = (final as ApaeBancoAplicacao[]) || [];
+      setMapeamentos(result);
+      return result.length;
+    } catch (e: any) {
+      toast.error("Erro ao sincronizar: " + e.message);
+      return 0;
+    } finally {
+      setLoading(false);
+    }
+  }, [sessaoId]);
+
+  return { mapeamentos, loading, buscar, adicionar, atualizar, remover, sincronizar };
 }
