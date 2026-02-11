@@ -225,12 +225,12 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-10">Lote</TableHead>
                         <TableHead className="w-24">Data</TableHead>
                         <TableHead>Conta Débito</TableHead>
                         <TableHead>Conta Crédito</TableHead>
                         <TableHead className="w-24">Valor</TableHead>
                         <TableHead className="min-w-[250px]">Histórico</TableHead>
+                        <TableHead className="w-10">Lote</TableHead>
                         <TableHead className="w-28">Cód. Empresa</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -239,7 +239,6 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                         const loteNum = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
                         return (
                           <TableRow key={r.id} className={r.status === "pendente" ? "bg-destructive/5" : ""}>
-                            <TableCell className="text-xs font-mono">{loteNum}</TableCell>
                             <TableCell className="text-xs whitespace-nowrap">{r.data_pagto || "—"}</TableCell>
                             <TableCell className="text-xs">
                               {r.conta_debito_codigo ? (
@@ -259,6 +258,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                             <TableCell className="text-xs max-w-[300px]">
                               <span className="break-words">{r.historico_concatenado}</span>
                             </TableCell>
+                            <TableCell className="text-xs font-mono">{loteNum}</TableCell>
                             <TableCell className="text-xs font-mono">{codigoEmpresa}</TableCell>
                           </TableRow>
                         );
