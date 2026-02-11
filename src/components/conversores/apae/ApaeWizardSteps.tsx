@@ -1,15 +1,14 @@
 import { cn } from "@/lib/utils";
-import { Check, FileSpreadsheet, Building2, FileText, BookOpen, Settings2, Download } from "lucide-react";
+import { Check, FileSpreadsheet, Building2, FileText, Settings2, Download } from "lucide-react";
 
-export type ApaeStep = 1 | 2 | 3 | 4 | 5 | 6;
+export type ApaeStep = 1 | 2 | 3 | 4 | 5;
 
 const steps = [
   { id: 1 as const, title: "Plano de Contas", icon: FileSpreadsheet },
   { id: 2 as const, title: "Contas de Banco", icon: Building2 },
   { id: 3 as const, title: "Relatório", icon: FileText },
-  { id: 4 as const, title: "Razão", icon: BookOpen },
-  { id: 5 as const, title: "Processamento", icon: Settings2 },
-  { id: 6 as const, title: "Conferência", icon: Download },
+  { id: 4 as const, title: "Processamento", icon: Settings2 },
+  { id: 5 as const, title: "Conferência", icon: Download },
 ];
 
 interface Props {
