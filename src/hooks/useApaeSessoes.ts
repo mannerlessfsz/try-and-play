@@ -208,13 +208,23 @@ export function useApaeSessoes() {
 
   // --- Relatório ---
   const buscarRelatorioLinhas = async (sessaoId: string) => {
-    const { data, error } = await supabase
-      .from("apae_relatorio_linhas")
-      .select("*")
-      .eq("sessao_id", sessaoId)
-      .order("linha_numero");
-    if (error) throw error;
-    return data as ApaeRelatorioLinha[];
+    const allRows: ApaeRelatorioLinha[] = [];
+    const PAGE = 1000;
+    let offset = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from("apae_relatorio_linhas")
+        .select("*")
+        .eq("sessao_id", sessaoId)
+        .order("linha_numero")
+        .range(offset, offset + PAGE - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allRows.push(...(data as ApaeRelatorioLinha[]));
+      if (data.length < PAGE) break;
+      offset += PAGE;
+    }
+    return allRows;
   };
 
   const salvarRelatorioLinhas = useMutation({
