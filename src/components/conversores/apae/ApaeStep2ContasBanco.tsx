@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Link2, Check, Save } from "lucide-react";
+import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Save, Landmark } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { toast } from "sonner";
@@ -27,40 +27,26 @@ interface Props {
 export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onNext, onBack, saving }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
-  const [confirmado, setConfirmado] = useState(false);
   const [syncingMapeamentos, setSyncingMapeamentos] = useState(false);
 
   const { mapeamentos, loading: loadingMap, buscar, atualizar, sincronizar } = useApaeBancoAplicacoes(sessaoId);
 
   useEffect(() => { buscar(); }, [buscar]);
 
-  // Contas marcadas como banco, na ordem do plano de contas
-  const contasBanco = useMemo(
-    () => planoContas.filter((c) => c.is_banco),
-    [planoContas]
-  );
+  const contasBanco = useMemo(() => planoContas.filter((c) => c.is_banco), [planoContas]);
+  const contasAplicacao = useMemo(() => planoContas.filter((c) => c.is_aplicacao), [planoContas]);
+  const contasBancoAplicacao = useMemo(() => planoContas.filter((c) => c.is_banco || c.is_aplicacao), [planoContas]);
 
-  // Contas marcadas como aplicação, na ordem do plano de contas
-  const contasAplicacao = useMemo(
-    () => planoContas.filter((c) => c.is_aplicacao),
-    [planoContas]
-  );
-
-  const contasBancoAplicacao = useMemo(
-    () => planoContas.filter((c) => c.is_banco || c.is_aplicacao),
-    [planoContas]
-  );
-
-  // Map codigo -> conta for labels
-  const contasByCodigo = useMemo(() => {
-    const map = new Map<string, ApaePlanoContas>();
-    planoContas.forEach((c) => map.set(c.codigo, c));
+  // Map banco_codigo -> mapeamento row from DB
+  const mapeamentoByBanco = useMemo(() => {
+    const map = new Map<string, typeof mapeamentos[0]>();
+    mapeamentos.forEach((m) => map.set(m.banco_codigo, m));
     return map;
-  }, [planoContas]);
+  }, [mapeamentos]);
 
   // Collect all aplicacao codes already used across all mapeamentos
   const aplicacoesUsadas = useMemo(() => {
-    const used = new Map<string, string>(); // aplicacao_codigo -> banco_codigo
+    const used = new Map<string, string>();
     for (const m of mapeamentos) {
       for (const col of ["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const) {
         const val = m[col];
@@ -72,7 +58,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     return used;
   }, [mapeamentos]);
 
-  // Busca no plano de contas completo para marcar
+  // Search/pagination for plano de contas
   const filtradoPlano = useMemo(() => {
     if (!busca.trim()) return planoContas;
     const termo = busca.toLowerCase();
@@ -90,60 +76,46 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     return filtradoPlano.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtradoPlano, pagina]);
 
-  // Sync mapeamentos: batch operation via hook
+  // Sync: save all banco codes to DB
   const syncMapeamentos = useCallback(async () => {
     setSyncingMapeamentos(true);
     const codigos = contasBanco.map((c) => c.codigo);
     const total = await sincronizar(codigos);
     if (total > 0) {
-      setConfirmado(true);
       toast.success(`${total} banco(s) sincronizados!`);
     }
     setSyncingMapeamentos(false);
   }, [contasBanco, sincronizar]);
 
-  const handleToggleBancoWrapped = async (id: string, value: boolean) => {
-    setConfirmado(false);
-    await onToggleBanco(id, value);
-  };
-
-  const handleToggleAplicacaoWrapped = async (id: string, value: boolean) => {
-    setConfirmado(false);
-    await onToggleAplicacao(id, value);
-  };
-
   const handleAtualizarAplicacao = async (mapeamentoId: string, col: string, value: string, bancoCodigo: string) => {
-    // Check if this aplicacao is already used by another banco
     if (value !== "0") {
       const usadaPor = aplicacoesUsadas.get(value);
       if (usadaPor && usadaPor !== bancoCodigo) {
-        const contaUsada = contasByCodigo.get(value);
-        const bancoUsado = contasByCodigo.get(usadaPor);
-        toast.error(`A aplicação "${contaUsada?.descricao || value}" já está vinculada ao banco "${bancoUsado?.descricao || usadaPor}"`);
+        const contaUsada = contasAplicacao.find(c => c.codigo === value);
+        const bancoUsado = contasBanco.find(c => c.codigo === usadaPor);
+        toast.error(`"${contaUsada?.descricao || value}" já vinculada ao banco "${bancoUsado?.descricao || usadaPor}"`);
         return;
       }
     }
     await atualizar(mapeamentoId, { [col]: value });
   };
 
-  const getContaLabel = (codigo: string) => {
-    if (!codigo || codigo === "0") return "— Nenhuma";
-    const conta = contasByCodigo.get(codigo);
-    return conta ? `${codigo} - ${conta.descricao}` : codigo;
-  };
-
-  // Get available aplicacoes for a specific select (exclude already used by other bancos)
+  // Get available aplicacoes for a specific select
   const getAplicacoesDisponiveis = (bancoCodigo: string, currentValue: string) => {
     return contasAplicacao.filter((c) => {
-      if (c.codigo === currentValue) return true; // always show current selection
+      if (c.codigo === currentValue) return true;
       const usadaPor = aplicacoesUsadas.get(c.codigo);
-      return !usadaPor || usadaPor === bancoCodigo; // available if not used or used by same banco
+      return !usadaPor || usadaPor === bancoCodigo;
     });
   };
 
+  // Check if a banco has a saved mapeamento row
+  const bancosSemMapeamento = contasBanco.filter(c => !mapeamentoByBanco.has(c.codigo));
+  const temMapeamentosDesatualizados = bancosSemMapeamento.length > 0;
+
   return (
     <div className="space-y-4">
-      {/* Seção 1: Buscar e marcar contas como banco ou aplicação */}
+      {/* Seção 1: Marcar contas */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -187,13 +159,13 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
                     <TableCell className="text-center">
                       <Checkbox
                         checked={conta.is_banco}
-                        onCheckedChange={(v) => handleToggleBancoWrapped(conta.id, !!v)}
+                        onCheckedChange={(v) => onToggleBanco(conta.id, !!v)}
                       />
                     </TableCell>
                     <TableCell className="text-center">
                       <Checkbox
                         checked={conta.is_aplicacao}
-                        onCheckedChange={(v) => handleToggleAplicacaoWrapped(conta.id, !!v)}
+                        onCheckedChange={(v) => onToggleAplicacao(conta.id, !!v)}
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{conta.codigo}</TableCell>
@@ -223,22 +195,17 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
         </CardContent>
       </Card>
 
-      {/* Seção 2: Mapeamento Banco → Aplicações */}
+      {/* Seção 2: Mapeamento Banco → Aplicações como CARDS */}
       {contasBanco.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Link2 className="w-5 h-5 text-primary" />
-              Mapeamento Banco → Aplicações
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Clique em "Confirmar e Sincronizar" para gerar as linhas de cada banco. Depois vincule as aplicações.
-              Uma aplicação só pode ser vinculada a um banco.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Landmark className="w-5 h-5 text-primary" />
+                Mapeamento Banco → Aplicações ({contasBanco.length})
+              </CardTitle>
               <Button
+                size="sm"
                 onClick={syncMapeamentos}
                 disabled={syncingMapeamentos || saving}
               >
@@ -247,72 +214,76 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
                 ) : (
                   <Save className="w-4 h-4 mr-2" />
                 )}
-                Confirmar e Sincronizar ({contasBanco.length} banco(s))
+                {temMapeamentosDesatualizados
+                  ? `Salvar Mapeamento (${bancosSemMapeamento.length} novo(s))`
+                  : "Salvar Mapeamento"}
               </Button>
-              {confirmado && (
-                <Badge variant="default" className="bg-green-600 text-white">
-                  <Check className="w-3 h-3 mr-1" /> Confirmado
-                </Badge>
-              )}
             </div>
+            <p className="text-sm text-muted-foreground">
+              Cada banco abaixo mostra até 5 aplicações. Uma aplicação só pode pertencer a um banco.
+              {temMapeamentosDesatualizados && (
+                <span className="text-destructive font-medium ml-1">
+                  Clique em "Salvar Mapeamento" para sincronizar {bancosSemMapeamento.length} banco(s) novo(s).
+                </span>
+              )}
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {contasBanco.map((banco) => {
+                const mapeamento = mapeamentoByBanco.get(banco.codigo);
+                const hasMapeamento = !!mapeamento;
 
-            {loadingMap || syncingMapeamentos ? (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-5 h-5 animate-spin" />
-              </div>
-            ) : mapeamentos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Clique em "Confirmar e Sincronizar" para gerar as linhas de mapeamento.
-              </p>
-            ) : (
-              <ScrollArea className="max-h-[70vh]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-40">Banco</TableHead>
-                      <TableHead>Aplicação 1</TableHead>
-                      <TableHead>Aplicação 2</TableHead>
-                      <TableHead>Aplicação 3</TableHead>
-                      <TableHead>Aplicação 4</TableHead>
-                      <TableHead>Aplicação 5</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {mapeamentos.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="font-mono text-xs font-medium whitespace-normal">
-                          {getContaLabel(m.banco_codigo)}
-                        </TableCell>
-                        {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col) => {
-                          const currentVal = m[col] || "0";
-                          const disponiveis = getAplicacoesDisponiveis(m.banco_codigo, currentVal);
+                return (
+                  <div
+                    key={banco.id}
+                    className={`rounded-lg border p-3 space-y-2 ${
+                      hasMapeamento ? "bg-card border-border" : "bg-muted/30 border-dashed border-muted-foreground/30"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Landmark className="w-4 h-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono text-muted-foreground">{banco.codigo}</p>
+                        <p className="text-sm font-medium truncate">{banco.descricao}</p>
+                      </div>
+                    </div>
+
+                    {hasMapeamento ? (
+                      <div className="space-y-1.5">
+                        {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col, idx) => {
+                          const currentVal = mapeamento[col] || "0";
+                          const disponiveis = getAplicacoesDisponiveis(banco.codigo, currentVal);
                           return (
-                            <TableCell key={col}>
-                              <Select
-                                value={currentVal}
-                                onValueChange={(v) => handleAtualizarAplicacao(m.id, col, v, m.banco_codigo)}
-                              >
-                                <SelectTrigger className="h-8 text-xs">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent className="max-h-[300px]">
-                                  <SelectItem value="0">— Nenhuma</SelectItem>
-                                  {disponiveis.map((c) => (
-                                    <SelectItem key={c.codigo} value={c.codigo}>
-                                      {c.codigo} - {c.descricao}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
+                            <Select
+                              key={col}
+                              value={currentVal}
+                              onValueChange={(v) => handleAtualizarAplicacao(mapeamento.id, col, v, banco.codigo)}
+                            >
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder={`Aplicação ${idx + 1}`} />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[300px]">
+                                <SelectItem value="0">— Nenhuma</SelectItem>
+                                {disponiveis.map((c) => (
+                                  <SelectItem key={c.codigo} value={c.codigo}>
+                                    {c.codigo} - {c.descricao}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           );
                         })}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </ScrollArea>
-            )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic">
+                        Salve o mapeamento para vincular aplicações
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}
