@@ -339,7 +339,16 @@ export function LancaApaeTab() {
         <ApaeStep5Conferencia
           resultados={resultados}
           codigoEmpresa={codigoEmpresa}
+          sessaoStatus={sessaoInfo?.status || "em_andamento"}
           onBack={() => setStep(4)}
+          onEncerrarSessao={async () => {
+            if (!sessaoAtiva) return;
+            await atualizarSessao.mutateAsync({ id: sessaoAtiva, status: "concluido" });
+          }}
+          onReabrirSessao={async () => {
+            if (!sessaoAtiva) return;
+            await atualizarSessao.mutateAsync({ id: sessaoAtiva, status: "em_andamento" });
+          }}
         />
       )}
     </div>

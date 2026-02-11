@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown } from "lucide-react";
+import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import type { ApaeResultado } from "@/hooks/useApaeSessoes";
 
@@ -15,9 +15,12 @@ interface Props {
   resultados: ApaeResultado[];
   codigoEmpresa: string;
   onBack: () => void;
+  sessaoStatus: string;
+  onEncerrarSessao: () => Promise<void>;
+  onReabrirSessao: () => Promise<void>;
 }
 
-export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack }: Props) {
+export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessaoStatus, onEncerrarSessao, onReabrirSessao }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
@@ -42,7 +45,7 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack }: Prop
     return filtrado.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtrado, pagina]);
 
-  const handleExportar = () => {
+  const handleExportar = async () => {
     if (resultados.length === 0) return;
 
     const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote;Código Empresa";
@@ -71,6 +74,10 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack }: Prop
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast.success("Arquivo CSV exportado!");
+    // Encerrar sessão após exportar
+    if (sessaoStatus !== "concluido") {
+      await onEncerrarSessao();
+    }
   };
 
   return (
@@ -172,8 +179,22 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack }: Prop
         </CardContent>
       </Card>
 
+      {sessaoStatus === "concluido" && (
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Lock className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">Sessão encerrada — CSV exportado com sucesso</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={onReabrirSessao}>
+              <Unlock className="w-4 h-4 mr-2" /> Reabrir para edição
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
+        <Button variant="outline" onClick={onBack} disabled={sessaoStatus === "concluido"}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
       </div>
