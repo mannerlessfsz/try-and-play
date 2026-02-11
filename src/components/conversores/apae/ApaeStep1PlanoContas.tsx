@@ -143,7 +143,7 @@ export function ApaeStep1PlanoContas({ planoContas, planoContasArquivo, onSalvar
                 />
               </div>
 
-              <ScrollArea className="max-h-[400px]">
+              <ScrollArea className="max-h-[70vh]">
                 <Table>
                   <TableHeader>
                     <TableRow>

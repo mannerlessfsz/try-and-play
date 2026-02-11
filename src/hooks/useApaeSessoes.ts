@@ -147,13 +147,27 @@ export function useApaeSessoes() {
 
   // --- Plano de Contas ---
   const buscarPlanoContas = async (sessaoId: string) => {
-    const { data, error } = await supabase
-      .from("apae_plano_contas")
-      .select("*")
-      .eq("sessao_id", sessaoId)
-      .order("codigo");
-    if (error) throw error;
-    return data as ApaePlanoContas[];
+    const allData: ApaePlanoContas[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("apae_plano_contas")
+        .select("*")
+        .eq("sessao_id", sessaoId)
+        .order("ordem", { ascending: true })
+        .range(offset, offset + batchSize - 1);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allData.push(...(data as ApaePlanoContas[]));
+        offset += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    return allData;
   };
 
   const salvarPlanoContas = useMutation({
@@ -161,12 +175,13 @@ export function useApaeSessoes() {
       // Limpar antigos
       await supabase.from("apae_plano_contas").delete().eq("sessao_id", sessaoId);
       // Inserir novos
-      const rows = contas.map((c) => ({
+      const rows = contas.map((c, idx) => ({
         sessao_id: sessaoId,
         codigo: c.codigo,
         descricao: c.descricao,
         classificacao: c.classificacao || null,
         cnpj: c.cnpj || "00000000000000",
+        ordem: idx,
       }));
       // Insert em lotes de 500
       for (let i = 0; i < rows.length; i += 500) {
