@@ -4,11 +4,11 @@ import { Check, FileSpreadsheet, Building2, FileText, Settings2, Download } from
 export type ApaeStep = 1 | 2 | 3 | 4 | 5;
 
 const steps = [
-  { id: 1 as const, title: "Plano de Contas", icon: FileSpreadsheet },
-  { id: 2 as const, title: "Contas de Banco", icon: Building2 },
-  { id: 3 as const, title: "Relatório", icon: FileText },
-  { id: 4 as const, title: "Processamento", icon: Settings2 },
-  { id: 5 as const, title: "Conferência", icon: Download },
+  { id: 1 as const, label: "Plano", icon: FileSpreadsheet },
+  { id: 2 as const, label: "Bancos", icon: Building2 },
+  { id: 3 as const, label: "Relatório", icon: FileText },
+  { id: 4 as const, label: "Processar", icon: Settings2 },
+  { id: 5 as const, label: "Exportar", icon: Download },
 ];
 
 interface Props {
@@ -19,7 +19,7 @@ interface Props {
 
 export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
   return (
-    <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-2">
+    <div className="flex items-center gap-0.5 mb-4 overflow-x-auto">
       {steps.map((step, idx) => {
         const isActive = current === step.id;
         const isDone = current > step.id;
@@ -29,21 +29,21 @@ export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
         return (
           <div key={step.id} className="flex items-center">
             {idx > 0 && (
-              <div className={cn("w-8 h-0.5 mx-1", isDone ? "bg-primary" : "bg-muted")} />
+              <div className={cn("w-6 h-px mx-0.5", isDone ? "bg-primary" : "bg-muted")} />
             )}
             <button
               onClick={() => canClick && onStepClick(step.id)}
               disabled={!canClick}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                 isActive && "bg-primary text-primary-foreground shadow-sm",
                 isDone && !isActive && "bg-primary/10 text-primary",
                 !isActive && !isDone && canClick && "hover:bg-muted text-muted-foreground",
                 !canClick && !isActive && !isDone && "text-muted-foreground/50 cursor-not-allowed"
               )}
             >
-              <Icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{step.title}</span>
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{step.label}</span>
             </button>
           </div>
         );

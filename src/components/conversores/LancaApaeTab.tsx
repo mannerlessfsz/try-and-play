@@ -264,12 +264,12 @@ export function LancaApaeTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="sm" onClick={handleVoltarLista}>
-          ← Voltar às sessões
+        <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleVoltarLista}>
+          ← Sessões
         </Button>
-        <span className="text-sm text-muted-foreground">{sessaoInfo?.nome_sessao}</span>
+        <span className="text-xs text-muted-foreground">{sessaoInfo?.nome_sessao}</span>
       </div>
 
       <ApaeWizardSteps current={step} onStepClick={setStep} canGoTo={canGoTo} />
