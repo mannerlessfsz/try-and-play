@@ -359,45 +359,41 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
             <Settings2 className="w-4 h-4 text-primary" />
             <span className="text-sm font-semibold">Processamento</span>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Stats pills with glow */}
+          <div className="flex items-center gap-1.5 flex-wrap">
             <button
               onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "todos" ? "bg-muted-foreground text-background ring-2 ring-muted-foreground/50" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                filtroStatus === "todos"
+                  ? "bg-[hsl(var(--cyan)/0.2)] text-[hsl(var(--cyan))] ring-1 ring-[hsl(var(--cyan)/0.4)] shadow-[0_0_10px_hsl(var(--cyan)/0.15)]"
+                  : "bg-muted/60 text-muted-foreground hover:bg-muted"
+              }`}
             >
               {resultadosComEdits.length} total
             </button>
-            <button
-              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
-            >
-              {pares.length} par(es)
-            </button>
-            <button
-              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
-            >
-              {planoContas.length} contas
-            </button>
-            <button
-              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
-              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
-            >
-              {bancos.length} banco(s)
-            </button>
+            <span className="text-[10px] font-mono text-muted-foreground/40">{pares.length}p · {planoContas.length}c · {bancos.length}b</span>
             {resultadosComEdits.length > 0 && (
               <>
                 <button
                   onClick={() => { setFiltroStatus(filtroStatus === "vinculado" ? "todos" : "vinculado"); setPagina(1); }}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "vinculado" ? "bg-emerald-500 text-white ring-2 ring-emerald-500/50 scale-105" : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"}`}
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                    filtroStatus === "vinculado"
+                      ? "bg-emerald-500/25 text-emerald-300 ring-1 ring-emerald-500/40 shadow-[0_0_10px_hsl(160_100%_50%/0.15)]"
+                      : "bg-emerald-500/10 text-emerald-400/70 hover:bg-emerald-500/20"
+                  }`}
                 >
-                  {vinculados} vinculado(s)
+                  ✓ {vinculados}
                 </button>
                 {pendentes > 0 && (
                   <button
                     onClick={() => { setFiltroStatus(filtroStatus === "pendente" ? "todos" : "pendente"); setPagina(1); }}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "pendente" ? "bg-rose-500 text-white ring-2 ring-rose-500/50 scale-105" : "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"}`}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                      filtroStatus === "pendente"
+                        ? "bg-rose-500/25 text-rose-300 ring-1 ring-rose-500/40 shadow-[0_0_10px_hsl(0_85%_55%/0.15)]"
+                        : "bg-rose-500/10 text-rose-400/70 hover:bg-rose-500/20"
+                    }`}
                   >
-                    {pendentes} pendente(s)
+                    ⚠ {pendentes}
                   </button>
                 )}
               </>

@@ -177,12 +177,18 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
       </Card>
 
       {sessaoStatus === "concluido" && (
-        <div className="flex items-center justify-between rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
-          <div className="flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="text-xs font-medium text-emerald-700">Sessão encerrada</span>
+        <div className="glass rounded-xl px-4 py-2.5 flex items-center justify-between border-emerald-500/20 shadow-[0_0_15px_hsl(160_100%_50%/0.05)]">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_hsl(160_100%_50%/0.5)] animate-pulse" />
+            <Lock className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-xs font-medium text-emerald-300">Sessão encerrada</span>
           </div>
-          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onReabrirSessao}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+            onClick={onReabrirSessao}
+          >
             <Unlock className="w-3 h-3 mr-1" /> Reabrir
           </Button>
         </div>
