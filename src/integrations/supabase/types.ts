@@ -133,6 +133,7 @@ export type Database = {
       apae_plano_contas: {
         Row: {
           classificacao: string | null
+          cnpj: string | null
           codigo: string
           created_at: string
           descricao: string
@@ -143,6 +144,7 @@ export type Database = {
         }
         Insert: {
           classificacao?: string | null
+          cnpj?: string | null
           codigo: string
           created_at?: string
           descricao: string
@@ -153,6 +155,7 @@ export type Database = {
         }
         Update: {
           classificacao?: string | null
+          cnpj?: string | null
           codigo?: string
           created_at?: string
           descricao?: string

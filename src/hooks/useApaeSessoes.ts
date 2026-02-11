@@ -24,6 +24,7 @@ export interface ApaePlanoContas {
   codigo: string;
   descricao: string;
   classificacao: string | null;
+  cnpj: string;
   is_banco: boolean;
   is_aplicacao: boolean;
   created_at: string;
@@ -156,7 +157,7 @@ export function useApaeSessoes() {
   };
 
   const salvarPlanoContas = useMutation({
-    mutationFn: async ({ sessaoId, contas }: { sessaoId: string; contas: { codigo: string; descricao: string; classificacao?: string }[] }) => {
+    mutationFn: async ({ sessaoId, contas }: { sessaoId: string; contas: { codigo: string; descricao: string; classificacao?: string; cnpj?: string }[] }) => {
       // Limpar antigos
       await supabase.from("apae_plano_contas").delete().eq("sessao_id", sessaoId);
       // Inserir novos
@@ -165,6 +166,7 @@ export function useApaeSessoes() {
         codigo: c.codigo,
         descricao: c.descricao,
         classificacao: c.classificacao || null,
+        cnpj: c.cnpj || "00000000000000",
       }));
       // Insert em lotes de 500
       for (let i = 0; i < rows.length; i += 500) {

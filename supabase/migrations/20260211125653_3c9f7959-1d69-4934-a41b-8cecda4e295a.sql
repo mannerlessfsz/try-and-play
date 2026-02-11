@@ -1,0 +1,1 @@
+ALTER TABLE public.apae_plano_contas ADD COLUMN cnpj text DEFAULT '00000000000000';
