@@ -37,13 +37,12 @@ interface Props {
   planoContas: ApaePlanoContas[];
   onToggleBanco: (id: string, value: boolean) => Promise<void>;
   onToggleAplicacao: (id: string, value: boolean) => Promise<void>;
-  onAutoSugerir: () => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
 }
 
-export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onAutoSugerir, onNext, onBack, saving }: Props) {
+export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onNext, onBack, saving }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [novoBancoCodigo, setNovoBancoCodigo] = useState("");
@@ -52,7 +51,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
 
   useEffect(() => { buscar(); }, [buscar]);
 
-  // Contas marcadas como banco ou aplicação, na ordem do plano de contas (ordem)
+  // Contas marcadas como banco ou aplicação, na ordem do plano de contas
   const contasBancoAplicacao = useMemo(
     () => planoContas.filter((c) => c.is_banco || c.is_aplicacao),
     [planoContas]
@@ -64,11 +63,6 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     planoContas.forEach((c) => map.set(c.codigo, c));
     return map;
   }, [planoContas]);
-
-  const codigosDisponiveis = useMemo(
-    () => planoContas.map((c) => ({ codigo: c.codigo, descricao: c.descricao })),
-    [planoContas]
-  );
 
   // Busca no plano de contas completo para marcar
   const filtradoPlano = useMemo(() => {
@@ -102,7 +96,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
 
   return (
     <div className="space-y-4">
-      {/* Seção 1: Marcar contas como banco ou aplicação */}
+      {/* Seção 1: Buscar e marcar contas como banco ou aplicação */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -110,15 +104,11 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
             Marcar Contas de Banco e Aplicações
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Selecione no plano de contas quais são bancos ou aplicações financeiras
+            Busque no plano de contas e marque quais são bancos ou aplicações financeiras
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" size="sm" onClick={onAutoSugerir} disabled={saving}>
-              {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
-              Sugerir automaticamente
-            </Button>
             <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_banco).length} banco(s)</Badge>
             <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_aplicacao).length} aplicação(ões)</Badge>
           </div>
@@ -186,7 +176,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
         </CardContent>
       </Card>
 
-      {/* Seção 2: Mapeamento Banco → Aplicações (só aparece se houver contas marcadas) */}
+      {/* Seção 2: Mapeamento Banco → Aplicações */}
       {contasBancoAplicacao.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
@@ -202,7 +192,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
             <div className="flex items-center gap-2">
               <Select value={novoBancoCodigo} onValueChange={setNovoBancoCodigo}>
                 <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder="Selecione a conta de banco..." />
+                  <SelectValue placeholder="Selecione a conta..." />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {contasBancoAplicacao.map((c) => (
