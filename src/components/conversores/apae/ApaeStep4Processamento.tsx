@@ -1,15 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
+import { LancamentoCard } from "./LancamentoCard";
 
-const ITEMS_PER_PAGE = 100;
+const ITEMS_PER_PAGE = 50;
 
 /** Remove acentos e converte para maiúsculas */
 function toUpperNoAccents(str: string): string {
@@ -32,8 +32,8 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [editados, setEditados] = useState<Record<string, { debito?: string; credito?: string }>>({});
 
-  // Index plano de contas by descricao (lowercase) and codigo for fast lookup
   const planoByDescricao = useMemo(() => {
     const map = new Map<string, ApaePlanoContas>();
     planoContas.forEach((c) => map.set(c.descricao.toLowerCase().trim(), c));
@@ -46,7 +46,6 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     return map;
   }, [planoContas]);
 
-  // Build a set of banco codigos and map from banco descricao -> codigo
   const bancoByCodigo = useMemo(() => {
     const map = new Map<string, ApaePlanoContas>();
     planoContas.filter(c => c.is_banco).forEach((c) => {
@@ -56,7 +55,8 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     return map;
   }, [planoContas]);
 
-  // Agrupa linhas em pares
+  const bancos = useMemo(() => planoContas.filter(c => c.is_banco), [planoContas]);
+
   const pares = useMemo(() => {
     const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
     linhas.forEach((l) => {
@@ -70,18 +70,32 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       .sort((a, b) => a.parId - b.parId);
   }, [linhas]);
 
-  // Search & pagination on resultados
+  // Apply user edits on top of resultados
+  const resultadosComEdits = useMemo(() => {
+    return resultados.map((r) => {
+      const edit = editados[r.id];
+      if (!edit) return r;
+      return {
+        ...r,
+        conta_debito_codigo: edit.debito ?? r.conta_debito_codigo,
+        conta_credito_codigo: edit.credito ?? r.conta_credito_codigo,
+        status: (edit.debito || r.conta_debito_codigo) && (edit.credito || r.conta_credito_codigo) ? "vinculado" : "pendente",
+      };
+    });
+  }, [resultados, editados]);
+
   const filtrado = useMemo(() => {
-    if (!busca.trim()) return resultados;
+    if (!busca.trim()) return resultadosComEdits;
     const termo = busca.toLowerCase();
-    return resultados.filter((r) =>
+    return resultadosComEdits.filter((r) =>
       r.historico_concatenado?.toLowerCase().includes(termo) ||
       r.conta_debito?.toLowerCase().includes(termo) ||
       r.conta_debito_codigo?.toLowerCase().includes(termo) ||
       r.conta_credito_codigo?.toLowerCase().includes(termo) ||
+      r.fornecedor?.toLowerCase().includes(termo) ||
       r.data_pagto?.toLowerCase().includes(termo)
     );
-  }, [resultados, busca]);
+  }, [resultadosComEdits, busca]);
 
   const totalPaginas = Math.ceil(filtrado.length / ITEMS_PER_PAGE);
   const paginado = useMemo(() => {
@@ -100,30 +114,23 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const h = par.historico;
         if (!d) continue;
 
-        // Dados brutos do relatório (d = linha par/even, h = linha ímpar/odd)
-        const fornecedor = (d.col_b || "").trim();         // Col B par = Fornecedor
-        const contaCreditoRaw = (d.col_c || "").trim();    // Col C par = Banco (para conta crédito)
-        const centroCusto = (d.col_d || "").trim();        // Col D par = Centro custo
-        const historicoOriginal = (h?.col_b || "").trim(); // Col B ímpar = Histórico
-        const nDoc = (h?.col_e || "").trim();              // Col E ímpar = N° Doc
-        const dataPagto = (d.col_h || "").trim();          // Col H par = Data
-        const valorPago = (d.col_i || "").trim();          // Col I par = Valor
+        const fornecedor = (d.col_b || "").trim();
+        const contaCreditoRaw = (d.col_c || "").trim();
+        const centroCusto = (d.col_d || "").trim();
+        const historicoOriginal = (h?.col_b || "").trim();
+        const nDoc = (h?.col_e || "").trim();
+        const dataPagto = (d.col_h || "").trim();
+        const valorPago = (d.col_i || "").trim();
 
-        // --- Conta Débito: procurar fornecedor (Col B) no plano de contas ---
         let contaDebitoCodigo: string | null = null;
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
-        if (matchDebito) {
-          contaDebitoCodigo = matchDebito.codigo;
-        }
+        if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
-        // --- Conta Crédito: procurar Col C (banco) nas contas marcadas como banco ---
         let contaCreditoCodigo: string | null = null;
-        // Tentativa exata
         const matchCredito = bancoByCodigo.get(contaCreditoRaw.toLowerCase()) || bancoByCodigo.get(contaCreditoRaw);
         if (matchCredito) {
           contaCreditoCodigo = matchCredito.codigo;
         } else {
-          // Tentativa parcial: verificar se algum banco está contido no texto ou vice-versa
           for (const [key, conta] of bancoByCodigo.entries()) {
             if (contaCreditoRaw.toLowerCase().includes(key) || key.includes(contaCreditoRaw.toLowerCase())) {
               contaCreditoCodigo = conta.codigo;
@@ -132,7 +139,6 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
           }
         }
 
-        // --- Histórico concatenado ---
         const parts: string[] = [fornecedor, historicoOriginal];
         if (nDoc) parts.push(nDoc);
         if (centroCusto) parts.push(`(CENTRO ${centroCusto})`);
@@ -160,6 +166,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         lote++;
       }
 
+      setEditados({});
       await onProcessar(resultadosProcessados);
       setPagina(1);
       setBusca("");
@@ -168,8 +175,16 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     }
   };
 
-  const vinculados = resultados.filter((r) => r.status === "vinculado").length;
-  const pendentes = resultados.filter((r) => r.status === "pendente").length;
+  const handleUpdateDebito = useCallback((id: string, codigo: string) => {
+    setEditados((prev) => ({ ...prev, [id]: { ...prev[id], debito: codigo } }));
+  }, []);
+
+  const handleUpdateCredito = useCallback((id: string, codigo: string) => {
+    setEditados((prev) => ({ ...prev, [id]: { ...prev[id], credito: codigo } }));
+  }, []);
+
+  const vinculados = resultadosComEdits.filter((r) => r.status === "vinculado").length;
+  const pendentes = resultadosComEdits.filter((r) => r.status === "pendente").length;
 
   return (
     <div className="space-y-4">
@@ -180,15 +195,15 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
             Passo 4: Processamento
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Gera os lançamentos com histórico formatado, vinculando contas débito e crédito ao plano de contas
+            Gera os lançamentos com histórico formatado. Corrija contas não encontradas usando os seletores.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3 flex-wrap">
-            <Badge variant="secondary">{pares.length} par(es) para processar</Badge>
-            <Badge variant="secondary">{planoContas.length} contas no plano</Badge>
-            <Badge variant="secondary">{planoContas.filter(c => c.is_banco).length} banco(s)</Badge>
-            {resultados.length > 0 && (
+            <Badge variant="secondary">{pares.length} par(es)</Badge>
+            <Badge variant="secondary">{planoContas.length} contas</Badge>
+            <Badge variant="secondary">{bancos.length} banco(s)</Badge>
+            {resultadosComEdits.length > 0 && (
               <>
                 <Badge className="bg-primary text-primary-foreground">{vinculados} vinculado(s)</Badge>
                 {pendentes > 0 && <Badge variant="destructive">{pendentes} pendente(s)</Badge>}
@@ -227,50 +242,22 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
               </div>
 
               <ScrollArea className="max-h-[70vh]">
-                <div className="min-w-[900px]">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-24">Data</TableHead>
-                        <TableHead>Conta Débito</TableHead>
-                        <TableHead>Conta Crédito</TableHead>
-                        <TableHead className="w-24">Valor</TableHead>
-                        <TableHead className="min-w-[250px]">Histórico</TableHead>
-                        <TableHead className="w-10">Lote</TableHead>
-                        <TableHead className="w-28">Cód. Empresa</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paginado.map((r, idx) => {
-                        const loteNum = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
-                        return (
-                          <TableRow key={r.id} className={r.status === "pendente" ? "bg-destructive/5" : ""}>
-                            <TableCell className="text-xs whitespace-nowrap">{r.data_pagto || "—"}</TableCell>
-                            <TableCell className="text-xs">
-                              {r.conta_debito_codigo ? (
-                                <span className="font-mono">{r.conta_debito_codigo}</span>
-                              ) : (
-                                <span className="text-destructive font-medium">{r.conta_debito || "?"}</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {r.conta_credito_codigo ? (
-                                <span className="font-mono">{r.conta_credito_codigo}</span>
-                              ) : (
-                                <span className="text-destructive font-medium">?</span>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs whitespace-nowrap font-mono">{r.valor || "—"}</TableCell>
-                            <TableCell className="text-xs max-w-[300px]">
-                              <span className="break-words">{r.historico_concatenado}</span>
-                            </TableCell>
-                            <TableCell className="text-xs font-mono">{loteNum}</TableCell>
-                            <TableCell className="text-xs font-mono">{codigoEmpresa}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-2 pr-2">
+                  {paginado.map((r, idx) => {
+                    const loteNum = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
+                    return (
+                      <LancamentoCard
+                        key={r.id}
+                        resultado={r}
+                        lote={loteNum}
+                        codigoEmpresa={codigoEmpresa}
+                        planoContas={planoContas}
+                        bancos={bancos}
+                        onUpdateDebito={handleUpdateDebito}
+                        onUpdateCredito={handleUpdateCredito}
+                      />
+                    );
+                  })}
                 </div>
               </ScrollArea>
 
