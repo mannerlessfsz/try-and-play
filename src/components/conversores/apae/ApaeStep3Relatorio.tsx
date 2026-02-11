@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { readExcelFile } from "@/utils/fileParserUtils";
 import type { ApaeRelatorioLinha } from "@/hooks/useApaeSessoes";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 100;
 
 interface Props {
   linhas: ApaeRelatorioLinha[];

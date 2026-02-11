@@ -30,7 +30,7 @@ import AjustarLancamentosStep, { type LancamentoAjustado } from "./AjustarLancam
 import ExportarCsvStep from "./ExportarCsvStep";
 import CompetenciasConfirmadas, { type CompetenciaConfirmada } from "./CompetenciasConfirmadas";
 
-const ITEMS_PER_PAGE = 15;
+const ITEMS_PER_PAGE = 100;
 
 type Step = 1 | 2 | 3 | 4 | 5;
 

@@ -18,7 +18,7 @@ import { type PlanoContasItem } from "@/utils/planoContasParser";
 import { type ItauPagamentoItem } from "@/utils/itauReportParser";
 import LancamentoTableRow, { type LancamentoRowData } from "./LancamentoTableRow";
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 100;
 
 type FiltroStatus = "todos" | "vinculados" | "pendentes";
 
