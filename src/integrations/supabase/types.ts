@@ -130,6 +130,227 @@ export type Database = {
         }
         Relationships: []
       }
+      apae_plano_contas: {
+        Row: {
+          classificacao: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          id: string
+          is_aplicacao: boolean | null
+          is_banco: boolean | null
+          sessao_id: string
+        }
+        Insert: {
+          classificacao?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          id?: string
+          is_aplicacao?: boolean | null
+          is_banco?: boolean | null
+          sessao_id: string
+        }
+        Update: {
+          classificacao?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          is_aplicacao?: boolean | null
+          is_banco?: boolean | null
+          sessao_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_plano_contas_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "apae_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apae_relatorio_linhas: {
+        Row: {
+          col_a: string | null
+          col_b: string | null
+          col_c: string | null
+          col_d: string | null
+          col_e: string | null
+          col_f: string | null
+          col_g: string | null
+          col_h: string | null
+          col_i: string | null
+          created_at: string
+          id: string
+          linha_numero: number
+          par_id: number | null
+          sessao_id: string
+          tipo_linha: string
+        }
+        Insert: {
+          col_a?: string | null
+          col_b?: string | null
+          col_c?: string | null
+          col_d?: string | null
+          col_e?: string | null
+          col_f?: string | null
+          col_g?: string | null
+          col_h?: string | null
+          col_i?: string | null
+          created_at?: string
+          id?: string
+          linha_numero: number
+          par_id?: number | null
+          sessao_id: string
+          tipo_linha?: string
+        }
+        Update: {
+          col_a?: string | null
+          col_b?: string | null
+          col_c?: string | null
+          col_d?: string | null
+          col_e?: string | null
+          col_f?: string | null
+          col_g?: string | null
+          col_h?: string | null
+          col_i?: string | null
+          created_at?: string
+          id?: string
+          linha_numero?: number
+          par_id?: number | null
+          sessao_id?: string
+          tipo_linha?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_relatorio_linhas_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "apae_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apae_resultados: {
+        Row: {
+          centro_custo: string | null
+          conta_credito_codigo: string | null
+          conta_debito: string | null
+          conta_debito_codigo: string | null
+          created_at: string
+          data_pagto: string | null
+          fornecedor: string | null
+          historico_concatenado: string | null
+          historico_original: string | null
+          id: string
+          n_doc: string | null
+          par_id: number
+          sessao_id: string
+          status: string | null
+          valor: string | null
+          valor_pago: string | null
+          vencimento: string | null
+        }
+        Insert: {
+          centro_custo?: string | null
+          conta_credito_codigo?: string | null
+          conta_debito?: string | null
+          conta_debito_codigo?: string | null
+          created_at?: string
+          data_pagto?: string | null
+          fornecedor?: string | null
+          historico_concatenado?: string | null
+          historico_original?: string | null
+          id?: string
+          n_doc?: string | null
+          par_id: number
+          sessao_id: string
+          status?: string | null
+          valor?: string | null
+          valor_pago?: string | null
+          vencimento?: string | null
+        }
+        Update: {
+          centro_custo?: string | null
+          conta_credito_codigo?: string | null
+          conta_debito?: string | null
+          conta_debito_codigo?: string | null
+          created_at?: string
+          data_pagto?: string | null
+          fornecedor?: string | null
+          historico_concatenado?: string | null
+          historico_original?: string | null
+          id?: string
+          n_doc?: string | null
+          par_id?: number
+          sessao_id?: string
+          status?: string | null
+          valor?: string | null
+          valor_pago?: string | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_resultados_sessao_id_fkey"
+            columns: ["sessao_id"]
+            isOneToOne: false
+            referencedRelation: "apae_sessoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      apae_sessoes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          empresa_id: string
+          id: string
+          metadados: Json | null
+          nome_sessao: string | null
+          passo_atual: number
+          plano_contas_arquivo: string | null
+          relatorio_arquivo: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          empresa_id: string
+          id?: string
+          metadados?: Json | null
+          nome_sessao?: string | null
+          passo_atual?: number
+          plano_contas_arquivo?: string | null
+          relatorio_arquivo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          empresa_id?: string
+          id?: string
+          metadados?: Json | null
+          nome_sessao?: string | null
+          passo_atual?: number
+          plano_contas_arquivo?: string | null
+          relatorio_arquivo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_sessoes_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atividades: {
         Row: {
           created_at: string

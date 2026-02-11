@@ -1,259 +1,336 @@
-import { useState } from "react";
-import { FileUp } from "lucide-react";
-import { toast } from "sonner";
-import { ConversorBase, type ConvertedFile } from "./ConversorBase";
-import { useConversoes } from "@/hooks/useConversoes";
-import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
-import { readExcelFileRaw } from "@/utils/apaeParser";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Eye } from "lucide-react";
-
-/** Remove acentos, cedilhas e converte para maiúsculas */
-function toUpperNoAccents(str: string): string {
-  return str
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .toUpperCase()
-    .trim();
-}
-
-export interface ApaeProcessedRecord {
-  linha: number;
-  fornecedor: string;
-  contaDebito: string;
-  centroCusto: string;
-  nDoc: string;
-  vencimento: string;
-  valor: string;
-  dataPagto: string;
-  valorPago: string;
-  historicoOriginal: string;
-  historicoConcatenado: string;
-}
+import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado } from "@/hooks/useApaeSessoes";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
+import { ApaeStep1PlanoContas } from "./apae/ApaeStep1PlanoContas";
+import { ApaeStep2ContasBanco, sugerirBanco, sugerirAplicacao } from "./apae/ApaeStep2ContasBanco";
+import { ApaeStep3Relatorio } from "./apae/ApaeStep3Relatorio";
+import { ApaeStep4Processamento } from "./apae/ApaeStep4Processamento";
+import { ApaeStep5Conferencia } from "./apae/ApaeStep5Conferencia";
+import { Plus, FolderOpen, Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function LancaApaeTab() {
   const { empresaAtiva } = useEmpresaAtiva();
-  const { criarConversao, atualizarConversao } = useConversoes("apae");
+  const {
+    sessoes, loadingSessoes,
+    criarSessao, atualizarSessao, deletarSessao,
+    buscarPlanoContas, salvarPlanoContas, atualizarContaBanco,
+    buscarRelatorioLinhas, salvarRelatorioLinhas,
+    buscarResultados, salvarResultados,
+  } = useApaeSessoes();
 
-  const [files, setFiles] = useState<File[]>([]);
-  const [isConverting, setIsConverting] = useState(false);
-  const [convertedFiles, setConvertedFiles] = useState<ConvertedFile[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [processedRecords, setProcessedRecords] = useState<ApaeProcessedRecord[]>([]);
+  const [sessaoAtiva, setSessaoAtiva] = useState<string | null>(null);
+  const [step, setStep] = useState<ApaeStep>(1);
+  const [planoContas, setPlanoContas] = useState<ApaePlanoContas[]>([]);
+  const [relatorioLinhas, setRelatorioLinhas] = useState<ApaeRelatorioLinha[]>([]);
+  const [resultados, setResultados] = useState<ApaeResultado[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
 
-  const parseApaeExcel = async (file: File): Promise<ApaeProcessedRecord[]> => {
-    const pairs = await readExcelFileRaw(file);
-    if (pairs.length === 0) return [];
+  const sessaoInfo = sessoes.find((s) => s.id === sessaoAtiva);
 
-    const records: ApaeProcessedRecord[] = [];
-
-    for (const pair of pairs) {
-      const { oddCells, evenCells, oddRowIdx } = pair;
-
-      const bOdd = oddCells[1];   // FORNECEDOR
-      const bEven = evenCells[1]; // HISTÓRICO
-      const cEven = evenCells[2]; // CONTA DÉBITO (even)
-      const dOdd = oddCells[3];   // CENTRO DE CUSTO
-      const eEven = evenCells[4]; // N° DOC (even)
-
-      // Build histórico concatenado
-      const parts: string[] = [bOdd, bEven];
-      if (eEven) parts.push(eEven);
-      parts.push(`(CENTRO ${dOdd})`);
-      parts.push(`PAGO EM ${cEven}`);
-
-      const historicoConcatenado = toUpperNoAccents(parts.join(" "));
-
-      records.push({
-        linha: oddRowIdx + 1,
-        fornecedor: bOdd,
-        contaDebito: oddCells[2],
-        centroCusto: dOdd,
-        nDoc: oddCells[4],
-        vencimento: oddCells[5],
-        valor: oddCells[6],
-        dataPagto: oddCells[7],
-        valorPago: oddCells[8],
-        historicoOriginal: bEven,
-        historicoConcatenado,
-      });
-    }
-
-    return records;
-  };
-
-  const handleConvert = async () => {
-    if (files.length === 0) {
-      setError("Selecione pelo menos um arquivo para processar.");
-      return;
-    }
-
-    setIsConverting(true);
-    setError(null);
-    setProcessedRecords([]);
-    setConvertedFiles([]);
-
+  // Carregar dados da sessão ativa
+  const carregarDadosSessao = useCallback(async (sessaoId: string) => {
+    setLoadingData(true);
     try {
-      let allRecords: ApaeProcessedRecord[] = [];
+      const [plano, linhas, res] = await Promise.all([
+        buscarPlanoContas(sessaoId),
+        buscarRelatorioLinhas(sessaoId),
+        buscarResultados(sessaoId),
+      ]);
+      setPlanoContas(plano);
+      setRelatorioLinhas(linhas);
+      setResultados(res);
 
-      for (const file of files) {
-        let conversaoId: string | null = null;
-
-        if (empresaAtiva?.id) {
-          try {
-            const conversao = await criarConversao.mutateAsync({
-              modulo: "apae",
-              nomeArquivoOriginal: file.name,
-            });
-            conversaoId = conversao.id;
-          } catch (err) {
-            console.error("Erro ao criar conversão:", err);
-          }
-        }
-
-        try {
-          const records = await parseApaeExcel(file);
-
-          if (records.length === 0) {
-            toast.warning(`Arquivo ${file.name} não contém registros válidos.`);
-            if (conversaoId && empresaAtiva?.id) {
-              await atualizarConversao.mutateAsync({
-                id: conversaoId,
-                status: "erro",
-                mensagemErro: "Arquivo não contém registros válidos",
-              });
-            }
-            continue;
-          }
-
-          allRecords = [...allRecords, ...records];
-
-          if (conversaoId && empresaAtiva?.id) {
-            await atualizarConversao.mutateAsync({
-              id: conversaoId,
-              status: "sucesso",
-              totalLinhas: records.length,
-              linhasProcessadas: records.length,
-              linhasErro: 0,
-              metadados: { totalRegistros: records.length },
-            });
-          }
-        } catch (err) {
-          if (conversaoId && empresaAtiva?.id) {
-            await atualizarConversao.mutateAsync({
-              id: conversaoId,
-              status: "erro",
-              mensagemErro: err instanceof Error ? err.message : "Erro desconhecido",
-            });
-          }
-          throw err;
-        }
-      }
-
-      setProcessedRecords(allRecords);
-
-      if (allRecords.length > 0) {
-        toast.success(`${allRecords.length} registro(s) processado(s) com sucesso!`);
-        setFiles([]);
-      }
+      // Determinar passo baseado nos dados
+      if (res.length > 0) setStep(5);
+      else if (linhas.length > 0) setStep(4);
+      else if (plano.some((c) => c.is_banco || c.is_aplicacao)) setStep(3);
+      else if (plano.length > 0) setStep(2);
+      else setStep(1);
     } catch (err) {
-      setError("Erro ao processar arquivo APAE.");
-      console.error(err);
+      toast.error("Erro ao carregar dados da sessão");
     } finally {
-      setIsConverting(false);
+      setLoadingData(false);
+    }
+  }, [buscarPlanoContas, buscarRelatorioLinhas, buscarResultados]);
+
+  // Selecionar sessão
+  const handleSelecionarSessao = (id: string) => {
+    setSessaoAtiva(id);
+    carregarDadosSessao(id);
+  };
+
+  // Criar nova sessão
+  const handleNovaSessao = async () => {
+    try {
+      const sessao = await criarSessao.mutateAsync(undefined);
+      setSessaoAtiva(sessao.id);
+      setPlanoContas([]);
+      setRelatorioLinhas([]);
+      setResultados([]);
+      setStep(1);
+    } catch {}
+  };
+
+  // Deletar sessão
+  const handleDeletarSessao = async (id: string) => {
+    await deletarSessao.mutateAsync(id);
+    if (sessaoAtiva === id) {
+      setSessaoAtiva(null);
+      setPlanoContas([]);
+      setRelatorioLinhas([]);
+      setResultados([]);
+      setStep(1);
     }
   };
 
-  const downloadFile = (file: ConvertedFile) => {
-    const blob = new Blob([file.content], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  // Voltar para lista de sessões
+  const handleVoltarLista = () => {
+    setSessaoAtiva(null);
+    setPlanoContas([]);
+    setRelatorioLinhas([]);
+    setResultados([]);
   };
+
+  // Handlers para cada passo
+  const handleSalvarPlano = async (contas: { codigo: string; descricao: string; classificacao?: string }[], nomeArquivo: string) => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarPlanoContas.mutateAsync({ sessaoId: sessaoAtiva, contas });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, plano_contas_arquivo: nomeArquivo, passo_atual: 1 });
+      const plano = await buscarPlanoContas(sessaoAtiva);
+      setPlanoContas(plano);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoverPlano = async () => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarPlanoContas.mutateAsync({ sessaoId: sessaoAtiva, contas: [] });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, plano_contas_arquivo: null });
+      setPlanoContas([]);
+      setRelatorioLinhas([]);
+      setResultados([]);
+      setStep(1);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleToggleBanco = async (id: string, value: boolean) => {
+    await atualizarContaBanco.mutateAsync({ id, is_banco: value });
+    setPlanoContas((prev) => prev.map((c) => (c.id === id ? { ...c, is_banco: value } : c)));
+  };
+
+  const handleToggleAplicacao = async (id: string, value: boolean) => {
+    await atualizarContaBanco.mutateAsync({ id, is_aplicacao: value });
+    setPlanoContas((prev) => prev.map((c) => (c.id === id ? { ...c, is_aplicacao: value } : c)));
+  };
+
+  const handleAutoSugerir = async () => {
+    setSaving(true);
+    try {
+      for (const conta of planoContas) {
+        const isBanco = sugerirBanco(conta);
+        const isAplic = sugerirAplicacao(conta);
+        if (isBanco !== conta.is_banco || isAplic !== conta.is_aplicacao) {
+          await atualizarContaBanco.mutateAsync({ id: conta.id, is_banco: isBanco, is_aplicacao: isAplic });
+        }
+      }
+      const plano = await buscarPlanoContas(sessaoAtiva!);
+      setPlanoContas(plano);
+      toast.success("Sugestão automática aplicada!");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSalvarRelatorio = async (linhas: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[], nomeArquivo: string) => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarRelatorioLinhas.mutateAsync({ sessaoId: sessaoAtiva, linhas });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, relatorio_arquivo: nomeArquivo, passo_atual: 3 });
+      const novasLinhas = await buscarRelatorioLinhas(sessaoAtiva);
+      setRelatorioLinhas(novasLinhas);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoverRelatorio = async () => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarRelatorioLinhas.mutateAsync({ sessaoId: sessaoAtiva, linhas: [] });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, relatorio_arquivo: null });
+      setRelatorioLinhas([]);
+      setResultados([]);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleProcessar = async (res: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[]) => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarResultados.mutateAsync({ sessaoId: sessaoAtiva, resultados: res });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, passo_atual: 5 });
+      const novos = await buscarResultados(sessaoAtiva);
+      setResultados(novos);
+      toast.success(`${novos.length} lançamento(s) processado(s)!`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const canGoTo = (s: ApaeStep): boolean => {
+    if (s === 1) return true;
+    if (s === 2) return planoContas.length > 0;
+    if (s === 3) return planoContas.some((c) => c.is_banco || c.is_aplicacao);
+    if (s === 4) return relatorioLinhas.length > 0;
+    if (s === 5) return resultados.length > 0;
+    return false;
+  };
+
+  // Tela de lista de sessões
+  if (!sessaoAtiva) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Lança APAE — Sessões</h3>
+          <Button onClick={handleNovaSessao} disabled={criarSessao.isPending}>
+            {criarSessao.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}
+            Nova Sessão
+          </Button>
+        </div>
+
+        {loadingSessoes ? (
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : sessoes.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
+              <p className="text-muted-foreground">Nenhuma sessão encontrada. Crie uma nova para começar.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3">
+            {sessoes.map((s) => (
+              <Card key={s.id} className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSelecionarSessao(s.id)}>
+                <CardContent className="flex items-center justify-between p-4">
+                  <div>
+                    <p className="font-medium text-sm">{s.nome_sessao || "Sessão sem nome"}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Criada em {new Date(s.created_at).toLocaleDateString("pt-BR")} — Passo {s.passo_atual}/5
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={s.status === "concluido" ? "default" : "secondary"}>
+                      {s.status === "em_andamento" ? "Em andamento" : s.status}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); handleDeletarSessao(s.id); }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Tela do wizard
+  if (loadingData) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <ConversorBase
-        modulo="apae"
-        titulo="Lança APAE"
-        descricao="Processe arquivos de Contas a Pagar para lançamento contábil"
-        icon={<FileUp className="w-5 h-5 text-indigo-500" />}
-        iconColor="text-indigo-500"
-        bgColor="bg-indigo-500/10"
-        acceptedFiles=".xlsx,.xls,.csv"
-        acceptedFormats="Arquivos Excel (.xlsx, .xls) ou CSV"
-        files={files}
-        setFiles={setFiles}
-        convertedFiles={convertedFiles}
-        isConverting={isConverting}
-        onConvert={handleConvert}
-        onDownload={downloadFile}
-        error={error}
-        hideOutputCard={true}
-      >
-        {/* No extra options needed for now */}
-        <></>
-      </ConversorBase>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" size="sm" onClick={handleVoltarLista}>
+          ← Voltar às sessões
+        </Button>
+        <span className="text-sm text-muted-foreground">{sessaoInfo?.nome_sessao}</span>
+      </div>
 
-      {/* Preview dos dados processados */}
-      {processedRecords.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Eye className="w-5 h-5 text-indigo-500" />
-              Dados Processados
-              <Badge variant="secondary" className="ml-2">
-                {processedRecords.length} registro(s)
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScrollArea className="max-h-[500px] w-full">
-              <div className="min-w-[900px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12">#</TableHead>
-                      <TableHead>Fornecedor</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Data Pagto</TableHead>
-                      <TableHead className="min-w-[400px]">Histórico Gerado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {processedRecords.map((record, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {idx + 1}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm max-w-[200px] truncate">
-                          {record.fornecedor}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {record.valorPago || record.valor}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {record.dataPagto}
-                        </TableCell>
-                        <TableCell className="text-xs font-mono break-all">
-                          {record.historicoConcatenado}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </ScrollArea>
-          </CardContent>
-        </Card>
+      <ApaeWizardSteps current={step} onStepClick={setStep} canGoTo={canGoTo} />
+
+      {step === 1 && (
+        <ApaeStep1PlanoContas
+          sessaoId={sessaoAtiva}
+          planoContas={planoContas}
+          planoContasArquivo={sessaoInfo?.plano_contas_arquivo || null}
+          onSalvarPlano={handleSalvarPlano}
+          onRemoverPlano={handleRemoverPlano}
+          onNext={() => setStep(2)}
+          saving={saving}
+        />
+      )}
+
+      {step === 2 && (
+        <ApaeStep2ContasBanco
+          planoContas={planoContas}
+          onToggleBanco={handleToggleBanco}
+          onToggleAplicacao={handleToggleAplicacao}
+          onAutoSugerir={handleAutoSugerir}
+          onNext={() => setStep(3)}
+          onBack={() => setStep(1)}
+          saving={saving}
+        />
+      )}
+
+      {step === 3 && (
+        <ApaeStep3Relatorio
+          linhas={relatorioLinhas}
+          relatorioArquivo={sessaoInfo?.relatorio_arquivo || null}
+          onSalvarRelatorio={handleSalvarRelatorio}
+          onRemoverRelatorio={handleRemoverRelatorio}
+          onNext={() => setStep(4)}
+          onBack={() => setStep(2)}
+          saving={saving}
+        />
+      )}
+
+      {step === 4 && (
+        <ApaeStep4Processamento
+          linhas={relatorioLinhas}
+          planoContas={planoContas}
+          resultados={resultados}
+          onProcessar={handleProcessar}
+          onNext={() => setStep(5)}
+          onBack={() => setStep(3)}
+          saving={saving}
+        />
+      )}
+
+      {step === 5 && (
+        <ApaeStep5Conferencia
+          resultados={resultados}
+          onBack={() => setStep(4)}
+        />
       )}
     </div>
   );
