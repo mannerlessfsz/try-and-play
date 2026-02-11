@@ -9,8 +9,9 @@ import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
 import { ApaeStep1PlanoContas } from "./apae/ApaeStep1PlanoContas";
 import { ApaeStep2ContasBanco } from "./apae/ApaeStep2ContasBanco";
 import { ApaeStep3Relatorio } from "./apae/ApaeStep3Relatorio";
-import { ApaeStep4Processamento } from "./apae/ApaeStep4Processamento";
-import { ApaeStep5Conferencia } from "./apae/ApaeStep5Conferencia";
+import { ApaeStep4Razao, type ApaeRazaoLinha } from "./apae/ApaeStep4Razao";
+import { ApaeStep5Processamento } from "./apae/ApaeStep5Processamento";
+import { ApaeStep6Conferencia } from "./apae/ApaeStep6Conferencia";
 import { Plus, FolderOpen, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ export function LancaApaeTab() {
     criarSessao, atualizarSessao, deletarSessao,
     buscarPlanoContas, salvarPlanoContas, atualizarContaBanco,
     buscarRelatorioLinhas, salvarRelatorioLinhas,
+    buscarRazaoLinhas, salvarRazaoLinhas,
     buscarResultados, salvarResultados,
   } = useApaeSessoes();
 
@@ -28,15 +30,17 @@ export function LancaApaeTab() {
   const [step, setStep] = useState<ApaeStep>(1);
   const [planoContas, setPlanoContas] = useState<ApaePlanoContas[]>([]);
   const [relatorioLinhas, setRelatorioLinhas] = useState<ApaeRelatorioLinha[]>([]);
+  const [razaoLinhas, setRazaoLinhas] = useState<ApaeRazaoLinha[]>([]);
   const [resultados, setResultados] = useState<ApaeResultado[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [razaoArquivo, setRazaoArquivo] = useState<string | null>(null);
 
   const { mapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
 
-  // Garante que o Step 4 sempre processe com o mapeamento mais recente
+  // Garante que o Step 5 sempre processe com o mapeamento mais recente
   useEffect(() => {
-    if (step === 4 && sessaoAtiva) {
+    if (step === 5 && sessaoAtiva) {
       buscarMapeamentos();
     }
   }, [step, sessaoAtiva, buscarMapeamentos]);
@@ -48,19 +52,26 @@ export function LancaApaeTab() {
   const carregarDadosSessao = useCallback(async (sessaoId: string) => {
     setLoadingData(true);
     try {
-      const [plano, linhas, res] = await Promise.all([
+      const [plano, linhas, razao, res] = await Promise.all([
         buscarPlanoContas(sessaoId),
         buscarRelatorioLinhas(sessaoId),
+        buscarRazaoLinhas(sessaoId),
         buscarResultados(sessaoId),
       ]);
       setPlanoContas(plano);
       setRelatorioLinhas(linhas);
+      setRazaoLinhas(razao as ApaeRazaoLinha[]);
       setResultados(res);
       buscarMapeamentos();
 
+      // Extract razão arquivo from metadados
+      const sessao = sessoes.find(s => s.id === sessaoId);
+      const meta = sessao?.metadados as Record<string, unknown> | undefined;
+      setRazaoArquivo((meta?.razao_arquivo as string) || null);
+
       // Determinar passo baseado nos dados
-      if (res.length > 0) setStep(5);
-      else if (linhas.length > 0) setStep(4);
+      if (res.length > 0) setStep(6);
+      else if (linhas.length > 0) setStep(5);
       else if (plano.some((c) => c.is_banco || c.is_aplicacao)) setStep(3);
       else if (plano.length > 0) setStep(2);
       else setStep(1);
@@ -69,7 +80,7 @@ export function LancaApaeTab() {
     } finally {
       setLoadingData(false);
     }
-  }, [buscarPlanoContas, buscarRelatorioLinhas, buscarResultados, buscarMapeamentos]);
+  }, [buscarPlanoContas, buscarRelatorioLinhas, buscarRazaoLinhas, buscarResultados, buscarMapeamentos, sessoes]);
 
   // Selecionar sessão
   const handleSelecionarSessao = (id: string) => {
@@ -84,7 +95,9 @@ export function LancaApaeTab() {
       setSessaoAtiva(sessao.id);
       setPlanoContas([]);
       setRelatorioLinhas([]);
+      setRazaoLinhas([]);
       setResultados([]);
+      setRazaoArquivo(null);
       setStep(1);
     } catch {}
   };
@@ -96,7 +109,9 @@ export function LancaApaeTab() {
       setSessaoAtiva(null);
       setPlanoContas([]);
       setRelatorioLinhas([]);
+      setRazaoLinhas([]);
       setResultados([]);
+      setRazaoArquivo(null);
       setStep(1);
     }
   };
@@ -106,7 +121,9 @@ export function LancaApaeTab() {
     setSessaoAtiva(null);
     setPlanoContas([]);
     setRelatorioLinhas([]);
+    setRazaoLinhas([]);
     setResultados([]);
+    setRazaoArquivo(null);
   };
 
   // Handlers para cada passo
@@ -131,6 +148,7 @@ export function LancaApaeTab() {
       await atualizarSessao.mutateAsync({ id: sessaoAtiva, plano_contas_arquivo: null });
       setPlanoContas([]);
       setRelatorioLinhas([]);
+      setRazaoLinhas([]);
       setResultados([]);
       setStep(1);
     } finally {
@@ -147,8 +165,6 @@ export function LancaApaeTab() {
     await atualizarContaBanco.mutateAsync({ id, is_aplicacao: value });
     setPlanoContas((prev) => prev.map((c) => (c.id === id ? { ...c, is_aplicacao: value } : c)));
   };
-
-  // handleAutoSugerir removed — user marks manually
 
   const handleSalvarRelatorio = async (linhas: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[], nomeArquivo: string) => {
     if (!sessaoAtiva) return;
@@ -176,12 +192,41 @@ export function LancaApaeTab() {
     }
   };
 
+  const handleSalvarRazao = async (linhas: Omit<ApaeRazaoLinha, "id" | "sessao_id" | "created_at">[], nomeArquivo: string) => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarRazaoLinhas.mutateAsync({ sessaoId: sessaoAtiva, linhas });
+      const meta = (sessaoInfo?.metadados || {}) as Record<string, unknown>;
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, metadados: { ...meta, razao_arquivo: nomeArquivo } });
+      const novasLinhas = await buscarRazaoLinhas(sessaoAtiva);
+      setRazaoLinhas(novasLinhas as ApaeRazaoLinha[]);
+      setRazaoArquivo(nomeArquivo);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoverRazao = async () => {
+    if (!sessaoAtiva) return;
+    setSaving(true);
+    try {
+      await salvarRazaoLinhas.mutateAsync({ sessaoId: sessaoAtiva, linhas: [] });
+      const meta = (sessaoInfo?.metadados || {}) as Record<string, unknown>;
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, metadados: { ...meta, razao_arquivo: null } });
+      setRazaoLinhas([]);
+      setRazaoArquivo(null);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleProcessar = async (res: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[]) => {
     if (!sessaoAtiva) return;
     setSaving(true);
     try {
       await salvarResultados.mutateAsync({ sessaoId: sessaoAtiva, resultados: res });
-      await atualizarSessao.mutateAsync({ id: sessaoAtiva, passo_atual: 5 });
+      await atualizarSessao.mutateAsync({ id: sessaoAtiva, passo_atual: 6 });
       const novos = await buscarResultados(sessaoAtiva);
       setResultados(novos);
       toast.success(`${novos.length} lançamento(s) processado(s)!`);
@@ -195,7 +240,8 @@ export function LancaApaeTab() {
     if (s === 2) return planoContas.length > 0;
     if (s === 3) return planoContas.some((c) => c.is_banco || c.is_aplicacao);
     if (s === 4) return relatorioLinhas.length > 0;
-    if (s === 5) return resultados.length > 0;
+    if (s === 5) return relatorioLinhas.length > 0;
+    if (s === 6) return resultados.length > 0;
     return false;
   };
 
@@ -230,7 +276,7 @@ export function LancaApaeTab() {
                   <div>
                     <p className="font-medium text-sm">{s.nome_sessao || "Sessão sem nome"}</p>
                     <p className="text-xs text-muted-foreground">
-                      Criada em {new Date(s.created_at).toLocaleDateString("pt-BR")} — Passo {s.passo_atual}/5
+                      Criada em {new Date(s.created_at).toLocaleDateString("pt-BR")} — Passo {s.passo_atual}/6
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -312,13 +358,11 @@ export function LancaApaeTab() {
       )}
 
       {step === 4 && (
-        <ApaeStep4Processamento
-          linhas={relatorioLinhas}
-          planoContas={planoContas}
-          mapeamentos={mapeamentos}
-          codigoEmpresa={codigoEmpresa}
-          resultados={resultados}
-          onProcessar={handleProcessar}
+        <ApaeStep4Razao
+          razaoLinhas={razaoLinhas}
+          razaoArquivo={razaoArquivo}
+          onSalvarRazao={handleSalvarRazao}
+          onRemoverRazao={handleRemoverRazao}
           onNext={() => setStep(5)}
           onBack={() => setStep(3)}
           saving={saving}
@@ -326,9 +370,24 @@ export function LancaApaeTab() {
       )}
 
       {step === 5 && (
-        <ApaeStep5Conferencia
+        <ApaeStep5Processamento
+          linhas={relatorioLinhas}
+          planoContas={planoContas}
+          mapeamentos={mapeamentos}
+          codigoEmpresa={codigoEmpresa}
           resultados={resultados}
+          razaoLinhas={razaoLinhas}
+          onProcessar={handleProcessar}
+          onNext={() => setStep(6)}
           onBack={() => setStep(4)}
+          saving={saving}
+        />
+      )}
+
+      {step === 6 && (
+        <ApaeStep6Conferencia
+          resultados={resultados}
+          onBack={() => setStep(5)}
         />
       )}
     </div>

@@ -250,7 +250,7 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
         <Button onClick={onNext} disabled={linhas.length === 0}>
-          Próximo: Processamento <ArrowRight className="w-4 h-4 ml-2" />
+          Próximo: Razão <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
     </div>
