@@ -16,7 +16,7 @@ interface Props {
   onBack: () => void;
 }
 
-export function ApaeStep5Conferencia({ resultados, onBack }: Props) {
+export function ApaeStep6Conferencia({ resultados, onBack }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
@@ -69,7 +69,7 @@ export function ApaeStep5Conferencia({ resultados, onBack }: Props) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Download className="w-5 h-5 text-primary" />
-            Passo 5: Conferência e Exportação
+            Passo 6: Conferência e Exportação
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Confira os lançamentos processados e exporte o arquivo final
