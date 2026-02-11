@@ -194,7 +194,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const contaCreditoRaw = (d.col_c || "").trim();
         const centroCusto = (d.col_d || "").trim();
         const historicoOriginalRaw = (d.col_b || "").trim();
-        const historicoOriginal = extractHistoricoFromGrupo(historicoOriginalRaw);
+        const historicoOriginal = historicoOriginalRaw;
         const nDoc = (h?.col_e || "").trim();
         const dataPagto = (d.col_h || "").trim();
         const valorPago = (d.col_i || "").trim();
@@ -241,7 +241,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         if (nDoc) parts.push(nDoc);
         if (centroCusto) parts.push(`(CENTRO ${centroCusto})`);
         parts.push(`PAGO EM ${contaCreditoRaw}`);
-        const historicoConcatenado = toUpperNoAccents(parts.join(" "));
+        const historicoConcatenado = extractHistoricoFromGrupo(toUpperNoAccents(parts.join(" ")));
 
         const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
 
