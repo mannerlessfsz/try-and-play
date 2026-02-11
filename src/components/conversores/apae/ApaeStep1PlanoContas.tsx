@@ -14,7 +14,7 @@ import {
 } from "@/utils/planoContasParser";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 100;
 
 interface Props {
   sessaoId: string;
