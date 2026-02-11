@@ -292,6 +292,7 @@ export function LancaApaeTab() {
 
       {step === 2 && (
         <ApaeStep2ContasBanco
+          sessaoId={sessaoAtiva!}
           planoContas={planoContas}
           onToggleBanco={handleToggleBanco}
           onToggleAplicacao={handleToggleAplicacao}
