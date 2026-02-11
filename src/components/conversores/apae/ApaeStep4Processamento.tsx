@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -352,18 +352,13 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   const pendentes = resultadosComEdits.filter((r) => r.status === "pendente").length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Settings2 className="w-5 h-5 text-primary" />
-            Passo 4: Processamento
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Gera os lançamentos com histórico formatado. Corrija contas não encontradas usando os seletores.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Settings2 className="w-4 h-4 text-primary" />
+            <span className="text-sm font-semibold">Processamento</span>
+          </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
@@ -410,32 +405,30 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
           </div>
 
           {resultados.length === 0 ? (
-            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-              <Settings2 className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground mb-4">
-                Clique em "Processar" para gerar os lançamentos
-              </p>
-              <Button onClick={handleProcessar} disabled={processing || saving || pares.length === 0 || mapeamentosLoading}>
-                {processing || saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-2" />}
-                Processar Relatório
+            <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+              <Settings2 className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="text-sm text-muted-foreground mb-3">Clique em "Processar" para gerar os lançamentos</p>
+              <Button size="sm" onClick={handleProcessar} disabled={processing || saving || pares.length === 0 || mapeamentosLoading}>
+                {processing || saving ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5 mr-1.5" />}
+                Processar
               </Button>
             </div>
           ) : (
             <>
               <div className="flex items-center gap-2 flex-wrap">
-                <Button variant="outline" size="sm" onClick={handleProcessar} disabled={processing || saving || mapeamentosLoading}>
-                  {processing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <PlayCircle className="w-4 h-4 mr-1" />}
+                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={handleProcessar} disabled={processing || saving || mapeamentosLoading}>
+                  {processing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5 mr-1" />}
                   Reprocessar
                 </Button>
               </div>
 
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar nos resultados..."
+                  placeholder="Buscar..."
                   value={busca}
                   onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
-                  className="pl-9"
+                  className="pl-8 h-8 text-xs"
                 />
               </div>
 
@@ -470,15 +463,15 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
 
               {totalPaginas > 1 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {filtrado.length} lançamento(s) — Página {pagina}/{totalPaginas}
+                  <span className="text-[11px] text-muted-foreground">
+                    {filtrado.length} lanç. — Pág. {pagina}/{totalPaginas}
                   </span>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-                      <ChevronLeft className="w-4 h-4" />
+                  <div className="flex gap-0.5">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+                      <ChevronLeft className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                      <ChevronRight className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -489,11 +482,11 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+        <Button variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Voltar
         </Button>
-        <Button onClick={onNext} disabled={resultados.length === 0}>
-          Próximo: Conferência <ArrowRight className="w-4 h-4 ml-2" />
+        <Button size="sm" onClick={onNext} disabled={resultados.length === 0}>
+          Próximo <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
         </Button>
       </div>
     </div>

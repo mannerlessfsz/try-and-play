@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -28,7 +28,6 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
   const [pagina, setPagina] = useState(1);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Exibir todas as linhas na ordem original, sem agrupar
   const ordenadas = useMemo(
     () => [...linhas].sort((a, b) => a.linha_numero - b.linha_numero),
     [linhas]
@@ -68,7 +67,6 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
       const resultado: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] = [];
       let parCounter = 0;
 
-      // Row 0 = header, pares a partir de 1
       for (let i = 1; i < rows.length - 1; i += 2) {
         const oddRow = rows[i];
         const evenRow = rows[i + 1];
@@ -81,15 +79,9 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
           linha_numero: i + 1,
           tipo_linha: "dados",
           par_id: parCounter,
-          col_a: col(oddRow, 0),
-          col_b: col(oddRow, 1),
-          col_c: col(oddRow, 2),
-          col_d: col(oddRow, 3),
-          col_e: col(oddRow, 4),
-          col_f: col(oddRow, 5),
-          col_g: col(oddRow, 6),
-          col_h: col(oddRow, 7),
-          col_i: col(oddRow, 8),
+          col_a: col(oddRow, 0), col_b: col(oddRow, 1), col_c: col(oddRow, 2),
+          col_d: col(oddRow, 3), col_e: col(oddRow, 4), col_f: col(oddRow, 5),
+          col_g: col(oddRow, 6), col_h: col(oddRow, 7), col_i: col(oddRow, 8),
         });
 
         if (evenRow) {
@@ -97,15 +89,9 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
             linha_numero: i + 2,
             tipo_linha: "historico",
             par_id: parCounter,
-            col_a: col(evenRow, 0),
-            col_b: col(evenRow, 1),
-            col_c: col(evenRow, 2),
-            col_d: col(evenRow, 3),
-            col_e: col(evenRow, 4),
-            col_f: col(evenRow, 5),
-            col_g: col(evenRow, 6),
-            col_h: col(evenRow, 7),
-            col_i: col(evenRow, 8),
+            col_a: col(evenRow, 0), col_b: col(evenRow, 1), col_c: col(evenRow, 2),
+            col_d: col(evenRow, 3), col_e: col(evenRow, 4), col_f: col(evenRow, 5),
+            col_g: col(evenRow, 6), col_h: col(evenRow, 7), col_i: col(evenRow, 8),
           });
         }
       }
@@ -125,99 +111,88 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <FileText className="w-5 h-5 text-primary" />
-            Passo 3: Relatório Original (Leitura Bruta)
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Visualize exatamente como o relatório foi lido. O processamento será feito no Passo 4.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="pt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Relatório</span>
+              {linhas.length > 0 && (
+                <>
+                  <Badge variant="secondary" className="text-[10px]">{ordenadas.length} linhas</Badge>
+                  <Badge variant="outline" className="text-[10px]">{new Set(ordenadas.map(l => l.par_id)).size} pares</Badge>
+                </>
+              )}
+            </div>
+            {linhas.length > 0 && (
+              <div className="flex items-center gap-1">
+                <Badge variant="outline" className="text-[10px]">{relatorioArquivo}</Badge>
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => inputRef.current?.click()} disabled={loading || saving}>
+                  {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={onRemoverRelatorio} disabled={saving}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <input ref={inputRef} type="file" accept=".xls,.xlsx" className="hidden" onChange={handleUpload} />
+
           {linhas.length === 0 ? (
-            <div className="border-2 border-dashed border-muted rounded-lg p-8 text-center">
-              <FileText className="w-12 h-12 mx-auto text-muted-foreground/50 mb-3" />
-              <p className="text-muted-foreground mb-4">Nenhum relatório carregado</p>
-              <Button onClick={() => inputRef.current?.click()} disabled={loading || saving}>
-                {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-                Carregar Relatório
+            <div className="border-2 border-dashed border-muted rounded-lg p-6 text-center">
+              <FileText className="w-10 h-10 mx-auto text-muted-foreground/40 mb-2" />
+              <p className="text-sm text-muted-foreground mb-3">Carregue o relatório (.xls, .xlsx)</p>
+              <Button size="sm" onClick={() => inputRef.current?.click()} disabled={loading || saving}>
+                {loading ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 mr-1.5" />}
+                Carregar Arquivo
               </Button>
-              <input ref={inputRef} type="file" accept=".xls,.xlsx" className="hidden" onChange={handleUpload} />
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="secondary">{relatorioArquivo}</Badge>
-                  <Badge>{ordenadas.length} linha(s)</Badge>
-                  <Badge variant="outline">{new Set(ordenadas.map(l => l.par_id)).size} par(es)</Badge>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={loading || saving}>
-                    {loading ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Upload className="w-4 h-4 mr-1" />}
-                    Substituir
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={onRemoverRelatorio} disabled={saving}>
-                    <Trash2 className="w-4 h-4 mr-1" /> Remover
-                  </Button>
-                  <input ref={inputRef} type="file" accept=".xls,.xlsx" className="hidden" onChange={handleUpload} />
-                </div>
-              </div>
-
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar em qualquer coluna..."
+                  placeholder="Buscar..."
                   value={busca}
                   onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
-                  className="pl-9"
+                  className="pl-8 h-8 text-xs"
                 />
               </div>
 
-              <ScrollArea className="max-h-[70vh]">
+              <ScrollArea className="max-h-[60vh]">
                 <div className="min-w-[900px]">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">Linha</TableHead>
-                        <TableHead className="w-14">Tipo</TableHead>
-                        <TableHead className="w-10">Par</TableHead>
-                        <TableHead>Col A</TableHead>
-                        <TableHead>Col B</TableHead>
-                        <TableHead>Col C</TableHead>
-                        <TableHead>Col D</TableHead>
-                        <TableHead>Col E</TableHead>
-                        <TableHead>Col F</TableHead>
-                        <TableHead>Col G</TableHead>
-                        <TableHead>Col H</TableHead>
-                        <TableHead>Col I</TableHead>
+                        <TableHead className="w-10 text-[11px]">#</TableHead>
+                        <TableHead className="w-12 text-[11px]">Tipo</TableHead>
+                        <TableHead className="w-8 text-[11px]">Par</TableHead>
+                        {["A","B","C","D","E","F","G","H","I"].map(c => (
+                          <TableHead key={c} className="text-[11px]">{c}</TableHead>
+                        ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginado.map((l) => (
-                        <TableRow
-                          key={l.id}
-                          className={l.tipo_linha === "dados" ? "bg-primary/5" : "bg-muted/30"}
-                        >
-                          <TableCell className="text-xs text-muted-foreground font-mono">{l.linha_numero}</TableCell>
-                          <TableCell>
-                            <Badge variant={l.linha_numero % 2 === 0 ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
-                              {l.linha_numero % 2 === 0 ? "Par" : "Ímpar"}
+                        <TableRow key={l.id} className={l.tipo_linha === "dados" ? "bg-primary/5" : "bg-muted/30"}>
+                          <TableCell className="text-[11px] text-muted-foreground font-mono py-1">{l.linha_numero}</TableCell>
+                          <TableCell className="py-1">
+                            <Badge variant={l.linha_numero % 2 === 0 ? "default" : "outline"} className="text-[9px] px-1 py-0">
+                              {l.linha_numero % 2 === 0 ? "Par" : "Ímp"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs font-mono">{l.par_id}</TableCell>
-                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_a || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[120px] truncate">{l.col_b || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_c || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[100px] truncate">{l.col_d || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_e || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_f || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_g || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_h || "—"}</TableCell>
-                          <TableCell className="text-xs max-w-[80px] truncate">{l.col_i || "—"}</TableCell>
+                          <TableCell className="text-[11px] font-mono py-1">{l.par_id}</TableCell>
+                          <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_a || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[100px] truncate py-1">{l.col_b || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_c || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_d || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_e || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_f || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_g || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_h || "—"}</TableCell>
+                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_i || "—"}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -227,15 +202,15 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
 
               {totalPaginas > 1 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {filtrado.length} linha(s) — Página {pagina}/{totalPaginas}
+                  <span className="text-[11px] text-muted-foreground">
+                    {filtrado.length} linha(s) — Pág. {pagina}/{totalPaginas}
                   </span>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-                      <ChevronLeft className="w-4 h-4" />
+                  <div className="flex gap-0.5">
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+                      <ChevronLeft className="w-3.5 h-3.5" />
                     </Button>
-                    <Button variant="ghost" size="sm" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                      <ChevronRight className="w-4 h-4" />
+                    <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -246,11 +221,11 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
       </Card>
 
       <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+        <Button variant="outline" size="sm" onClick={onBack}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Voltar
         </Button>
-        <Button onClick={onNext} disabled={linhas.length === 0}>
-          Próximo: Processamento <ArrowRight className="w-4 h-4 ml-2" />
+        <Button size="sm" onClick={onNext} disabled={linhas.length === 0}>
+          Próximo <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
         </Button>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -24,6 +24,9 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
+
+  const vinculados = useMemo(() => resultados.filter((r) => r.status === "vinculado").length, [resultados]);
+  const pendentes = resultados.length - vinculados;
 
   const filtrado = useMemo(() => {
     let lista = resultados;
@@ -73,72 +76,66 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success("Arquivo CSV exportado!");
-    // Encerrar sessão após exportar
+    toast.success("CSV exportado!");
     if (sessaoStatus !== "concluido") {
       await onEncerrarSessao();
     }
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Download className="w-5 h-5 text-primary" />
-            Passo 5: Conferência e Exportação
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Confira os lançamentos processados e exporte o arquivo final
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge>{resultados.length} lançamento(s)</Badge>
-            <Badge className="bg-green-600">{resultados.filter((r) => r.status === "vinculado").length} vinculado(s)</Badge>
-            <Badge variant="destructive">{resultados.filter((r) => r.status === "pendente").length} pendente(s)</Badge>
-            <div className="flex-1" />
-            <Button onClick={handleExportar} disabled={resultados.length === 0}>
-              <FileDown className="w-4 h-4 mr-2" /> Exportar CSV
+        <CardContent className="pt-4 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <Download className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold">Conferência</span>
+              <Badge variant="secondary" className="text-[10px]">{resultados.length} lanç.</Badge>
+              <Badge className="bg-emerald-600 text-[10px]">{vinculados} ok</Badge>
+              {pendentes > 0 && <Badge variant="destructive" className="text-[10px]">{pendentes} pend.</Badge>}
+            </div>
+            <Button size="sm" onClick={handleExportar} disabled={resultados.length === 0}>
+              <FileDown className="w-3.5 h-3.5 mr-1.5" /> Exportar CSV
             </Button>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
                 placeholder="Buscar..."
                 value={busca}
                 onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
-                className="pl-9"
+                className="pl-8 h-8 text-xs"
               />
             </div>
-            <div className="flex gap-1">
+            <div className="flex gap-0.5">
               {(["todos", "vinculado", "pendente"] as const).map((f) => (
                 <Button
                   key={f}
                   variant={filtroStatus === f ? "default" : "ghost"}
                   size="sm"
+                  className="h-7 text-xs px-2"
                   onClick={() => { setFiltroStatus(f); setPagina(1); }}
                 >
-                  {f === "todos" ? "Todos" : f === "vinculado" ? "Vinculados" : "Pendentes"}
+                  {f === "todos" ? "Todos" : f === "vinculado" ? "Ok" : "Pend."}
                 </Button>
               ))}
             </div>
           </div>
 
-          <ScrollArea className="max-h-[70vh]">
-            <div className="min-w-[1000px]">
+          <ScrollArea className="max-h-[60vh]">
+            <div className="min-w-[900px]">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Conta Débito</TableHead>
-                    <TableHead>Conta Crédito</TableHead>
-                    <TableHead>Valor</TableHead>
-                    <TableHead className="min-w-[350px]">Histórico</TableHead>
-                    <TableHead className="w-16">Lote</TableHead>
-                    <TableHead>Cód. Empresa</TableHead>
+                    <TableHead className="text-[11px]">Data</TableHead>
+                    <TableHead className="text-[11px]">Débito</TableHead>
+                    <TableHead className="text-[11px]">Crédito</TableHead>
+                    <TableHead className="text-[11px]">Valor</TableHead>
+                    <TableHead className="text-[11px] min-w-[300px]">Histórico</TableHead>
+                    <TableHead className="text-[11px] w-12">Lote</TableHead>
+                    <TableHead className="text-[11px]">Empresa</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -146,13 +143,13 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
                     const globalIdx = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
                     return (
                       <TableRow key={r.id}>
-                        <TableCell className="text-sm whitespace-nowrap">{r.data_pagto}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{r.conta_debito_codigo}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{r.conta_credito_codigo}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{r.valor_pago || r.valor}</TableCell>
-                        <TableCell className="text-xs font-mono break-all">{r.historico_concatenado}</TableCell>
-                        <TableCell className="text-sm text-center">{globalIdx}</TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">{codigoEmpresa}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap py-1">{r.data_pagto}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{r.conta_debito_codigo}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{r.conta_credito_codigo}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap py-1">{r.valor_pago || r.valor}</TableCell>
+                        <TableCell className="text-[10px] font-mono break-all py-1">{r.historico_concatenado}</TableCell>
+                        <TableCell className="text-[11px] text-center py-1">{globalIdx}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap py-1">{codigoEmpresa}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -163,15 +160,15 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
 
           {totalPaginas > 1 && (
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                {filtrado.length} resultado(s) — Página {pagina}/{totalPaginas}
+              <span className="text-[11px] text-muted-foreground">
+                {filtrado.length} resultado(s) — Pág. {pagina}/{totalPaginas}
               </span>
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
-                  <ChevronLeft className="w-4 h-4" />
+              <div className="flex gap-0.5">
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>
+                  <ChevronLeft className="w-3.5 h-3.5" />
                 </Button>
-                <Button variant="ghost" size="sm" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
-                  <ChevronRight className="w-4 h-4" />
+                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Button>
               </div>
             </div>
@@ -180,22 +177,20 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
       </Card>
 
       {sessaoStatus === "concluido" && (
-        <Card className="border-green-500/30 bg-green-500/5">
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Lock className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-medium text-green-700">Sessão encerrada — CSV exportado com sucesso</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={onReabrirSessao}>
-              <Unlock className="w-4 h-4 mr-2" /> Reabrir para edição
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex items-center justify-between rounded-md border border-emerald-500/30 bg-emerald-500/5 px-3 py-2">
+          <div className="flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-xs font-medium text-emerald-700">Sessão encerrada</span>
+          </div>
+          <Button variant="outline" size="sm" className="h-7 text-xs" onClick={onReabrirSessao}>
+            <Unlock className="w-3 h-3 mr-1" /> Reabrir
+          </Button>
+        </div>
       )}
 
-      <div className="flex justify-between">
-        <Button variant="outline" onClick={onBack} disabled={sessaoStatus === "concluido"}>
-          <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
+      <div className="flex justify-start">
+        <Button variant="outline" size="sm" onClick={onBack} disabled={sessaoStatus === "concluido"}>
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Voltar
         </Button>
       </div>
     </div>
