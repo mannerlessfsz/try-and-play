@@ -204,8 +204,8 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
                         >
                           <TableCell className="text-xs text-muted-foreground font-mono">{l.linha_numero}</TableCell>
                           <TableCell>
-                            <Badge variant={l.tipo_linha === "dados" ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
-                              {l.tipo_linha === "dados" ? "Ímpar" : "Par"}
+                            <Badge variant={l.linha_numero % 2 === 0 ? "default" : "outline"} className="text-[10px] px-1.5 py-0">
+                              {l.linha_numero % 2 === 0 ? "Par" : "Ímpar"}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-xs font-mono">{l.par_id}</TableCell>
