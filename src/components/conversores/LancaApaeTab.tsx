@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { ConversorBase, type ConvertedFile } from "./ConversorBase";
 import { useConversoes } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
-import { readExcelFile } from "@/utils/fileParserUtils";
+import { readExcelFileRaw } from "@/utils/apaeParser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -45,28 +45,19 @@ export function LancaApaeTab() {
   const [processedRecords, setProcessedRecords] = useState<ApaeProcessedRecord[]>([]);
 
   const parseApaeExcel = async (file: File): Promise<ApaeProcessedRecord[]> => {
-    const rows = await readExcelFile(file);
-    if (rows.length < 3) return []; // header + at least one pair
+    const pairs = await readExcelFileRaw(file);
+    if (pairs.length === 0) return [];
 
     const records: ApaeProcessedRecord[] = [];
-    // Row 0 = header. Pairs start at index 1 (odd=data, even=history)
-    // Columns (0-based): A=0 SITUAÇÃO, B=1 FORNECEDOR, C=2 CONTA DÉBITO,
-    //   D=3 CENTRO DE CUSTO, E=4 N° DOC, F=5 VENCIMENTO, G=6 VALOR,
-    //   H=7 DATA PAGTO, I=8 VALOR PAGO
 
-    for (let i = 1; i < rows.length - 1; i += 2) {
-      const oddRow = rows[i];     // data row
-      const evenRow = rows[i + 1]; // history row
+    for (const pair of pairs) {
+      const { oddCells, evenCells, oddRowIdx } = pair;
 
-      if (!oddRow) continue;
-
-      const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim();
-
-      const bOdd = col(oddRow, 1);   // FORNECEDOR
-      const bEven = col(evenRow, 1);  // HISTÓRICO TÍTULO...
-      const cEven = col(evenRow, 2);  // CONTA DÉBITO (even)
-      const dOdd = col(oddRow, 3);    // CENTRO DE CUSTO
-      const eEven = col(evenRow, 4);  // N° DOC (even)
+      const bOdd = oddCells[1];   // FORNECEDOR
+      const bEven = evenCells[1]; // HISTÓRICO
+      const cEven = evenCells[2]; // CONTA DÉBITO (even)
+      const dOdd = oddCells[3];   // CENTRO DE CUSTO
+      const eEven = evenCells[4]; // N° DOC (even)
 
       // Build histórico concatenado
       const parts: string[] = [bOdd, bEven];
@@ -77,15 +68,15 @@ export function LancaApaeTab() {
       const historicoConcatenado = toUpperNoAccents(parts.join(" "));
 
       records.push({
-        linha: i + 1, // 1-based line in file (skipping header)
-        fornecedor: col(oddRow, 1),
-        contaDebito: col(oddRow, 2),
+        linha: oddRowIdx + 1,
+        fornecedor: bOdd,
+        contaDebito: oddCells[2],
         centroCusto: dOdd,
-        nDoc: col(oddRow, 4),
-        vencimento: col(oddRow, 5),
-        valor: col(oddRow, 6),
-        dataPagto: col(oddRow, 7),
-        valorPago: col(oddRow, 8),
+        nDoc: oddCells[4],
+        vencimento: oddCells[5],
+        valor: oddCells[6],
+        dataPagto: oddCells[7],
+        valorPago: oddCells[8],
         historicoOriginal: bEven,
         historicoConcatenado,
       });
