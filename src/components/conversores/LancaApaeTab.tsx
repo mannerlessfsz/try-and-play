@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado } from "@/hooks/useApaeSessoes";
+import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
 import { ApaeStep1PlanoContas } from "./apae/ApaeStep1PlanoContas";
@@ -31,7 +32,10 @@ export function LancaApaeTab() {
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
 
+  const { mapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
+
   const sessaoInfo = sessoes.find((s) => s.id === sessaoAtiva);
+  const codigoEmpresa = empresaAtiva?.cnpj || empresaAtiva?.nome || "";
 
   // Carregar dados da sessão ativa
   const carregarDadosSessao = useCallback(async (sessaoId: string) => {
@@ -45,6 +49,7 @@ export function LancaApaeTab() {
       setPlanoContas(plano);
       setRelatorioLinhas(linhas);
       setResultados(res);
+      buscarMapeamentos();
 
       // Determinar passo baseado nos dados
       if (res.length > 0) setStep(5);
@@ -57,7 +62,7 @@ export function LancaApaeTab() {
     } finally {
       setLoadingData(false);
     }
-  }, [buscarPlanoContas, buscarRelatorioLinhas, buscarResultados]);
+  }, [buscarPlanoContas, buscarRelatorioLinhas, buscarResultados, buscarMapeamentos]);
 
   // Selecionar sessão
   const handleSelecionarSessao = (id: string) => {
@@ -302,6 +307,8 @@ export function LancaApaeTab() {
         <ApaeStep4Processamento
           linhas={relatorioLinhas}
           planoContas={planoContas}
+          mapeamentos={mapeamentos}
+          codigoEmpresa={codigoEmpresa}
           resultados={resultados}
           onProcessar={handleProcessar}
           onNext={() => setStep(5)}
