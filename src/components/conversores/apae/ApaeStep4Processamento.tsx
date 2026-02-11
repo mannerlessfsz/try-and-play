@@ -279,6 +279,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   }, []);
 
   const filteredIds = useMemo(() => filtrado.map((r) => r.id), [filtrado]);
+  const pendentesIds = useMemo(() => filtrado.filter((r) => r.status === "pendente").map((r) => r.id), [filtrado]);
 
   const vinculados = resultadosComEdits.filter((r) => r.status === "vinculado").length;
   const pendentes = resultadosComEdits.filter((r) => r.status === "pendente").length;
@@ -371,10 +372,10 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                 />
               </div>
 
-              {filtrado.length > 0 && (buscaDebounced.trim() || filtroStatus !== "todos") && (
+              {pendentesIds.length > 0 && (buscaDebounced.trim() || filtroStatus !== "todos") && (
                 <BatchEditPanel
-                  filteredIds={filteredIds}
-                  filteredCount={filtrado.length}
+                  filteredIds={pendentesIds}
+                  filteredCount={pendentesIds.length}
                   planoOptions={planoOptions}
                   bancoOptions={bancoOptions}
                   onBatchDebito={handleBatchDebito}
