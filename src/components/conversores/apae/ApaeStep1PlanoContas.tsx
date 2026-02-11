@@ -20,7 +20,7 @@ interface Props {
   sessaoId: string;
   planoContas: ApaePlanoContas[];
   planoContasArquivo: string | null;
-  onSalvarPlano: (contas: { codigo: string; descricao: string; classificacao?: string }[], nomeArquivo: string) => Promise<void>;
+  onSalvarPlano: (contas: { codigo: string; descricao: string; classificacao?: string; cnpj?: string }[], nomeArquivo: string) => Promise<void>;
   onRemoverPlano: () => Promise<void>;
   onNext: () => void;
   saving: boolean;
@@ -39,7 +39,8 @@ export function ApaeStep1PlanoContas({ planoContas, planoContasArquivo, onSalvar
       (c) =>
         c.descricao.toLowerCase().includes(termo) ||
         c.codigo.toLowerCase().includes(termo) ||
-        (c.classificacao || "").toLowerCase().includes(termo)
+        (c.classificacao || "").toLowerCase().includes(termo) ||
+        (c.cnpj || "").toLowerCase().includes(termo)
     );
   }, [planoContas, busca]);
 
@@ -71,7 +72,7 @@ export function ApaeStep1PlanoContas({ planoContas, planoContasArquivo, onSalvar
       }
 
       await onSalvarPlano(
-        items.map((i) => ({ codigo: i.codigo, descricao: i.descricao, classificacao: i.classificacao })),
+        items.map((i) => ({ codigo: i.codigo, descricao: i.descricao, classificacao: i.classificacao, cnpj: i.cnpj })),
         file.name
       );
       setPagina(1);
@@ -146,17 +147,19 @@ export function ApaeStep1PlanoContas({ planoContas, planoContasArquivo, onSalvar
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-24">Código</TableHead>
                       <TableHead>Descrição</TableHead>
+                      <TableHead className="w-28">Código</TableHead>
                       <TableHead className="w-32">Classificação</TableHead>
+                      <TableHead className="w-36">CNPJ</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginado.map((conta) => (
                       <TableRow key={conta.id}>
-                        <TableCell className="font-mono text-xs">{conta.codigo}</TableCell>
                         <TableCell className="text-sm">{conta.descricao}</TableCell>
+                        <TableCell className="font-mono text-xs">{conta.codigo}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{conta.classificacao}</TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">{conta.cnpj || "00000000000000"}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

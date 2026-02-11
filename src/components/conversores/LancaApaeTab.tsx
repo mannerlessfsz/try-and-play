@@ -98,7 +98,7 @@ export function LancaApaeTab() {
   };
 
   // Handlers para cada passo
-  const handleSalvarPlano = async (contas: { codigo: string; descricao: string; classificacao?: string }[], nomeArquivo: string) => {
+  const handleSalvarPlano = async (contas: { codigo: string; descricao: string; classificacao?: string; cnpj?: string }[], nomeArquivo: string) => {
     if (!sessaoAtiva) return;
     setSaving(true);
     try {
