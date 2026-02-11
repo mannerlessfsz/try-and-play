@@ -19,23 +19,12 @@ interface Props {
   planoContas: ApaePlanoContas[];
   onToggleBanco: (id: string, value: boolean) => Promise<void>;
   onToggleAplicacao: (id: string, value: boolean) => Promise<void>;
-  /** Força refetch do pai (Step 4 precisa do mapeamento atualizado) */
-  onRefreshMapeamentos?: () => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
 }
 
-export function ApaeStep2ContasBanco({
-  sessaoId,
-  planoContas,
-  onToggleBanco,
-  onToggleAplicacao,
-  onRefreshMapeamentos,
-  onNext,
-  onBack,
-  saving,
-}: Props) {
+export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onNext, onBack, saving }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [syncingMapeamentos, setSyncingMapeamentos] = useState(false);
@@ -92,17 +81,13 @@ export function ApaeStep2ContasBanco({
   // Sync: save all banco codes to DB
   const syncMapeamentos = useCallback(async () => {
     setSyncingMapeamentos(true);
-    try {
-      const codigos = contasBanco.map((c) => c.codigo);
-      const total = await sincronizar(codigos);
-      if (total > 0) {
-        toast.success(`${total} banco(s) sincronizados!`);
-      }
-      await onRefreshMapeamentos?.();
-    } finally {
-      setSyncingMapeamentos(false);
+    const codigos = contasBanco.map((c) => c.codigo);
+    const total = await sincronizar(codigos);
+    if (total > 0) {
+      toast.success(`${total} banco(s) sincronizados!`);
     }
-  }, [contasBanco, sincronizar, onRefreshMapeamentos]);
+    setSyncingMapeamentos(false);
+  }, [contasBanco, sincronizar]);
 
   const handleAtualizarAplicacao = async (mapeamentoId: string, col: string, value: string, bancoCodigo: string) => {
     if (value !== "0") {
@@ -276,7 +261,6 @@ export function ApaeStep2ContasBanco({
                               if (nomeVal !== undefined && nomeVal !== (mapeamento.nome_relatorio || "")) {
                                 await atualizar(mapeamento.id, { nome_relatorio: nomeVal || null });
                               }
-                              await onRefreshMapeamentos?.();
                               setEditMode((prev) => ({ ...prev, [banco.codigo]: false }));
                               toast.success("Configuração confirmada!");
                             }}

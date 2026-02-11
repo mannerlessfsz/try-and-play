@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
-import type { ApaeRazaoLinha } from "./ApaeStep4Razao";
 import { LancamentoCard } from "./LancamentoCard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
@@ -23,14 +22,13 @@ interface Props {
   mapeamentos: ApaeBancoAplicacao[];
   codigoEmpresa: string;
   resultados: ApaeResultado[];
-  razaoLinhas: ApaeRazaoLinha[];
   onProcessar: (resultados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[]) => Promise<void>;
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
 }
 
-export function ApaeStep5Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, razaoLinhas, onProcessar, onNext, onBack, saving }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -78,67 +76,6 @@ export function ApaeStep5Processamento({ linhas, planoContas, mapeamentos, codig
   // Pre-compute lightweight option arrays (stable references for memo)
   const planoOptions = useMemo(() => planoContas.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [planoContas]);
   const bancoOptions = useMemo(() => bancosMapeados.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [bancosMapeados]);
-
-  // Build razão lookup structures for fallback matching
-  const razaoLookup = useMemo(() => {
-    if (!razaoLinhas || razaoLinhas.length === 0) return { byFornecedor: new Map<string, string>(), byCentro: new Map<string, string>() };
-
-    // Fallback 2: fornecedor → find credit entries → get Cta.C.Part. (debit account)
-    // Group by historico containing the supplier name, where it appears as credit
-    const fornecedorToDebito = new Map<string, Map<string, number>>(); // fornecedor_norm → { cta_c_part → count }
-    
-    // Fallback 3: centro code → most frequent debit account
-    const centroToDebito = new Map<string, Map<string, number>>(); // centro_code → { cta_c_part → count }
-
-    for (const linha of razaoLinhas) {
-      const hist = (linha.historico || "").toLowerCase();
-      const ctaCPart = (linha.cta_c_part || "").trim();
-      if (!ctaCPart) continue;
-
-      // Check if this is a credit entry (has value in credito)
-      const hasCredito = !!(linha.credito && linha.credito.trim() && parseFloat(linha.credito.replace(/\./g, "").replace(",", ".")) > 0);
-      const hasDebito = !!(linha.debito && linha.debito.trim() && parseFloat(linha.debito.replace(/\./g, "").replace(",", ".")) > 0);
-
-      // For fallback 2: if the entry is a credit, the Cta.C.Part is the debit account
-      if (hasCredito && !hasDebito) {
-        // This account received a credit, Cta.C.Part is where the debit went
-        // We'll match suppliers by checking if their name appears in the historico
-        // Store with the account code as key since we search by supplier name later
-        // We need to store all entries for later searching
-      }
-
-      // For fallback 3: extract CENTRO codes from historico
-      const centroMatch = hist.match(/\(centro\s+([\d.]+)/i);
-      if (centroMatch) {
-        const centroCode = centroMatch[1];
-        // For centro lookup, we want the debit account (conta_codigo when it's a debit entry)
-        // The account header (conta_codigo) is the account being debited/credited
-        // If it's a debit entry in this account → this account is the debit, Cta.C.Part is credit
-        if (hasDebito) {
-          if (!centroToDebito.has(centroCode)) centroToDebito.set(centroCode, new Map());
-          const contaCodigo = linha.conta_codigo;
-          const counts = centroToDebito.get(centroCode)!;
-          counts.set(contaCodigo, (counts.get(contaCodigo) || 0) + 1);
-        }
-      }
-    }
-
-    // Convert centro maps to most-frequent account
-    const byCentro = new Map<string, string>();
-    for (const [centro, counts] of centroToDebito.entries()) {
-      let maxCount = 0;
-      let bestCodigo = "";
-      for (const [codigo, count] of counts.entries()) {
-        if (count > maxCount) {
-          maxCount = count;
-          bestCodigo = codigo;
-        }
-      }
-      if (bestCodigo) byCentro.set(centro, bestCodigo);
-    }
-
-    return { razaoLinhasRef: razaoLinhas, byCentro };
-  }, [razaoLinhas]);
 
   const pares = useMemo(() => {
     const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
@@ -210,52 +147,8 @@ export function ApaeStep5Processamento({ linhas, planoContas, mapeamentos, codig
         const valorPago = (d.col_i || "").trim();
 
         let contaDebitoCodigo: string | null = null;
-        
-        // Nível 1: Buscar fornecedor no Plano de Contas
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
-        if (matchDebito) {
-          contaDebitoCodigo = matchDebito.codigo;
-        }
-
-        // Nível 2: Buscar fornecedor no Razão Contábil (crédito → pegar Cta.C.Part.)
-        if (!contaDebitoCodigo && razaoLookup.razaoLinhasRef && razaoLookup.razaoLinhasRef.length > 0) {
-          const fornecedorNorm = fornecedor.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-          // Search razão for entries where historico contains the supplier name and it's a credit entry
-          const matches = new Map<string, number>(); // cta_c_part → count
-          for (const rl of razaoLookup.razaoLinhasRef) {
-            const hist = (rl.historico || "").toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
-            if (!hist.includes(fornecedorNorm)) continue;
-            const ctaCPart = (rl.cta_c_part || "").trim();
-            if (!ctaCPart) continue;
-            // Check if it's a credit entry
-            const hasCredito = !!(rl.credito && rl.credito.trim() && parseFloat(rl.credito.replace(/\./g, "").replace(",", ".")) > 0);
-            const hasDebito = !!(rl.debito && rl.debito.trim() && parseFloat(rl.debito.replace(/\./g, "").replace(",", ".")) > 0);
-            if (hasCredito && !hasDebito) {
-              // The Cta.C.Part. is the debit account
-              matches.set(ctaCPart, (matches.get(ctaCPart) || 0) + 1);
-            }
-          }
-          // Pick the most frequent Cta.C.Part.
-          let maxCount = 0;
-          for (const [codigo, count] of matches.entries()) {
-            if (count > maxCount) {
-              maxCount = count;
-              contaDebitoCodigo = codigo;
-            }
-          }
-        }
-
-        // Nível 3: Buscar pelo CENTRO no histórico do relatório → conta débito mais frequente no Razão
-        if (!contaDebitoCodigo && razaoLookup.byCentro.size > 0) {
-          // Extract CENTRO from the report's historico or centro_custo field
-          const historicoCompleto = `${historicoOriginal} ${centroCusto}`.toLowerCase();
-          const centroMatch = historicoCompleto.match(/centro\s+([\d.]+)/i) || centroCusto.match(/([\d.]+)/);
-          if (centroMatch) {
-            const centroCode = centroMatch[1];
-            const found = razaoLookup.byCentro.get(centroCode);
-            if (found) contaDebitoCodigo = found;
-          }
-        }
+        if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
         // Match credit account using nome_relatorio from Step 2 mappings
         let contaCreditoCodigo: string | null = null;
@@ -343,7 +236,7 @@ export function ApaeStep5Processamento({ linhas, planoContas, mapeamentos, codig
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Settings2 className="w-5 h-5 text-primary" />
-            Passo 5: Processamento
+            Passo 4: Processamento
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Gera os lançamentos com histórico formatado. Corrija contas não encontradas usando os seletores.

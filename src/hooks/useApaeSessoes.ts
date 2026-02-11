@@ -231,46 +231,6 @@ export function useApaeSessoes() {
     onError: (e) => toast.error("Erro ao salvar relatório: " + e.message),
   });
 
-  // --- Razão Contábil ---
-  const buscarRazaoLinhas = async (sessaoId: string) => {
-    const allData: any[] = [];
-    let offset = 0;
-    const batchSize = 1000;
-    let hasMore = true;
-    while (hasMore) {
-      const { data, error } = await supabase
-        .from("apae_razao_linhas")
-        .select("*")
-        .eq("sessao_id", sessaoId)
-        .order("linha_numero", { ascending: true })
-        .range(offset, offset + batchSize - 1);
-      if (error) throw error;
-      if (data && data.length > 0) {
-        allData.push(...data);
-        offset += batchSize;
-        hasMore = data.length === batchSize;
-      } else {
-        hasMore = false;
-      }
-    }
-    return allData;
-  };
-
-  const salvarRazaoLinhas = useMutation({
-    mutationFn: async ({ sessaoId, linhas }: { sessaoId: string; linhas: any[] }) => {
-      await supabase.from("apae_razao_linhas").delete().eq("sessao_id", sessaoId);
-      const rows = linhas.map((l) => ({ sessao_id: sessaoId, ...l }));
-      for (let i = 0; i < rows.length; i += 500) {
-        const batch = rows.slice(i, i + 500);
-        const { error } = await supabase.from("apae_razao_linhas").insert(batch);
-        if (error) throw error;
-      }
-      return linhas.length;
-    },
-    onSuccess: () => toast.success("Razão salvo!"),
-    onError: (e) => toast.error("Erro ao salvar razão: " + e.message),
-  });
-
   // --- Resultados ---
   const buscarResultados = async (sessaoId: string) => {
     const { data, error } = await supabase
@@ -307,8 +267,6 @@ export function useApaeSessoes() {
     atualizarContaBanco,
     buscarRelatorioLinhas,
     salvarRelatorioLinhas,
-    buscarRazaoLinhas,
-    salvarRazaoLinhas,
     buscarResultados,
     salvarResultados,
   };

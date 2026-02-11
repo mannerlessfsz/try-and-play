@@ -224,59 +224,6 @@ export type Database = {
           },
         ]
       }
-      apae_razao_linhas: {
-        Row: {
-          conta_codigo: string
-          conta_descricao: string | null
-          created_at: string
-          credito: string | null
-          cta_c_part: string | null
-          data: string | null
-          debito: string | null
-          historico: string | null
-          id: string
-          linha_numero: number
-          saldo: string | null
-          sessao_id: string
-        }
-        Insert: {
-          conta_codigo: string
-          conta_descricao?: string | null
-          created_at?: string
-          credito?: string | null
-          cta_c_part?: string | null
-          data?: string | null
-          debito?: string | null
-          historico?: string | null
-          id?: string
-          linha_numero?: number
-          saldo?: string | null
-          sessao_id: string
-        }
-        Update: {
-          conta_codigo?: string
-          conta_descricao?: string | null
-          created_at?: string
-          credito?: string | null
-          cta_c_part?: string | null
-          data?: string | null
-          debito?: string | null
-          historico?: string | null
-          id?: string
-          linha_numero?: number
-          saldo?: string | null
-          sessao_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "apae_razao_linhas_sessao_id_fkey"
-            columns: ["sessao_id"]
-            isOneToOne: false
-            referencedRelation: "apae_sessoes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       apae_relatorio_linhas: {
         Row: {
           col_a: string | null
