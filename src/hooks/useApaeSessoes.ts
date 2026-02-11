@@ -256,6 +256,49 @@ export function useApaeSessoes() {
     onError: (e) => toast.error("Erro ao salvar resultados: " + e.message),
   });
 
+  // Atualizar conta débito/crédito de um único resultado
+  const atualizarResultadoConta = async (id: string, updates: { conta_debito_codigo?: string; conta_credito_codigo?: string }) => {
+    const status = (updates.conta_debito_codigo !== undefined || updates.conta_credito_codigo !== undefined) ? undefined : undefined;
+    const payload: Record<string, string> = {};
+    if (updates.conta_debito_codigo !== undefined) payload.conta_debito_codigo = updates.conta_debito_codigo;
+    if (updates.conta_credito_codigo !== undefined) payload.conta_credito_codigo = updates.conta_credito_codigo;
+    // We'll let the caller handle status
+    const { error } = await supabase.from("apae_resultados").update(payload).eq("id", id);
+    if (error) throw error;
+  };
+
+  // Atualizar contas em lote (batch de IDs)
+  const atualizarResultadosLote = async (ids: string[], updates: { conta_debito_codigo?: string; conta_credito_codigo?: string }) => {
+    const payload: Record<string, string> = {};
+    if (updates.conta_debito_codigo !== undefined) payload.conta_debito_codigo = updates.conta_debito_codigo;
+    if (updates.conta_credito_codigo !== undefined) payload.conta_credito_codigo = updates.conta_credito_codigo;
+    // Update in batches of 100 IDs
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { error } = await supabase.from("apae_resultados").update(payload).in("id", batch);
+      if (error) throw error;
+    }
+  };
+
+  // Atualizar status de resultados com base nas contas preenchidas
+  const atualizarStatusResultados = async (ids: string[]) => {
+    // Buscar os registros atualizados para determinar status correto
+    for (let i = 0; i < ids.length; i += 100) {
+      const batch = ids.slice(i, i + 100);
+      const { data, error } = await supabase.from("apae_resultados").select("id, conta_debito_codigo, conta_credito_codigo").in("id", batch);
+      if (error) throw error;
+      if (!data) continue;
+      const vinculados = data.filter(r => r.conta_debito_codigo && r.conta_credito_codigo).map(r => r.id);
+      const pendentes = data.filter(r => !r.conta_debito_codigo || !r.conta_credito_codigo).map(r => r.id);
+      if (vinculados.length > 0) {
+        await supabase.from("apae_resultados").update({ status: "vinculado" }).in("id", vinculados);
+      }
+      if (pendentes.length > 0) {
+        await supabase.from("apae_resultados").update({ status: "pendente" }).in("id", pendentes);
+      }
+    }
+  };
+
   return {
     sessoes,
     loadingSessoes,
@@ -269,5 +312,8 @@ export function useApaeSessoes() {
     salvarRelatorioLinhas,
     buscarResultados,
     salvarResultados,
+    atualizarResultadoConta,
+    atualizarResultadosLote,
+    atualizarStatusResultados,
   };
 }
