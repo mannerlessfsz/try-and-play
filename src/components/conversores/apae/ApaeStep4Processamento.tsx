@@ -32,6 +32,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
   const [editados, setEditados] = useState<Record<string, { debito?: string; credito?: string }>>({});
 
   const planoByDescricao = useMemo(() => {
@@ -85,9 +86,13 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   }, [resultados, editados]);
 
   const filtrado = useMemo(() => {
-    if (!busca.trim()) return resultadosComEdits;
+    let lista = resultadosComEdits;
+    if (filtroStatus !== "todos") {
+      lista = lista.filter((r) => r.status === filtroStatus);
+    }
+    if (!busca.trim()) return lista;
     const termo = busca.toLowerCase();
-    return resultadosComEdits.filter((r) =>
+    return lista.filter((r) =>
       r.historico_concatenado?.toLowerCase().includes(termo) ||
       r.conta_debito?.toLowerCase().includes(termo) ||
       r.conta_debito_codigo?.toLowerCase().includes(termo) ||
@@ -95,7 +100,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       r.fornecedor?.toLowerCase().includes(termo) ||
       r.data_pagto?.toLowerCase().includes(termo)
     );
-  }, [resultadosComEdits, busca]);
+  }, [resultadosComEdits, busca, filtroStatus]);
 
   const totalPaginas = Math.ceil(filtrado.length / ITEMS_PER_PAGE);
   const paginado = useMemo(() => {
@@ -199,14 +204,47 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Badge variant="secondary">{pares.length} par(es)</Badge>
-            <Badge variant="secondary">{planoContas.length} contas</Badge>
-            <Badge variant="secondary">{bancos.length} banco(s)</Badge>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "todos" ? "bg-muted-foreground text-background ring-2 ring-muted-foreground/50" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
+            >
+              {resultadosComEdits.length} total
+            </button>
+            <button
+              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+            >
+              {pares.length} par(es)
+            </button>
+            <button
+              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+            >
+              {planoContas.length} contas
+            </button>
+            <button
+              onClick={() => { setFiltroStatus("todos"); setPagina(1); }}
+              className="px-3 py-1.5 rounded-full text-xs font-medium bg-muted text-muted-foreground"
+            >
+              {bancos.length} banco(s)
+            </button>
             {resultadosComEdits.length > 0 && (
               <>
-                <Badge className="bg-primary text-primary-foreground">{vinculados} vinculado(s)</Badge>
-                {pendentes > 0 && <Badge variant="destructive">{pendentes} pendente(s)</Badge>}
+                <button
+                  onClick={() => { setFiltroStatus(filtroStatus === "vinculado" ? "todos" : "vinculado"); setPagina(1); }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "vinculado" ? "bg-emerald-500 text-white ring-2 ring-emerald-500/50 scale-105" : "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"}`}
+                >
+                  {vinculados} vinculado(s)
+                </button>
+                {pendentes > 0 && (
+                  <button
+                    onClick={() => { setFiltroStatus(filtroStatus === "pendente" ? "todos" : "pendente"); setPagina(1); }}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${filtroStatus === "pendente" ? "bg-rose-500 text-white ring-2 ring-rose-500/50 scale-105" : "bg-rose-500/20 text-rose-400 hover:bg-rose-500/30"}`}
+                  >
+                    {pendentes} pendente(s)
+                  </button>
+                )}
               </>
             )}
           </div>
