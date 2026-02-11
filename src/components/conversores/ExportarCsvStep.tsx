@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { type LancamentoAjustado } from "./AjustarLancamentosStep";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 100;
 
 type Props = {
   lancamentos: LancamentoAjustado[];

@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 100;
 
 /** Heurística para sugerir contas bancárias */
 function sugerirBanco(conta: ApaePlanoContas): boolean {

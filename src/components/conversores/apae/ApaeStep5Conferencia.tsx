@@ -9,7 +9,7 @@ import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown } from
 import { toast } from "sonner";
 import type { ApaeResultado } from "@/hooks/useApaeSessoes";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 100;
 
 interface Props {
   resultados: ApaeResultado[];
