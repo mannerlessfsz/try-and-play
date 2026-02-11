@@ -50,8 +50,8 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
 
   // Only use bank accounts mapped in step 2 (not applications)
   const bancosMapeados = useMemo(() => {
-    const bancosCodigos = new Set(mapeamentos.map(m => m.banco_codigo));
-    return planoContas.filter(c => bancosCodigos.has(c.codigo));
+    const bancosCodigos = new Set(mapeamentos.map((m) => String(m.banco_codigo).trim()));
+    return planoContas.filter((c) => c.is_banco && bancosCodigos.has(String(c.codigo).trim()));
   }, [mapeamentos, planoContas]);
 
   const bancos = bancosMapeados;
@@ -133,16 +133,19 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
 
-        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "37493-8"
+        // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "374938"
         let contaCreditoCodigo: string | null = null;
         const dashIdx = contaCreditoRaw.lastIndexOf(" - ");
         const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw.trim();
-        // Keep only digits and hyphens for comparison (strips dots, spaces, etc.)
-        const numDigits = numeroConta.replace(/[^0-9-]/g, "");
-        if (numDigits.length >= 3) {
+
+        // Normalize to DIGITS ONLY (ignores dot, spaces, and any hyphen variant)
+        const numDigitsOnly = numeroConta.replace(/\D/g, "");
+
+        if (numDigitsOnly.length >= 3) {
           for (const banco of bancosMapeados) {
-            const bancoDigits = banco.descricao.replace(/[^0-9-]/g, "");
-            if (bancoDigits.includes(numDigits) || numDigits.includes(bancoDigits)) {
+            const bancoDigitsOnly = (banco.descricao || "").replace(/\D/g, "");
+            // exact or partial matching
+            if (bancoDigitsOnly === numDigitsOnly || bancoDigitsOnly.includes(numDigitsOnly) || numDigitsOnly.includes(bancoDigitsOnly)) {
               contaCreditoCodigo = banco.codigo;
               break;
             }
