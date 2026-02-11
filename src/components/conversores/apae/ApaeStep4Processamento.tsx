@@ -110,10 +110,9 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const dataPagto = (d.col_h || "").trim();          // Col H ímpar = Data
         const valorPago = (d.col_i || "").trim();          // Col I ímpar = Valor
 
-        // --- Conta Débito: procurar fornecedor no plano de contas ---
+        // --- Conta Débito: procurar fornecedor (Col B par) no plano de contas ---
         let contaDebitoCodigo: string | null = null;
-        // Tentar por descrição da coluna C (conta débito)
-        const matchDebito = planoByDescricao.get(contaDebitoRaw.toLowerCase()) || planoByCodigo.get(contaDebitoRaw);
+        const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
         if (matchDebito) {
           contaDebitoCodigo = matchDebito.codigo;
         }
