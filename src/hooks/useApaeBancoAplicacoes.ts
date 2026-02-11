@@ -11,6 +11,7 @@ export interface ApaeBancoAplicacao {
   aplicacao3_codigo: string;
   aplicacao4_codigo: string;
   aplicacao5_codigo: string;
+  nome_relatorio: string | null;
   created_at: string;
 }
 
@@ -50,7 +51,7 @@ export function useApaeBancoAplicacoes(sessaoId: string | null) {
     setMapeamentos((prev) => [...prev, data as ApaeBancoAplicacao].sort((a, b) => a.banco_codigo.localeCompare(b.banco_codigo)));
   }, [sessaoId]);
 
-  const atualizar = useCallback(async (id: string, updates: Partial<Pick<ApaeBancoAplicacao, "banco_codigo" | "aplicacao1_codigo" | "aplicacao2_codigo" | "aplicacao3_codigo" | "aplicacao4_codigo" | "aplicacao5_codigo">>) => {
+  const atualizar = useCallback(async (id: string, updates: Partial<Pick<ApaeBancoAplicacao, "banco_codigo" | "aplicacao1_codigo" | "aplicacao2_codigo" | "aplicacao3_codigo" | "aplicacao4_codigo" | "aplicacao5_codigo" | "nome_relatorio">>) => {
     const { error } = await supabase
       .from("apae_banco_aplicacoes")
       .update(updates)

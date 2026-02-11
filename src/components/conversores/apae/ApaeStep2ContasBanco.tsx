@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Save, Landmark } from "lucide-react";
+import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Save, Landmark, Check, Pencil } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { toast } from "sonner";
@@ -28,6 +28,8 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [syncingMapeamentos, setSyncingMapeamentos] = useState(false);
+  const [editingRelatorio, setEditingRelatorio] = useState<Record<string, string>>({});
+  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
 
   const { mapeamentos, loading: loadingMap, buscar, atualizar, sincronizar } = useApaeBancoAplicacoes(sessaoId);
 
@@ -243,11 +245,61 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
                   >
                     <div className="flex items-center gap-2">
                       <Landmark className="w-4 h-4 text-primary shrink-0" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-mono text-muted-foreground">{banco.codigo}</p>
                         <p className="text-sm font-medium truncate">{banco.descricao}</p>
                       </div>
                     </div>
+
+                    {/* Nome no Relatório */}
+                    {hasMapeamento && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                          Nome no Relatório
+                        </label>
+                        {editMode[banco.codigo] || !mapeamento.nome_relatorio ? (
+                          <div className="flex gap-1">
+                            <Input
+                              value={editingRelatorio[banco.codigo] ?? mapeamento.nome_relatorio ?? ""}
+                              onChange={(e) => setEditingRelatorio((prev) => ({ ...prev, [banco.codigo]: e.target.value }))}
+                              placeholder="Ex: APAE GRAMADO CER II - 37.493-8"
+                              className="h-7 text-xs flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                              onClick={async () => {
+                                const val = editingRelatorio[banco.codigo]?.trim();
+                                if (!val) return;
+                                await atualizar(mapeamento.id, { nome_relatorio: val });
+                                setEditMode((prev) => ({ ...prev, [banco.codigo]: false }));
+                                toast.success("Nome no relatório salvo!");
+                              }}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded flex-1 truncate">
+                              {mapeamento.nome_relatorio}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                              onClick={() => {
+                                setEditingRelatorio((prev) => ({ ...prev, [banco.codigo]: mapeamento.nome_relatorio || "" }));
+                                setEditMode((prev) => ({ ...prev, [banco.codigo]: true }));
+                              }}
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {hasMapeamento ? (
                       <div className="space-y-1.5">

@@ -140,6 +140,7 @@ export type Database = {
           banco_codigo: string
           created_at: string
           id: string
+          nome_relatorio: string | null
           sessao_id: string
         }
         Insert: {
@@ -151,6 +152,7 @@ export type Database = {
           banco_codigo: string
           created_at?: string
           id?: string
+          nome_relatorio?: string | null
           sessao_id: string
         }
         Update: {
@@ -162,6 +164,7 @@ export type Database = {
           banco_codigo?: string
           created_at?: string
           id?: string
+          nome_relatorio?: string | null
           sessao_id?: string
         }
         Relationships: [
