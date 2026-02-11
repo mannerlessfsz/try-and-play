@@ -338,6 +338,7 @@ export function LancaApaeTab() {
       {step === 5 && (
         <ApaeStep5Conferencia
           resultados={resultados}
+          codigoEmpresa={codigoEmpresa}
           onBack={() => setStep(4)}
         />
       )}
