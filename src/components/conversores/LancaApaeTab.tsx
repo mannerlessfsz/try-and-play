@@ -22,6 +22,7 @@ export function LancaApaeTab() {
     buscarPlanoContas, salvarPlanoContas, atualizarContaBanco,
     buscarRelatorioLinhas, salvarRelatorioLinhas,
     buscarResultados, salvarResultados,
+    atualizarResultadoConta, atualizarResultadosLote, atualizarStatusResultados,
   } = useApaeSessoes();
 
   const [sessaoAtiva, setSessaoAtiva] = useState<string | null>(null);
@@ -322,6 +323,15 @@ export function LancaApaeTab() {
           onNext={() => setStep(5)}
           onBack={() => setStep(3)}
           saving={saving}
+          onSaveResultadoConta={atualizarResultadoConta}
+          onSaveResultadosLote={atualizarResultadosLote}
+          onSaveStatusResultados={atualizarStatusResultados}
+          onRefreshResultados={async () => {
+            if (sessaoAtiva) {
+              const res = await buscarResultados(sessaoAtiva);
+              setResultados(res);
+            }
+          }}
         />
       )}
 

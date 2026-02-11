@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
+import { toast } from "sonner";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
 import { BatchEditPanel } from "./BatchEditPanel";
@@ -36,9 +37,13 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
+  onSaveResultadoConta: (id: string, updates: { conta_debito_codigo?: string; conta_credito_codigo?: string }) => Promise<void>;
+  onSaveResultadosLote: (ids: string[], updates: { conta_debito_codigo?: string; conta_credito_codigo?: string }) => Promise<void>;
+  onSaveStatusResultados: (ids: string[]) => Promise<void>;
+  onRefreshResultados: () => Promise<void>;
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -250,15 +255,43 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     }
   };
 
-  const handleUpdateDebito = useCallback((id: string, codigo: string) => {
+  // Debounced DB save — collects IDs and flushes status updates
+  const pendingSaveIds = useRef<Set<string>>(new Set());
+  const flushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleStatusFlush = useCallback((ids: string[]) => {
+    ids.forEach(id => pendingSaveIds.current.add(id));
+    if (flushTimer.current) clearTimeout(flushTimer.current);
+    flushTimer.current = setTimeout(async () => {
+      const idsToFlush = Array.from(pendingSaveIds.current);
+      pendingSaveIds.current.clear();
+      try {
+        await onSaveStatusResultados(idsToFlush);
+      } catch {}
+    }, 500);
+  }, [onSaveStatusResultados]);
+
+  const handleUpdateDebito = useCallback(async (id: string, codigo: string) => {
     setEditados((prev) => ({ ...prev, [id]: { ...prev[id], debito: codigo } }));
-  }, []);
+    try {
+      await onSaveResultadoConta(id, { conta_debito_codigo: codigo });
+      scheduleStatusFlush([id]);
+    } catch {
+      toast.error("Erro ao salvar conta débito");
+    }
+  }, [onSaveResultadoConta, scheduleStatusFlush]);
 
-  const handleUpdateCredito = useCallback((id: string, codigo: string) => {
+  const handleUpdateCredito = useCallback(async (id: string, codigo: string) => {
     setEditados((prev) => ({ ...prev, [id]: { ...prev[id], credito: codigo } }));
-  }, []);
+    try {
+      await onSaveResultadoConta(id, { conta_credito_codigo: codigo });
+      scheduleStatusFlush([id]);
+    } catch {
+      toast.error("Erro ao salvar conta crédito");
+    }
+  }, [onSaveResultadoConta, scheduleStatusFlush]);
 
-  const handleBatchDebito = useCallback((ids: string[], codigo: string) => {
+  const handleBatchDebito = useCallback(async (ids: string[], codigo: string) => {
     setEditados((prev) => {
       const next = { ...prev };
       for (const id of ids) {
@@ -266,9 +299,17 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       }
       return next;
     });
-  }, []);
+    try {
+      await onSaveResultadosLote(ids, { conta_debito_codigo: codigo });
+      scheduleStatusFlush(ids);
+      const conta = planoOptions.find(c => c.codigo === codigo);
+      toast.success(`Conta débito "${conta?.codigo || codigo}" salva em ${ids.length} lançamento(s)`);
+    } catch {
+      toast.error("Erro ao salvar em lote");
+    }
+  }, [onSaveResultadosLote, scheduleStatusFlush, planoOptions]);
 
-  const handleBatchCredito = useCallback((ids: string[], codigo: string) => {
+  const handleBatchCredito = useCallback(async (ids: string[], codigo: string) => {
     setEditados((prev) => {
       const next = { ...prev };
       for (const id of ids) {
@@ -276,7 +317,15 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       }
       return next;
     });
-  }, []);
+    try {
+      await onSaveResultadosLote(ids, { conta_credito_codigo: codigo });
+      scheduleStatusFlush(ids);
+      const conta = bancoOptions.find(c => c.codigo === codigo);
+      toast.success(`Conta crédito "${conta?.codigo || codigo}" salva em ${ids.length} lançamento(s)`);
+    } catch {
+      toast.error("Erro ao salvar em lote");
+    }
+  }, [onSaveResultadosLote, scheduleStatusFlush, bancoOptions]);
 
   const filteredIds = useMemo(() => filtrado.map((r) => r.id), [filtrado]);
   const pendentesIds = useMemo(() => filtrado.filter((r) => r.status === "pendente").map((r) => r.id), [filtrado]);

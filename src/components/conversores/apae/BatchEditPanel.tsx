@@ -2,8 +2,7 @@ import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { Search, X, Layers, Check } from "lucide-react";
-import { toast } from "sonner";
+import { Search, X, Layers } from "lucide-react";
 
 interface ContaOption {
   codigo: string;
@@ -91,15 +90,11 @@ function InlineBatchSelector({ options, placeholder, onSelect }: {
 export function BatchEditPanel({ filteredIds, filteredCount, planoOptions, bancoOptions, onBatchDebito, onBatchCredito }: Props) {
   const handleDebito = useCallback((codigo: string) => {
     onBatchDebito(filteredIds, codigo);
-    const conta = planoOptions.find(c => c.codigo === codigo);
-    toast.success(`Conta débito "${conta?.codigo || codigo}" aplicada a ${filteredIds.length} lançamento(s)`);
-  }, [filteredIds, onBatchDebito, planoOptions]);
+  }, [filteredIds, onBatchDebito]);
 
   const handleCredito = useCallback((codigo: string) => {
     onBatchCredito(filteredIds, codigo);
-    const conta = bancoOptions.find(c => c.codigo === codigo);
-    toast.success(`Conta crédito "${conta?.codigo || codigo}" aplicada a ${filteredIds.length} lançamento(s)`);
-  }, [filteredIds, onBatchCredito, bancoOptions]);
+  }, [filteredIds, onBatchCredito]);
 
   return (
     <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-3">
