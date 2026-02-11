@@ -136,10 +136,12 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         // Extract account number from col_c (after last " - "), e.g. "APAE GRAMADO CER II - 37.493-8" → "37.493-8"
         let contaCreditoCodigo: string | null = null;
         const dashIdx = contaCreditoRaw.lastIndexOf(" - ");
-        const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw;
-        // Search only in mapped bank accounts from step 2
+        const numeroConta = dashIdx >= 0 ? contaCreditoRaw.substring(dashIdx + 3).trim() : contaCreditoRaw.trim();
+        // Normalize: remove dots/spaces for comparison (e.g. "37.493-8" vs "37493-8")
+        const numNorm = numeroConta.replace(/[.\s]/g, "");
         for (const banco of bancosMapeados) {
-          if (banco.descricao.includes(numeroConta) || banco.codigo.includes(numeroConta)) {
+          const descNorm = banco.descricao.replace(/[.\s]/g, "");
+          if (descNorm.includes(numNorm) || numNorm.includes(descNorm.replace(/[^0-9-]/g, ""))) {
             contaCreditoCodigo = banco.codigo;
             break;
           }
