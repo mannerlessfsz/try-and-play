@@ -7,6 +7,7 @@ import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronL
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
+import { BatchEditPanel } from "./BatchEditPanel";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 const ITEMS_PER_PAGE = 100;
@@ -257,6 +258,28 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     setEditados((prev) => ({ ...prev, [id]: { ...prev[id], credito: codigo } }));
   }, []);
 
+  const handleBatchDebito = useCallback((ids: string[], codigo: string) => {
+    setEditados((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        next[id] = { ...next[id], debito: codigo };
+      }
+      return next;
+    });
+  }, []);
+
+  const handleBatchCredito = useCallback((ids: string[], codigo: string) => {
+    setEditados((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        next[id] = { ...next[id], credito: codigo };
+      }
+      return next;
+    });
+  }, []);
+
+  const filteredIds = useMemo(() => filtrado.map((r) => r.id), [filtrado]);
+
   const vinculados = resultadosComEdits.filter((r) => r.status === "vinculado").length;
   const pendentes = resultadosComEdits.filter((r) => r.status === "pendente").length;
 
@@ -347,6 +370,17 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                   className="pl-9"
                 />
               </div>
+
+              {filtrado.length > 0 && (buscaDebounced.trim() || filtroStatus !== "todos") && (
+                <BatchEditPanel
+                  filteredIds={filteredIds}
+                  filteredCount={filtrado.length}
+                  planoOptions={planoOptions}
+                  bancoOptions={bancoOptions}
+                  onBatchDebito={handleBatchDebito}
+                  onBatchCredito={handleBatchCredito}
+                />
+              )}
 
               <div className="space-y-2">
                 {paginado.map((r, idx) => {
