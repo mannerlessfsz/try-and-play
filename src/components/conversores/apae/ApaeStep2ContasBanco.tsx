@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Plus, Trash2, Link2, Check } from "lucide-react";
+import { Building2, Search, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight, Loader2, Link2, Check, Save } from "lucide-react";
 import type { ApaePlanoContas } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { toast } from "sonner";
@@ -27,14 +27,25 @@ interface Props {
 export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onToggleAplicacao, onNext, onBack, saving }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
-  const [novoBancoCodigo, setNovoBancoCodigo] = useState("");
   const [confirmado, setConfirmado] = useState(false);
+  const [syncingMapeamentos, setSyncingMapeamentos] = useState(false);
 
   const { mapeamentos, loading: loadingMap, buscar, adicionar, atualizar, remover } = useApaeBancoAplicacoes(sessaoId);
 
   useEffect(() => { buscar(); }, [buscar]);
 
-  // Contas marcadas como banco ou aplicação, na ordem do plano de contas
+  // Contas marcadas como banco, na ordem do plano de contas
+  const contasBanco = useMemo(
+    () => planoContas.filter((c) => c.is_banco),
+    [planoContas]
+  );
+
+  // Contas marcadas como aplicação, na ordem do plano de contas
+  const contasAplicacao = useMemo(
+    () => planoContas.filter((c) => c.is_aplicacao),
+    [planoContas]
+  );
+
   const contasBancoAplicacao = useMemo(
     () => planoContas.filter((c) => c.is_banco || c.is_aplicacao),
     [planoContas]
@@ -46,6 +57,20 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     planoContas.forEach((c) => map.set(c.codigo, c));
     return map;
   }, [planoContas]);
+
+  // Collect all aplicacao codes already used across all mapeamentos
+  const aplicacoesUsadas = useMemo(() => {
+    const used = new Map<string, string>(); // aplicacao_codigo -> banco_codigo
+    for (const m of mapeamentos) {
+      for (const col of ["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const) {
+        const val = m[col];
+        if (val && val !== "0") {
+          used.set(val, m.banco_codigo);
+        }
+      }
+    }
+    return used;
+  }, [mapeamentos]);
 
   // Busca no plano de contas completo para marcar
   const filtradoPlano = useMemo(() => {
@@ -65,7 +90,37 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     return filtradoPlano.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtradoPlano, pagina]);
 
-  // Reset confirmado when user changes banco/aplicacao selections
+  // Sync mapeamentos: ensure every conta banco has a row, remove rows for non-banco
+  const syncMapeamentos = useCallback(async () => {
+    setSyncingMapeamentos(true);
+    try {
+      const bancoSet = new Set(contasBanco.map((c) => c.codigo));
+      const existingSet = new Set(mapeamentos.map((m) => m.banco_codigo));
+
+      // Add missing banco rows
+      for (const conta of contasBanco) {
+        if (!existingSet.has(conta.codigo)) {
+          await adicionar(conta.codigo);
+        }
+      }
+
+      // Remove rows that are no longer banco
+      for (const m of mapeamentos) {
+        if (!bancoSet.has(m.banco_codigo)) {
+          await remover(m.id);
+        }
+      }
+
+      await buscar();
+      setConfirmado(true);
+      toast.success("Mapeamento sincronizado e confirmado!");
+    } catch (e: any) {
+      toast.error("Erro ao sincronizar: " + e.message);
+    } finally {
+      setSyncingMapeamentos(false);
+    }
+  }, [contasBanco, mapeamentos, adicionar, remover, buscar]);
+
   const handleToggleBancoWrapped = async (id: string, value: boolean) => {
     setConfirmado(false);
     await onToggleBanco(id, value);
@@ -76,21 +131,33 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     await onToggleAplicacao(id, value);
   };
 
-  const handleConfirmar = () => {
-    setConfirmado(true);
-    toast.success(`${contasBancoAplicacao.length} conta(s) confirmadas como banco/aplicação`);
-  };
-
-  const handleAdicionarMapeamento = async () => {
-    if (!novoBancoCodigo) return;
-    await adicionar(novoBancoCodigo);
-    setNovoBancoCodigo("");
+  const handleAtualizarAplicacao = async (mapeamentoId: string, col: string, value: string, bancoCodigo: string) => {
+    // Check if this aplicacao is already used by another banco
+    if (value !== "0") {
+      const usadaPor = aplicacoesUsadas.get(value);
+      if (usadaPor && usadaPor !== bancoCodigo) {
+        const contaUsada = contasByCodigo.get(value);
+        const bancoUsado = contasByCodigo.get(usadaPor);
+        toast.error(`A aplicação "${contaUsada?.descricao || value}" já está vinculada ao banco "${bancoUsado?.descricao || usadaPor}"`);
+        return;
+      }
+    }
+    await atualizar(mapeamentoId, { [col]: value });
   };
 
   const getContaLabel = (codigo: string) => {
     if (!codigo || codigo === "0") return "— Nenhuma";
     const conta = contasByCodigo.get(codigo);
     return conta ? `${codigo} - ${conta.descricao}` : codigo;
+  };
+
+  // Get available aplicacoes for a specific select (exclude already used by other bancos)
+  const getAplicacoesDisponiveis = (bancoCodigo: string, currentValue: string) => {
+    return contasAplicacao.filter((c) => {
+      if (c.codigo === currentValue) return true; // always show current selection
+      const usadaPor = aplicacoesUsadas.get(c.codigo);
+      return !usadaPor || usadaPor === bancoCodigo; // available if not used or used by same banco
+    });
   };
 
   return (
@@ -108,11 +175,8 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_banco).length} banco(s)</Badge>
-            <Badge variant="secondary">{contasBancoAplicacao.filter((c) => c.is_aplicacao).length} aplicação(ões)</Badge>
-            {confirmado && (
-              <Badge variant="default" className="bg-green-600">✓ Confirmado</Badge>
-            )}
+            <Badge variant="secondary">{contasBanco.length} banco(s)</Badge>
+            <Badge variant="secondary">{contasAplicacao.length} aplicação(ões)</Badge>
           </div>
 
           <div className="relative">
@@ -175,20 +239,11 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
               </div>
             </div>
           )}
-
-          {contasBancoAplicacao.length > 0 && !confirmado && (
-            <div className="flex justify-end pt-2 border-t">
-              <Button onClick={handleConfirmar} disabled={saving}>
-                <Check className="w-4 h-4 mr-2" />
-                Confirmar Seleção ({contasBancoAplicacao.length} conta(s))
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
-      {/* Seção 2: Mapeamento Banco → Aplicações — sempre mostra se há mapeamentos OU contas confirmadas */}
-      {(mapeamentos.length > 0 || (confirmado && contasBancoAplicacao.length > 0)) && (
+      {/* Seção 2: Mapeamento Banco → Aplicações */}
+      {contasBanco.length > 0 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -196,79 +251,81 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
               Mapeamento Banco → Aplicações
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Vincule cada conta de banco às suas contas de aplicação
+              Clique em "Confirmar e Sincronizar" para gerar as linhas de cada banco. Depois vincule as aplicações.
+              Uma aplicação só pode ser vinculada a um banco.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Select value={novoBancoCodigo} onValueChange={setNovoBancoCodigo}>
-                <SelectTrigger className="w-[300px]">
-                  <SelectValue placeholder="Selecione a conta..." />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {contasBancoAplicacao.map((c) => (
-                    <SelectItem key={c.codigo} value={c.codigo}>
-                      {c.codigo} - {c.descricao}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button size="sm" onClick={handleAdicionarMapeamento} disabled={!novoBancoCodigo}>
-                <Plus className="w-4 h-4 mr-1" /> Adicionar
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                onClick={syncMapeamentos}
+                disabled={syncingMapeamentos || saving}
+              >
+                {syncingMapeamentos ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Confirmar e Sincronizar ({contasBanco.length} banco(s))
               </Button>
+              {confirmado && (
+                <Badge variant="default" className="bg-green-600 text-white">
+                  <Check className="w-3 h-3 mr-1" /> Confirmado
+                </Badge>
+              )}
             </div>
 
-            {loadingMap ? (
+            {loadingMap || syncingMapeamentos ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="w-5 h-5 animate-spin" />
               </div>
             ) : mapeamentos.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Nenhum mapeamento cadastrado.</p>
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Clique em "Confirmar e Sincronizar" para gerar as linhas de mapeamento.
+              </p>
             ) : (
-              <ScrollArea className="max-h-[50vh]">
+              <ScrollArea className="max-h-[70vh]">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-28">Banco</TableHead>
+                      <TableHead className="w-40">Banco</TableHead>
                       <TableHead>Aplicação 1</TableHead>
                       <TableHead>Aplicação 2</TableHead>
                       <TableHead>Aplicação 3</TableHead>
                       <TableHead>Aplicação 4</TableHead>
                       <TableHead>Aplicação 5</TableHead>
-                      <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {mapeamentos.map((m) => (
                       <TableRow key={m.id}>
-                        <TableCell className="font-mono text-xs font-medium">
+                        <TableCell className="font-mono text-xs font-medium whitespace-normal">
                           {getContaLabel(m.banco_codigo)}
                         </TableCell>
-                        {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col) => (
-                          <TableCell key={col}>
-                            <Select
-                              value={m[col] || "0"}
-                              onValueChange={(v) => atualizar(m.id, { [col]: v })}
-                            >
-                              <SelectTrigger className="h-8 text-xs">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-[300px]">
-                                <SelectItem value="0">— Nenhuma</SelectItem>
-                                {contasBancoAplicacao.map((c) => (
-                                  <SelectItem key={c.codigo} value={c.codigo}>
-                                    {c.codigo} - {c.descricao}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                        ))}
-                        <TableCell>
-                          <Button variant="ghost" size="sm" onClick={() => remover(m.id)}>
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </TableCell>
+                        {(["aplicacao1_codigo", "aplicacao2_codigo", "aplicacao3_codigo", "aplicacao4_codigo", "aplicacao5_codigo"] as const).map((col) => {
+                          const currentVal = m[col] || "0";
+                          const disponiveis = getAplicacoesDisponiveis(m.banco_codigo, currentVal);
+                          return (
+                            <TableCell key={col}>
+                              <Select
+                                value={currentVal}
+                                onValueChange={(v) => handleAtualizarAplicacao(m.id, col, v, m.banco_codigo)}
+                              >
+                                <SelectTrigger className="h-8 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[300px]">
+                                  <SelectItem value="0">— Nenhuma</SelectItem>
+                                  {disponiveis.map((c) => (
+                                    <SelectItem key={c.codigo} value={c.codigo}>
+                                      {c.codigo} - {c.descricao}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                          );
+                        })}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -283,7 +340,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4 mr-2" /> Voltar
         </Button>
-        <Button onClick={onNext} disabled={contasBancoAplicacao.length === 0 || !confirmado}>
+        <Button onClick={onNext} disabled={contasBancoAplicacao.length === 0}>
           Próximo: Relatório <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>
