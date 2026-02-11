@@ -30,7 +30,7 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
   const [confirmado, setConfirmado] = useState(false);
   const [syncingMapeamentos, setSyncingMapeamentos] = useState(false);
 
-  const { mapeamentos, loading: loadingMap, buscar, adicionar, atualizar, remover } = useApaeBancoAplicacoes(sessaoId);
+  const { mapeamentos, loading: loadingMap, buscar, atualizar, sincronizar } = useApaeBancoAplicacoes(sessaoId);
 
   useEffect(() => { buscar(); }, [buscar]);
 
@@ -90,36 +90,17 @@ export function ApaeStep2ContasBanco({ sessaoId, planoContas, onToggleBanco, onT
     return filtradoPlano.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtradoPlano, pagina]);
 
-  // Sync mapeamentos: ensure every conta banco has a row, remove rows for non-banco
+  // Sync mapeamentos: batch operation via hook
   const syncMapeamentos = useCallback(async () => {
     setSyncingMapeamentos(true);
-    try {
-      const bancoSet = new Set(contasBanco.map((c) => c.codigo));
-      const existingSet = new Set(mapeamentos.map((m) => m.banco_codigo));
-
-      // Add missing banco rows
-      for (const conta of contasBanco) {
-        if (!existingSet.has(conta.codigo)) {
-          await adicionar(conta.codigo);
-        }
-      }
-
-      // Remove rows that are no longer banco
-      for (const m of mapeamentos) {
-        if (!bancoSet.has(m.banco_codigo)) {
-          await remover(m.id);
-        }
-      }
-
-      await buscar();
+    const codigos = contasBanco.map((c) => c.codigo);
+    const total = await sincronizar(codigos);
+    if (total > 0) {
       setConfirmado(true);
-      toast.success("Mapeamento sincronizado e confirmado!");
-    } catch (e: any) {
-      toast.error("Erro ao sincronizar: " + e.message);
-    } finally {
-      setSyncingMapeamentos(false);
+      toast.success(`${total} banco(s) sincronizados!`);
     }
-  }, [contasBanco, mapeamentos, adicionar, remover, buscar]);
+    setSyncingMapeamentos(false);
+  }, [contasBanco, sincronizar]);
 
   const handleToggleBancoWrapped = async (id: string, value: boolean) => {
     setConfirmado(false);
