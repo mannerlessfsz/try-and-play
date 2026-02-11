@@ -1,24 +1,37 @@
 import { useState } from "react";
 import { FileUp } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { ConversorBase, type ConvertedFile } from "./ConversorBase";
 import { useConversoes } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { readExcelFile } from "@/utils/fileParserUtils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Eye } from "lucide-react";
 
-const formatosSaida = [
-  { value: "txt", label: "TXT" },
-  { value: "csv", label: "CSV" },
-  { value: "xml", label: "XML" },
-];
+/** Remove acentos, cedilhas e converte para maiúsculas */
+function toUpperNoAccents(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toUpperCase()
+    .trim();
+}
 
-interface ApaeRecord {
+export interface ApaeProcessedRecord {
   linha: number;
-  codigo: string;
-  descricao: string;
+  fornecedor: string;
+  contaDebito: string;
+  centroCusto: string;
+  nDoc: string;
+  vencimento: string;
   valor: string;
-  data: string;
-  tipo: string;
+  dataPagto: string;
+  valorPago: string;
+  historicoOriginal: string;
+  historicoConcatenado: string;
 }
 
 export function LancaApaeTab() {
@@ -26,60 +39,59 @@ export function LancaApaeTab() {
   const { criarConversao, atualizarConversao } = useConversoes("apae");
 
   const [files, setFiles] = useState<File[]>([]);
-  const [tipoSaida, setTipoSaida] = useState<string>("txt");
   const [isConverting, setIsConverting] = useState(false);
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [processedRecords, setProcessedRecords] = useState<ApaeProcessedRecord[]>([]);
 
-  const parseApaeContent = (content: string): ApaeRecord[] => {
-    const lines = content.split('\n').filter(l => l.trim());
-    const records: ApaeRecord[] = [];
+  const parseApaeExcel = async (file: File): Promise<ApaeProcessedRecord[]> => {
+    const rows = await readExcelFile(file);
+    if (rows.length < 3) return []; // header + at least one pair
 
-    lines.forEach((line, index) => {
-      // Formato APAE típico: posições fixas ou delimitado
-      const trimmed = line.trim();
-      if (trimmed.length > 10) {
-        // Tentativa de parsing posicional
-        records.push({
-          linha: index + 1,
-          codigo: trimmed.substring(0, 10).trim(),
-          descricao: trimmed.substring(10, 50).trim(),
-          valor: trimmed.substring(50, 65).trim(),
-          data: trimmed.substring(65, 75).trim(),
-          tipo: trimmed.substring(75, 80).trim() || 'N/D',
-        });
-      }
-    });
+    const records: ApaeProcessedRecord[] = [];
+    // Row 0 = header. Pairs start at index 1 (odd=data, even=history)
+    // Columns (0-based): A=0 SITUAÇÃO, B=1 FORNECEDOR, C=2 CONTA DÉBITO,
+    //   D=3 CENTRO DE CUSTO, E=4 N° DOC, F=5 VENCIMENTO, G=6 VALOR,
+    //   H=7 DATA PAGTO, I=8 VALOR PAGO
+
+    for (let i = 1; i < rows.length - 1; i += 2) {
+      const oddRow = rows[i];     // data row
+      const evenRow = rows[i + 1]; // history row
+
+      if (!oddRow) continue;
+
+      const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim();
+
+      const bOdd = col(oddRow, 1);   // FORNECEDOR
+      const bEven = col(evenRow, 1);  // HISTÓRICO TÍTULO...
+      const cEven = col(evenRow, 2);  // CONTA DÉBITO (even)
+      const dOdd = col(oddRow, 3);    // CENTRO DE CUSTO
+      const eEven = col(evenRow, 4);  // N° DOC (even)
+
+      // Build histórico concatenado
+      const parts: string[] = [bOdd, bEven];
+      if (eEven) parts.push(eEven);
+      parts.push(`(CENTRO ${dOdd})`);
+      parts.push(`PAGO EM ${cEven}`);
+
+      const historicoConcatenado = toUpperNoAccents(parts.join(" "));
+
+      records.push({
+        linha: i + 1, // 1-based line in file (skipping header)
+        fornecedor: col(oddRow, 1),
+        contaDebito: col(oddRow, 2),
+        centroCusto: dOdd,
+        nDoc: col(oddRow, 4),
+        vencimento: col(oddRow, 5),
+        valor: col(oddRow, 6),
+        dataPagto: col(oddRow, 7),
+        valorPago: col(oddRow, 8),
+        historicoOriginal: bEven,
+        historicoConcatenado,
+      });
+    }
 
     return records;
-  };
-
-  const convertToCSV = (records: ApaeRecord[]): string => {
-    const headers = ["LINHA", "CODIGO", "DESCRICAO", "VALOR", "DATA", "TIPO"];
-    const rows = records.map(r => [
-      r.linha, r.codigo, r.descricao, r.valor, r.data, r.tipo
-    ].map(v => `"${v}"`).join(";"));
-    return [headers.join(";"), ...rows].join("\n");
-  };
-
-  const convertToXML = (records: ApaeRecord[]): string => {
-    const xmlRows = records.map(r => 
-      `  <registro>
-    <linha>${r.linha}</linha>
-    <codigo>${r.codigo}</codigo>
-    <descricao>${r.descricao}</descricao>
-    <valor>${r.valor}</valor>
-    <data>${r.data}</data>
-    <tipo>${r.tipo}</tipo>
-  </registro>`
-    ).join('\n');
-    return `<?xml version="1.0" encoding="UTF-8"?>\n<apae>\n${xmlRows}\n</apae>`;
-  };
-
-  const convertToTXT = (records: ApaeRecord[]): string => {
-    return records.map(r => 
-      `${r.codigo.padEnd(10)}${r.descricao.padEnd(40)}${r.valor.padStart(15)}${r.data.padEnd(10)}${r.tipo}`
-    ).join("\n");
   };
 
   const handleConvert = async () => {
@@ -90,21 +102,20 @@ export function LancaApaeTab() {
 
     setIsConverting(true);
     setError(null);
+    setProcessedRecords([]);
     setConvertedFiles([]);
 
     try {
-      const results: ConvertedFile[] = [];
+      let allRecords: ApaeProcessedRecord[] = [];
 
       for (const file of files) {
         let conversaoId: string | null = null;
-        const content = await file.text();
 
         if (empresaAtiva?.id) {
           try {
             const conversao = await criarConversao.mutateAsync({
               modulo: "apae",
               nomeArquivoOriginal: file.name,
-              conteudoOriginal: content,
             });
             conversaoId = conversao.id;
           } catch (err) {
@@ -113,8 +124,8 @@ export function LancaApaeTab() {
         }
 
         try {
-          const records = parseApaeContent(content);
-          
+          const records = await parseApaeExcel(file);
+
           if (records.length === 0) {
             toast.warning(`Arquivo ${file.name} não contém registros válidos.`);
             if (conversaoId && empresaAtiva?.id) {
@@ -127,28 +138,7 @@ export function LancaApaeTab() {
             continue;
           }
 
-          let convertedContent: string;
-
-          switch (tipoSaida) {
-            case "csv":
-              convertedContent = convertToCSV(records);
-              break;
-            case "xml":
-              convertedContent = convertToXML(records);
-              break;
-            case "txt":
-            default:
-              convertedContent = convertToTXT(records);
-          }
-
-          const baseName = file.name.replace(/\.[^/.]+$/, "");
-          const convertedFile = {
-            name: `${baseName}_processado.${tipoSaida}`,
-            type: tipoSaida,
-            content: convertedContent,
-            size: new Blob([convertedContent]).size,
-          };
-          results.push(convertedFile);
+          allRecords = [...allRecords, ...records];
 
           if (conversaoId && empresaAtiva?.id) {
             await atualizarConversao.mutateAsync({
@@ -157,9 +147,7 @@ export function LancaApaeTab() {
               totalLinhas: records.length,
               linhasProcessadas: records.length,
               linhasErro: 0,
-              conteudoConvertido: convertedContent,
-              nomeArquivoConvertido: convertedFile.name,
-              metadados: { tipoSaida, totalRegistros: records.length },
+              metadados: { totalRegistros: records.length },
             });
           }
         } catch (err) {
@@ -174,14 +162,14 @@ export function LancaApaeTab() {
         }
       }
 
-      setConvertedFiles(results);
-      
-      if (results.length > 0) {
-        toast.success(`${results.length} arquivo(s) processado(s) com sucesso!`);
+      setProcessedRecords(allRecords);
+
+      if (allRecords.length > 0) {
+        toast.success(`${allRecords.length} registro(s) processado(s) com sucesso!`);
         setFiles([]);
       }
     } catch (err) {
-      setError("Erro ao processar arquivos APAE.");
+      setError("Erro ao processar arquivo APAE.");
       console.error(err);
     } finally {
       setIsConverting(false);
@@ -200,42 +188,82 @@ export function LancaApaeTab() {
     URL.revokeObjectURL(url);
   };
 
-  const downloadAll = () => {
-    convertedFiles.forEach(file => downloadFile(file));
-  };
-
   return (
-    <ConversorBase
-      modulo="apae"
-      titulo="Lança APAE"
-      descricao="Processe arquivos APAE para lançamento contábil"
-      icon={<FileUp className="w-5 h-5 text-indigo-500" />}
-      iconColor="text-indigo-500"
-      bgColor="bg-indigo-500/10"
-      acceptedFiles=".txt,.csv"
-      acceptedFormats="Arquivos TXT e CSV no formato APAE"
-      files={files}
-      setFiles={setFiles}
-      convertedFiles={convertedFiles}
-      isConverting={isConverting}
-      onConvert={handleConvert}
-      onDownload={downloadFile}
-      onDownloadAll={downloadAll}
-      error={error}
-    >
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Formato de saída</label>
-        <Select value={tipoSaida} onValueChange={setTipoSaida}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {formatosSaida.map(f => (
-              <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </ConversorBase>
+    <div className="space-y-4">
+      <ConversorBase
+        modulo="apae"
+        titulo="Lança APAE"
+        descricao="Processe arquivos de Contas a Pagar para lançamento contábil"
+        icon={<FileUp className="w-5 h-5 text-indigo-500" />}
+        iconColor="text-indigo-500"
+        bgColor="bg-indigo-500/10"
+        acceptedFiles=".xlsx,.xls,.csv"
+        acceptedFormats="Arquivos Excel (.xlsx, .xls) ou CSV"
+        files={files}
+        setFiles={setFiles}
+        convertedFiles={convertedFiles}
+        isConverting={isConverting}
+        onConvert={handleConvert}
+        onDownload={downloadFile}
+        error={error}
+        hideOutputCard={true}
+      >
+        {/* No extra options needed for now */}
+        <></>
+      </ConversorBase>
+
+      {/* Preview dos dados processados */}
+      {processedRecords.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Eye className="w-5 h-5 text-indigo-500" />
+              Dados Processados
+              <Badge variant="secondary" className="ml-2">
+                {processedRecords.length} registro(s)
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="max-h-[500px] w-full">
+              <div className="min-w-[900px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>Fornecedor</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Data Pagto</TableHead>
+                      <TableHead className="min-w-[400px]">Histórico Gerado</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {processedRecords.map((record, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {idx + 1}
+                        </TableCell>
+                        <TableCell className="font-medium text-sm max-w-[200px] truncate">
+                          {record.fornecedor}
+                        </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {record.valorPago || record.valor}
+                        </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {record.dataPagto}
+                        </TableCell>
+                        <TableCell className="text-xs font-mono break-all">
+                          {record.historicoConcatenado}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
