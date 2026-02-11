@@ -9,7 +9,7 @@ import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
-const ITEMS_PER_PAGE = 50;
+const ITEMS_PER_PAGE = 100;
 
 /** Remove acentos e converte para maiúsculas */
 function toUpperNoAccents(str: string): string {
