@@ -18,6 +18,23 @@ function toUpperNoAccents(str: string): string {
   return str.normalize("NFD").replace(/\p{Diacritic}/gu, "").toUpperCase().trim();
 }
 
+/** Extrai o histórico a partir do marcador de grupo (S - / A - / S / A) */
+function extractHistoricoFromGrupo(text: string): string {
+  // Procura "S - " ou "A - " standalone (precedido por espaço, ":" ou início)
+  for (const prefix of ["S - ", "A - ", "S -", "A -"]) {
+    const idx = text.indexOf(prefix);
+    if (idx >= 0 && (idx === 0 || /[\s:]/.test(text[idx - 1]))) {
+      return text.substring(idx).trim();
+    }
+  }
+  // Fallback: "S " ou "A " após ":"
+  const colonMatch = text.match(/:\s*([SA])\s/);
+  if (colonMatch && colonMatch.index !== undefined) {
+    return text.substring(colonMatch.index + colonMatch[0].indexOf(colonMatch[1])).trim();
+  }
+  return text;
+}
+
 function normalizeRelatorioName(str: string): string {
   return toUpperNoAccents(str)
     .replace(/[–—−]/g, "-")
@@ -173,10 +190,11 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         const h = par.historico;
         if (!d) continue;
 
-        const fornecedor = (d.col_b || "").trim();
+        const fornecedor = (h?.col_b || "").trim();
         const contaCreditoRaw = (d.col_c || "").trim();
         const centroCusto = (d.col_d || "").trim();
-        const historicoOriginal = (h?.col_b || "").trim();
+        const historicoOriginalRaw = (d.col_b || "").trim();
+        const historicoOriginal = extractHistoricoFromGrupo(historicoOriginalRaw);
         const nDoc = (h?.col_e || "").trim();
         const dataPagto = (d.col_h || "").trim();
         const valorPago = (d.col_i || "").trim();
