@@ -296,7 +296,6 @@ export function LancaApaeTab() {
           planoContas={planoContas}
           onToggleBanco={handleToggleBanco}
           onToggleAplicacao={handleToggleAplicacao}
-          onAutoSugerir={handleAutoSugerir}
           onNext={() => setStep(3)}
           onBack={() => setStep(1)}
           saving={saving}
