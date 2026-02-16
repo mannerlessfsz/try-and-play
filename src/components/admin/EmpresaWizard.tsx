@@ -39,10 +39,6 @@ const modulosDisponiveis: { id: AppModule; nome: string; descricao: string }[] =
   { id: 'taskvault', nome: 'TaskVault', descricao: 'Gestão de tarefas e obrigações' },
   { id: 'gestao', nome: 'GESTÃO', descricao: 'Sistema integrado financeiro e ERP' },
   { id: 'conversores', nome: 'Conversores', descricao: 'Conversão de arquivos fiscais e documentos' },
-  { id: 'ajustasped', nome: 'AjustaSped', descricao: 'Ajuste de arquivos SPED' },
-  { id: 'conferesped', nome: 'ConfereSped', descricao: 'Conferência de arquivos SPED' },
-  { id: 'erp', nome: 'ERP', descricao: 'Controle de estoque, vendas e compras' },
-  { id: 'financialace', nome: 'FinancialACE', descricao: 'Gestão financeira avançada' },
 ];
 
 // Validation schemas
