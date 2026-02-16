@@ -616,12 +616,14 @@ const FloatingIsland = React.memo(({
 
   // Calculate orbital positions — contacts fan out upward-right from bottom-left core
   const getOrbitalPosition = (index: number, total: number) => {
-    const arcStart = -Math.PI * 0.5;  // straight up
-    const arcEnd = 0;                  // straight right
+    const arcStart = -Math.PI * 0.55;  // slightly past straight up
+    const arcEnd = Math.PI * 0.05;     // slightly past straight right
     const angle = total === 1 
       ? (arcStart + arcEnd) / 2 
       : arcStart + (index / (total - 1)) * (arcEnd - arcStart);
-    const radius = 56 + (index % 2) * 14; // staggered radius for depth
+    // Dynamic radius: grows with count so orbs stay well-spaced
+    const baseRadius = Math.max(72, 52 + total * 8);
+    const radius = baseRadius + (index % 2) * 18;
     return {
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
