@@ -650,14 +650,14 @@ const FloatingIsland = React.memo(({
             animate={{ scale: 1, x: 0 }}
             exit={{ scale: 0, x: 50 }}
             onClick={onToggle}
-            className="fixed top-2 right-[280px] z-50 
-                       w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-violet-500/30
+            className="fixed top-2.5 right-[280px] z-50 
+                       w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/30 to-violet-500/30
                        backdrop-blur-xl border border-white/20 shadow-lg
                        flex items-center justify-center group"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <MessageCircle className="w-4 h-4 text-white" />
+            <MessageCircle className="w-3.5 h-3.5 text-white" />
             {totalUnread > 0 && (
               <motion.div
                 className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-red-500 to-orange-500
@@ -680,7 +680,7 @@ const FloatingIsland = React.memo(({
             animate={{ x: 0, opacity: 1 }}
             exit={{ x: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed top-1.5 right-[280px] z-50 pointer-events-none"
+            className="fixed top-1 right-[280px] z-50 pointer-events-none"
           >
             {/* Glow effect - themed */}
             <div className={cn(
@@ -692,7 +692,7 @@ const FloatingIsland = React.memo(({
             <div 
               ref={containerRef}
               className={cn(
-                "relative flex items-center gap-1 px-2 py-1.5 rounded-full backdrop-blur-2xl shadow-xl pointer-events-auto border",
+                "relative flex items-center gap-0.5 px-1.5 py-1 rounded-full backdrop-blur-2xl shadow-xl pointer-events-auto border",
                 themeConfig.island.bg,
                 themeConfig.island.border
               )}
@@ -701,7 +701,7 @@ const FloatingIsland = React.memo(({
               <motion.button
                 onClick={scrollLeft}
                 className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-all",
+                "w-5 h-5 rounded-full flex items-center justify-center transition-all",
                   canScrollLeft 
                     ? cn(themeConfig.button.bg, themeConfig.button.hover, theme === 'light' ? 'text-gray-600' : 'text-white')
                     : theme === 'light' ? 'text-gray-300 cursor-not-allowed' : 'text-white/20 cursor-not-allowed'
@@ -740,7 +740,7 @@ const FloatingIsland = React.memo(({
                       
                       {/* Orb - Smaller */}
                       <div
-                        className="relative w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-[10px]
+                        className="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-[9px]
                                    shadow-md overflow-hidden"
                         style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
                       >
