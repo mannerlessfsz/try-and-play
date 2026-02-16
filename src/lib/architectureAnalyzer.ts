@@ -46,7 +46,7 @@ export function generateProjectStructure(): ProjectStructure {
       {
         name: 'MasterAuth',
         path: 'src/pages/MasterAuth.tsx',
-        route: '/master',
+        route: '/sys-a7x9k2',
         components: [],
         hooks: ['useAuth'],
       },

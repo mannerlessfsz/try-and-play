@@ -54,13 +54,7 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     requires: '-',
     description: 'Autenticação por email',
   },
-  {
-    path: '/master',
-    name: 'Login Master',
-    type: 'auth',
-    requires: '-',
-    description: 'Autenticação do administrador',
-  },
+  // Rota master omitida intencionalmente da listagem por segurança
   // Protegidas
   {
     path: '/dashboard',

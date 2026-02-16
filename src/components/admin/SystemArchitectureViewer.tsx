@@ -365,7 +365,7 @@ const SystemArchitectureViewer = () => {
                 <div>
                   <h3 className="font-medium mb-3">1. Autenticação</h3>
                   <div className="flex flex-wrap items-center gap-2">
-                    <FlowStep label="Login" sublabel="/auth ou /master" />
+                    <FlowStep label="Login" sublabel="/auth" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     <FlowStep label="Supabase Auth" sublabel="Validação" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />

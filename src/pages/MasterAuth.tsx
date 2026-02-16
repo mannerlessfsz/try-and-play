@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Lock, User, Shield, ArrowLeft } from 'lucide-react';
+import { Loader2, Lock, User, Shield } from 'lucide-react';
 import { z } from 'zod';
 
 const usernameSchema = z.string().min(3, 'Usuário deve ter pelo menos 3 caracteres');
@@ -156,22 +156,7 @@ const MasterAuth: React.FC = () => {
             </Button>
           </form>
 
-          {/* Link para voltar à página inicial */}
-          <div className="mt-6 pt-4 border-t border-border/50 space-y-2">
-            <Link 
-              to="/auth" 
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Acessar como cliente
-            </Link>
-            <Link 
-              to="/" 
-              className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Voltar à página inicial
-            </Link>
-          </div>
+          {/* Sem links visíveis - rota oculta por segurança */}
         </CardContent>
       </Card>
     </div>

@@ -959,7 +959,7 @@ export const FloatingMessengerOrbs = () => {
   }, [isAdmin, permissionsLoading, empresaAtiva?.id, hasModuleAccessFlexible]);
 
   // Don't show on messenger page, auth pages, landing, or if no permission
-  const hiddenRoutes = ['/messenger', '/auth', '/master', '/'];
+  const hiddenRoutes = ['/messenger', '/auth', '/sys-a7x9k2', '/'];
   const shouldShow = useMemo(() => {
     return user && hasMessengerAccess && !hiddenRoutes.includes(location.pathname);
   }, [user, hasMessengerAccess, location.pathname]);
