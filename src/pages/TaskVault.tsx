@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { CommandCenter } from "@/components/task/CommandCenter";
 import { TaskHeatmap } from "@/components/task/TaskHeatmap";
@@ -615,27 +615,59 @@ export default function TaskVault() {
               </thead>
               <tbody>
                 {filteredTarefas.map(tarefa => (
-                  <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/3 transition-colors">
-                    <td className="p-3">
-                      <div className="font-medium text-foreground">{tarefa.titulo}</div>
-                      <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
-                    </td>
-                    <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
-                    <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
-                    <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
-                    <td className="p-3">
-                      <div className="w-20">
-                        <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
-                        <div className="h-1.5 bg-foreground/8 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                  <React.Fragment key={tarefa.id}>
+                    <tr 
+                      className="border-b border-foreground/5 hover:bg-foreground/3 transition-colors cursor-pointer"
+                      onClick={() => setExpandedKanbanId(prev => prev === tarefa.id ? null : tarefa.id)}
+                    >
+                      <td className="p-3">
+                        <div className="font-medium text-foreground">{tarefa.titulo}</div>
+                        <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
+                      </td>
+                      <td className="p-3 text-sm text-foreground/80">{getEmpresaNome(tarefa.empresaId)}</td>
+                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium border ${prioridadeColors[tarefa.prioridade]}`}>{tarefa.prioridade}</span></td>
+                      <td className="p-3"><span className={`px-2 py-1 rounded text-xs font-medium ${statusColors[tarefa.status]}`}>{tarefa.status.replace("_", " ")}</span></td>
+                      <td className="p-3">
+                        <div className="w-20">
+                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
+                          <div className="h-1.5 bg-foreground/8 rounded-full overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
-                    <td className="p-3 text-right">
-                      <button onClick={() => handleDeleteTarefa(tarefa.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
+                      <td className="p-3 text-right">
+                        <button onClick={(e) => { e.stopPropagation(); handleDeleteTarefa(tarefa.id); }} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      </td>
+                    </tr>
+                    <AnimatePresence>
+                      {expandedKanbanId === tarefa.id && (
+                        <tr>
+                          <td colSpan={7} className="p-0">
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden"
+                            >
+                              <div className="p-3 border-b border-primary/20 bg-card/60">
+                                <ExpandedTaskCard
+                                  tarefa={tarefa}
+                                  empresaNome={getEmpresaNome(tarefa.empresaId)}
+                                  onDelete={() => handleDeleteTarefa(tarefa.id)}
+                                  onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)}
+                                  onUploadArquivo={(file) => handleUploadArquivo(tarefa.id, file)}
+                                  onDeleteArquivo={handleDeleteArquivo}
+                                  defaultExpanded
+                                />
+                              </div>
+                            </motion.div>
+                          </td>
+                        </tr>
+                      )}
+                    </AnimatePresence>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
