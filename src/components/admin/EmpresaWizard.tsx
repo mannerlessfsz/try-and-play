@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Building2, Settings, Check, ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Building2, Settings, Check, ChevronRight, ChevronLeft, Loader2, Search, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Database } from "@/integrations/supabase/types";
 import { z } from "zod";
 import { REGIMES_TRIBUTARIOS } from "@/hooks/useTarefasModelo";
+import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
 
 type AppModule = Database['public']['Enums']['app_module'];
 type RegimeTributario = Database['public']['Enums']['regime_tributario'];
@@ -62,6 +63,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState(1);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [cnpjStatus, setCnpjStatus] = useState<'idle' | 'loading' | 'valid' | 'invalid' | 'found'>('idle');
+  const [cnpjMessage, setCnpjMessage] = useState('');
   
   const [data, setData] = useState<WizardData>({
     nome: '',
@@ -125,6 +128,8 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
   const resetWizard = () => {
     setCurrentStep(1);
     setErrors({});
+    setCnpjStatus('idle');
+    setCnpjMessage('');
     setData({
       nome: '',
       cnpj: '',
@@ -137,6 +142,58 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
       })),
     });
   };
+
+  const handleCnpjChange = (value: string) => {
+    const formatted = formatCnpj(value);
+    setData(prev => ({ ...prev, cnpj: formatted }));
+    setCnpjStatus('idle');
+    setCnpjMessage('');
+  };
+
+  const handleCnpjLookup = useCallback(async () => {
+    const digits = cleanCnpj(data.cnpj);
+    if (digits.length !== 14) {
+      setCnpjStatus('invalid');
+      setCnpjMessage('CNPJ deve ter 14 dígitos');
+      return;
+    }
+    if (!isValidCnpj(digits)) {
+      setCnpjStatus('invalid');
+      setCnpjMessage('CNPJ inválido (dígitos verificadores incorretos)');
+      return;
+    }
+
+    setCnpjStatus('loading');
+    setCnpjMessage('Consultando Receita Federal...');
+
+    try {
+      const result = await fetchCnpjData(digits);
+
+      if (result.situacao_cadastral && result.situacao_cadastral !== 'ATIVA') {
+        setCnpjStatus('invalid');
+        setCnpjMessage(`Situação cadastral: ${result.situacao_cadastral}`);
+        return;
+      }
+
+      // Preenche campos automaticamente
+      setData(prev => ({
+        ...prev,
+        nome: result.razao_social || prev.nome,
+        telefone: result.telefone || prev.telefone,
+      }));
+
+      const location = [result.municipio, result.uf].filter(Boolean).join('/');
+      setCnpjStatus('found');
+      setCnpjMessage(
+        `✓ ${result.razao_social}${result.nome_fantasia ? ` (${result.nome_fantasia})` : ''}${location ? ` — ${location}` : ''}`
+      );
+
+      toast({ title: 'CNPJ válido!', description: 'Dados preenchidos automaticamente.' });
+    } catch (err) {
+      setCnpjStatus('invalid');
+      setCnpjMessage(err instanceof Error ? err.message : 'Erro ao consultar CNPJ');
+    }
+  }, [data.cnpj, toast]);
 
   const createEmpresaMutation = useMutation({
     mutationFn: async () => {
@@ -402,12 +459,41 @@ export function EmpresaWizard({ isOpen, onClose, onSuccess, editingEmpresa }: Em
 
                 <div>
                   <Label htmlFor="cnpj">CNPJ</Label>
-                  <Input
-                    id="cnpj"
-                    value={data.cnpj}
-                    onChange={(e) => setData(prev => ({ ...prev, cnpj: e.target.value }))}
-                    placeholder="00.000.000/0000-00"
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="cnpj"
+                      value={data.cnpj}
+                      onChange={(e) => handleCnpjChange(e.target.value)}
+                      placeholder="00.000.000/0000-00"
+                      maxLength={18}
+                      className={cnpjStatus === 'invalid' ? 'border-destructive' : cnpjStatus === 'found' ? 'border-green-500' : ''}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCnpjLookup}
+                      disabled={cnpjStatus === 'loading' || cleanCnpj(data.cnpj).length < 14}
+                      title="Buscar dados do CNPJ"
+                    >
+                      {cnpjStatus === 'loading' ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Search className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
+                  {cnpjMessage && (
+                    <div className={`flex items-start gap-1.5 mt-1.5 text-xs ${
+                      cnpjStatus === 'invalid' ? 'text-destructive' : 
+                      cnpjStatus === 'found' ? 'text-green-500' : 
+                      'text-muted-foreground'
+                    }`}>
+                      {cnpjStatus === 'invalid' && <AlertCircle className="w-3 h-3 mt-0.5 shrink-0" />}
+                      {cnpjStatus === 'found' && <CheckCircle2 className="w-3 h-3 mt-0.5 shrink-0" />}
+                      <span>{cnpjMessage}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div>
