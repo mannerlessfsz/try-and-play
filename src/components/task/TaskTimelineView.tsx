@@ -14,6 +14,7 @@ interface TaskTimelineViewProps {
   getEmpresaNome: (id: string) => string;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Tarefa["status"]) => void;
+  onTaskClick?: (tarefaId: string) => void;
 }
 
 const statusIcons = {
@@ -108,7 +109,7 @@ function exportICS(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
 
 // ── Component ──
 
-export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange }: TaskTimelineViewProps) {
+export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick }: TaskTimelineViewProps) {
   const now = new Date();
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -367,11 +368,12 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: ti * 0.03 }}
                       className={`
-                        group flex items-center gap-2 rounded-lg border p-2
+                        group flex items-center gap-2 rounded-lg border p-2 cursor-pointer
                         bg-card/50 hover:border-red-500/30 transition-all
                         ${tarefa.status === "concluida" ? "opacity-60" : ""}
                         ${selectedDate !== "__no_date__" && isOverdue(selectedDate) && tarefa.status !== "concluida" ? "border-yellow-500/20" : "border-foreground/10"}
                       `}
+                      onClick={() => onTaskClick?.(tarefa.id)}
                     >
                       <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
                       <div className="flex-1 min-w-0">
@@ -394,7 +396,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                         {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
                           <button
                             key={s}
-                            onClick={() => onStatusChange(tarefa.id, s)}
+                            onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
                             className={`p-1 rounded transition-all ${
                               tarefa.status === s
                                 ? s === "concluida" ? "bg-green-500/20 text-green-300"
@@ -411,7 +413,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                         <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
                       </div>
                       <button
-                        onClick={() => onDelete(tarefa.id)}
+                        onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
                       >
                         <Trash2 className="w-3 h-3 text-red-400" />
