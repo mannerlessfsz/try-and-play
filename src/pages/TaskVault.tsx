@@ -6,11 +6,13 @@ import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
 import { TaskSettingsModal } from "@/components/task/TaskSettingsModal";
+import { TaskTimelineView } from "@/components/task/TaskTimelineView";
 import { 
   ListTodo, Plus, Trash2, Edit, CheckSquare, Clock, 
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
-  AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase, RefreshCw
+  AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase, RefreshCw,
+  GanttChart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -24,7 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
-  const [viewMode, setViewMode] = useState<"lista" | "kanban">("kanban");
+  const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">("kanban");
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>("modelos");
@@ -496,6 +498,9 @@ export default function TaskVault() {
               <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
                 <List className="w-4 h-4" />
               </button>
+              <button onClick={() => setViewMode("timeline")} className={`p-2 rounded-md transition-all ${viewMode === "timeline" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
+                <GanttChart className="w-4 h-4" />
+              </button>
             </div>
             <Button 
               onClick={handleGerarTarefasMes} 
@@ -513,10 +518,18 @@ export default function TaskVault() {
         </div>
 
         {/* Content based on view mode */}
-        {viewMode === "kanban" ? (
+        {viewMode === "timeline" ? (
+          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 p-4">
+            <TaskTimelineView
+              tarefas={filteredTarefas}
+              getEmpresaNome={getEmpresaNome}
+              onDelete={handleDeleteTarefa}
+              onStatusChange={handleUpdateTarefaStatus}
+            />
+          </div>
+        ) : viewMode === "kanban" ? (
           <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
             {activeFilter === "all" ? (
-              // Show all 3 columns when "all" filter is active
               (["pendente", "em_andamento", "concluida"] as const).map(status => (
                 <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
                   <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
@@ -534,7 +547,6 @@ export default function TaskVault() {
                 </div>
               ))
             ) : (
-              // Show single column with expanded tasks stacked vertically
               <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
                 activeFilter === "em_andamento" ? "border-blue-500/30" : 
                 activeFilter === "concluida" ? "border-green-500/30" : 
