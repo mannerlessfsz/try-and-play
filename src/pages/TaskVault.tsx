@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { CommandCenter } from "@/components/task/CommandCenter";
 import { TaskHeatmap } from "@/components/task/TaskHeatmap";
@@ -28,12 +28,41 @@ import { supabase } from "@/integrations/supabase/client";
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
-  const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">("timeline");
+  const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">(() => {
+    const saved = localStorage.getItem("taskvault-view-mode");
+    if (saved === "lista" || saved === "kanban" || saved === "timeline") return saved;
+    return "timeline";
+  });
+  const [showOnboardTip, setShowOnboardTip] = useState(() => !localStorage.getItem("taskvault-onboard-seen"));
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>("modelos");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState<string>("all");
+
+  // Persist view mode
+  const handleSetViewMode = useCallback((mode: "lista" | "kanban" | "timeline") => {
+    setViewMode(mode);
+    localStorage.setItem("taskvault-view-mode", mode);
+  }, []);
+
+  // Keyboard shortcuts: Ctrl+1 = Timeline, Ctrl+2 = Kanban, Ctrl+3 = Lista
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === "1") { e.preventDefault(); handleSetViewMode("timeline"); }
+      else if (e.key === "2") { e.preventDefault(); handleSetViewMode("kanban"); }
+      else if (e.key === "3") { e.preventDefault(); handleSetViewMode("lista"); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSetViewMode]);
+
+  // Dismiss onboard tip
+  const dismissOnboardTip = useCallback(() => {
+    setShowOnboardTip(false);
+    localStorage.setItem("taskvault-onboard-seen", "true");
+  }, []);
   
   // Use empresas from system
   const { empresasDisponiveis, loading: empresasLoading } = useEmpresaAtiva();
@@ -458,7 +487,7 @@ export default function TaskVault() {
         )}
 
         {/* Header with view controls */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-5 relative">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
               <ListTodo className="w-5 h-5 text-primary" />
@@ -470,14 +499,21 @@ export default function TaskVault() {
           </div>
           
           <div className="flex items-center gap-3">
+            {/* View toggle bar with labels and shortcuts */}
             <div className="flex bg-card/60 backdrop-blur-xl rounded-xl p-1 border border-foreground/8">
               {([
-                { mode: "kanban" as const, icon: Columns, label: "Kanban" },
-                { mode: "lista" as const, icon: List, label: "Lista" },
-                { mode: "timeline" as const, icon: GanttChart, label: "Timeline" },
-              ]).map(({ mode, icon: MIcon }) => (
-                <button key={mode} onClick={() => setViewMode(mode)} className={`p-2 rounded-lg transition-all ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}>
-                  <MIcon className="w-4 h-4" />
+                { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
+                { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
+                { mode: "lista" as const, icon: List, label: "Lista", shortcut: "⌘3" },
+              ]).map(({ mode, icon: MIcon, label, shortcut }) => (
+                <button 
+                  key={mode} 
+                  onClick={() => handleSetViewMode(mode)} 
+                  title={`${label} (${shortcut})`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                >
+                  <MIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{label}</span>
                 </button>
               ))}
             </div>
@@ -485,6 +521,22 @@ export default function TaskVault() {
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
             </Button>
           </div>
+
+          {/* Onboard tip */}
+          {showOnboardTip && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute right-0 top-full mt-2 z-20 bg-primary/10 border border-primary/30 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl shadow-lg max-w-xs"
+            >
+              <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
+              <p className="text-xs text-foreground/80">
+                A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar.
+              </p>
+              <button onClick={dismissOnboardTip} className="text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
+            </motion.div>
+          )}
         </div>
 
         {/* Content based on view mode */}
