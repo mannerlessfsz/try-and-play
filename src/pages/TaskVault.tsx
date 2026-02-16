@@ -497,6 +497,7 @@ export default function TaskVault() {
               getEmpresaNome={getEmpresaNome}
               onDelete={handleDeleteTarefa}
               onStatusChange={handleUpdateTarefaStatus}
+              onTaskClick={(id) => setSelectedTarefaId(id)}
             />
           </div>
         ) : viewMode === "kanban" ? (
