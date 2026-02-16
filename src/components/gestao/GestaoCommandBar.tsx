@@ -65,7 +65,7 @@ export function GestaoCommandBar({
 
   const handleSectionSwitch = (section: "financeiro" | "gestao") => {
     onSectionChange(section);
-    onTabChange(section === "financeiro" ? "dashboard" : "produtos");
+    onTabChange(section === "financeiro" ? "transacoes" : "produtos");
   };
 
   return (

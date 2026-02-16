@@ -40,7 +40,7 @@ import type { Atividade } from "@/types/task";
 type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 
 export default function FinancialACE() {
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab] = useState("transacoes");
   const [activeSection, setActiveSection] = useState<"financeiro" | "gestao">("financeiro");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const { empresaAtiva, empresasDisponiveis, setEmpresaAtiva, loading: empresaLoading } = useEmpresaAtiva();
