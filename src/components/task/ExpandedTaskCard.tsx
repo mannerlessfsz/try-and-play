@@ -13,6 +13,7 @@ interface ExpandedTaskCardProps {
   onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
   // Legacy prop for local state management
   onUpdateArquivos?: (arquivos: TarefaArquivo[]) => void;
+  defaultExpanded?: boolean;
 }
 
 const statusLabels = {
@@ -28,9 +29,10 @@ export function ExpandedTaskCard({
   onStatusChange,
   onUploadArquivo,
   onDeleteArquivo,
-  onUpdateArquivos 
+  onUpdateArquivos,
+  defaultExpanded = false
 }: ExpandedTaskCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progresso = tarefa.progresso || (tarefa.status === "concluida" ? 100 : tarefa.status === "em_andamento" ? 50 : 0);
