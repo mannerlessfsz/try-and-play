@@ -254,7 +254,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       <ScrollArea className="w-full">
         <div className="relative px-2 pb-4 min-w-max">
           {/* Horizontal line */}
-          <div className="absolute left-0 right-0 top-[38px] h-px bg-foreground/10" />
+          <div className="absolute left-0 right-0 top-[46px] h-[2px] bg-foreground/10 rounded-full" />
 
           <div className="flex items-start">
             {days.map((dateStr, i) => {
@@ -266,14 +266,14 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               const isWeekend = [0, 6].includes(new Date(dateStr + "T12:00:00").getDay());
 
               return (
-                <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 38, minWidth: viewMode === "week" ? 80 : 38, flexShrink: 0 }}>
+                <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 46, minWidth: viewMode === "week" ? 90 : 46, flexShrink: 0 }}>
                   {/* Day label */}
-                  <span className={`text-[9px] leading-none mb-1 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
+                  <span className={`text-[10px] leading-none mb-1.5 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
                     {formatWeekday(dateStr)}
                   </span>
 
                   {/* Day number */}
-                  <span className={`text-[11px] font-bold leading-none mb-1.5 ${colors.text}`}>
+                  <span className={`text-xs font-bold leading-none mb-2 ${colors.text}`}>
                     {formatDay(dateStr)}
                   </span>
 
@@ -285,19 +285,19 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                       relative z-10 rounded-full ring-2 transition-all duration-200
                       ${colors.ring} ${colors.glow}
                       ${count > 0 ? "cursor-pointer hover:scale-125" : "cursor-default"}
-                      ${selected ? "scale-125" : ""}
-                      ${count > 0 ? "w-3.5 h-3.5" : "w-2 h-2"}
+                      ${selected ? "scale-130" : ""}
+                      ${count > 0 ? "w-4.5 h-4.5" : "w-2.5 h-2.5"}
                     `}
                   >
                     <div className={`w-full h-full rounded-full ${colors.bg}`} />
                     {today && !selected && (
-                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                     )}
                   </button>
 
                   {/* Task count badge */}
                   {count > 0 && (
-                    <span className={`mt-1 text-[8px] font-bold ${colors.text}`}>
+                    <span className={`mt-1.5 text-[9px] font-bold ${colors.text}`}>
                       {count}
                     </span>
                   )}
