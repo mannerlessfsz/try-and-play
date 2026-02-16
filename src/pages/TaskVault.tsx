@@ -402,7 +402,7 @@ export default function TaskVault() {
       
       <div className="p-4 pr-72">
         {/* Unified control frame */}
-        <div className="mb-5 bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 p-4 space-y-4">
+        <div className="mb-5 bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 p-5 space-y-4">
           {/* Command Center */}
           <div>
           <CommandCenter
@@ -528,7 +528,7 @@ export default function TaskVault() {
                         {kanbanColumns[status].length}
                       </span>
                     </div>
-                    <div className="p-2 space-y-2 max-h-[calc(100vh-460px)] overflow-y-auto">
+                    <div className="p-2 space-y-2">
                       {kanbanColumns[status].map((tarefa, idx) => (
                         <div key={tarefa.id}>
                           <div onClick={() => setExpandedKanbanId(prev => prev === tarefa.id ? null : tarefa.id)} className="cursor-pointer">
@@ -593,7 +593,7 @@ export default function TaskVault() {
                     {filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}
                   </span>
                 </div>
-                <div className="space-y-4 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
+                <div className="space-y-4">
                   {filteredTarefas.map(tarefa => (
                     <ExpandedTaskCard 
                       key={tarefa.id} 
