@@ -3593,8 +3593,24 @@ export type Database = {
         }
         Returns: string
       }
+      has_account_access: {
+        Args: { _account_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_account_role: {
+        Args: {
+          _account_id: string
+          _role: Database["public"]["Enums"]["system_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       has_empresa_access: {
         Args: { _empresa_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_entity_access: {
+        Args: { _entity_id: string; _user_id: string }
         Returns: boolean
       }
       has_module_permission: {
@@ -3641,6 +3657,7 @@ export type Database = {
         Args: { _empresa_id: string; _user_id: string }
         Returns: boolean
       }
+      is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       link_user_to_empresa: {
         Args: { _empresa_id: string; _is_owner?: boolean; _user_id: string }
         Returns: undefined
