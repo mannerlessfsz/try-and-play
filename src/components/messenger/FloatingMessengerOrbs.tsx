@@ -730,7 +730,7 @@ const FloatingIsland = React.memo(({
                       delay: index * 0.04 
                     }}
                     onClick={() => onContactSelect(contact)}
-                    className="absolute top-1 left-1 z-10 group"
+                    className="absolute top-1 left-1 z-10 group hover:!z-50"
                     whileHover={{ scale: 1.25 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -773,11 +773,11 @@ const FloatingIsland = React.memo(({
                       </motion.div>
                     )}
 
-                    {/* Tooltip */}
+                    {/* Tooltip — appears above the orb */}
                     <motion.div
                       className={cn(
-                        "absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg backdrop-blur-xl border",
-                        "opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-30",
+                        "absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg backdrop-blur-xl border",
+                        "opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-[100] shadow-xl",
                         theme === 'light' 
                           ? 'bg-white border-gray-200 shadow-lg'
                           : 'bg-black/90 border-white/10'
