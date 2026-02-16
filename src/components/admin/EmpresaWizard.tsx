@@ -39,6 +39,7 @@ const modulosDisponiveis: { id: AppModule; nome: string; descricao: string }[] =
   { id: 'taskvault', nome: 'TaskVault', descricao: 'Gestão de tarefas e obrigações' },
   { id: 'gestao', nome: 'GESTÃO', descricao: 'Sistema integrado financeiro e ERP' },
   { id: 'conversores', nome: 'Conversores', descricao: 'Conversão de arquivos fiscais e documentos' },
+  { id: 'messenger', nome: 'Messenger', descricao: 'Comunicação interna e externa' },
 ];
 
 // Validation schemas
