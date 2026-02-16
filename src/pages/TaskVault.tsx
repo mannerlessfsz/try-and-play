@@ -4,6 +4,8 @@ import { CommandCenter } from "@/components/task/CommandCenter";
 import { TaskHeatmap } from "@/components/task/TaskHeatmap";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { TimelineItem } from "@/components/task/TimelineItem";
 import { TaskModal } from "@/components/task/TaskModal";
 import { TaskSettingsModal } from "@/components/task/TaskSettingsModal";
@@ -56,6 +58,8 @@ export default function TaskVault() {
   const { tarefasModelo, gerarTarefas, isGenerating } = useTarefasModelo();
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
+  const [selectedTarefaId, setSelectedTarefaId] = useState<string | null>(null);
+  const selectedTarefa = tarefas.find(t => t.id === selectedTarefaId);
 
   // Refetch tarefas when component mounts or empresas change
   useEffect(() => {
@@ -516,7 +520,9 @@ export default function TaskVault() {
                     </div>
                     <div className="p-2 space-y-2 max-h-[calc(100vh-460px)] overflow-y-auto">
                       {kanbanColumns[status].map((tarefa, idx) => (
-                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} index={idx} />
+                        <div key={tarefa.id} onClick={() => setSelectedTarefaId(tarefa.id)} className="cursor-pointer">
+                          <KanbanCard tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} index={idx} />
+                        </div>
                       ))}
                       {kanbanColumns[status].length === 0 && (
                         <div className="text-center py-8 text-muted-foreground/40">
@@ -627,6 +633,30 @@ export default function TaskVault() {
         onClose={() => setShowSettingsModal(false)}
         initialTab={settingsInitialTab}
       />
+
+      {/* Task Detail Drawer */}
+      <Drawer open={!!selectedTarefaId} onOpenChange={(open) => { if (!open) setSelectedTarefaId(null); }}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="pb-2">
+            <DrawerTitle className="text-lg">{selectedTarefa?.titulo || "Detalhes da Tarefa"}</DrawerTitle>
+            <DrawerDescription className="text-xs text-muted-foreground">
+              {selectedTarefa ? getEmpresaNome(selectedTarefa.empresaId) : ""}
+            </DrawerDescription>
+          </DrawerHeader>
+          <ScrollArea className="px-4 pb-6 max-h-[65vh]">
+            {selectedTarefa && (
+              <ExpandedTaskCard
+                tarefa={selectedTarefa}
+                empresaNome={getEmpresaNome(selectedTarefa.empresaId)}
+                onDelete={() => { handleDeleteTarefa(selectedTarefa.id); setSelectedTarefaId(null); }}
+                onStatusChange={(s) => handleUpdateTarefaStatus(selectedTarefa.id, s)}
+                onUploadArquivo={(file) => handleUploadArquivo(selectedTarefa.id, file)}
+                onDeleteArquivo={handleDeleteArquivo}
+              />
+            )}
+          </ScrollArea>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }
