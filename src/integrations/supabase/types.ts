@@ -1438,6 +1438,44 @@ export type Database = {
         }
         Relationships: []
       }
+      entity_module_access: {
+        Row: {
+          access_level: Database["public"]["Enums"]["entity_access_level"]
+          account_entity_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          module: string
+          updated_at: string
+        }
+        Insert: {
+          access_level?: Database["public"]["Enums"]["entity_access_level"]
+          account_entity_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          module: string
+          updated_at?: string
+        }
+        Update: {
+          access_level?: Database["public"]["Enums"]["entity_access_level"]
+          account_entity_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          module?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entity_module_access_account_entity_id_fkey"
+            columns: ["account_entity_id"]
+            isOneToOne: false
+            referencedRelation: "account_entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_movimentos: {
         Row: {
           created_at: string
@@ -2253,6 +2291,36 @@ export type Database = {
         }
         Relationships: []
       }
+      permissions_catalog: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: string
+          module: string
+          resource: string | null
+          sub_module: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module: string
+          resource?: string | null
+          sub_module?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          module?: string
+          resource?: string | null
+          sub_module?: string | null
+        }
+        Relationships: []
+      }
       planos_contas_externos: {
         Row: {
           arquivo_url: string | null
@@ -2562,6 +2630,51 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_permissions: {
+        Row: {
+          account_id: string
+          conditions: Json | null
+          created_at: string
+          effect: Database["public"]["Enums"]["permission_effect"]
+          id: string
+          permission_id: string
+          role: Database["public"]["Enums"]["system_role"]
+        }
+        Insert: {
+          account_id: string
+          conditions?: Json | null
+          created_at?: string
+          effect?: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id: string
+          role: Database["public"]["Enums"]["system_role"]
+        }
+        Update: {
+          account_id?: string
+          conditions?: Json | null
+          created_at?: string
+          effect?: Database["public"]["Enums"]["permission_effect"]
+          id?: string
+          permission_id?: string
+          role?: Database["public"]["Enums"]["system_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions_catalog"
             referencedColumns: ["id"]
           },
         ]
@@ -2977,6 +3090,47 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_account_roles: {
+        Row: {
+          account_id: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          is_active: boolean
+          role: Database["public"]["Enums"]["system_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["system_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          is_active?: boolean
+          role?: Database["public"]["Enums"]["system_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_account_roles_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
             referencedColumns: ["id"]
           },
         ]
@@ -3520,6 +3674,8 @@ export type Database = {
       app_role: "admin" | "manager" | "user"
       conversation_type: "direct" | "group" | "channel"
       departamento_tipo: "fiscal" | "contabil" | "departamento_pessoal"
+      entity_access_level: "deliver_only" | "portal" | "full"
+      permission_effect: "allow" | "deny"
       permission_type: "view" | "create" | "edit" | "delete" | "export"
       presence_status: "online" | "away" | "busy" | "in_meeting" | "offline"
       regime_tributario:
@@ -3535,6 +3691,13 @@ export type Database = {
         | "em_andamento"
         | "concluido"
         | "cancelado"
+      system_role:
+        | "owner"
+        | "admin"
+        | "manager"
+        | "operator"
+        | "viewer"
+        | "client_portal"
       tipo_empresa: "comercio" | "servicos" | "industria" | "misto"
       tipo_movimento_estoque: "entrada" | "saida" | "ajuste" | "transferencia"
     }
@@ -3678,6 +3841,8 @@ export const Constants = {
       app_role: ["admin", "manager", "user"],
       conversation_type: ["direct", "group", "channel"],
       departamento_tipo: ["fiscal", "contabil", "departamento_pessoal"],
+      entity_access_level: ["deliver_only", "portal", "full"],
+      permission_effect: ["allow", "deny"],
       permission_type: ["view", "create", "edit", "delete", "export"],
       presence_status: ["online", "away", "busy", "in_meeting", "offline"],
       regime_tributario: [
@@ -3694,6 +3859,14 @@ export const Constants = {
         "em_andamento",
         "concluido",
         "cancelado",
+      ],
+      system_role: [
+        "owner",
+        "admin",
+        "manager",
+        "operator",
+        "viewer",
+        "client_portal",
       ],
       tipo_empresa: ["comercio", "servicos", "industria", "misto"],
       tipo_movimento_estoque: ["entrada", "saida", "ajuste", "transferencia"],
