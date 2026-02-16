@@ -652,6 +652,7 @@ export default function TaskVault() {
                 onStatusChange={(s) => handleUpdateTarefaStatus(selectedTarefa.id, s)}
                 onUploadArquivo={(file) => handleUploadArquivo(selectedTarefa.id, file)}
                 onDeleteArquivo={handleDeleteArquivo}
+                defaultExpanded
               />
             )}
           </ScrollArea>
