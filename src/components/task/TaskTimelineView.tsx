@@ -268,12 +268,12 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               return (
                 <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 46, minWidth: viewMode === "week" ? 90 : 46, flexShrink: 0 }}>
                   {/* Day label */}
-                  <span className={`text-[10px] leading-none mb-1.5 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
+                  <span className={`text-[11px] leading-none mb-1.5 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
                     {formatWeekday(dateStr)}
                   </span>
 
                   {/* Day number */}
-                  <span className={`text-xs font-bold leading-none mb-2 ${colors.text}`}>
+                  <span className={`text-sm font-bold leading-none mb-2 ${colors.text}`}>
                     {formatDay(dateStr)}
                   </span>
 
@@ -297,7 +297,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
                   {/* Task count badge */}
                   {count > 0 && (
-                    <span className={`mt-1.5 text-[9px] font-bold ${colors.text}`}>
+                    <span className={`mt-1.5 text-[10px] font-bold ${colors.text}`}>
                       {count}
                     </span>
                   )}
