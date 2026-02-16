@@ -502,15 +502,6 @@ export default function TaskVault() {
                 <GanttChart className="w-4 h-4" />
               </button>
             </div>
-            <Button 
-              onClick={handleGerarTarefasMes} 
-              variant="outline"
-              disabled={isGenerating || empresasDisponiveis.length === 0}
-              className="border-red-500/50 text-red-500 hover:bg-red-500/10"
-            >
-              {isGenerating ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Calendar className="w-4 h-4 mr-1" />}
-              Gerar Tarefas do Mês
-            </Button>
             <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
             </Button>
