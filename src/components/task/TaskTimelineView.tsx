@@ -3,11 +3,12 @@ import { Tarefa } from "@/types/task";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Building2, FileText, Trash2, CheckCircle2, Circle, Timer,
-  Search, Download, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, X
+  Search, Download, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, X, ChevronDown
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 
 interface TaskTimelineViewProps {
   tarefas: Tarefa[];
@@ -15,6 +16,8 @@ interface TaskTimelineViewProps {
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Tarefa["status"]) => void;
   onTaskClick?: (tarefaId: string) => void;
+  onUploadArquivo?: (tarefaId: string, file: File) => Promise<void>;
+  onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
 }
 
 const statusIcons = {
@@ -109,7 +112,7 @@ function exportICS(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
 
 // ── Component ──
 
-export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick }: TaskTimelineViewProps) {
+export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const now = new Date();
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -117,6 +120,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [weekRef, setWeekRef] = useState(now);
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const todayRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -360,66 +364,94 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   {searchQuery ? "Nenhuma tarefa encontrada" : "Nenhuma tarefa nesta data"}
                 </p>
               ) : (
-                <div className="space-y-1.5 max-h-[350px] overflow-y-auto pr-1">
-                  {selectedTasks.map((tarefa, ti) => (
-                    <motion.div
-                      key={tarefa.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: ti * 0.03 }}
-                      className={`
-                        group flex items-center gap-2 rounded-lg border p-2 cursor-pointer
-                        bg-card/50 hover:border-red-500/30 transition-all
-                        ${tarefa.status === "concluida" ? "opacity-60" : ""}
-                        ${selectedDate !== "__no_date__" && isOverdue(selectedDate) && tarefa.status !== "concluida" ? "border-yellow-500/20" : "border-foreground/10"}
-                      `}
-                      onClick={() => onTaskClick?.(tarefa.id)}
-                    >
-                      <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                          {tarefa.titulo}
-                        </p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate">
-                            <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
-                            {getEmpresaNome(tarefa.empresaId)}
-                          </span>
-                          {tarefa.arquivos && tarefa.arquivos.length > 0 && (
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                              <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
-                          <button
-                            key={s}
-                            onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
-                            className={`p-1 rounded transition-all ${
-                              tarefa.status === s
-                                ? s === "concluida" ? "bg-green-500/20 text-green-300"
-                                  : s === "em_andamento" ? "bg-blue-500/20 text-blue-300"
-                                    : "bg-foreground/10 text-foreground/60"
-                                : "text-muted-foreground/30 hover:text-foreground/60 hover:bg-foreground/5"
-                            }`}
-                          >
-                            {statusIcons[s]}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="w-10 h-1 bg-foreground/10 rounded-full overflow-hidden flex-shrink-0">
-                        <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id); }}
-                        className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {selectedTasks.map((tarefa, ti) => {
+                    const isExpanded = expandedTaskId === tarefa.id;
+                    return (
+                      <motion.div
+                        key={tarefa.id}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: ti * 0.03 }}
+                        className={`
+                          rounded-lg border transition-all overflow-hidden
+                          ${tarefa.status === "concluida" ? "opacity-60" : ""}
+                          ${isExpanded ? "border-primary/30 bg-card/70" : "border-foreground/10 bg-card/50 hover:border-primary/20"}
+                          ${selectedDate !== "__no_date__" && isOverdue(selectedDate) && tarefa.status !== "concluida" ? "border-yellow-500/20" : ""}
+                        `}
                       >
-                        <Trash2 className="w-3 h-3 text-red-400" />
-                      </button>
-                    </motion.div>
-                  ))}
+                        {/* Compact row - always visible */}
+                        <div
+                          className="flex items-center gap-2 p-2 cursor-pointer group"
+                          onClick={() => setExpandedTaskId(prev => prev === tarefa.id ? null : tarefa.id)}
+                        >
+                          <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                              {tarefa.titulo}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground flex items-center gap-0.5 truncate">
+                                <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
+                                {getEmpresaNome(tarefa.empresaId)}
+                              </span>
+                              {tarefa.arquivos && tarefa.arquivos.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                                  <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 flex-shrink-0">
+                            {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
+                              <button
+                                key={s}
+                                onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
+                                className={`p-1 rounded transition-all ${
+                                  tarefa.status === s
+                                    ? s === "concluida" ? "bg-green-500/20 text-green-300"
+                                      : s === "em_andamento" ? "bg-blue-500/20 text-blue-300"
+                                        : "bg-foreground/10 text-foreground/60"
+                                    : "text-muted-foreground/30 hover:text-foreground/60 hover:bg-foreground/5"
+                                }`}
+                              >
+                                {statusIcons[s]}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="w-10 h-1 bg-foreground/10 rounded-full overflow-hidden flex-shrink-0">
+                            <div className="h-full bg-gradient-to-r from-primary to-primary/60 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                          </div>
+                          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
+                        </div>
+
+                        {/* Expanded content */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden border-t border-foreground/10"
+                            >
+                              <div className="p-3">
+                                <ExpandedTaskCard
+                                  tarefa={tarefa}
+                                  empresaNome={getEmpresaNome(tarefa.empresaId)}
+                                  onDelete={() => onDelete(tarefa.id)}
+                                  onStatusChange={(s) => onStatusChange(tarefa.id, s)}
+                                  onUploadArquivo={onUploadArquivo ? (file) => onUploadArquivo(tarefa.id, file) : undefined}
+                                  onDeleteArquivo={onDeleteArquivo}
+                                  defaultExpanded
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               )}
             </div>
