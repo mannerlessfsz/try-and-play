@@ -28,7 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
-  const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">("kanban");
+  const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">("timeline");
   const [showModal, setShowModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>("modelos");
