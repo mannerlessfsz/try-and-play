@@ -130,47 +130,13 @@ export function WidgetRibbon({ groups, title, accentColor, sidebarContent }: Wid
           flex flex-col
         `}
       >
-        {/* Custom sidebar content (filters, timeline, etc.) - Takes available space */}
+        {/* Custom sidebar content - Takes available space */}
         <div className="flex-1 overflow-y-auto">
           {sidebarContent ? (
             sidebarContent
           ) : (
-            <div className="flex flex-col gap-3 p-3">
-              <div className={`text-xs font-bold ${styles.text} border-b ${styles.border} pb-2 mb-1`}>
-                Filtros Rápidos
-              </div>
-              <FilterSelect 
-                icon={<Building2 className="w-3.5 h-3.5" />}
-                label="Empresa"
-                options={["Todas", "Empresa A", "Empresa B", "Empresa C"]}
-                accentStyles={styles}
-              />
-              <FilterSelect 
-                icon={<Calendar className="w-3.5 h-3.5" />}
-                label="Competência"
-                options={["Todas", "01/2024", "02/2024", "03/2024"]}
-                accentStyles={styles}
-              />
-              <FilterInput 
-                icon={<CalendarRange className="w-3.5 h-3.5" />}
-                label="Período inicial"
-                type="date"
-                placeholder="Inicial"
-                accentStyles={styles}
-              />
-              <FilterInput 
-                icon={<CalendarRange className="w-3.5 h-3.5" />}
-                label="Período final"
-                type="date"
-                placeholder="Final"
-                accentStyles={styles}
-              />
-              <FilterSelect 
-                icon={<ListTodo className="w-3.5 h-3.5" />}
-                label="Tarefa"
-                options={["Todas", "Pendentes", "Concluídas", "Atrasadas"]}
-                accentStyles={styles}
-              />
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground/30 p-4">
+              <span className="text-[10px]">Sem conteúdo</span>
             </div>
           )}
         </div>

@@ -373,8 +373,12 @@ export default function TaskVault() {
     },
   ], [tarefasModelo.length]);
 
-  // Sidebar content - empty (activity moved to pulse feed)
-  const sidebarContent = undefined;
+  // Sidebar content - Activity Pulse Feed
+  const sidebarContent = (
+    <div className="p-3">
+      <ActivityPulseFeed atividades={atividades} />
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -471,8 +475,6 @@ export default function TaskVault() {
 
           </div>
 
-          {/* Activity Pulse Feed */}
-          <ActivityPulseFeed atividades={atividades} />
         </div>
 
         {/* Onboard tip - below the frame */}
