@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
-import { MetricCard } from "@/components/task/MetricCard";
+import { CommandCenter } from "@/components/task/CommandCenter";
+import { TaskHeatmap } from "@/components/task/TaskHeatmap";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { TimelineItem } from "@/components/task/TimelineItem";
@@ -405,66 +406,38 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Dashboard Metrics - 4 cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <MetricCard 
-            title="Total de Tarefas" 
-            value={totalTarefas} 
-            change="Todas as tarefas" 
-            changeType="up" 
-            icon={ListTodo} 
-            color="red"
-            isActive={activeFilter === "all"}
-            onClick={() => handleFilterClick("all")}
+        {/* Command Center */}
+        <div className="mb-4">
+          <CommandCenter
+            total={totalTarefas}
+            emAndamento={tarefasEmAndamento}
+            concluidas={tarefasConcluidas}
+            atrasadas={tarefasAtrasadas}
+            activeFilter={activeFilter}
+            onFilterClick={handleFilterClick}
           />
-          <MetricCard 
-            title="Em Andamento" 
-            value={tarefasEmAndamento} 
-            change="Até vencer ou concluir" 
-            changeType="up" 
-            icon={Activity} 
-            color="blue"
-            isActive={activeFilter === "em_andamento"}
-            onClick={() => handleFilterClick("em_andamento")}
-          />
-          <MetricCard 
-            title="Concluídas" 
-            value={tarefasConcluidas} 
-            change={`${totalTarefas > 0 ? Math.round((tarefasConcluidas/totalTarefas)*100) : 0}% do total`} 
-            changeType="up" 
-            icon={CheckSquare} 
-            color="green"
-            isActive={activeFilter === "concluida"}
-            onClick={() => handleFilterClick("concluida")}
-          />
-          <MetricCard 
-            title="Em Atraso" 
-            value={tarefasAtrasadas} 
-            change="Prazo expirado" 
-            changeType="down" 
-            icon={AlertTriangle} 
-            color="yellow"
-            isActive={activeFilter === "urgente"}
-            onClick={() => handleFilterClick("urgente")}
-          />
+        </div>
+
+        {/* Task Heatmap */}
+        <div className="mb-5 px-1">
+          <TaskHeatmap tarefas={tarefasFiltradas} />
         </div>
 
         {/* Filter indicator */}
         {activeFilter !== "all" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
+            <span className="px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
               {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
             </span>
             <button 
               onClick={() => setActiveFilter("all")}
-              className="text-xs text-red-400 hover:text-red-300 underline"
+              className="text-xs text-primary hover:text-primary/80 underline"
             >
               Limpar
             </button>
           </div>
         )}
-
         {/* Selected empresa indicator */}
         {selectedEmpresaId !== "all" && (
           <div className="mb-4 flex items-center gap-2">
@@ -541,9 +514,9 @@ export default function TaskVault() {
                         {kanbanColumns[status].length}
                       </span>
                     </div>
-                    <div className="p-2 space-y-1.5 max-h-[calc(100vh-420px)] overflow-y-auto">
-                      {kanbanColumns[status].map(tarefa => (
-                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} />
+                    <div className="p-2 space-y-2 max-h-[calc(100vh-460px)] overflow-y-auto">
+                      {kanbanColumns[status].map((tarefa, idx) => (
+                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} index={idx} />
                       ))}
                       {kanbanColumns[status].length === 0 && (
                         <div className="text-center py-8 text-muted-foreground/40">
