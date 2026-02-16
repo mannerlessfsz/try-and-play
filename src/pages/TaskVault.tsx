@@ -427,12 +427,18 @@ export default function TaskVault() {
           <TaskHeatmap tarefas={tarefasFiltradas} />
         </div>
 
-        {/* Compact Filter Bar */}
-        <div className="mb-4 flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-[11px] text-muted-foreground font-medium">Filtros:</span>
+        {/* Unified header bar */}
+        <div className="flex items-center gap-3 mb-5 relative flex-wrap">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
+              <ListTodo className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-foreground leading-tight">Tarefas</h2>
+              <p className="text-[10px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
+            </div>
           </div>
+
           <select 
             value={selectedEmpresaId}
             onChange={(e) => setSelectedEmpresaId(e.target.value)}
@@ -441,43 +447,19 @@ export default function TaskVault() {
             <option value="all">Todas Empresas</option>
             {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
           </select>
+
           {activeFilter !== "all" && (
             <div className="flex items-center gap-1.5">
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">
                 {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
               </span>
-              <button 
-                onClick={() => setActiveFilter("all")}
-                className="text-[10px] text-muted-foreground hover:text-foreground underline"
-              >
-                Limpar
-              </button>
+              <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground">✕</button>
             </div>
           )}
-          {selectedEmpresaId !== "all" && (
-            <button 
-              onClick={() => setSelectedEmpresaId("all")}
-              className="text-[10px] text-muted-foreground hover:text-foreground underline"
-            >
-              Ver todas empresas
-            </button>
-          )}
-        </div>
 
-        {/* Header with view controls */}
-        <div className="flex items-center justify-between mb-5 relative">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
-              <ListTodo className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground leading-tight">Tarefas</h2>
-              <p className="text-[11px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            {/* View toggle bar with labels and shortcuts */}
+          <div className="flex-1" />
+
+          <div className="flex items-center gap-2 flex-shrink-0">
             <div className="flex bg-card/60 backdrop-blur-xl rounded-xl p-1 border border-foreground/8">
               {([
                 { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
@@ -488,14 +470,14 @@ export default function TaskVault() {
                   key={mode} 
                   onClick={() => handleSetViewMode(mode)} 
                   title={`${label} (${shortcut})`}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
                 >
                   <MIcon className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{label}</span>
                 </button>
               ))}
             </div>
-            <Button onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+            <Button size="sm" onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
             </Button>
           </div>
