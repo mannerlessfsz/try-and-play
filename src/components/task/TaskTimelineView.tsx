@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Tarefa } from "@/types/task";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -74,8 +74,6 @@ function formatMonthLabel(year: number, month: number): string {
   return new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 }
 
-// ── Export helpers ──
-
 function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   const header = "Título,Empresa,Prioridade,Status,Prazo Entrega,Progresso";
   const rows = tarefas.map(t =>
@@ -118,8 +116,14 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [currentYear, setCurrentYear] = useState(now.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [weekRef, setWeekRef] = useState(now);
+  const todayRef = useRef<HTMLButtonElement>(null);
 
-  // Task map
+  useEffect(() => {
+    setTimeout(() => {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 100);
+  }, [viewMode, currentMonth, currentYear]);
+
   const tasksByDate = useMemo(() => {
     const map: Record<string, Tarefa[]> = {};
     tarefas.forEach((t) => {
@@ -137,21 +141,18 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
   const noDateTasks = tasksByDate["__no_date__"] || [];
 
-  // Search filter
   const filterTask = useCallback((t: Tarefa) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return t.titulo.toLowerCase().includes(q) || getEmpresaNome(t.empresaId).toLowerCase().includes(q);
   }, [searchQuery, getEmpresaNome]);
 
-  // Selected day tasks
   const selectedTasks = useMemo(() => {
     if (!selectedDate) return [];
     const list = selectedDate === "__no_date__" ? noDateTasks : (tasksByDate[selectedDate] || []);
     return list.filter(filterTask);
   }, [selectedDate, tasksByDate, noDateTasks, filterTask]);
 
-  // Navigate
   const goNext = () => {
     if (viewMode === "month") {
       if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
@@ -176,31 +177,30 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     setSelectedDate(toDateKey(n));
   };
 
-  // Color logic for date cells
-  const getCellStyle = (dateStr: string, taskCount: number) => {
-    const today = isToday(dateStr);
-    const overdue = isOverdue(dateStr);
-    const selected = selectedDate === dateStr;
+  const getNodeColor = (dateStr: string) => {
     const tasks = tasksByDate[dateStr] || [];
+    const selected = selectedDate === dateStr;
+    const today = isToday(dateStr);
+    const count = tasks.length;
+    const allDone = count > 0 && tasks.every(t => t.status === "concluida");
     const hasUrgent = tasks.some(t => t.prioridade === "alta" || t.prioridade === "urgente");
-    const allDone = tasks.length > 0 && tasks.every(t => t.status === "concluida");
     const hasInProgress = tasks.some(t => t.status === "em_andamento");
+    const overdue = isOverdue(dateStr);
 
-    if (selected) return "bg-red-500/25 border-red-500/60 text-red-200 shadow-[0_0_10px_hsl(var(--destructive)/0.2)]";
-    if (today) return "bg-red-500/15 border-red-500/40 text-red-300";
-    if (taskCount === 0) return "bg-transparent border-foreground/5 text-muted-foreground/40";
-    if (allDone) return "bg-green-500/15 border-green-500/30 text-green-300";
-    if (overdue && hasUrgent) return "bg-red-500/10 border-red-500/25 text-red-400";
-    if (overdue) return "bg-yellow-500/10 border-yellow-500/25 text-yellow-400";
-    if (hasInProgress) return "bg-blue-500/10 border-blue-500/25 text-blue-300";
-    return "bg-foreground/5 border-foreground/10 text-foreground/70";
+    if (selected) return { ring: "ring-red-500", bg: "bg-red-500", text: "text-red-300", glow: "shadow-[0_0_12px_rgba(239,68,68,0.5)]" };
+    if (today) return { ring: "ring-red-400", bg: "bg-red-400", text: "text-red-300", glow: "shadow-[0_0_8px_rgba(239,68,68,0.3)]" };
+    if (count === 0) return { ring: "ring-foreground/10", bg: "bg-foreground/20", text: "text-muted-foreground/40", glow: "" };
+    if (allDone) return { ring: "ring-green-500", bg: "bg-green-500", text: "text-green-300", glow: "" };
+    if (overdue && hasUrgent) return { ring: "ring-red-500/60", bg: "bg-red-500/80", text: "text-red-400", glow: "" };
+    if (overdue) return { ring: "ring-yellow-500/60", bg: "bg-yellow-500/80", text: "text-yellow-400", glow: "" };
+    if (hasInProgress) return { ring: "ring-blue-500/60", bg: "bg-blue-500", text: "text-blue-300", glow: "" };
+    return { ring: "ring-foreground/20", bg: "bg-foreground/40", text: "text-foreground/60", glow: "" };
   };
 
   return (
     <div className="space-y-3">
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Navigation */}
         <div className="flex items-center gap-1">
           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={goPrev}>
             <ChevronLeft className="w-4 h-4" />
@@ -216,7 +216,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           </Button>
         </div>
 
-        {/* View toggle */}
         <div className="flex bg-card/50 rounded-md p-0.5 border border-foreground/10">
           <button onClick={() => { setViewMode("month"); setSelectedDate(null); }} className={`px-2 py-1 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${viewMode === "month" ? "bg-red-500/20 text-red-300" : "text-muted-foreground hover:text-foreground"}`}>
             <CalendarDays className="w-3 h-3" /> Mês
@@ -226,7 +225,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           </button>
         </div>
 
-        {/* Search */}
         <div className="relative flex-1 max-w-[220px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -242,7 +240,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           )}
         </div>
 
-        {/* Export */}
         <div className="flex items-center gap-1 ml-auto">
           <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportCSV(tarefas, getEmpresaNome)}>
             <Download className="w-3 h-3" /> CSV
@@ -253,59 +250,81 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
       </div>
 
-      {/* Date strip */}
+      {/* Timeline */}
       <ScrollArea className="w-full">
-        <div className={`flex gap-1.5 pb-2 ${viewMode === "week" ? "" : "min-w-max"}`}>
-          {days.map((dateStr) => {
-            const dayTasks = tasksByDate[dateStr] || [];
-            const count = dayTasks.length;
-            const today = isToday(dateStr);
-            const selected = selectedDate === dateStr;
+        <div className="relative px-2 pb-4 min-w-max">
+          {/* Horizontal line */}
+          <div className="absolute left-0 right-0 top-[38px] h-px bg-foreground/10" />
 
-            return (
-              <button
-                key={dateStr}
-                onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
-                className={`
-                  relative flex flex-col items-center rounded-lg border px-2 py-1.5 transition-all
-                  ${viewMode === "week" ? "flex-1 min-w-[80px]" : "w-[42px] flex-shrink-0"}
-                  ${getCellStyle(dateStr, count)}
-                  hover:scale-105 hover:shadow-sm
-                `}
-              >
-                <span className="text-[9px] leading-none">{formatWeekday(dateStr)}</span>
-                <span className={`text-sm font-bold leading-tight ${today ? "text-red-400" : ""}`}>{formatDay(dateStr)}</span>
-                {count > 0 && (
-                  <div className="flex items-center gap-0.5 mt-0.5">
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      dayTasks.every(t => t.status === "concluida") ? "bg-green-500" :
-                      dayTasks.some(t => t.prioridade === "alta" || t.prioridade === "urgente") ? "bg-red-500" :
-                      dayTasks.some(t => t.status === "em_andamento") ? "bg-blue-500" : "bg-foreground/30"
-                    }`} />
-                    <span className="text-[8px] font-medium">{count}</span>
-                  </div>
-                )}
-                {today && (
-                  <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-3 h-0.5 rounded-full bg-red-500" />
-                )}
-              </button>
-            );
-          })}
+          <div className="flex items-start">
+            {days.map((dateStr, i) => {
+              const tasks = tasksByDate[dateStr] || [];
+              const count = tasks.length;
+              const today = isToday(dateStr);
+              const selected = selectedDate === dateStr;
+              const colors = getNodeColor(dateStr);
+              const isWeekend = [0, 6].includes(new Date(dateStr + "T12:00:00").getDay());
 
-          {/* No-date pill */}
-          {noDateTasks.length > 0 && (
-            <button
-              onClick={() => setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__")}
-              className={`
-                flex flex-col items-center rounded-lg border px-3 py-1.5 transition-all flex-shrink-0
-                ${selectedDate === "__no_date__" ? "bg-red-500/25 border-red-500/60 text-red-200" : "bg-foreground/5 border-foreground/10 text-muted-foreground"}
-                hover:scale-105
-              `}
-            >
-              <span className="text-[9px]">s/d</span>
-              <span className="text-sm font-bold">{noDateTasks.length}</span>
-            </button>
-          )}
+              return (
+                <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 38, minWidth: viewMode === "week" ? 80 : 38, flexShrink: 0 }}>
+                  {/* Day label */}
+                  <span className={`text-[9px] leading-none mb-1 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
+                    {formatWeekday(dateStr)}
+                  </span>
+
+                  {/* Day number */}
+                  <span className={`text-[11px] font-bold leading-none mb-1.5 ${colors.text}`}>
+                    {formatDay(dateStr)}
+                  </span>
+
+                  {/* Node */}
+                  <button
+                    ref={today ? todayRef : undefined}
+                    onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
+                    className={`
+                      relative z-10 rounded-full ring-2 transition-all duration-200
+                      ${colors.ring} ${colors.glow}
+                      ${count > 0 ? "cursor-pointer hover:scale-125" : "cursor-default"}
+                      ${selected ? "scale-125" : ""}
+                      ${count > 0 ? "w-3.5 h-3.5" : "w-2 h-2"}
+                    `}
+                  >
+                    <div className={`w-full h-full rounded-full ${colors.bg}`} />
+                    {today && !selected && (
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
+                  </button>
+
+                  {/* Task count badge */}
+                  {count > 0 && (
+                    <span className={`mt-1 text-[8px] font-bold ${colors.text}`}>
+                      {count}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* No-date node */}
+            {noDateTasks.length > 0 && (
+              <div className="flex flex-col items-center" style={{ width: 50, minWidth: 50, flexShrink: 0 }}>
+                <span className="text-[9px] leading-none mb-1 text-muted-foreground/40">s/d</span>
+                <span className="text-[11px] font-bold leading-none mb-1.5 text-muted-foreground/60">—</span>
+                <button
+                  onClick={() => setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__")}
+                  className={`
+                    relative z-10 w-3.5 h-3.5 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-125
+                    ${selectedDate === "__no_date__" ? "ring-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] scale-125" : "ring-foreground/20"}
+                  `}
+                >
+                  <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-red-500" : "bg-foreground/30"}`} />
+                </button>
+                <span className={`mt-1 text-[8px] font-bold ${selectedDate === "__no_date__" ? "text-red-300" : "text-muted-foreground/60"}`}>
+                  {noDateTasks.length}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
@@ -322,7 +341,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             className="overflow-hidden"
           >
             <div className="rounded-xl border border-foreground/10 bg-card/30 backdrop-blur-sm p-3">
-              {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-foreground">
@@ -356,10 +374,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                         ${selectedDate !== "__no_date__" && isOverdue(selectedDate) && tarefa.status !== "concluida" ? "border-yellow-500/20" : "border-foreground/10"}
                       `}
                     >
-                      {/* Priority */}
                       <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
-
-                      {/* Content */}
                       <div className="flex-1 min-w-0">
                         <p className={`text-xs font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
                           {tarefa.titulo}
@@ -376,8 +391,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           )}
                         </div>
                       </div>
-
-                      {/* Status buttons */}
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
                           <button
@@ -395,13 +408,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           </button>
                         ))}
                       </div>
-
-                      {/* Progress mini */}
                       <div className="w-10 h-1 bg-foreground/10 rounded-full overflow-hidden flex-shrink-0">
                         <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
                       </div>
-
-                      {/* Delete */}
                       <button
                         onClick={() => onDelete(tarefa.id)}
                         className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
