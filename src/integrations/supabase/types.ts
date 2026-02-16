@@ -3692,6 +3692,7 @@ export type Database = {
         | "concluido"
         | "cancelado"
       system_role:
+        | "super_admin"
         | "owner"
         | "admin"
         | "manager"
@@ -3861,6 +3862,7 @@ export const Constants = {
         "cancelado",
       ],
       system_role: [
+        "super_admin",
         "owner",
         "admin",
         "manager",
