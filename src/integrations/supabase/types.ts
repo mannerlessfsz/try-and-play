@@ -1873,64 +1873,6 @@ export type Database = {
           },
         ]
       }
-      orcamentos: {
-        Row: {
-          ano: number
-          categoria_id: string | null
-          centro_custo_id: string | null
-          created_at: string
-          empresa_id: string
-          id: string
-          mes: number
-          updated_at: string
-          valor_planejado: number
-        }
-        Insert: {
-          ano: number
-          categoria_id?: string | null
-          centro_custo_id?: string | null
-          created_at?: string
-          empresa_id: string
-          id?: string
-          mes: number
-          updated_at?: string
-          valor_planejado?: number
-        }
-        Update: {
-          ano?: number
-          categoria_id?: string | null
-          centro_custo_id?: string | null
-          created_at?: string
-          empresa_id?: string
-          id?: string
-          mes?: number
-          updated_at?: string
-          valor_planejado?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "orcamentos_categoria_id_fkey"
-            columns: ["categoria_id"]
-            isOneToOne: false
-            referencedRelation: "categorias_financeiras"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamentos_centro_custo_id_fkey"
-            columns: ["centro_custo_id"]
-            isOneToOne: false
-            referencedRelation: "centros_custo"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "orcamentos_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       orcamentos_servico: {
         Row: {
           cliente_id: string | null
@@ -2947,44 +2889,6 @@ export type Database = {
           },
         ]
       }
-      user_permissions: {
-        Row: {
-          created_at: string
-          empresa_id: string | null
-          id: string
-          is_pro_mode: boolean | null
-          module: Database["public"]["Enums"]["app_module"]
-          permission: Database["public"]["Enums"]["permission_type"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          empresa_id?: string | null
-          id?: string
-          is_pro_mode?: boolean | null
-          module: Database["public"]["Enums"]["app_module"]
-          permission: Database["public"]["Enums"]["permission_type"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          empresa_id?: string | null
-          id?: string
-          is_pro_mode?: boolean | null
-          module?: Database["public"]["Enums"]["app_module"]
-          permission?: Database["public"]["Enums"]["permission_type"]
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_permissions_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_resource_permissions: {
         Row: {
           can_create: boolean | null
@@ -3061,57 +2965,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      user_widget_preferences: {
-        Row: {
-          created_at: string
-          empresa_id: string
-          id: string
-          is_active: boolean
-          position_x: number | null
-          position_y: number | null
-          updated_at: string
-          user_id: string
-          widget_type: string
-        }
-        Insert: {
-          created_at?: string
-          empresa_id: string
-          id?: string
-          is_active?: boolean
-          position_x?: number | null
-          position_y?: number | null
-          updated_at?: string
-          user_id: string
-          widget_type: string
-        }
-        Update: {
-          created_at?: string
-          empresa_id?: string
-          id?: string
-          is_active?: boolean
-          position_x?: number | null
-          position_y?: number | null
-          updated_at?: string
-          user_id?: string
-          widget_type?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_widget_preferences_empresa_id_fkey"
-            columns: ["empresa_id"]
-            isOneToOne: false
-            referencedRelation: "empresas"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_widget_preferences_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       venda_itens: {
         Row: {
