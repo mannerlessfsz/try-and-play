@@ -547,9 +547,9 @@ export function analyzeProject(structure: ProjectStructure): AnalysisResult {
       severity: 'error',
       category: 'duplicate',
       title: 'Hooks de permissão duplicados',
-      description: `Existem ${permissionHooks.length} hooks de permissão: ${permissionHooks.map(h => h.name).join(', ')}. Isso causa confusão e comportamento inconsistente.`,
+      description: `Existem ${permissionHooks.length} hooks de permissão: ${permissionHooks.map(h => h.name).join(', ')}. Verifique se há duplicidade real ou apenas aliases.`,
       affectedFiles: permissionHooks.map(h => h.path),
-      suggestion: 'Unificar usePermissions e useModulePermissions em um único hook com API consistente.',
+      suggestion: 'O hook único é useModulePermissions. Aliases como usePermissions são apenas reexportações e não representam duplicidade real.',
     });
   }
 
