@@ -642,53 +642,45 @@ const FloatingIsland = React.memo(({
 
   return (
     <>
-      {/* Toggle Button quando minimizado */}
+      {/* Toggle Button quando minimizado - small icon top-right */}
       <AnimatePresence>
         {!isVisible && (
           <motion.button
-            initial={{ scale: 0, y: 100 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0, y: 100 }}
+            initial={{ scale: 0, x: 50 }}
+            animate={{ scale: 1, x: 0 }}
+            exit={{ scale: 0, x: 50 }}
             onClick={onToggle}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 
-                       w-14 h-14 rounded-full bg-gradient-to-br from-orange-500/30 to-violet-500/30
-                       backdrop-blur-xl border border-white/20 shadow-2xl
+            className="fixed top-2 right-[280px] z-50 
+                       w-10 h-10 rounded-full bg-gradient-to-br from-orange-500/30 to-violet-500/30
+                       backdrop-blur-xl border border-white/20 shadow-lg
                        flex items-center justify-center group"
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
           >
-            <MessageCircle className="w-6 h-6 text-white" />
+            <MessageCircle className="w-4 h-4 text-white" />
             {totalUnread > 0 && (
               <motion.div
-                className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-gradient-to-br from-red-500 to-orange-500
-                           flex items-center justify-center text-[10px] font-bold text-white shadow-lg shadow-red-500/50"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-red-500 to-orange-500
+                           flex items-center justify-center text-[9px] font-bold text-white shadow-lg shadow-red-500/50"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
               >
                 {totalUnread}
               </motion.div>
             )}
-            {/* Pulse */}
-            {totalUnread > 0 && (
-              <motion.div
-                className="absolute inset-0 rounded-full bg-orange-500/30"
-                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Floating Island - Compact and positioned to avoid sidebar */}
+      {/* Floating Island - Compact, top-right, next to the header */}
       <AnimatePresence>
         {isVisible && (
           <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
+            initial={{ x: 100, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25 }}
-            className="fixed bottom-6 left-4 right-72 z-50 flex justify-center pointer-events-none"
+            className="fixed top-1.5 right-[280px] z-50 pointer-events-none"
           >
             {/* Glow effect - themed */}
             <div className={cn(
@@ -700,7 +692,7 @@ const FloatingIsland = React.memo(({
             <div 
               ref={containerRef}
               className={cn(
-                "relative flex items-center gap-1.5 px-3 py-2 rounded-full backdrop-blur-2xl shadow-2xl pointer-events-auto border",
+                "relative flex items-center gap-1 px-2 py-1.5 rounded-full backdrop-blur-2xl shadow-xl pointer-events-auto border",
                 themeConfig.island.bg,
                 themeConfig.island.border
               )}
@@ -748,8 +740,8 @@ const FloatingIsland = React.memo(({
                       
                       {/* Orb - Smaller */}
                       <div
-                        className="relative w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs
-                                   shadow-lg overflow-hidden"
+                        className="relative w-7 h-7 rounded-full flex items-center justify-center text-white font-bold text-[10px]
+                                   shadow-md overflow-hidden"
                         style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
                       >
                         {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
