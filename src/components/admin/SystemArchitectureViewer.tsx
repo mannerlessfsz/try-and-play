@@ -383,7 +383,7 @@ const SystemArchitectureViewer = () => {
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     <FlowStep label="ProtectedRoute" sublabel="Verificação" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <FlowStep label="usePermissions" sublabel="Checagem" />
+                    <FlowStep label="useModulePermissions" sublabel="Checagem" />
                     <ArrowRight className="w-4 h-4 text-muted-foreground" />
                     <div className="flex flex-col gap-2">
                       <FlowStep label="Autorizado" variant="success" />
@@ -629,12 +629,8 @@ const DevelopmentStandards = () => {
               description="Configuração de rotas React Router"
             />
             <FileReference 
-              path="src/hooks/usePermissions.ts"
-              description="Hook de verificação de permissões por módulo"
-            />
-            <FileReference 
               path="src/hooks/useModulePermissions.ts"
-              description="Hook de permissões de módulo por empresa"
+              description="Hook único de permissões por módulo e empresa"
             />
             <FileReference 
               path="src/components/ProtectedRoute.tsx"

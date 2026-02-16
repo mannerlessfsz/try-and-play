@@ -149,11 +149,11 @@ const DATABASE_SCHEMA: TableSchema[] = [
     ]
   },
   {
-    name: 'user_permissions',
-    displayName: 'Permissões de Usuários',
+    name: 'user_module_permissions',
+    displayName: 'Permissões de Módulo',
     category: 'core',
     icon: <Key className="w-4 h-4" />,
-    description: 'Permissões granulares por módulo e recurso',
+    description: 'Permissões granulares por módulo (view, create, edit, delete, export)',
     rlsEnabled: true,
     rlsPolicies: [
       { name: 'Users can view own permissions', command: 'SELECT', using: 'auth.uid() = user_id OR is_admin(auth.uid())' },
@@ -162,10 +162,14 @@ const DATABASE_SCHEMA: TableSchema[] = [
     columns: [
       { name: 'id', type: 'uuid', nullable: false, isPrimaryKey: true },
       { name: 'user_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'profiles', column: 'id' } },
-      { name: 'empresa_id', type: 'uuid', nullable: false, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
-      { name: 'module', type: 'app_module', nullable: false },
-      { name: 'resource', type: 'text', nullable: true },
-      { name: 'permission', type: 'permission_type', nullable: false },
+      { name: 'empresa_id', type: 'uuid', nullable: true, isForeignKey: true, references: { table: 'empresas', column: 'id' } },
+      { name: 'module', type: 'text', nullable: false },
+      { name: 'can_view', type: 'boolean', nullable: false },
+      { name: 'can_create', type: 'boolean', nullable: false },
+      { name: 'can_edit', type: 'boolean', nullable: false },
+      { name: 'can_delete', type: 'boolean', nullable: false },
+      { name: 'can_export', type: 'boolean', nullable: false },
+      { name: 'is_pro_mode', type: 'boolean', nullable: false },
       { name: 'created_at', type: 'timestamptz', nullable: false },
     ]
   },
