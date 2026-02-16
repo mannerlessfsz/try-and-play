@@ -1,14 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { 
-  TrendingUp, TrendingDown,
-  Wallet, Building2,
-  AlertTriangle,
-  Package, ShoppingCart, ShoppingBag, FileText
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { useAtividades } from "@/hooks/useAtividades";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTransacoes } from "@/hooks/useTransacoes";
 import { useParcelasAlerta } from "@/hooks/useParcelasAlerta";
@@ -28,14 +21,9 @@ import { OrcamentosManager } from "@/components/erp/OrcamentosManager";
 import { CentrosCustoManager } from "@/components/financial/CentrosCustoManager";
 import { MetasFinanceirasManager } from "@/components/financial/MetasFinanceirasManager";
 import { RecorrenciasManager } from "@/components/financial/RecorrenciasManager";
-import { useProdutos } from "@/hooks/useProdutos";
-import { useVendas } from "@/hooks/useVendas";
-import { useCompras } from "@/hooks/useCompras";
-import { useOrcamentos } from "@/hooks/useOrcamentos";
 import { GestaoCommandBar } from "@/components/gestao/GestaoCommandBar";
 import { AnimatedTabContent } from "@/components/gestao/AnimatedTabContent";
 import { BentoDashboard } from "@/components/gestao/BentoDashboard";
-import type { Atividade } from "@/types/task";
 
 type FilterType = "all" | "receitas" | "despesas" | "pendentes";
 
@@ -47,13 +35,8 @@ export default function FinancialACE() {
   const { toast } = useToast();
   const alertaShown = useRef(false);
 
-  const { atividades, addAtividade, loading: atividadesLoading } = useAtividades("gestao", empresaAtiva?.id);
   const { totalReceitas, totalDespesas, saldo, pendentes, transacoes } = useTransacoes(empresaAtiva?.id);
   const parcelasAlerta = useParcelasAlerta(empresaAtiva?.id);
-  const { produtos } = useProdutos(empresaAtiva?.id);
-  const { totalVendas } = useVendas(empresaAtiva?.id);
-  const { totalCompras } = useCompras(empresaAtiva?.id);
-  const { orcamentosAbertos } = useOrcamentos(empresaAtiva?.id);
 
   // Alerta ao entrar no módulo
   useEffect(() => {
