@@ -372,38 +372,11 @@ export default function TaskVault() {
     },
   ], [tarefasModelo.length]);
 
-  // Sidebar content with filters and timeline
+  // Sidebar content - only activity timeline
   const sidebarContent = (
     <div className="flex flex-col h-full">
-      {/* Filters Section */}
-      <div className="p-3 border-b border-red-500/20">
-        <div className="text-xs font-bold text-red-400 mb-3">Filtros Rápidos</div>
-        <div className="space-y-2">
-          <select 
-            value={selectedEmpresaId}
-            onChange={(e) => setSelectedEmpresaId(e.target.value)}
-            className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80"
-          >
-            <option value="all">Todas Empresas</option>
-            {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
-          </select>
-          <select className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80">
-            <option>Todas Prioridades</option>
-            <option value="alta">Alta</option>
-            <option value="media">Média</option>
-            <option value="baixa">Baixa</option>
-          </select>
-          <input 
-            type="date" 
-            className="w-full bg-background/80 border border-foreground/10 rounded-md px-2 py-1.5 text-xs text-foreground/80"
-            placeholder="Data inicial"
-          />
-        </div>
-      </div>
-
-      {/* Timeline Section */}
       <div className="flex-1 p-3 overflow-y-auto">
-        <div className="text-xs font-bold text-red-400 mb-3 flex items-center gap-2">
+        <div className="text-xs font-bold text-primary mb-3 flex items-center gap-2">
           <Activity className="w-3.5 h-3.5" />
           Atividades Recentes
         </div>
@@ -420,7 +393,7 @@ export default function TaskVault() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
           <span className="text-muted-foreground">Carregando...</span>
         </div>
       </div>
@@ -454,37 +427,42 @@ export default function TaskVault() {
           <TaskHeatmap tarefas={tarefasFiltradas} />
         </div>
 
-        {/* Filter indicator */}
-        {activeFilter !== "all" && (
-          <div className="mb-4 flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Filtro ativo:</span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
-              {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
-            </span>
-            <button 
-              onClick={() => setActiveFilter("all")}
-              className="text-xs text-primary hover:text-primary/80 underline"
-            >
-              Limpar
-            </button>
+        {/* Compact Filter Bar */}
+        <div className="mb-4 flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-[11px] text-muted-foreground font-medium">Filtros:</span>
           </div>
-        )}
-        {/* Selected empresa indicator */}
-        {selectedEmpresaId !== "all" && (
-          <div className="mb-4 flex items-center gap-2">
-            <Building2 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">Empresa:</span>
-            <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
-              {getEmpresaNome(selectedEmpresaId)}
-            </span>
+          <select 
+            value={selectedEmpresaId}
+            onChange={(e) => setSelectedEmpresaId(e.target.value)}
+            className="bg-card/60 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground/80 backdrop-blur-xl"
+          >
+            <option value="all">Todas Empresas</option>
+            {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+          </select>
+          {activeFilter !== "all" && (
+            <div className="flex items-center gap-1.5">
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
+                {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
+              </span>
+              <button 
+                onClick={() => setActiveFilter("all")}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline"
+              >
+                Limpar
+              </button>
+            </div>
+          )}
+          {selectedEmpresaId !== "all" && (
             <button 
               onClick={() => setSelectedEmpresaId("all")}
-              className="text-xs text-red-400 hover:text-red-300 underline"
+              className="text-[10px] text-muted-foreground hover:text-foreground underline"
             >
-              Ver todas
+              Ver todas empresas
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Header with view controls */}
         <div className="flex items-center justify-between mb-5 relative">
