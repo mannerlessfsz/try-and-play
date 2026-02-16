@@ -410,8 +410,10 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Command Center */}
-        <div className="mb-4">
+        {/* Unified control frame */}
+        <div className="mb-5 bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 p-4 space-y-4">
+          {/* Command Center */}
+          <div>
           <CommandCenter
             total={totalTarefas}
             emAndamento={tarefasEmAndamento}
@@ -420,83 +422,82 @@ export default function TaskVault() {
             activeFilter={activeFilter}
             onFilterClick={handleFilterClick}
           />
-        </div>
+         </div>
 
-        {/* Task Heatmap */}
-        <div className="mb-5 px-1">
+          {/* Task Heatmap */}
           <TaskHeatmap tarefas={tarefasFiltradas} />
-        </div>
 
-        {/* Unified header bar */}
-        <div className="flex items-center gap-3 mb-5 relative flex-wrap">
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center">
-              <ListTodo className="w-4 h-4 text-primary" />
+          {/* Controls bar */}
+          <div className="flex items-center gap-3 relative flex-wrap pt-3 border-t border-foreground/5">
+            <div className="flex items-center gap-2.5 flex-shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                <ListTodo className="w-3.5 h-3.5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-foreground leading-tight">Tarefas</h2>
+                <p className="text-[10px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-sm font-bold text-foreground leading-tight">Tarefas</h2>
-              <p className="text-[10px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
-            </div>
-          </div>
 
-          <select 
-            value={selectedEmpresaId}
-            onChange={(e) => setSelectedEmpresaId(e.target.value)}
-            className="bg-card/60 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground/80 backdrop-blur-xl"
-          >
-            <option value="all">Todas Empresas</option>
-            {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
-          </select>
-
-          {activeFilter !== "all" && (
-            <div className="flex items-center gap-1.5">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">
-                {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
-              </span>
-              <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground">✕</button>
-            </div>
-          )}
-
-          <div className="flex-1" />
-
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="flex bg-card/60 backdrop-blur-xl rounded-xl p-1 border border-foreground/8">
-              {([
-                { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
-                { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
-                { mode: "lista" as const, icon: List, label: "Lista", shortcut: "⌘3" },
-              ]).map(({ mode, icon: MIcon, label, shortcut }) => (
-                <button 
-                  key={mode} 
-                  onClick={() => handleSetViewMode(mode)} 
-                  title={`${label} (${shortcut})`}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
-                >
-                  <MIcon className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-            <Button size="sm" onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
-              <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
-            </Button>
-          </div>
-
-          {/* Onboard tip */}
-          {showOnboardTip && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute right-0 top-full mt-2 z-20 bg-primary/10 border border-primary/30 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl shadow-lg max-w-xs"
+            <select 
+              value={selectedEmpresaId}
+              onChange={(e) => setSelectedEmpresaId(e.target.value)}
+              className="bg-background/50 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground/80"
             >
-              <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
-              <p className="text-xs text-foreground/80">
-                A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar.
-              </p>
-              <button onClick={dismissOnboardTip} className="text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
-            </motion.div>
-          )}
+              <option value="all">Todas Empresas</option>
+              {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+            </select>
+
+            {activeFilter !== "all" && (
+              <div className="flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">
+                  {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
+                </span>
+                <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground">✕</button>
+              </div>
+            )}
+
+            <div className="flex-1" />
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex bg-background/50 rounded-xl p-1 border border-foreground/8">
+                {([
+                  { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
+                  { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
+                  { mode: "lista" as const, icon: List, label: "Lista", shortcut: "⌘3" },
+                ]).map(({ mode, icon: MIcon, label, shortcut }) => (
+                  <button 
+                    key={mode} 
+                    onClick={() => handleSetViewMode(mode)} 
+                    title={`${label} (${shortcut})`}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                  >
+                    <MIcon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{label}</span>
+                  </button>
+                ))}
+              </div>
+              <Button size="sm" onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+                <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
+              </Button>
+            </div>
+
+            {/* Onboard tip */}
+            {showOnboardTip && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute right-0 top-full mt-2 z-20 bg-primary/10 border border-primary/30 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl shadow-lg max-w-xs"
+              >
+                <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-xs text-foreground/80">
+                  A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar.
+                </p>
+                <button onClick={dismissOnboardTip} className="text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
+              </motion.div>
+            )}
+          </div>
         </div>
 
         {/* Content based on view mode */}
