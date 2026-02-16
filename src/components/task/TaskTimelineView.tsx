@@ -254,7 +254,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       <ScrollArea className="w-full">
         <div className="relative px-2 pb-4 min-w-max">
           {/* Horizontal line */}
-          <div className="absolute left-0 right-0 top-[46px] h-[2px] bg-foreground/10 rounded-full" />
+          <div className="absolute left-0 right-0 top-[52px] h-[2px] bg-foreground/10 rounded-full" />
 
           <div className="flex items-start">
             {days.map((dateStr, i) => {
@@ -266,14 +266,14 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               const isWeekend = [0, 6].includes(new Date(dateStr + "T12:00:00").getDay());
 
               return (
-                <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 46, minWidth: viewMode === "week" ? 90 : 46, flexShrink: 0 }}>
+                <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 52, minWidth: viewMode === "week" ? 100 : 52, flexShrink: 0 }}>
                   {/* Day label */}
-                  <span className={`text-[11px] leading-none mb-1.5 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
+                  <span className={`text-[11px] leading-none mb-2 ${isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/60"}`}>
                     {formatWeekday(dateStr)}
                   </span>
 
                   {/* Day number */}
-                  <span className={`text-sm font-bold leading-none mb-2 ${colors.text}`}>
+                  <span className={`text-sm font-bold leading-none mb-2.5 ${colors.text}`}>
                     {formatDay(dateStr)}
                   </span>
 
@@ -282,11 +282,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                     ref={today ? todayRef : undefined}
                     onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
                     className={`
-                      relative z-10 rounded-full ring-2 transition-all duration-200
+                      relative z-10 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-125
                       ${colors.ring} ${colors.glow}
-                      ${count > 0 ? "cursor-pointer hover:scale-125" : "cursor-default"}
-                      ${selected ? "scale-130" : ""}
-                      ${count > 0 ? "w-4.5 h-4.5" : "w-2.5 h-2.5"}
+                      ${selected ? "scale-[1.3]" : ""}
+                      ${count > 0 ? "w-5 h-5" : "w-3 h-3"}
                     `}
                   >
                     <div className={`w-full h-full rounded-full ${colors.bg}`} />
@@ -297,7 +296,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
                   {/* Task count badge */}
                   {count > 0 && (
-                    <span className={`mt-1.5 text-[10px] font-bold ${colors.text}`}>
+                    <span className={`mt-2 text-[10px] font-bold ${colors.text}`}>
                       {count}
                     </span>
                   )}
