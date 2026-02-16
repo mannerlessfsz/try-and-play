@@ -121,13 +121,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [weekRef, setWeekRef] = useState(now);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [userManuallySelected, setUserManuallySelected] = useState(false);
   const todayRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setTimeout(() => {
-      todayRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    }, 100);
-  }, [viewMode, currentMonth, currentYear]);
 
   const tasksByDate = useMemo(() => {
     const map: Record<string, Tarefa[]> = {};
@@ -138,6 +133,41 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     });
     return map;
   }, [tarefas]);
+
+  // Auto-select the most relevant date: overdue incomplete tasks or next upcoming
+  const autoSelectedDate = useMemo(() => {
+    const todayKey = toDateKey(now);
+    const relevantDates: string[] = [];
+    Object.entries(tasksByDate).forEach(([dateStr, tasks]) => {
+      if (dateStr === "__no_date__") return;
+      if (tasks.some(t => t.status !== "concluida")) relevantDates.push(dateStr);
+    });
+    if (relevantDates.length === 0) return null;
+    relevantDates.sort();
+    const overdue = relevantDates.filter(d => d < todayKey);
+    const upcoming = relevantDates.filter(d => d >= todayKey);
+    if (overdue.length > 0) return overdue[0];
+    if (upcoming.length > 0) return upcoming[0];
+    return null;
+  }, [tasksByDate]);
+
+  // Apply auto-selection when user hasn't manually selected
+  useEffect(() => {
+    if (!userManuallySelected && autoSelectedDate) {
+      setSelectedDate(autoSelectedDate);
+    }
+  }, [autoSelectedDate, userManuallySelected]);
+
+  // Reset manual selection when navigating months/weeks
+  useEffect(() => {
+    setUserManuallySelected(false);
+  }, [currentMonth, currentYear, weekRef]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 100);
+  }, [viewMode, currentMonth, currentYear]);
 
   const days = useMemo(() =>
     viewMode === "month" ? getDaysOfMonth(currentYear, currentMonth) : getWeekDays(weekRef),
@@ -180,7 +210,19 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     const n = new Date();
     setCurrentYear(n.getFullYear()); setCurrentMonth(n.getMonth()); setWeekRef(n);
     setSelectedDate(toDateKey(n));
+    setUserManuallySelected(true);
   };
+
+  // Navigate to auto-selected date's month if it's not currently visible
+  useEffect(() => {
+    if (!userManuallySelected && autoSelectedDate && viewMode === "month") {
+      const d = new Date(autoSelectedDate + "T12:00:00");
+      if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) {
+        setCurrentYear(d.getFullYear());
+        setCurrentMonth(d.getMonth());
+      }
+    }
+  }, [autoSelectedDate, userManuallySelected, viewMode, currentYear, currentMonth]);
 
   const getNodeColor = (dateStr: string) => {
     const tasks = tasksByDate[dateStr] || [];
@@ -285,7 +327,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   {/* Node */}
                   <button
                     ref={today ? todayRef : undefined}
-                    onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
+                    onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
                     className={`
                       relative z-10 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-125
                       ${colors.ring} ${colors.glow}
@@ -315,7 +357,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 <span className="text-[9px] leading-none mb-1 text-muted-foreground/40">s/d</span>
                 <span className="text-[11px] font-bold leading-none mb-1.5 text-muted-foreground/60">—</span>
                 <button
-                  onClick={() => setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__")}
+                  onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
                   className={`
                     relative z-10 w-3.5 h-3.5 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-125
                     ${selectedDate === "__no_date__" ? "ring-red-500 shadow-[0_0_12px_rgba(239,68,68,0.5)] scale-125" : "ring-foreground/20"}
