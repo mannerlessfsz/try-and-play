@@ -573,7 +573,7 @@ const ExpandedChatPanel = React.memo(({
 
 ExpandedChatPanel.displayName = 'ExpandedChatPanel';
 
-// Floating Island with Carousel
+// Floating Island — Orbital Nebula System
 const FloatingIsland = React.memo(({ 
   contacts, 
   onContactSelect,
@@ -591,43 +591,17 @@ const FloatingIsland = React.memo(({
   theme: IslandTheme;
   onThemeChange: (theme: IslandTheme) => void;
 }) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [showThemeMenu, setShowThemeMenu] = useState(false);
-  const VISIBLE_COUNT = 6;
-  const containerRef = useRef<HTMLDivElement>(null);
-  
+  const [isExpanded, setIsExpanded] = useState(false);
   const themeConfig = themeConfigs[theme];
   
-  const contactsWithActivity = contacts.filter(c => c.unread && c.unread > 0 || c.isOnline);
+  const contactsWithActivity = contacts.filter(c => (c.unread && c.unread > 0) || c.isOnline);
   const totalUnread = contacts.reduce((acc, c) => acc + (c.unread || 0), 0);
-  
-  const visibleContacts = useMemo(() => {
-    const start = currentIndex;
-    const end = start + VISIBLE_COUNT;
-    // Circular array
-    const result: Contact[] = [];
-    for (let i = start; i < end; i++) {
-      result.push(contactsWithActivity[i % contactsWithActivity.length]);
-    }
-    return result;
-  }, [contactsWithActivity, currentIndex]);
-
-  const canScrollLeft = currentIndex > 0;
-  const canScrollRight = currentIndex + VISIBLE_COUNT < contactsWithActivity.length;
-
-  const scrollLeft = useCallback(() => {
-    setCurrentIndex(prev => Math.max(0, prev - 1));
-  }, []);
-
-  const scrollRight = useCallback(() => {
-    setCurrentIndex(prev => Math.min(contactsWithActivity.length - VISIBLE_COUNT, prev + 1));
-  }, [contactsWithActivity.length]);
+  const displayContacts = contactsWithActivity.slice(0, 8);
 
   const cycleTheme = useCallback(() => {
     const themes: IslandTheme[] = ['colorful', 'dark', 'light'];
     const currentIdx = themes.indexOf(theme);
-    const nextIdx = (currentIdx + 1) % themes.length;
-    onThemeChange(themes[nextIdx]);
+    onThemeChange(themes[(currentIdx + 1) % themes.length]);
   }, [theme, onThemeChange]);
 
   const getThemeIcon = () => {
@@ -640,30 +614,49 @@ const FloatingIsland = React.memo(({
 
   if (contactsWithActivity.length === 0) return null;
 
+  // Calculate orbital positions — contacts fan out in a semicircle below-left of the core
+  const getOrbitalPosition = (index: number, total: number) => {
+    const arcStart = -Math.PI * 0.15; // start angle (slightly right of top)
+    const arcEnd = Math.PI * 0.85;   // end angle (slightly past bottom)
+    const angle = total === 1 
+      ? (arcStart + arcEnd) / 2 
+      : arcStart + (index / (total - 1)) * (arcEnd - arcStart);
+    const radius = 52 + (index % 2) * 12; // staggered radius for depth
+    return {
+      x: Math.cos(angle) * radius,
+      y: Math.sin(angle) * radius,
+    };
+  };
+
   return (
     <>
-      {/* Toggle Button quando minimizado - small icon top-right */}
+      {/* Core Orb — always visible when not hidden */}
       <AnimatePresence>
         {!isVisible && (
           <motion.button
-            initial={{ scale: 0, x: 50 }}
-            animate={{ scale: 1, x: 0 }}
-            exit={{ scale: 0, x: 50 }}
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            exit={{ scale: 0 }}
             onClick={onToggle}
-            className="fixed top-2.5 right-[280px] z-50 
-                       w-8 h-8 rounded-full bg-gradient-to-br from-orange-500/30 to-violet-500/30
-                       backdrop-blur-xl border border-white/20 shadow-lg
-                       flex items-center justify-center group"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
+            className="fixed top-3 right-[280px] z-50 w-9 h-9 rounded-full flex items-center justify-center"
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
           >
-            <MessageCircle className="w-3.5 h-3.5 text-white" />
+            {/* Ambient glow */}
+            <motion.div
+              className="absolute inset-[-4px] rounded-full bg-gradient-to-br from-orange-500/40 to-violet-500/40 blur-md"
+              animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            />
+            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shadow-lg shadow-orange-500/30 border border-white/20">
+              <MessageCircle className="w-4 h-4 text-white" />
+            </div>
             {totalUnread > 0 && (
               <motion.div
-                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-gradient-to-br from-red-500 to-orange-500
-                           flex items-center justify-center text-[9px] font-bold text-white shadow-lg shadow-red-500/50"
+                className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg"
                 initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
+                animate={{ scale: [1, 1.15, 1] }}
+                transition={{ duration: 1, repeat: Infinity }}
               >
                 {totalUnread}
               </motion.div>
@@ -672,186 +665,260 @@ const FloatingIsland = React.memo(({
         )}
       </AnimatePresence>
 
-      {/* Floating Island - Compact, top-right, next to the header */}
+      {/* Orbital System — visible state */}
       <AnimatePresence>
         {isVisible && (
           <motion.div
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 100, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25 }}
-            className="fixed top-1 right-[280px] z-50 pointer-events-none"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5 }}
+            transition={{ type: 'spring', damping: 20, stiffness: 200 }}
+            className="fixed top-3 right-[280px] z-50"
           >
-            {/* Glow effect - themed */}
-            <div className={cn(
-              "absolute inset-0 -z-10 rounded-full bg-gradient-to-r blur-2xl scale-110 pointer-events-none",
-              themeConfig.island.glow
-            )} />
-            
-            {/* Island container - Compact & themed */}
-            <div 
-              ref={containerRef}
-              className={cn(
-                "relative flex items-center gap-0.5 px-1.5 py-1 rounded-full backdrop-blur-2xl shadow-xl pointer-events-auto border",
-                themeConfig.island.bg,
-                themeConfig.island.border
+            {/* Orbital field glow */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0, opacity: 0 }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 pointer-events-none"
+                >
+                  <div className={cn(
+                    "absolute inset-0 rounded-full blur-3xl opacity-20 bg-gradient-to-br",
+                    theme === 'colorful' ? 'from-orange-500 via-violet-500 to-cyan-500' 
+                      : theme === 'dark' ? 'from-zinc-600 to-zinc-700'
+                      : 'from-orange-200 to-violet-200'
+                  )} />
+                  {/* Orbit ring */}
+                  <motion.div
+                    className={cn(
+                      "absolute inset-2 rounded-full border border-dashed",
+                      theme === 'colorful' ? 'border-orange-500/15' 
+                        : theme === 'dark' ? 'border-zinc-700/30'
+                        : 'border-gray-300/40'
+                    )}
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+                  />
+                </motion.div>
               )}
-            >
-              {/* Left arrow - themed */}
-              <motion.button
-                onClick={scrollLeft}
-                className={cn(
-                "w-5 h-5 rounded-full flex items-center justify-center transition-all",
-                  canScrollLeft 
-                    ? cn(themeConfig.button.bg, themeConfig.button.hover, theme === 'light' ? 'text-gray-600' : 'text-white')
-                    : theme === 'light' ? 'text-gray-300 cursor-not-allowed' : 'text-white/20 cursor-not-allowed'
-                )}
-                whileHover={canScrollLeft ? { scale: 1.1 } : {}}
-                whileTap={canScrollLeft ? { scale: 0.9 } : {}}
-                disabled={!canScrollLeft}
-              >
-                <ChevronLeft className="w-3 h-3" />
-              </motion.button>
+            </AnimatePresence>
 
-              {/* Orbs - Compact & themed */}
-              <div className="flex items-center gap-2 px-1">
-                {visibleContacts.map((contact, index) => {
-                  const tagStyle = themeConfig.tagGradients[contact.tag];
-                  return (
-                    <motion.button
-                      key={`${contact.id}-${index}`}
-                      onClick={() => onContactSelect(contact)}
-                      className="relative group"
-                      initial={{ scale: 0, y: 10 }}
-                      animate={{ scale: 1, y: 0 }}
-                      transition={{ delay: index * 0.03, type: 'spring' }}
-                      whileHover={{ scale: 1.15, y: -4 }}
-                      whileTap={{ scale: 0.95 }}
+            {/* Orbital Contacts */}
+            <AnimatePresence>
+              {isExpanded && displayContacts.map((contact, index) => {
+                const pos = getOrbitalPosition(index, displayContacts.length);
+                const tagStyle = themeConfig.tagGradients[contact.tag];
+                return (
+                  <motion.button
+                    key={contact.id}
+                    initial={{ scale: 0, x: 0, y: 0, opacity: 0 }}
+                    animate={{ 
+                      scale: 1, 
+                      x: pos.x, 
+                      y: pos.y, 
+                      opacity: 1,
+                    }}
+                    exit={{ scale: 0, x: 0, y: 0, opacity: 0 }}
+                    transition={{ 
+                      type: 'spring', 
+                      damping: 15, 
+                      stiffness: 200,
+                      delay: index * 0.04 
+                    }}
+                    onClick={() => onContactSelect(contact)}
+                    className="absolute top-1 left-1 z-10 group"
+                    whileHover={{ scale: 1.25 }}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    {/* Rotating energy ring */}
+                    <motion.div
+                      className="absolute inset-[-3px] rounded-full opacity-60"
+                      style={{ 
+                        background: `conic-gradient(from 0deg, ${tagStyle.from}, transparent, ${tagStyle.to}, transparent, ${tagStyle.from})` 
+                      }}
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 6 + index, repeat: Infinity, ease: 'linear' }}
+                    />
+                    
+                    {/* Contact orb */}
+                    <div
+                      className="relative w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-[10px] shadow-lg overflow-hidden"
+                      style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
                     >
-                      {/* Rotating ring */}
+                      {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/20" />
+                    </div>
+                    
+                    {/* Online pulse */}
+                    {contact.isOnline && (
                       <motion.div
-                        className="absolute inset-[-2px] rounded-full opacity-50"
-                        style={{ 
-                          background: `conic-gradient(from 0deg, ${tagStyle.from}, ${tagStyle.to}, ${tagStyle.from})` 
-                        }}
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                        className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-black shadow-lg shadow-green-400/50"
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
                       />
-                      
-                      {/* Orb - Smaller */}
-                      <div
-                        className="relative w-6 h-6 rounded-full flex items-center justify-center text-white font-bold text-[9px]
-                                   shadow-md overflow-hidden"
-                        style={{ background: `linear-gradient(135deg, ${tagStyle.from}, ${tagStyle.to})` }}
-                      >
-                        {contact.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        
-                        {/* Inner glow */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/20" />
-                      </div>
-                      
-                      {/* Online indicator - smaller */}
-                      {contact.isOnline && (
-                        <motion.div
-                          className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 
-                                     border-2 border-black shadow-lg shadow-green-400/50"
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 1.5, repeat: Infinity }}
-                        />
-                      )}
-                      
-                      {/* Unread badge - red notification */}
-                      {contact.unread && contact.unread > 0 && (
-                        <motion.div
-                          className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full 
-                                     bg-gradient-to-br from-red-500 to-red-600
-                                     flex items-center justify-center text-[10px] font-bold text-white
-                                     shadow-lg shadow-red-500/50 border-2 border-white"
-                          animate={{ scale: [1, 1.15, 1] }}
-                          transition={{ duration: 0.8, repeat: Infinity }}
-                        >
-                          {contact.unread}
-                        </motion.div>
-                      )}
-
-                      {/* Tooltip */}
+                    )}
+                    
+                    {/* Unread badge */}
+                    {contact.unread && contact.unread > 0 && (
                       <motion.div
-                        className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-3 py-1.5 
-                                   rounded-lg bg-black/90 backdrop-blur-xl border border-white/10
-                                   opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap
-                                   transition-opacity"
+                        className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg border border-white/30"
+                        animate={{ scale: [1, 1.15, 1] }}
+                        transition={{ duration: 0.8, repeat: Infinity }}
                       >
-                        <p className="text-xs font-medium text-white">{contact.name}</p>
-                        <p className="text-[10px] text-white/60">{contact.lastMessage}</p>
+                        {contact.unread}
                       </motion.div>
-                    </motion.button>
-                  );
-                })}
+                    )}
+
+                    {/* Tooltip */}
+                    <motion.div
+                      className={cn(
+                        "absolute top-full mt-1 left-1/2 -translate-x-1/2 px-2 py-1 rounded-lg backdrop-blur-xl border",
+                        "opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap transition-opacity z-30",
+                        theme === 'light' 
+                          ? 'bg-white border-gray-200 shadow-lg'
+                          : 'bg-black/90 border-white/10'
+                      )}
+                    >
+                      <p className={cn("text-[10px] font-medium", theme === 'light' ? 'text-gray-900' : 'text-white')}>{contact.name}</p>
+                      {contact.lastMessage && (
+                        <p className={cn("text-[9px]", theme === 'light' ? 'text-gray-500' : 'text-white/50')}>{contact.lastMessage}</p>
+                      )}
+                    </motion.div>
+                  </motion.button>
+                );
+              })}
+            </AnimatePresence>
+
+            {/* Utility satellites — shown when expanded */}
+            <AnimatePresence>
+              {isExpanded && (
+                <>
+                  {/* Theme toggle — orbit top-left */}
+                  <motion.button
+                    initial={{ scale: 0, x: 0, y: 0 }}
+                    animate={{ scale: 1, x: -32, y: -28 }}
+                    exit={{ scale: 0, x: 0, y: 0 }}
+                    transition={{ type: 'spring', delay: 0.15 }}
+                    onClick={cycleTheme}
+                    className={cn(
+                      "absolute top-0.5 left-0.5 z-10 w-6 h-6 rounded-full flex items-center justify-center",
+                      theme === 'light' 
+                        ? 'bg-gray-100 border border-gray-300 text-gray-600 hover:bg-gray-200'
+                        : 'bg-white/10 border border-white/10 text-white/60 hover:bg-white/20 hover:text-white'
+                    )}
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
+                    title={`Tema: ${theme}`}
+                  >
+                    {getThemeIcon()}
+                  </motion.button>
+
+                  {/* Open Messenger — orbit top-right */}
+                  <motion.button
+                    initial={{ scale: 0, x: 0, y: 0 }}
+                    animate={{ scale: 1, x: 32, y: -28 }}
+                    exit={{ scale: 0, x: 0, y: 0 }}
+                    transition={{ type: 'spring', delay: 0.2 }}
+                    onClick={onOpenMessenger}
+                    className={cn(
+                      "absolute top-0.5 left-0.5 z-10 w-6 h-6 rounded-full flex items-center justify-center",
+                      theme === 'light' 
+                        ? 'bg-gray-100 border border-gray-300 text-gray-600 hover:bg-orange-100 hover:text-orange-600'
+                        : 'bg-white/10 border border-white/10 text-white/60 hover:bg-orange-500/20 hover:text-orange-400'
+                    )}
+                    whileHover={{ scale: 1.2 }}
+                    whileTap={{ scale: 0.9 }}
+                    title="Abrir Messenger"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                  </motion.button>
+                </>
+              )}
+            </AnimatePresence>
+
+            {/* Core Orb — the "sun" of the system */}
+            <motion.button
+              onClick={() => setIsExpanded(prev => !prev)}
+              className="relative z-20 w-9 h-9 rounded-full flex items-center justify-center"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              {/* Breathing ambient glow */}
+              <motion.div
+                className={cn(
+                  "absolute inset-[-6px] rounded-full blur-lg",
+                  theme === 'colorful' ? 'bg-gradient-to-br from-orange-500/50 to-violet-500/50'
+                    : theme === 'dark' ? 'bg-zinc-500/20'
+                    : 'bg-orange-300/30'
+                )}
+                animate={{ 
+                  scale: isExpanded ? [1, 1.2, 1] : [1, 1.4, 1],
+                  opacity: isExpanded ? [0.4, 0.6, 0.4] : [0.3, 0.6, 0.3]
+                }}
+                transition={{ duration: 3, repeat: Infinity }}
+              />
+              
+              {/* Orb body */}
+              <div className={cn(
+                "relative w-full h-full rounded-full flex items-center justify-center shadow-xl border overflow-hidden",
+                theme === 'colorful' 
+                  ? 'bg-gradient-to-br from-orange-500 to-violet-600 border-white/20 shadow-orange-500/30'
+                  : theme === 'dark'
+                  ? 'bg-gradient-to-br from-zinc-700 to-zinc-800 border-zinc-600 shadow-zinc-800/50'
+                  : 'bg-gradient-to-br from-orange-400 to-violet-500 border-white shadow-orange-400/20'
+              )}>
+                <AnimatePresence mode="wait">
+                  {isExpanded ? (
+                    <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }}>
+                      <X className="w-4 h-4 text-white" />
+                    </motion.div>
+                  ) : (
+                    <motion.div key="msg" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }}>
+                      <MessageCircle className="w-4 h-4 text-white" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {/* Inner shine */}
+                <div className="absolute inset-0 bg-gradient-to-t from-transparent to-white/15 pointer-events-none" />
               </div>
 
-              {/* Right arrow - themed */}
-              <motion.button
-                onClick={scrollRight}
-                className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-all",
-                  canScrollRight 
-                    ? cn(themeConfig.button.bg, themeConfig.button.hover, theme === 'light' ? 'text-gray-600' : 'text-white')
-                    : theme === 'light' ? 'text-gray-300 cursor-not-allowed' : 'text-white/20 cursor-not-allowed'
-                )}
-                whileHover={canScrollRight ? { scale: 1.1 } : {}}
-                whileTap={canScrollRight ? { scale: 0.9 } : {}}
-                disabled={!canScrollRight}
-              >
-                <ChevronRight className="w-3 h-3" />
-              </motion.button>
+              {/* Unread badge */}
+              {totalUnread > 0 && !isExpanded && (
+                <motion.div
+                  className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-red-500 flex items-center justify-center text-[8px] font-bold text-white shadow-lg shadow-red-500/40 border border-white/30"
+                  animate={{ scale: [1, 1.15, 1] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  {totalUnread}
+                </motion.div>
+              )}
+            </motion.button>
 
-              {/* Separator */}
-              <div className={cn("w-px h-6 mx-0.5", theme === 'light' ? 'bg-gray-300' : 'bg-white/10')} />
-
-              {/* Theme toggle button */}
-              <motion.button
-                onClick={cycleTheme}
-                className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
-                  themeConfig.button.bg, themeConfig.button.hover, themeConfig.button.text, themeConfig.button.hoverText
-                )}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                title={`Tema: ${theme === 'colorful' ? 'Colorido' : theme === 'dark' ? 'Escuro' : 'Claro'}`}
-              >
-                {getThemeIcon()}
-              </motion.button>
-
-              {/* Open full messenger */}
-              <motion.button
-                onClick={onOpenMessenger}
-                className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
-                  themeConfig.button.bg, themeConfig.button.hover, themeConfig.button.text, themeConfig.button.hoverText
-                )}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                title="Abrir Messenger"
-              >
-                <Sparkles className="w-3 h-3" />
-              </motion.button>
-
-              {/* Close island */}
-              <motion.button
-                onClick={onToggle}
-                className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-colors",
-                  themeConfig.button.bg, 
-                  "hover:bg-red-500/20",
-                  themeConfig.button.text,
-                  "hover:text-red-400"
-                )}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <X className="w-3 h-3" />
-              </motion.button>
-            </div>
+            {/* Hide button — bottom when expanded */}
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.button
+                  initial={{ scale: 0, y: 0 }}
+                  animate={{ scale: 1, y: 42 }}
+                  exit={{ scale: 0, y: 0 }}
+                  transition={{ type: 'spring', delay: 0.1 }}
+                  onClick={onToggle}
+                  className={cn(
+                    "absolute top-0 left-1/2 -translate-x-1/2 z-10 w-5 h-5 rounded-full flex items-center justify-center",
+                    theme === 'light'
+                      ? 'bg-gray-100 border border-gray-300 text-gray-400 hover:text-red-500 hover:bg-red-50'
+                      : 'bg-white/5 border border-white/10 text-white/30 hover:text-red-400 hover:bg-red-500/10'
+                  )}
+                  whileHover={{ scale: 1.2 }}
+                  whileTap={{ scale: 0.9 }}
+                  title="Ocultar"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </motion.button>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
