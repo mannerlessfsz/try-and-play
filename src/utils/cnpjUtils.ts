@@ -47,21 +47,74 @@ export function isValidCnpj(cnpj: string): boolean {
 }
 
 /**
- * Dados retornados pela consulta CNPJ
+ * CNAE (atividade econômica)
  */
-export interface CnpjData {
-  razao_social: string;
-  nome_fantasia: string | null;
-  cnpj: string;
-  telefone: string | null;
-  email: string | null;
-  situacao_cadastral: string;
-  uf: string | null;
-  municipio: string | null;
+export interface CnaeInfo {
+  codigo: string;
+  descricao: string;
 }
 
 /**
- * Consulta dados do CNPJ via BrasilAPI (gratuita, sem chave)
+ * Dados completos retornados pela consulta CNPJ
+ */
+export interface CnpjData {
+  // Identificação
+  razao_social: string;
+  nome_fantasia: string | null;
+  cnpj: string;
+  situacao_cadastral: string;
+  data_situacao_cadastral: string | null;
+  data_inicio_atividade: string | null;
+  tipo: string | null; // MATRIZ / FILIAL
+
+  // Contato
+  telefone: string | null;
+  telefone2: string | null;
+  email: string | null;
+
+  // Endereço
+  logradouro: string | null;
+  numero: string | null;
+  complemento: string | null;
+  bairro: string | null;
+  cep: string | null;
+  municipio: string | null;
+  uf: string | null;
+
+  // Natureza e porte
+  natureza_juridica: string | null;
+  porte: string | null;
+  capital_social: number | null;
+
+  // Atividades
+  cnae_principal: CnaeInfo | null;
+  cnaes_secundarios: CnaeInfo[];
+
+  // Sócios
+  socios: { nome: string; qualificacao: string }[];
+}
+
+function formatPhone(dddTelefone: string | null): string | null {
+  if (!dddTelefone || dddTelefone.trim() === '') return null;
+  const clean = dddTelefone.replace(/\D/g, '');
+  if (clean.length < 10) return dddTelefone.trim();
+  const ddd = clean.substring(0, 2);
+  const num = clean.substring(2);
+  if (num.length === 9) {
+    return `(${ddd}) ${num.substring(0, 5)}-${num.substring(5)}`;
+  }
+  return `(${ddd}) ${num.substring(0, 4)}-${num.substring(4)}`;
+}
+
+function formatCep(cep: string | null): string | null {
+  if (!cep) return null;
+  const digits = cep.replace(/\D/g, '');
+  if (digits.length !== 8) return cep;
+  return `${digits.substring(0, 5)}-${digits.substring(5)}`;
+}
+
+/**
+ * Consulta dados completos do CNPJ via BrasilAPI (gratuita, sem chave)
  */
 export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
   const digits = cleanCnpj(cnpj);
@@ -69,27 +122,62 @@ export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
 
   if (!response.ok) {
     if (response.status === 404) throw new Error('CNPJ não encontrado na base da Receita Federal');
+    if (response.status === 429) throw new Error('Muitas consultas. Aguarde alguns segundos e tente novamente.');
     throw new Error('Erro ao consultar CNPJ. Tente novamente.');
   }
 
   const raw = await response.json();
 
-  // Formata telefone se disponível
-  let telefone: string | null = null;
-  if (raw.ddd_telefone_1) {
-    const ddd = raw.ddd_telefone_1.substring(0, 2);
-    const num = raw.ddd_telefone_1.substring(2);
-    telefone = `(${ddd}) ${num}`;
-  }
+  const socios = Array.isArray(raw.qsa)
+    ? raw.qsa.map((s: any) => ({
+        nome: s.nome_socio || s.nome || '',
+        qualificacao: s.qualificacao_socio || s.qual || '',
+      }))
+    : [];
+
+  const cnaesSecundarios: CnaeInfo[] = Array.isArray(raw.cnaes_secundarios)
+    ? raw.cnaes_secundarios
+        .filter((c: any) => c.codigo && c.codigo !== 0)
+        .map((c: any) => ({
+          codigo: String(c.codigo),
+          descricao: c.descricao || '',
+        }))
+    : [];
 
   return {
     razao_social: raw.razao_social || '',
     nome_fantasia: raw.nome_fantasia || null,
     cnpj: digits,
-    telefone,
-    email: raw.email || null,
     situacao_cadastral: raw.descricao_situacao_cadastral || '',
-    uf: raw.uf || null,
+    data_situacao_cadastral: raw.data_situacao_cadastral || null,
+    data_inicio_atividade: raw.data_inicio_atividade || null,
+    tipo: raw.identificador_matriz_filial === 1 ? 'MATRIZ' : raw.identificador_matriz_filial === 2 ? 'FILIAL' : null,
+
+    telefone: formatPhone(raw.ddd_telefone_1),
+    telefone2: formatPhone(raw.ddd_telefone_2),
+    email: raw.email && raw.email.trim() !== '' ? raw.email.toLowerCase().trim() : null,
+
+    logradouro: raw.logradouro
+      ? `${raw.descricao_tipo_de_logradouro || ''} ${raw.logradouro}`.trim()
+      : null,
+    numero: raw.numero || null,
+    complemento: raw.complemento || null,
+    bairro: raw.bairro || null,
+    cep: formatCep(raw.cep),
     municipio: raw.municipio || null,
+    uf: raw.uf || null,
+
+    natureza_juridica: raw.natureza_juridica
+      ? `${raw.codigo_natureza_juridica || ''} - ${raw.natureza_juridica}`.trim()
+      : null,
+    porte: raw.descricao_porte || raw.porte || null,
+    capital_social: raw.capital_social ?? null,
+
+    cnae_principal: raw.cnae_fiscal
+      ? { codigo: String(raw.cnae_fiscal), descricao: raw.cnae_fiscal_descricao || '' }
+      : null,
+    cnaes_secundarios: cnaesSecundarios,
+
+    socios,
   };
 }
