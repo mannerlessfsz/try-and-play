@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_entities: {
+        Row: {
+          account_id: string
+          created_at: string
+          entity_id: string
+          id: string
+          is_active: boolean
+          relationship: Database["public"]["Enums"]["account_entity_relationship"]
+          settings: Json | null
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          entity_id: string
+          id?: string
+          is_active?: boolean
+          relationship?: Database["public"]["Enums"]["account_entity_relationship"]
+          settings?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          entity_id?: string
+          id?: string
+          is_active?: boolean
+          relationship?: Database["public"]["Enums"]["account_entity_relationship"]
+          settings?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_entities_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "account_entities_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      accounts: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+          settings: Json | null
+          slug: string | null
+          status: Database["public"]["Enums"]["account_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          owner_user_id: string
+          settings?: Json | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          owner_user_id?: string
+          settings?: Json | null
+          slug?: string | null
+          status?: Database["public"]["Enums"]["account_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       admin_logicas: {
         Row: {
           ativo: boolean | null
@@ -1057,6 +1138,57 @@ export type Database = {
           },
         ]
       }
+      domain_events: {
+        Row: {
+          account_id: string
+          created_at: string
+          entity_id: string | null
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean
+          processed_at: string | null
+          source_module: string
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          entity_id?: string | null
+          event_type: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+          source_module: string
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          entity_id?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean
+          processed_at?: string | null
+          source_module?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "domain_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "domain_events_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       empresa_config: {
         Row: {
           campos_customizados: Json | null
@@ -1254,6 +1386,54 @@ export type Database = {
           created_by?: string | null
           id?: string
           nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      entities: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          legal_name: string
+          metadata: Json | null
+          phone: string | null
+          regime_tributario:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
+          tax_id: string | null
+          trade_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          legal_name: string
+          metadata?: Json | null
+          phone?: string | null
+          regime_tributario?:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
+          tax_id?: string | null
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          legal_name?: string
+          metadata?: Json | null
+          phone?: string | null
+          regime_tributario?:
+            | Database["public"]["Enums"]["regime_tributario"]
+            | null
+          tax_id?: string | null
+          trade_name?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1490,6 +1670,45 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legacy_entity_mapping: {
+        Row: {
+          id: string
+          migrated_at: string
+          new_account_id: string
+          new_entity_id: string
+          old_empresa_id: string
+        }
+        Insert: {
+          id?: string
+          migrated_at?: string
+          new_account_id: string
+          new_entity_id: string
+          old_empresa_id: string
+        }
+        Update: {
+          id?: string
+          migrated_at?: string
+          new_account_id?: string
+          new_entity_id?: string
+          old_empresa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legacy_entity_mapping_new_account_id_fkey"
+            columns: ["new_account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legacy_entity_mapping_new_entity_id_fkey"
+            columns: ["new_entity_id"]
+            isOneToOne: false
+            referencedRelation: "entities"
             referencedColumns: ["id"]
           },
         ]
@@ -3288,6 +3507,8 @@ export type Database = {
       user_in_empresa: { Args: { check_empresa_id: string }; Returns: boolean }
     }
     Enums: {
+      account_entity_relationship: "self" | "client"
+      account_status: "active" | "suspended" | "cancelled"
       app_module:
         | "taskvault"
         | "financialace"
@@ -3443,6 +3664,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_entity_relationship: ["self", "client"],
+      account_status: ["active", "suspended", "cancelled"],
       app_module: [
         "taskvault",
         "financialace",
