@@ -6,6 +6,7 @@ import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { AnimatePresence, motion } from "framer-motion";
 import { TimelineItem } from "@/components/task/TimelineItem";
+import { ActivityPulseFeed } from "@/components/task/ActivityPulseFeed";
 import { TaskModal } from "@/components/task/TaskModal";
 import { TaskSettingsModal } from "@/components/task/TaskSettingsModal";
 import { TaskTimelineView } from "@/components/task/TaskTimelineView";
@@ -372,22 +373,8 @@ export default function TaskVault() {
     },
   ], [tarefasModelo.length]);
 
-  // Sidebar content - only activity timeline
-  const sidebarContent = (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 p-3 overflow-y-auto">
-        <div className="text-xs font-bold text-primary mb-3 flex items-center gap-2">
-          <Activity className="w-3.5 h-3.5" />
-          Atividades Recentes
-        </div>
-        <div className="space-y-1">
-          {atividades.map(atividade => (
-            <TimelineItem key={atividade.id} atividade={atividade} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+  // Sidebar content - empty (activity moved to pulse feed)
+  const sidebarContent = undefined;
 
   if (isLoading) {
     return (
@@ -483,6 +470,9 @@ export default function TaskVault() {
             </div>
 
           </div>
+
+          {/* Activity Pulse Feed */}
+          <ActivityPulseFeed atividades={atividades} />
         </div>
 
         {/* Onboard tip - below the frame */}
