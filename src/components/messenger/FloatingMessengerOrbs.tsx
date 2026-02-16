@@ -56,18 +56,18 @@ const mockMessages: Message[] = [
   { id: '5', content: 'Ok, vou enviar os documentos', isFromMe: false, timestamp: '10:30' },
 ];
 
-// Theme configurations
+// Theme configurations — orange, blue, green palette
 const themeConfigs = {
   colorful: {
     tagGradients: {
       cliente: { from: '#f97316', to: '#ea580c' },
-      fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
-      interno: { from: '#06b6d4', to: '#0891b2' },
+      fornecedor: { from: '#3b82f6', to: '#2563eb' },
+      interno: { from: '#22c55e', to: '#16a34a' },
     },
     island: {
       bg: 'bg-black/70',
       border: 'border-white/10',
-      glow: 'from-orange-500/30 via-violet-500/30 to-cyan-500/30',
+      glow: 'from-orange-500/30 via-blue-500/30 to-green-500/30',
     },
     button: {
       bg: 'bg-white/10',
@@ -84,14 +84,14 @@ const themeConfigs = {
       textMuted: 'text-white/60',
       input: 'bg-zinc-800/60 border-orange-500/20',
       messageMine: 'from-orange-500/90 to-orange-600/90 border-orange-400/30 text-white',
-      messageOther: 'bg-zinc-800/80 border-purple-500/30 text-white',
+      messageOther: 'bg-zinc-800/80 border-blue-500/30 text-white',
     },
   },
   dark: {
     tagGradients: {
-      cliente: { from: '#64748b', to: '#475569' },
-      fornecedor: { from: '#6b7280', to: '#4b5563' },
-      interno: { from: '#71717a', to: '#52525b' },
+      cliente: { from: '#c2410c', to: '#9a3412' },
+      fornecedor: { from: '#1d4ed8', to: '#1e3a8a' },
+      interno: { from: '#15803d', to: '#166534' },
     },
     island: {
       bg: 'bg-zinc-950/98',
@@ -119,13 +119,13 @@ const themeConfigs = {
   light: {
     tagGradients: {
       cliente: { from: '#f97316', to: '#ea580c' },
-      fornecedor: { from: '#8b5cf6', to: '#7c3aed' },
-      interno: { from: '#10b981', to: '#059669' },
+      fornecedor: { from: '#3b82f6', to: '#2563eb' },
+      interno: { from: '#22c55e', to: '#16a34a' },
     },
     island: {
       bg: 'bg-white',
       border: 'border-gray-300',
-      glow: 'from-orange-100/30 via-violet-100/30 to-emerald-100/30',
+      glow: 'from-orange-100/30 via-blue-100/30 to-green-100/30',
     },
     button: {
       bg: 'bg-gray-100',
@@ -614,14 +614,14 @@ const FloatingIsland = React.memo(({
 
   if (contactsWithActivity.length === 0) return null;
 
-  // Calculate orbital positions — contacts fan out in a semicircle below-left of the core
+  // Calculate orbital positions — contacts fan out upward-right from bottom-left core
   const getOrbitalPosition = (index: number, total: number) => {
-    const arcStart = -Math.PI * 0.15; // start angle (slightly right of top)
-    const arcEnd = Math.PI * 0.85;   // end angle (slightly past bottom)
+    const arcStart = -Math.PI * 0.5;  // straight up
+    const arcEnd = 0;                  // straight right
     const angle = total === 1 
       ? (arcStart + arcEnd) / 2 
       : arcStart + (index / (total - 1)) * (arcEnd - arcStart);
-    const radius = 52 + (index % 2) * 12; // staggered radius for depth
+    const radius = 56 + (index % 2) * 14; // staggered radius for depth
     return {
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
@@ -638,17 +638,17 @@ const FloatingIsland = React.memo(({
             animate={{ scale: 1 }}
             exit={{ scale: 0 }}
             onClick={onToggle}
-            className="fixed top-3 right-[280px] z-50 w-9 h-9 rounded-full flex items-center justify-center"
+            className="fixed bottom-6 left-4 z-50 w-9 h-9 rounded-full flex items-center justify-center"
             whileHover={{ scale: 1.15 }}
             whileTap={{ scale: 0.9 }}
           >
             {/* Ambient glow */}
             <motion.div
-              className="absolute inset-[-4px] rounded-full bg-gradient-to-br from-orange-500/40 to-violet-500/40 blur-md"
+              className="absolute inset-[-4px] rounded-full bg-gradient-to-br from-orange-500/40 to-blue-500/40 blur-md"
               animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
               transition={{ duration: 3, repeat: Infinity }}
             />
-            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-violet-600 flex items-center justify-center shadow-lg shadow-orange-500/30 border border-white/20">
+            <div className="relative w-full h-full rounded-full bg-gradient-to-br from-orange-500 to-blue-600 flex items-center justify-center shadow-lg shadow-orange-500/30 border border-white/20">
               <MessageCircle className="w-4 h-4 text-white" />
             </div>
             {totalUnread > 0 && (
@@ -673,7 +673,7 @@ const FloatingIsland = React.memo(({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.5 }}
             transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-            className="fixed top-3 right-[280px] z-50"
+            className="fixed bottom-6 left-4 z-50"
           >
             {/* Orbital field glow */}
             <AnimatePresence>
@@ -686,9 +686,9 @@ const FloatingIsland = React.memo(({
                 >
                   <div className={cn(
                     "absolute inset-0 rounded-full blur-3xl opacity-20 bg-gradient-to-br",
-                    theme === 'colorful' ? 'from-orange-500 via-violet-500 to-cyan-500' 
+                    theme === 'colorful' ? 'from-orange-500 via-blue-500 to-green-500' 
                       : theme === 'dark' ? 'from-zinc-600 to-zinc-700'
-                      : 'from-orange-200 to-violet-200'
+                      : 'from-orange-200 to-blue-200'
                   )} />
                   {/* Orbit ring */}
                   <motion.div
@@ -798,7 +798,7 @@ const FloatingIsland = React.memo(({
                   {/* Theme toggle — orbit top-left */}
                   <motion.button
                     initial={{ scale: 0, x: 0, y: 0 }}
-                    animate={{ scale: 1, x: -32, y: -28 }}
+                    animate={{ scale: 1, x: 40, y: -8 }}
                     exit={{ scale: 0, x: 0, y: 0 }}
                     transition={{ type: 'spring', delay: 0.15 }}
                     onClick={cycleTheme}
@@ -818,7 +818,7 @@ const FloatingIsland = React.memo(({
                   {/* Open Messenger — orbit top-right */}
                   <motion.button
                     initial={{ scale: 0, x: 0, y: 0 }}
-                    animate={{ scale: 1, x: 32, y: -28 }}
+                    animate={{ scale: 1, x: 8, y: -40 }}
                     exit={{ scale: 0, x: 0, y: 0 }}
                     transition={{ type: 'spring', delay: 0.2 }}
                     onClick={onOpenMessenger}
@@ -849,7 +849,7 @@ const FloatingIsland = React.memo(({
               <motion.div
                 className={cn(
                   "absolute inset-[-6px] rounded-full blur-lg",
-                  theme === 'colorful' ? 'bg-gradient-to-br from-orange-500/50 to-violet-500/50'
+                  theme === 'colorful' ? 'bg-gradient-to-br from-orange-500/50 to-blue-500/50'
                     : theme === 'dark' ? 'bg-zinc-500/20'
                     : 'bg-orange-300/30'
                 )}
@@ -864,10 +864,10 @@ const FloatingIsland = React.memo(({
               <div className={cn(
                 "relative w-full h-full rounded-full flex items-center justify-center shadow-xl border overflow-hidden",
                 theme === 'colorful' 
-                  ? 'bg-gradient-to-br from-orange-500 to-violet-600 border-white/20 shadow-orange-500/30'
+                  ? 'bg-gradient-to-br from-orange-500 to-blue-600 border-white/20 shadow-orange-500/30'
                   : theme === 'dark'
                   ? 'bg-gradient-to-br from-zinc-700 to-zinc-800 border-zinc-600 shadow-zinc-800/50'
-                  : 'bg-gradient-to-br from-orange-400 to-violet-500 border-white shadow-orange-400/20'
+                  : 'bg-gradient-to-br from-orange-400 to-blue-500 border-white shadow-orange-400/20'
               )}>
                 <AnimatePresence mode="wait">
                   {isExpanded ? (
@@ -900,13 +900,13 @@ const FloatingIsland = React.memo(({
             <AnimatePresence>
               {isExpanded && (
                 <motion.button
-                  initial={{ scale: 0, y: 0 }}
-                  animate={{ scale: 1, y: 42 }}
-                  exit={{ scale: 0, y: 0 }}
+                  initial={{ scale: 0, x: 0 }}
+                  animate={{ scale: 1, x: 42 }}
+                  exit={{ scale: 0, x: 0 }}
                   transition={{ type: 'spring', delay: 0.1 }}
                   onClick={onToggle}
                   className={cn(
-                    "absolute top-0 left-1/2 -translate-x-1/2 z-10 w-5 h-5 rounded-full flex items-center justify-center",
+                    "absolute top-0 left-0 z-10 w-5 h-5 rounded-full flex items-center justify-center",
                     theme === 'light'
                       ? 'bg-gray-100 border border-gray-300 text-gray-400 hover:text-red-500 hover:bg-red-50'
                       : 'bg-white/5 border border-white/10 text-white/30 hover:text-red-400 hover:bg-red-500/10'
