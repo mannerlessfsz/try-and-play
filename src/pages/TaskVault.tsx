@@ -482,23 +482,28 @@ export default function TaskVault() {
               </Button>
             </div>
 
-            {/* Onboard tip */}
-            {showOnboardTip && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }} 
-                animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, y: -10 }}
-                className="absolute right-0 top-full mt-2 z-20 bg-primary/10 border border-primary/30 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl shadow-lg max-w-xs"
-              >
-                <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
-                <p className="text-xs text-foreground/80">
-                  A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar.
-                </p>
-                <button onClick={dismissOnboardTip} className="text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
-              </motion.div>
-            )}
           </div>
         </div>
+
+        {/* Onboard tip - below the frame */}
+        <AnimatePresence>
+          {showOnboardTip && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }} 
+              animate={{ opacity: 1, height: "auto" }} 
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4 overflow-hidden"
+            >
+              <div className="bg-card/60 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl">
+                <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
+                <p className="text-xs text-foreground/80">
+                  A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar entre modos.
+                </p>
+                <button onClick={dismissOnboardTip} className="ml-auto text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Content based on view mode */}
         {viewMode === "timeline" ? (
