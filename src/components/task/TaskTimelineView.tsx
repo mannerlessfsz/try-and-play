@@ -411,7 +411,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   {searchQuery ? "Nenhuma tarefa encontrada" : "Nenhuma tarefa nesta data"}
                 </p>
               ) : (
-                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                <div className="space-y-1.5">
                   {selectedTasks.map((tarefa, ti) => {
                     const isExpanded = expandedTaskId === tarefa.id;
                     return (
