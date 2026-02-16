@@ -3688,6 +3688,7 @@ export type Database = {
         | "erp"
         | "conversores"
         | "gestao"
+        | "messenger"
       app_role: "admin" | "manager" | "user"
       conversation_type: "direct" | "group" | "channel"
       departamento_tipo: "fiscal" | "contabil" | "departamento_pessoal"
@@ -3855,6 +3856,7 @@ export const Constants = {
         "erp",
         "conversores",
         "gestao",
+        "messenger",
       ],
       app_role: ["admin", "manager", "user"],
       conversation_type: ["direct", "group", "channel"],
