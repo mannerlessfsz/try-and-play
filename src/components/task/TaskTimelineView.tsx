@@ -311,6 +311,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               const selected = selectedDate === dateStr;
               const colors = getNodeColor(dateStr);
               const isWeekend = [0, 6].includes(new Date(dateStr + "T12:00:00").getDay());
+              const hasIncomplete = count > 0 && tasks.some(t => t.status !== "concluida");
 
               return (
                 <div key={dateStr} className="flex flex-col items-center" style={{ width: viewMode === "week" ? "calc(100% / 7)" : 52, minWidth: viewMode === "week" ? 100 : 52, flexShrink: 0 }}>
@@ -336,6 +337,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                     `}
                   >
                     <div className={`w-full h-full rounded-full ${colors.bg}`} />
+                    {/* Pulsing ring for incomplete tasks */}
+                    {hasIncomplete && !selected && (
+                      <span className={`absolute inset-[-3px] rounded-full ${colors.bg} animate-ping opacity-25`} />
+                    )}
                     {today && !selected && (
                       <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
                     )}
