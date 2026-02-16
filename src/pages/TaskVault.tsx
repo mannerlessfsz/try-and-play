@@ -483,26 +483,30 @@ export default function TaskVault() {
         )}
 
         {/* Header with view controls */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <ListTodo className="w-5 h-5 text-red-500" />
-            <h2 className="text-lg font-semibold text-foreground">Tarefas</h2>
-            <span className="text-sm text-muted-foreground">({filteredTarefas.length})</span>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center">
+              <ListTodo className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground leading-tight">Tarefas</h2>
+              <p className="text-[11px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <div className="flex bg-card/50 rounded-lg p-1 border border-foreground/10">
-              <button onClick={() => setViewMode("kanban")} className={`p-2 rounded-md transition-all ${viewMode === "kanban" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <Columns className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewMode("lista")} className={`p-2 rounded-md transition-all ${viewMode === "lista" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <List className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewMode("timeline")} className={`p-2 rounded-md transition-all ${viewMode === "timeline" ? "bg-red-500 text-white" : "text-muted-foreground hover:text-foreground"}`}>
-                <GanttChart className="w-4 h-4" />
-              </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-card/60 backdrop-blur-xl rounded-xl p-1 border border-foreground/8">
+              {([
+                { mode: "kanban" as const, icon: Columns, label: "Kanban" },
+                { mode: "lista" as const, icon: List, label: "Lista" },
+                { mode: "timeline" as const, icon: GanttChart, label: "Timeline" },
+              ]).map(({ mode, icon: MIcon }) => (
+                <button key={mode} onClick={() => setViewMode(mode)} className={`p-2 rounded-lg transition-all ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}>
+                  <MIcon className="w-4 h-4" />
+                </button>
+              ))}
             </div>
-            <Button onClick={() => setShowModal(true)} className="bg-red-500 hover:bg-red-600 text-white">
+            <Button onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
               <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
             </Button>
           </div>
@@ -510,7 +514,7 @@ export default function TaskVault() {
 
         {/* Content based on view mode */}
         {viewMode === "timeline" ? (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 p-4">
+          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-primary/15 p-4">
             <TaskTimelineView
               tarefas={filteredTarefas}
               getEmpresaNome={getEmpresaNome}
@@ -521,29 +525,42 @@ export default function TaskVault() {
         ) : viewMode === "kanban" ? (
           <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
             {activeFilter === "all" ? (
-              (["pendente", "em_andamento", "concluida"] as const).map(status => (
-                <div key={status} className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-3 ${status === "pendente" ? "border-red-500/20" : status === "em_andamento" ? "border-blue-500/20" : "border-green-500/20"}`}>
-                  <div className="flex items-center gap-2 mb-3 pb-2 border-b border-foreground/10">
-                    <div className={`w-2 h-2 rounded-full ${status === "pendente" ? "bg-gray-500" : status === "em_andamento" ? "bg-blue-500 animate-pulse" : "bg-green-500"}`} />
-                    <h3 className="text-sm font-semibold text-foreground">{status === "pendente" ? "Pendentes" : status === "em_andamento" ? "Em Andamento" : "Concluídas"}</h3>
-                    <span className={`ml-auto text-xs px-2 py-0.5 rounded-full ${status === "pendente" ? "bg-gray-500/20 text-gray-300" : status === "em_andamento" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>
-                      {kanbanColumns[status].length}
-                    </span>
+              (["pendente", "em_andamento", "concluida"] as const).map(status => {
+                const colConfig = {
+                  pendente: { border: "border-foreground/8", dot: "bg-muted-foreground", label: "Pendentes", badge: "bg-muted text-muted-foreground" },
+                  em_andamento: { border: "border-blue-500/15", dot: "bg-blue-500 animate-pulse", label: "Em Andamento", badge: "bg-blue-500/15 text-blue-400" },
+                  concluida: { border: "border-green-500/15", dot: "bg-green-500", label: "Concluídas", badge: "bg-green-500/15 text-green-400" },
+                };
+                const col = colConfig[status];
+                return (
+                  <div key={status} className={`bg-card/20 backdrop-blur-xl rounded-2xl border ${col.border} overflow-hidden`}>
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-foreground/5">
+                      <div className={`w-2 h-2 rounded-full ${col.dot}`} />
+                      <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                      <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium ${col.badge}`}>
+                        {kanbanColumns[status].length}
+                      </span>
+                    </div>
+                    <div className="p-2 space-y-1.5 max-h-[calc(100vh-420px)] overflow-y-auto">
+                      {kanbanColumns[status].map(tarefa => (
+                        <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} />
+                      ))}
+                      {kanbanColumns[status].length === 0 && (
+                        <div className="text-center py-8 text-muted-foreground/40">
+                          <p className="text-xs">Nenhuma tarefa</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1.5 max-h-[calc(100vh-380px)] overflow-y-auto pr-1">
-                    {kanbanColumns[status].map(tarefa => (
-                      <KanbanCard key={tarefa.id} tarefa={tarefa} empresaNome={getEmpresaNome(tarefa.empresaId)} onDelete={() => handleDeleteTarefa(tarefa.id)} onStatusChange={(s) => handleUpdateTarefaStatus(tarefa.id, s)} />
-                    ))}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
-                activeFilter === "em_andamento" ? "border-blue-500/30" : 
-                activeFilter === "concluida" ? "border-green-500/30" : 
-                "border-yellow-500/30"
+                activeFilter === "em_andamento" ? "border-blue-500/20" : 
+                activeFilter === "concluida" ? "border-green-500/20" : 
+                "border-yellow-500/20"
               }`}>
-                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-foreground/10">
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b border-foreground/8">
                   <div className={`w-3 h-3 rounded-full ${
                     activeFilter === "em_andamento" ? "bg-blue-500 animate-pulse" : 
                     activeFilter === "concluida" ? "bg-green-500" : 
@@ -579,22 +596,22 @@ export default function TaskVault() {
             )}
           </div>
         ) : (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-red-500/20 overflow-hidden">
+          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 overflow-hidden">
             <table className="w-full">
-              <thead className="bg-red-950/50 border-b border-red-500/20">
+              <thead className="bg-card/60 border-b border-foreground/8">
                 <tr>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Título</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Empresa</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Prioridade</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Status</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Progresso</th>
-                  <th className="text-left p-3 text-xs font-semibold text-red-300">Vencimento</th>
-                  <th className="text-right p-3 text-xs font-semibold text-red-300">Ações</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Título</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Empresa</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Prioridade</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Progresso</th>
+                  <th className="text-left p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Vencimento</th>
+                  <th className="text-right p-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTarefas.map(tarefa => (
-                  <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/5 transition-colors">
+                  <tr key={tarefa.id} className="border-b border-foreground/5 hover:bg-foreground/3 transition-colors">
                     <td className="p-3">
                       <div className="font-medium text-foreground">{tarefa.titulo}</div>
                       <div className="text-xs text-muted-foreground">{tarefa.descricao}</div>
@@ -605,14 +622,14 @@ export default function TaskVault() {
                     <td className="p-3">
                       <div className="w-20">
                         <div className="flex justify-between text-[10px] text-muted-foreground mb-1"><span>{tarefa.progresso || 0}%</span></div>
-                        <div className="h-1.5 bg-foreground/10 rounded-full overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
+                        <div className="h-1.5 bg-foreground/8 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full" style={{ width: `${tarefa.progresso || 0}%` }} />
                         </div>
                       </div>
                     </td>
                     <td className="p-3 text-sm text-foreground/80">{tarefa.dataVencimento}</td>
                     <td className="p-3 text-right">
-                      <button onClick={() => handleDeleteTarefa(tarefa.id)} className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => handleDeleteTarefa(tarefa.id)} className="p-1.5 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}

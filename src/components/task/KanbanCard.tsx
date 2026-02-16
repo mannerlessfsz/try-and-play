@@ -1,5 +1,6 @@
-import { Trash2, Clock } from "lucide-react";
+import { Trash2, Clock, FileText, Building2, CheckCircle2, Timer, Circle } from "lucide-react";
 import { Tarefa } from "@/types/task";
+import { motion } from "framer-motion";
 
 interface KanbanCardProps {
   tarefa: Tarefa;
@@ -8,61 +9,108 @@ interface KanbanCardProps {
   onStatusChange: (status: Tarefa["status"]) => void;
 }
 
-const prioridadeColors = {
-  baixa: "bg-green-500",
-  media: "bg-yellow-500",
-  alta: "bg-red-500",
+const prioridadeConfig: Record<string, { color: string; label: string; pulse?: boolean }> = {
+  baixa: { color: "bg-green-500", label: "Baixa" },
+  media: { color: "bg-yellow-500", label: "Média" },
+  alta: { color: "bg-red-500", label: "Alta", pulse: true },
+  urgente: { color: "bg-purple-500", label: "Urgente", pulse: true },
 };
 
-export function KanbanCard({ tarefa, empresaNome, onDelete }: KanbanCardProps) {
+const statusIcons = {
+  pendente: <Circle className="w-3 h-3" />,
+  em_andamento: <Timer className="w-3 h-3" />,
+  concluida: <CheckCircle2 className="w-3 h-3" />,
+};
+
+export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange }: KanbanCardProps) {
   const progresso = tarefa.progresso || (tarefa.status === "concluida" ? 100 : tarefa.status === "em_andamento" ? 50 : 0);
+  const prio = prioridadeConfig[tarefa.prioridade] || prioridadeConfig.media;
+  const isOverdue = tarefa.prazoEntrega && new Date(tarefa.prazoEntrega + "T23:59:59") < new Date() && tarefa.status !== "concluida";
 
   return (
-    <div className="
-      bg-card/60 backdrop-blur-xl rounded-lg border border-foreground/10 p-2
-      hover:border-red-500/30 hover:shadow-md hover:shadow-red-500/10
-      transition-all duration-200 cursor-pointer group
-    ">
-      <div className="flex items-center gap-2">
-        {/* Priority indicator */}
-        <div className={`w-1.5 h-8 rounded-full ${prioridadeColors[tarefa.prioridade]} flex-shrink-0`} />
-        
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h4 className="font-medium text-sm text-foreground truncate flex-1">{tarefa.titulo}</h4>
-            <span className="text-[10px] text-muted-foreground flex-shrink-0">{progresso}%</span>
-          </div>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[10px] text-muted-foreground truncate">{empresaNome}</span>
-            {tarefa.dataVencimento && (
-              <>
-                <span className="text-[10px] text-muted-foreground">•</span>
-                <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground flex-shrink-0">
-                  <Clock className="w-2.5 h-2.5" />
-                  <span>{tarefa.dataVencimento}</span>
-                </div>
-              </>
-            )}
-          </div>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      whileHover={{ y: -2 }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
+      className={`
+        relative bg-card/60 backdrop-blur-xl rounded-xl border p-3
+        hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 cursor-pointer group
+        ${isOverdue ? "border-yellow-500/30 bg-yellow-500/5" : "border-foreground/8 hover:border-primary/30"}
+        ${tarefa.status === "concluida" ? "opacity-60" : ""}
+      `}
+    >
+      {/* Priority line */}
+      <div className={`absolute left-0 top-3 bottom-3 w-[3px] rounded-full ${prio.color} ${prio.pulse ? "animate-pulse" : ""}`} />
+
+      <div className="pl-2.5 space-y-2">
+        {/* Title row */}
+        <div className="flex items-start gap-2">
+          <h4 className={`font-medium text-sm text-foreground flex-1 leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
+            {tarefa.titulo}
+          </h4>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-destructive/20 rounded-lg transition-all flex-shrink-0"
+          >
+            <Trash2 className="w-3 h-3 text-destructive" />
+          </button>
         </div>
 
-        {/* Progress bar mini */}
-        <div className="w-12 h-1 bg-foreground/10 rounded-full overflow-hidden flex-shrink-0">
-          <div 
-            className="h-full bg-gradient-to-r from-red-500 to-red-400 rounded-full"
-            style={{ width: `${progresso}%` }}
-          />
+        {/* Meta row */}
+        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1 truncate">
+            <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
+            {empresaNome}
+          </span>
+          {tarefa.prazoEntrega && (
+            <span className={`flex items-center gap-1 flex-shrink-0 ${isOverdue ? "text-yellow-400 font-medium" : ""}`}>
+              <Clock className="w-2.5 h-2.5" />
+              {new Date(tarefa.prazoEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
+            </span>
+          )}
+          {tarefa.arquivos && tarefa.arquivos.length > 0 && (
+            <span className="flex items-center gap-1 flex-shrink-0">
+              <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
+            </span>
+          )}
         </div>
 
-        {/* Delete button */}
-        <button 
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all flex-shrink-0"
-        >
-          <Trash2 className="w-3 h-3 text-red-400" />
-        </button>
+        {/* Bottom: progress + status quick actions */}
+        <div className="flex items-center gap-2">
+          {/* Progress */}
+          <div className="flex-1 h-1 bg-foreground/8 rounded-full overflow-hidden">
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: `${progresso}%` }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="h-full bg-gradient-to-r from-primary to-primary/70 rounded-full"
+            />
+          </div>
+          <span className="text-[9px] text-muted-foreground tabular-nums w-7 text-right">{progresso}%</span>
+
+          {/* Mini status toggle */}
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {(["pendente", "em_andamento", "concluida"] as const).map(s => (
+              <button
+                key={s}
+                onClick={(e) => { e.stopPropagation(); onStatusChange(s); }}
+                className={`p-0.5 rounded transition-all ${
+                  tarefa.status === s
+                    ? s === "concluida" ? "text-green-400"
+                      : s === "em_andamento" ? "text-blue-400"
+                        : "text-foreground/50"
+                    : "text-muted-foreground/20 hover:text-foreground/50"
+                }`}
+              >
+                {statusIcons[s]}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

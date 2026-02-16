@@ -1,5 +1,6 @@
-import { forwardRef } from "react";
-import { ArrowUpRight, ArrowDownRight, LucideIcon } from "lucide-react";
+import { forwardRef, useEffect, useState, useRef } from "react";
+import { LucideIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface MetricCardProps {
   title: string;
@@ -12,57 +13,116 @@ interface MetricCardProps {
   onClick?: () => void;
 }
 
-const colorClasses: Record<string, { base: string; active: string }> = {
+const colorConfig: Record<string, { gradient: string; active: string; ring: string; glow: string; dot: string; iconBg: string }> = {
   red: {
-    base: "from-red-500/20 to-red-600/10 border-red-500/30 text-red-400",
-    active: "from-red-500/40 to-red-600/20 border-red-500 text-red-300 ring-2 ring-red-500/50",
+    gradient: "from-red-500/10 via-red-600/5 to-transparent",
+    active: "from-red-500/25 via-red-600/15 to-red-700/5 ring-2 ring-red-500/40",
+    ring: "border-red-500/20",
+    glow: "shadow-[0_0_30px_-5px_rgba(239,68,68,0.3)]",
+    dot: "bg-red-500",
+    iconBg: "bg-red-500/15 text-red-400",
   },
   blue: {
-    base: "from-blue-500/20 to-blue-600/10 border-blue-500/30 text-blue-400",
-    active: "from-blue-500/40 to-blue-600/20 border-blue-500 text-blue-300 ring-2 ring-blue-500/50",
+    gradient: "from-blue-500/10 via-blue-600/5 to-transparent",
+    active: "from-blue-500/25 via-blue-600/15 to-blue-700/5 ring-2 ring-blue-500/40",
+    ring: "border-blue-500/20",
+    glow: "shadow-[0_0_30px_-5px_rgba(59,130,246,0.3)]",
+    dot: "bg-blue-500",
+    iconBg: "bg-blue-500/15 text-blue-400",
   },
   green: {
-    base: "from-green-500/20 to-green-600/10 border-green-500/30 text-green-400",
-    active: "from-green-500/40 to-green-600/20 border-green-500 text-green-300 ring-2 ring-green-500/50",
+    gradient: "from-green-500/10 via-green-600/5 to-transparent",
+    active: "from-green-500/25 via-green-600/15 to-green-700/5 ring-2 ring-green-500/40",
+    ring: "border-green-500/20",
+    glow: "shadow-[0_0_30px_-5px_rgba(34,197,94,0.3)]",
+    dot: "bg-green-500",
+    iconBg: "bg-green-500/15 text-green-400",
   },
   yellow: {
-    base: "from-yellow-500/20 to-yellow-600/10 border-yellow-500/30 text-yellow-400",
-    active: "from-yellow-500/40 to-yellow-600/20 border-yellow-500 text-yellow-300 ring-2 ring-yellow-500/50",
+    gradient: "from-yellow-500/10 via-yellow-600/5 to-transparent",
+    active: "from-yellow-500/25 via-yellow-600/15 to-yellow-700/5 ring-2 ring-yellow-500/40",
+    ring: "border-yellow-500/20",
+    glow: "shadow-[0_0_30px_-5px_rgba(234,179,8,0.3)]",
+    dot: "bg-yellow-500",
+    iconBg: "bg-yellow-500/15 text-yellow-400",
   },
 };
 
+function useAnimatedCount(target: number, duration = 800) {
+  const [count, setCount] = useState(0);
+  const prevTarget = useRef(target);
+
+  useEffect(() => {
+    const start = prevTarget.current !== target ? 0 : count;
+    prevTarget.current = target;
+    if (target === 0) { setCount(0); return; }
+
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(start + (target - start) * eased));
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+    requestAnimationFrame(animate);
+  }, [target]);
+
+  return count;
+}
+
 export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
   ({ title, value, change, changeType, icon: Icon, color, isActive, onClick }, ref) => {
-    const colorStyle = colorClasses[color] || colorClasses.red;
-    
+    const cfg = colorConfig[color] || colorConfig.red;
+    const numericValue = typeof value === "number" ? value : parseInt(String(value)) || 0;
+    const animatedValue = useAnimatedCount(numericValue);
+    const displayValue = typeof value === "number" ? animatedValue : value;
+
     return (
-      <div 
+      <motion.div
         ref={ref}
         onClick={onClick}
+        whileHover={{ scale: 1.03, y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className={`
-          relative overflow-hidden rounded-xl border bg-gradient-to-br 
-          ${isActive ? colorStyle.active : colorStyle.base}
-          px-3 py-2 backdrop-blur-xl transition-all duration-300 hover:scale-[1.02] hover:shadow-lg
-          group cursor-pointer
+          relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl
+          ${isActive ? cfg.active : cfg.gradient}
+          ${isActive ? cfg.glow : ""}
+          ${cfg.ring}
+          p-4 cursor-pointer group
         `}
       >
-        <div className="absolute -right-2 -top-2 opacity-10 group-hover:opacity-20 transition-opacity">
-          <Icon className="w-16 h-16" />
+        {/* Subtle mesh background */}
+        <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_20%_80%,white_1px,transparent_1px),radial-gradient(circle_at_80%_20%,white_1px,transparent_1px)] bg-[length:24px_24px]" />
+
+        <div className="relative z-10 flex items-start justify-between">
+          <div className="flex-1">
+            <p className="text-[11px] font-medium text-muted-foreground tracking-wide uppercase">{title}</p>
+            <p className="text-2xl font-bold text-foreground mt-1 tabular-nums">{displayValue}</p>
+            {change && (
+              <p className={`text-[10px] mt-1 ${changeType === "down" ? "text-red-400" : "text-muted-foreground/60"}`}>
+                {change}
+              </p>
+            )}
+          </div>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg} transition-all group-hover:scale-110`}>
+            <Icon className="w-5 h-5" />
+          </div>
         </div>
-        <div className="relative z-10">
-          <p className="text-[10px] font-medium text-muted-foreground">{title}</p>
-          <p className="text-lg font-bold text-foreground leading-tight">{value}</p>
-          {change && (
-            <div className={`flex items-center gap-1 text-[10px] ${changeType === "up" ? "text-green-400" : "text-red-400"}`}>
-              {changeType === "up" ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
-              <span>{change}</span>
-            </div>
-          )}
-        </div>
+
+        {/* Bottom accent line */}
+        <div className={`absolute bottom-0 left-0 right-0 h-[2px] ${cfg.dot} opacity-30 group-hover:opacity-60 transition-opacity`} />
+
         {isActive && (
-          <div className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className={`absolute top-2 right-2 w-2 h-2 rounded-full ${cfg.dot} animate-pulse`}
+          />
         )}
-      </div>
+      </motion.div>
     );
   }
 );
