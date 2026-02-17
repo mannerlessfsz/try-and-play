@@ -11,6 +11,8 @@ export interface ApaePlanoEmpresaItem {
   classificacao: string | null;
   cnpj: string;
   ordem: number;
+  is_banco: boolean;
+  is_aplicacao: boolean;
   created_at: string;
 }
 
@@ -65,7 +67,7 @@ export function useApaePlanoEmpresa() {
 
   // Salvar plano na empresa (substitui tudo)
   const salvarPlano = useMutation({
-    mutationFn: async ({ contas, nomeArquivo }: { contas: { codigo: string; descricao: string; classificacao?: string; cnpj?: string }[]; nomeArquivo: string }) => {
+    mutationFn: async ({ contas, nomeArquivo }: { contas: { codigo: string; descricao: string; classificacao?: string; cnpj?: string; is_banco?: boolean; is_aplicacao?: boolean }[]; nomeArquivo: string }) => {
       if (!empresaId) throw new Error("Nenhuma empresa ativa");
       // Limpar antigos
       await supabase.from("apae_planos_empresa").delete().eq("empresa_id", empresaId);
@@ -77,6 +79,8 @@ export function useApaePlanoEmpresa() {
         classificacao: c.classificacao || null,
         cnpj: c.cnpj || "00000000000000",
         ordem: idx,
+        is_banco: c.is_banco || false,
+        is_aplicacao: c.is_aplicacao || false,
       }));
       for (let i = 0; i < rows.length; i += 500) {
         const batch = rows.slice(i, i + 500);
@@ -110,6 +114,13 @@ export function useApaePlanoEmpresa() {
     onError: (e) => toast.error("Erro ao remover plano: " + e.message),
   });
 
+  // Atualizar flags is_banco/is_aplicacao de uma conta
+  const atualizarContaEmpresa = async (id: string, updates: { is_banco?: boolean; is_aplicacao?: boolean }) => {
+    const { error } = await supabase.from("apae_planos_empresa").update(updates).eq("id", id);
+    if (error) throw error;
+    queryClient.invalidateQueries({ queryKey: ["apae-plano-empresa", empresaId] });
+  };
+
   // Copiar plano da empresa para uma sessão
   const copiarParaSessao = async (sessaoId: string) => {
     if (planoEmpresa.length === 0) return;
@@ -122,6 +133,8 @@ export function useApaePlanoEmpresa() {
       classificacao: c.classificacao,
       cnpj: c.cnpj || "00000000000000",
       ordem: idx,
+      is_banco: c.is_banco || false,
+      is_aplicacao: c.is_aplicacao || false,
     }));
     for (let i = 0; i < rows.length; i += 500) {
       const batch = rows.slice(i, i + 500);
@@ -137,6 +150,7 @@ export function useApaePlanoEmpresa() {
     salvarPlano,
     removerPlano,
     copiarParaSessao,
+    atualizarContaEmpresa,
     temPlano: planoEmpresa.length > 0,
   };
 }
