@@ -162,10 +162,12 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Relatório</span>
-              {linhas.length > 0 && (
+               {linhas.length > 0 && (
                 <>
                   <Badge variant="secondary" className="text-[10px]">{ordenadas.length} linhas</Badge>
-                  <Badge variant="outline" className="text-[10px]">{new Set(ordenadas.map(l => l.par_id)).size} pares</Badge>
+                  {sessaoTipo !== "movimento_caixa" && (
+                    <Badge variant="outline" className="text-[10px]">{new Set(ordenadas.map(l => l.par_id)).size} pares</Badge>
+                  )}
                 </>
               )}
             </div>
@@ -211,32 +213,44 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-10 text-[11px]">#</TableHead>
-                        <TableHead className="w-12 text-[11px]">Tipo</TableHead>
-                        <TableHead className="w-8 text-[11px]">Par</TableHead>
-                        {["A","B","C","D","E","F","G","H","I"].map(c => (
+                        {sessaoTipo !== "movimento_caixa" && (
+                          <>
+                            <TableHead className="w-12 text-[11px]">Tipo</TableHead>
+                            <TableHead className="w-8 text-[11px]">Par</TableHead>
+                          </>
+                        )}
+                        {(sessaoTipo === "movimento_caixa" ? ["Data","Histórico","Conta","Centro Custo","Valor","OP"] : ["A","B","C","D","E","F","G","H","I"]).map(c => (
                           <TableHead key={c} className="text-[11px]">{c}</TableHead>
                         ))}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {paginado.map((l) => (
-                        <TableRow key={l.id} className={l.tipo_linha === "dados" ? "bg-primary/5" : "bg-muted/30"}>
+                        <TableRow key={l.id} className={sessaoTipo === "movimento_caixa" ? "" : (l.tipo_linha === "dados" ? "bg-primary/5" : "bg-muted/30")}>
                           <TableCell className="text-[11px] text-muted-foreground font-mono py-1">{l.linha_numero}</TableCell>
-                          <TableCell className="py-1">
-                            <Badge variant={l.linha_numero % 2 === 0 ? "default" : "outline"} className="text-[9px] px-1 py-0">
-                              {l.linha_numero % 2 === 0 ? "Par" : "Ímp"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-[11px] font-mono py-1">{l.par_id}</TableCell>
+                          {sessaoTipo !== "movimento_caixa" && (
+                            <>
+                              <TableCell className="py-1">
+                                <Badge variant={l.linha_numero % 2 === 0 ? "default" : "outline"} className="text-[9px] px-1 py-0">
+                                  {l.linha_numero % 2 === 0 ? "Par" : "Ímp"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-[11px] font-mono py-1">{l.par_id}</TableCell>
+                            </>
+                          )}
                           <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_a || "—"}</TableCell>
                           <TableCell className="text-[11px] max-w-[100px] truncate py-1">{l.col_b || "—"}</TableCell>
                           <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_c || "—"}</TableCell>
                           <TableCell className="text-[11px] max-w-[90px] truncate py-1">{l.col_d || "—"}</TableCell>
                           <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_e || "—"}</TableCell>
                           <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_f || "—"}</TableCell>
-                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_g || "—"}</TableCell>
-                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_h || "—"}</TableCell>
-                          <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_i || "—"}</TableCell>
+                          {sessaoTipo !== "movimento_caixa" && (
+                            <>
+                              <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_g || "—"}</TableCell>
+                              <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_h || "—"}</TableCell>
+                              <TableCell className="text-[11px] max-w-[70px] truncate py-1">{l.col_i || "—"}</TableCell>
+                            </>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
