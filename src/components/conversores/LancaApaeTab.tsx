@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
+import { useApaePlanoEmpresa } from "@/hooks/useApaePlanoEmpresa";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
 import { ApaeStep1PlanoContas } from "./apae/ApaeStep1PlanoContas";
@@ -10,7 +12,7 @@ import { ApaeStep2ContasBanco } from "./apae/ApaeStep2ContasBanco";
 import { ApaeStep3Relatorio } from "./apae/ApaeStep3Relatorio";
 import { ApaeStep4Processamento } from "./apae/ApaeStep4Processamento";
 import { ApaeStep5Conferencia } from "./apae/ApaeStep5Conferencia";
-import { Plus, FolderOpen, Trash2, Loader2, ArrowLeft, CheckCircle2, Clock, Zap } from "lucide-react";
+import { Plus, FolderOpen, Trash2, Loader2, ArrowLeft, CheckCircle2, Clock, Zap, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -25,6 +27,8 @@ export function LancaApaeTab() {
     atualizarResultadoConta, atualizarResultadosLote, atualizarStatusResultados,
   } = useApaeSessoes();
 
+  const { temPlano, planoArquivo, copiarParaSessao, salvarPlano: salvarPlanoEmpresa, removerPlano: removerPlanoEmpresa, planoEmpresa } = useApaePlanoEmpresa();
+
   const [sessaoAtiva, setSessaoAtiva] = useState<string | null>(null);
   const [step, setStep] = useState<ApaeStep>(1);
   const [planoContas, setPlanoContas] = useState<ApaePlanoContas[]>([]);
@@ -32,6 +36,8 @@ export function LancaApaeTab() {
   const [resultados, setResultados] = useState<ApaeResultado[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [showPlanoDialog, setShowPlanoDialog] = useState(false);
+  const [pendingSessaoId, setPendingSessaoId] = useState<string | null>(null);
 
   const { mapeamentos, loading: loadingMapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
 
@@ -76,12 +82,52 @@ export function LancaApaeTab() {
   const handleNovaSessao = async () => {
     try {
       const sessao = await criarSessao.mutateAsync(undefined);
-      setSessaoAtiva(sessao.id);
-      setPlanoContas([]);
+      if (temPlano) {
+        // Tem plano existente - perguntar se quer reutilizar
+        setPendingSessaoId(sessao.id);
+        setShowPlanoDialog(true);
+      } else {
+        // Sem plano - abrir direto no step 1
+        setSessaoAtiva(sessao.id);
+        setPlanoContas([]);
+        setRelatorioLinhas([]);
+        setResultados([]);
+        setStep(1);
+      }
+    } catch {}
+  };
+
+  const handleUsarPlanoExistente = async () => {
+    if (!pendingSessaoId) return;
+    setShowPlanoDialog(false);
+    setLoadingData(true);
+    try {
+      await copiarParaSessao(pendingSessaoId);
+      await atualizarSessao.mutateAsync({ id: pendingSessaoId, plano_contas_arquivo: planoArquivo, passo_atual: 1 });
+      setSessaoAtiva(pendingSessaoId);
+      const plano = await buscarPlanoContas(pendingSessaoId);
+      setPlanoContas(plano);
       setRelatorioLinhas([]);
       setResultados([]);
-      setStep(1);
-    } catch {}
+      setStep(2); // Pular direto pro step 2
+      toast.success("Plano de contas reutilizado!");
+    } catch (err) {
+      toast.error("Erro ao copiar plano de contas");
+    } finally {
+      setLoadingData(false);
+      setPendingSessaoId(null);
+    }
+  };
+
+  const handleAtualizarPlano = () => {
+    if (!pendingSessaoId) return;
+    setShowPlanoDialog(false);
+    setSessaoAtiva(pendingSessaoId);
+    setPlanoContas([]);
+    setRelatorioLinhas([]);
+    setResultados([]);
+    setStep(1);
+    setPendingSessaoId(null);
   };
 
   const handleDeletarSessao = async (id: string) => {
@@ -107,8 +153,11 @@ export function LancaApaeTab() {
     if (!sessaoAtiva) return;
     setSaving(true);
     try {
+      // Salvar na sessão
       await salvarPlanoContas.mutateAsync({ sessaoId: sessaoAtiva, contas });
       await atualizarSessao.mutateAsync({ id: sessaoAtiva, plano_contas_arquivo: nomeArquivo, passo_atual: 1 });
+      // Salvar persistente na empresa
+      await salvarPlanoEmpresa.mutateAsync({ contas, nomeArquivo });
       const plano = await buscarPlanoContas(sessaoAtiva);
       setPlanoContas(plano);
     } finally {
@@ -193,6 +242,7 @@ export function LancaApaeTab() {
   // Tela de lista de sessões
   if (!sessaoAtiva) {
     return (
+      <>
       <div className="space-y-4">
         {/* Header with glow */}
         <div className="flex items-center justify-between">
@@ -320,6 +370,50 @@ export function LancaApaeTab() {
           </div>
         )}
       </div>
+
+      {/* Dialog de reutilização do plano */}
+      <Dialog open={showPlanoDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowPlanoDialog(false);
+          // Se cancelar, deletar a sessão pendente
+          if (pendingSessaoId) {
+            deletarSessao.mutateAsync(pendingSessaoId);
+            setPendingSessaoId(null);
+          }
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="w-5 h-5 text-primary" />
+              Plano de Contas Existente
+            </DialogTitle>
+            <DialogDescription>
+              A empresa já possui um plano de contas carregado
+              {planoArquivo && <> (<span className="font-mono text-xs">{planoArquivo}</span>)</>}
+              {" "}com {planoEmpresa.length} conta(s). O que deseja fazer?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleAtualizarPlano}
+            >
+              <RefreshCw className="w-4 h-4" />
+              Carregar Novo
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={handleUsarPlanoExistente}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              Usar Existente
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      </>
     );
   }
 
