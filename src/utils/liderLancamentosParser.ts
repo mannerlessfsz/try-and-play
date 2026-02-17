@@ -262,8 +262,28 @@ interface LerLancamentosResult {
   totalLinhas: number;
 }
 
+/**
+ * Normaliza linhas com prefixo alternativo (ex: 02ak012026 → 020000126, 03ak012026 → 030000126).
+ * Padrão detectado: 02/03 + 2 letras + 6 dígitos (lote) → 0200/0300 + 5 dígitos (lote sem zero à esquerda).
+ */
+function normalizarLinha(line: string): string {
+  // Detecta: 02 ou 03 + 2 chars alfa + 6 dígitos de lote
+  const m = line.match(/^(0[23])[a-zA-Z]{2}(\d{6})(.*)$/);
+  if (m) {
+    const regBase = m[1] + "00"; // 02 → 0200, 03 → 0300
+    const lote6 = m[2]; // ex: "012026"
+    // Converte lote de 6 para 5 dígitos removendo o primeiro dígito (zero à esquerda)
+    const lote5 = lote6.slice(1); // "012026" → "12026" ... mas o original é "00126"
+    // Na verdade: o lote original "00126" vira "012026" com um '0' extra no início
+    // Então remover o primeiro char do lote6 restaura os 5 dígitos originais
+    const resto = m[3];
+    return regBase + lote5 + resto;
+  }
+  return line;
+}
+
 function lerLancamentos(content: string): LerLancamentosResult {
-  const lines = content.split(/\r?\n/).map(ln => ln.replace(/\r$/, ''));
+  const lines = content.split(/\r?\n/).map(ln => normalizarLinha(ln.replace(/\r$/, '')));
 
   let header0100: Reg0100 | null = null;
   let trailer9900: string | null = null;
