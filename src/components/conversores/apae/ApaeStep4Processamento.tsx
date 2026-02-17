@@ -274,7 +274,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
 
   // Pre-compute lightweight option arrays (stable references for memo)
   const planoOptions = useMemo(() => planoContas.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [planoContas]);
-  const bancoOptions = useMemo(() => bancosMapeados.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [bancosMapeados]);
+  const bancoOptions = useMemo(() => planoContas.map(c => ({ codigo: c.codigo, descricao: c.descricao })), [planoContas]);
 
   const pares = useMemo(() => {
     const map: Record<number, { dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }> = {};
