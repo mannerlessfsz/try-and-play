@@ -46,8 +46,8 @@ function InlineContaSelector({ options, placeholder, onSelect }: {
     ? options.filter((o) => {
         const term = search.toLowerCase();
         return o.codigo.toLowerCase().includes(term) || o.descricao.toLowerCase().includes(term);
-      }).slice(0, 30)
-    : options.slice(0, 30);
+      }).slice(0, 80)
+    : options.slice(0, 80);
 
   return (
     <div className="border border-[hsl(var(--cyan)/0.3)] rounded-md bg-popover shadow-lg shadow-[hsl(var(--cyan)/0.05)]">
@@ -79,7 +79,7 @@ function InlineContaSelector({ options, placeholder, onSelect }: {
               <span className="text-muted-foreground"> — {o.descricao}</span>
             </button>
           ))}
-          {filtered.length === 30 && (
+          {filtered.length === 80 && (
             <p className="text-[9px] text-muted-foreground px-2 py-0.5 italic">Refine a busca...</p>
           )}
         </div>
