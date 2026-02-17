@@ -258,6 +258,53 @@ export type Database = {
           },
         ]
       }
+      apae_banco_aplicacoes_empresa: {
+        Row: {
+          aplicacao1_codigo: string | null
+          aplicacao2_codigo: string | null
+          aplicacao3_codigo: string | null
+          aplicacao4_codigo: string | null
+          aplicacao5_codigo: string | null
+          banco_codigo: string
+          created_at: string
+          empresa_id: string
+          id: string
+          nome_relatorio: string | null
+        }
+        Insert: {
+          aplicacao1_codigo?: string | null
+          aplicacao2_codigo?: string | null
+          aplicacao3_codigo?: string | null
+          aplicacao4_codigo?: string | null
+          aplicacao5_codigo?: string | null
+          banco_codigo: string
+          created_at?: string
+          empresa_id: string
+          id?: string
+          nome_relatorio?: string | null
+        }
+        Update: {
+          aplicacao1_codigo?: string | null
+          aplicacao2_codigo?: string | null
+          aplicacao3_codigo?: string | null
+          aplicacao4_codigo?: string | null
+          aplicacao5_codigo?: string | null
+          banco_codigo?: string
+          created_at?: string
+          empresa_id?: string
+          id?: string
+          nome_relatorio?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_banco_aplicacoes_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apae_plano_contas: {
         Row: {
           classificacao: string | null
@@ -314,6 +361,8 @@ export type Database = {
           descricao: string
           empresa_id: string
           id: string
+          is_aplicacao: boolean | null
+          is_banco: boolean | null
           ordem: number | null
         }
         Insert: {
@@ -324,6 +373,8 @@ export type Database = {
           descricao: string
           empresa_id: string
           id?: string
+          is_aplicacao?: boolean | null
+          is_banco?: boolean | null
           ordem?: number | null
         }
         Update: {
@@ -334,6 +385,8 @@ export type Database = {
           descricao?: string
           empresa_id?: string
           id?: string
+          is_aplicacao?: boolean | null
+          is_banco?: boolean | null
           ordem?: number | null
         }
         Relationships: [
