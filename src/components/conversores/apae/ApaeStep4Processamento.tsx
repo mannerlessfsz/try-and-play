@@ -535,14 +535,29 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                 </Button>
               </div>
 
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar..."
-                  value={busca}
-                  onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
-                  className="pl-8 h-8 text-xs"
-                />
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="relative flex-1 min-w-[180px]">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar..."
+                    value={busca}
+                    onChange={(e) => { setBusca(e.target.value); setPagina(1); }}
+                    className="pl-8 h-8 text-xs"
+                  />
+                </div>
+                <div className="flex gap-1">
+                  {([["todos", "Todos"], ["pendente", "Pendentes"], ["vinculado", "Vinculados"]] as const).map(([key, label]) => (
+                    <Button
+                      key={key}
+                      variant={filtroStatus === key ? "default" : "outline"}
+                      size="sm"
+                      className="h-8 text-xs px-3"
+                      onClick={() => { setFiltroStatus(key); setPagina(1); }}
+                    >
+                      {label}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
               {pendentesIds.length > 0 && (buscaDebounced.trim() || filtroStatus !== "todos") && (
