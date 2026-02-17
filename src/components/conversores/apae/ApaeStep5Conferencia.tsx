@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown, Lock, Unlock } from "lucide-react";
+import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown, Lock, Unlock, FileText } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 import type { ApaeResultado } from "@/hooks/useApaeSessoes";
 
 const ITEMS_PER_PAGE = 100;
@@ -56,6 +57,72 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
     return filtrado.slice(inicio, inicio + ITEMS_PER_PAGE);
   }, [filtrado, pagina]);
 
+  const handleExportarIgnoradosPdf = () => {
+    const lista = resultados.filter((r) => r.status === "ignorado");
+    if (lista.length === 0) return;
+
+    const doc = new jsPDF({ orientation: "landscape" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = margin;
+
+    // Header
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Relatório de Lançamentos Ignorados", margin, y);
+    y += 7;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Empresa: ${codigoEmpresa}  |  Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}  |  Total: ${lista.length}`, margin, y);
+    y += 8;
+
+    // Table header
+    doc.setFillColor(60, 60, 70);
+    doc.rect(margin, y, pageW - margin * 2, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    const cols = [margin + 2, margin + 25, margin + 55, margin + 85, margin + 110, pageW - margin - 2];
+    doc.text("Data", cols[0], y + 5);
+    doc.text("Débito", cols[1], y + 5);
+    doc.text("Crédito", cols[2], y + 5);
+    doc.text("Valor", cols[3], y + 5);
+    doc.text("Histórico", cols[4], y + 5);
+    doc.text("Fornecedor", cols[5], y + 5, { align: "right" });
+    y += 7;
+
+    // Rows
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(30, 30, 35);
+    const maxHistW = cols[5] - cols[4] - 30;
+
+    lista.forEach((r, idx) => {
+      if (y > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        y = margin;
+      }
+      const isEven = idx % 2 === 0;
+      if (isEven) {
+        doc.setFillColor(245, 245, 250);
+        doc.rect(margin, y, pageW - margin * 2, 6, "F");
+      }
+      doc.setFontSize(7);
+      doc.text(r.data_pagto || "-", cols[0], y + 4.5);
+      doc.text(r.conta_debito_codigo || "-", cols[1], y + 4.5);
+      doc.text(r.conta_credito_codigo || "-", cols[2], y + 4.5);
+      doc.text(r.valor_pago || r.valor || "-", cols[3], y + 4.5);
+      const hist = r.historico_concatenado || "-";
+      const truncHist = doc.getTextWidth(hist) > maxHistW ? hist.substring(0, 80) + "..." : hist;
+      doc.text(truncHist, cols[4], y + 4.5);
+      const forn = r.fornecedor || "-";
+      doc.text(forn.length > 30 ? forn.substring(0, 30) + "..." : forn, cols[5], y + 4.5, { align: "right" });
+      y += 6;
+    });
+
+    doc.save(`ignorados_${codigoEmpresa}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success("PDF de ignorados exportado!");
+  };
+
   const handleExportar = async () => {
     if (ativos.length === 0) return;
 
@@ -103,9 +170,16 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
               {pendentes > 0 && <Badge variant="destructive" className="text-[10px]">{pendentes} pend.</Badge>}
               {ignorados > 0 && <Badge variant="outline" className="text-[10px] text-muted-foreground">{ignorados} ignorado(s)</Badge>}
             </div>
-            <Button size="sm" onClick={handleExportar} disabled={ativos.length === 0}>
-              <FileDown className="w-3.5 h-3.5 mr-1.5" /> Exportar CSV
-            </Button>
+            <div className="flex items-center gap-1.5">
+              {ignorados > 0 && (
+                <Button size="sm" variant="outline" onClick={handleExportarIgnoradosPdf}>
+                  <FileText className="w-3.5 h-3.5 mr-1.5" /> PDF Ignorados
+                </Button>
+              )}
+              <Button size="sm" onClick={handleExportar} disabled={ativos.length === 0}>
+                <FileDown className="w-3.5 h-3.5 mr-1.5" /> Exportar CSV
+              </Button>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
