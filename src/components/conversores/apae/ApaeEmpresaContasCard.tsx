@@ -152,7 +152,7 @@ export function ApaeEmpresaContasCard() {
             />
           </div>
 
-          <ScrollArea className="max-h-[70vh]">
+          <div className="overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -179,7 +179,7 @@ export function ApaeEmpresaContasCard() {
                 ))}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
 
           {totalPaginas > 1 && (
             <div className="flex items-center justify-between">

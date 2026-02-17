@@ -107,7 +107,7 @@ export function ApaeEmpresaPlanoCard() {
               <Input placeholder="Buscar conta..." value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} className="pl-8 h-8 text-xs" />
             </div>
 
-            <ScrollArea className="max-h-[70vh]">
+            <div className="overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -126,7 +126,7 @@ export function ApaeEmpresaPlanoCard() {
                   ))}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
 
             {totalPaginas > 1 && (
               <div className="flex items-center justify-between">
