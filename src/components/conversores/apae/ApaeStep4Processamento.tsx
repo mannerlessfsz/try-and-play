@@ -179,8 +179,11 @@ function processarMovimentoCaixa(
       contaCreditoCodigo = contaBancoCodigo;
     }
 
-    // Histórico concatenado: B + C + D
-    const historicoConcatenado = toUpperNoAccents([historico, contaBancoRaw, centroCustoRaw].filter(Boolean).join(" "));
+    // Histórico concatenado: B + "PAGO EM" + C + "(CENTRO DE CUSTO" + D + ")"
+    const partes = [historico];
+    if (contaBancoRaw) partes.push("PAGO EM " + contaBancoRaw);
+    if (centroCustoRaw) partes.push("(CENTRO DE CUSTO " + centroCustoRaw + ")");
+    const historicoConcatenado = toUpperNoAccents(partes.join(" "));
 
     const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
 
