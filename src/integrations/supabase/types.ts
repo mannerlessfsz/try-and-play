@@ -594,6 +594,7 @@ export type Database = {
           plano_contas_arquivo: string | null
           relatorio_arquivo: string | null
           status: string
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -607,6 +608,7 @@ export type Database = {
           plano_contas_arquivo?: string | null
           relatorio_arquivo?: string | null
           status?: string
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -620,6 +622,7 @@ export type Database = {
           plano_contas_arquivo?: string | null
           relatorio_arquivo?: string | null
           status?: string
+          tipo?: string
           updated_at?: string
         }
         Relationships: [

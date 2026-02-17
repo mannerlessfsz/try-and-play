@@ -4,11 +4,14 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
+export type ApaeSessaoTipo = "contas_a_pagar" | "movimento_caixa";
+
 export interface ApaeSessao {
   id: string;
   empresa_id: string;
   passo_atual: number;
   status: string;
+  tipo: ApaeSessaoTipo;
   nome_sessao: string | null;
   plano_contas_arquivo: string | null;
   relatorio_arquivo: string | null;
@@ -92,13 +95,16 @@ export function useApaeSessoes() {
 
   // Criar nova sessão
   const criarSessao = useMutation({
-    mutationFn: async (nome?: string) => {
+    mutationFn: async (params?: { nome?: string; tipo?: ApaeSessaoTipo }) => {
       if (!empresaId) throw new Error("Nenhuma empresa ativa");
+      const tipo = params?.tipo || "contas_a_pagar";
+      const nome = params?.nome || `Sessão ${new Date().toLocaleDateString("pt-BR")}`;
       const { data, error } = await supabase
         .from("apae_sessoes")
         .insert({
           empresa_id: empresaId,
-          nome_sessao: nome || `Sessão ${new Date().toLocaleDateString("pt-BR")}`,
+          nome_sessao: nome,
+          tipo,
           created_by: user?.id,
         })
         .select()
