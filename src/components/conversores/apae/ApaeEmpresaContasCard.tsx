@@ -152,7 +152,7 @@ export function ApaeEmpresaContasCard() {
             />
           </div>
 
-          <ScrollArea className="max-h-[55vh]">
+          <ScrollArea className="max-h-[70vh]">
             <Table>
               <TableHeader>
                 <TableRow>
