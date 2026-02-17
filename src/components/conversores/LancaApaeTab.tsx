@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado } from "@/hooks/useApaeSessoes";
+import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado, type ApaeSessaoTipo } from "@/hooks/useApaeSessoes";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { useApaePlanoEmpresa } from "@/hooks/useApaePlanoEmpresa";
 import { useApaeBancoAplicacoesEmpresa } from "@/hooks/useApaeBancoAplicacoesEmpresa";
@@ -45,6 +45,7 @@ export function LancaApaeTab() {
   const [showNovaDialog, setShowNovaDialog] = useState(false);
   const [wantUpdatePlano, setWantUpdatePlano] = useState(false);
   const [wantUpdateBancos, setWantUpdateBancos] = useState(false);
+  const [tipoSessao, setTipoSessao] = useState<ApaeSessaoTipo>("contas_a_pagar");
 
   const { mapeamentos, loading: loadingMapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
 
@@ -95,6 +96,7 @@ export function LancaApaeTab() {
     }
     setWantUpdatePlano(false);
     setWantUpdateBancos(false);
+    setTipoSessao("contas_a_pagar");
     setShowNovaDialog(true);
   };
 
@@ -102,7 +104,7 @@ export function LancaApaeTab() {
     setShowNovaDialog(false);
     setLoadingData(true);
     try {
-      const sessao = await criarSessao.mutateAsync(undefined);
+      const sessao = await criarSessao.mutateAsync({ tipo: tipoSessao });
 
       if (wantUpdatePlano) {
         await deletarSessao.mutateAsync(sessao.id);
@@ -296,6 +298,10 @@ export function LancaApaeTab() {
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString("pt-BR")}</span>
                               <span className="text-[10px] text-muted-foreground">•</span>
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
+                                {s.tipo === "movimento_caixa" ? "Mov. Caixa" : "Contas Pagar"}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">•</span>
                               <span className="text-[10px] font-mono text-[hsl(var(--cyan))]">{s.passo_atual}/5</span>
                             </div>
                           </div>
@@ -330,9 +336,29 @@ export function LancaApaeTab() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-3 py-2">
-              <p className="text-sm font-medium">Deseja atualizar algo antes?</p>
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
+                <p className="text-sm font-medium">Tipo de sessão</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => setTipoSessao("contas_a_pagar")}
+                    className={`p-3 rounded-lg border text-left transition-all ${tipoSessao === "contas_a_pagar" ? "border-[hsl(var(--cyan))] bg-[hsl(var(--cyan)/0.05)] shadow-[0_0_10px_hsl(var(--cyan)/0.15)]" : "border-border hover:border-muted-foreground/40"}`}
+                  >
+                    <p className="text-xs font-semibold">Contas a Pagar</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Relatório padrão de contas a pagar</p>
+                  </button>
+                  <button
+                    onClick={() => setTipoSessao("movimento_caixa")}
+                    className={`p-3 rounded-lg border text-left transition-all ${tipoSessao === "movimento_caixa" ? "border-[hsl(var(--cyan))] bg-[hsl(var(--cyan)/0.05)] shadow-[0_0_10px_hsl(var(--cyan)/0.15)]" : "border-border hover:border-muted-foreground/40"}`}
+                  >
+                    <p className="text-xs font-semibold">Movimento Caixa</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Relatório de movimento de caixa</p>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Deseja atualizar algo antes?</p>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <Checkbox checked={wantUpdatePlano} onCheckedChange={(v) => setWantUpdatePlano(!!v)} />
                   <span className="text-sm">Atualizar o plano de contas</span>
@@ -490,6 +516,9 @@ export function LancaApaeTab() {
             </div>
           )}
           <span className="text-[10px] text-muted-foreground font-mono">{sessaoInfo?.nome_sessao}</span>
+          <Badge variant="outline" className="text-[9px] px-1.5 py-0">
+            {sessaoInfo?.tipo === "movimento_caixa" ? "Mov. Caixa" : "Contas Pagar"}
+          </Badge>
         </div>
       </div>
 
