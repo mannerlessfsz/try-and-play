@@ -535,6 +535,7 @@ export function LancaApaeTab() {
               onNext={() => setStep(4)}
               onBack={handleVoltarLista}
               saving={saving}
+              sessaoTipo={sessaoInfo?.tipo || "contas_a_pagar"}
             />
           )}
 
@@ -560,6 +561,7 @@ export function LancaApaeTab() {
                   setResultados(res);
                 }
               }}
+              sessaoTipo={sessaoInfo?.tipo || "contas_a_pagar"}
             />
           )}
 
