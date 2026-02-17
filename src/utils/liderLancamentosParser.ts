@@ -267,8 +267,8 @@ interface LerLancamentosResult {
  * Padrão detectado: 02/03 + 2 letras + 6 dígitos (lote) → 0200/0300 + 5 dígitos (lote sem zero à esquerda).
  */
 function normalizarLinha(line: string): string {
-  // Detecta: 02 ou 03 + 2 chars alfa + 6 dígitos de lote
-  const m = line.match(/^(0[23])[a-zA-Z]{2}(\d{6})(.*)$/);
+  // Detecta: 02 ou 03 + quaisquer 2 caracteres + 6 dígitos de lote
+  const m = line.match(/^(0[23]).{2}(\d{6})(.*)$/);
   if (m) {
     const regBase = m[1] + "00"; // 02 → 0200, 03 → 0300
     const lote6 = m[2]; // ex: "012026"
