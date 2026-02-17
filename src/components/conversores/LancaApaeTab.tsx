@@ -9,7 +9,8 @@ import { useApaePlanoEmpresa } from "@/hooks/useApaePlanoEmpresa";
 import { useApaeBancoAplicacoesEmpresa } from "@/hooks/useApaeBancoAplicacoesEmpresa";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { ApaeWizardSteps, type ApaeStep } from "./apae/ApaeWizardSteps";
-import { ApaeEmpresaConfig } from "./apae/ApaeEmpresaConfig";
+import { ApaeEmpresaPlanoCard } from "./apae/ApaeEmpresaPlanoCard";
+import { ApaeEmpresaContasCard } from "./apae/ApaeEmpresaContasCard";
 import { ApaeStep3Relatorio } from "./apae/ApaeStep3Relatorio";
 import { ApaeStep4Processamento } from "./apae/ApaeStep4Processamento";
 import { ApaeStep5Conferencia } from "./apae/ApaeStep5Conferencia";
@@ -221,16 +222,13 @@ export function LancaApaeTab() {
             </div>
           </div>
 
-          {/* Configuração da empresa (plano + bancos) */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 mb-2">
-              <Settings2 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Configuração da Empresa</span>
-            </div>
-            <ApaeEmpresaConfig />
-          </div>
+          {/* Card 1: Plano de Contas */}
+          <ApaeEmpresaPlanoCard />
 
-          {/* Sessões */}
+          {/* Card 2: Configuração das Contas */}
+          <ApaeEmpresaContasCard />
+
+          {/* Card 3: Sessões */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sessões</span>
