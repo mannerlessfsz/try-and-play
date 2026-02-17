@@ -179,15 +179,6 @@ export function ConversorLiderTab() {
   };
 
   const processarArquivo = async (file: File) => {
-    if (!empresaAtiva?.id) {
-      toast({ 
-        title: "Erro", 
-        description: "Selecione uma empresa ativa.",
-        variant: "destructive" 
-      });
-      return;
-    }
-
     const arquivoId = Date.now().toString();
     
     const novoArquivo: ArquivoProcessadoLocal = {
@@ -203,12 +194,16 @@ export function ConversorLiderTab() {
     try {
       const content = await readFileAsText(file);
       
-      // Criar registro no banco
-      const conversao = await criarConversao.mutateAsync({
-        modulo: "lider",
-        nomeArquivoOriginal: file.name,
-        conteudoOriginal: content,
-      });
+      // Criar registro no banco apenas se houver empresa ativa
+      let conversaoId: string | undefined;
+      if (empresaAtiva?.id) {
+        const conversao = await criarConversao.mutateAsync({
+          modulo: "lider",
+          nomeArquivoOriginal: file.name,
+          conteudoOriginal: content,
+        });
+        conversaoId = conversao.id;
+      }
 
       const resultado = transformarLancamentos(content);
       
