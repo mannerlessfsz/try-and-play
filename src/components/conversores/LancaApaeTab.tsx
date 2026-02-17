@@ -400,99 +400,155 @@ export function LancaApaeTab() {
     const contasBanco = planoEmpresa.filter(c => c.is_banco).length;
     const contasAplic = planoEmpresa.filter(c => c.is_aplicacao).length;
 
+    const homeCards = [
+      {
+        id: "plano" as const,
+        icon: FileSpreadsheet,
+        title: "Plano de Contas",
+        description: "Carregar e gerenciar o plano de contas da empresa para processamento APAE",
+        color: "hsl(var(--cyan))",
+        badge: temPlano
+          ? { label: `${planoEmpresa.length} contas`, ok: true }
+          : { label: "Não configurado", ok: false },
+      },
+      {
+        id: "contas" as const,
+        icon: Building2,
+        title: "Configuração de Contas",
+        description: "Marcar bancos, aplicações e configurar mapeamentos de relatórios",
+        color: "hsl(var(--orange))",
+        badge: contasBanco > 0 || contasAplic > 0
+          ? { label: `${contasBanco} banco(s) · ${contasAplic} aplic.`, ok: true }
+          : { label: temPlano ? "Nenhuma conta marcada" : "Aguardando plano", ok: false },
+      },
+      {
+        id: "sessoes" as const,
+        icon: Play,
+        title: "Sessões de Lançamento",
+        description: "Criar, gerenciar e processar sessões de lançamento de relatórios",
+        color: "hsl(var(--blue))",
+        badge: sessoes.length > 0
+          ? { label: `${sessoes.length} sessão(ões)`, ok: true }
+          : { label: "Nenhuma sessão", ok: false },
+      },
+    ];
+
+    const bentoClasses = [
+      "col-span-2 row-span-2",  // large featured
+      "col-span-1 row-span-1",  // normal
+      "col-span-1 row-span-1",  // normal
+    ];
+
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[hsl(var(--cyan))] to-[hsl(var(--blue))] flex items-center justify-center shadow-[0_0_20px_hsl(var(--cyan)/0.4)]">
-            <Zap className="w-4 h-4 text-background" />
+        <div className="flex items-center gap-3.5">
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[hsl(var(--cyan))] to-[hsl(var(--blue))] flex items-center justify-center shadow-[0_0_30px_hsl(var(--cyan)/0.5)]">
+            <Zap className="w-5 h-5 text-background" />
           </div>
           <div>
-            <h3 className="text-sm font-bold tracking-tight">Lança APAE</h3>
-            <p className="text-[10px] text-muted-foreground">Configuração e sessões de lançamento</p>
+            <h3 className="text-xl font-bold tracking-tight">Lança APAE</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Configuração e sessões de lançamento</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Card 1: Plano de Contas */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setSubView("plano")}
-            className="glass rounded-xl p-5 cursor-pointer transition-all duration-300 hover:border-[hsl(var(--cyan)/0.4)] hover:shadow-[0_0_25px_hsl(var(--cyan)/0.1)] space-y-3"
-          >
-            <div className="w-10 h-10 rounded-lg bg-[hsl(var(--cyan)/0.1)] border border-[hsl(var(--cyan)/0.2)] flex items-center justify-center">
-              <FileSpreadsheet className="w-5 h-5 text-[hsl(var(--cyan))]" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Plano de Contas</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Carregar e gerenciar o plano de contas da empresa</p>
-            </div>
-            {temPlano ? (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                <CheckCircle2 className="w-3 h-3 mr-1" /> {planoEmpresa.length} contas
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">
-                Não configurado
-              </Badge>
-            )}
-          </motion.div>
+        {/* Bento Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 auto-rows-[140px] md:auto-rows-[160px] gap-3">
+          {homeCards.map((card, index) => {
+            const Icon = card.icon;
+            const sizeClass = bentoClasses[index];
+            const isLarge = sizeClass.includes("col-span-2") && sizeClass.includes("row-span-2");
 
-          {/* Card 2: Configuração de Contas */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setSubView("contas")}
-            className="glass rounded-xl p-5 cursor-pointer transition-all duration-300 hover:border-[hsl(var(--cyan)/0.4)] hover:shadow-[0_0_25px_hsl(var(--cyan)/0.1)] space-y-3"
-          >
-            <div className="w-10 h-10 rounded-lg bg-[hsl(var(--cyan)/0.1)] border border-[hsl(var(--cyan)/0.2)] flex items-center justify-center">
-              <Building2 className="w-5 h-5 text-[hsl(var(--cyan))]" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Configuração de Contas</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Marcar bancos, aplicações e mapeamentos</p>
-            </div>
-            {contasBanco > 0 || contasAplic > 0 ? (
-              <div className="flex gap-1.5">
-                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                  {contasBanco} banco(s)
-                </Badge>
-                <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-400 bg-emerald-500/10">
-                  {contasAplic} aplic.
-                </Badge>
-              </div>
-            ) : (
-              <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">
-                {temPlano ? "Nenhuma conta marcada" : "Aguardando plano"}
-              </Badge>
-            )}
-          </motion.div>
+            return (
+              <motion.div
+                key={card.id}
+                initial={{ opacity: 0, y: 25 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08, type: "spring", stiffness: 200, damping: 20 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setSubView(card.id)}
+                className={`glass rounded-2xl cursor-pointer transition-all duration-300 hover:shadow-[0_0_35px_hsl(var(--cyan)/0.15)] group relative overflow-hidden flex flex-col ${sizeClass}`}
+                style={{ borderColor: 'transparent' }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = card.color.replace(')', '/0.4)').replace('hsl(', 'hsl(');
+                  (e.currentTarget as HTMLElement).style.boxShadow = `0 0 35px ${card.color.replace(')', '/0.15)').replace('hsl(', 'hsl(')}`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
+                  (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                }}
+              >
+                {/* Radial ambient glow */}
+                <div
+                  className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
+                  style={{ background: card.color }}
+                />
 
-          {/* Card 3: Sessões */}
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setSubView("sessoes")}
-            className="glass rounded-xl p-5 cursor-pointer transition-all duration-300 hover:border-[hsl(var(--cyan)/0.4)] hover:shadow-[0_0_25px_hsl(var(--cyan)/0.1)] space-y-3"
-          >
-            <div className="w-10 h-10 rounded-lg bg-[hsl(var(--cyan)/0.1)] border border-[hsl(var(--cyan)/0.2)] flex items-center justify-center">
-              <Play className="w-5 h-5 text-[hsl(var(--cyan))]" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Sessões</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Criar e gerenciar sessões de lançamento</p>
-            </div>
-            {sessoes.length > 0 ? (
-              <Badge variant="outline" className="text-[10px] border-[hsl(var(--cyan)/0.3)] text-[hsl(var(--cyan))] bg-[hsl(var(--cyan)/0.05)]">
-                {sessoes.length} sessão(ões)
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] border-muted-foreground/30 text-muted-foreground">
-                Nenhuma sessão
-              </Badge>
-            )}
-          </motion.div>
+                {/* Bottom progress bar decoration */}
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
+                  <motion.div
+                    className="h-full"
+                    style={{ background: `linear-gradient(90deg, ${card.color}, transparent)` }}
+                    initial={{ width: "0%" }}
+                    whileInView={{ width: card.badge.ok ? "80%" : "30%" }}
+                    transition={{ duration: 1, delay: index * 0.08 + 0.3 }}
+                  />
+                </div>
+
+                <div className={`relative z-10 flex flex-col h-full ${isLarge ? 'p-6' : 'p-4'}`}>
+                  {/* Icon */}
+                  <div
+                    className={`rounded-xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110 shrink-0 ${
+                      isLarge ? 'w-14 h-14 mb-4' : 'w-10 h-10 mb-3'
+                    }`}
+                    style={{
+                      backgroundColor: card.color.replace(')', '/0.12)').replace('hsl(', 'hsl('),
+                      borderColor: card.color.replace(')', '/0.25)').replace('hsl(', 'hsl('),
+                    }}
+                  >
+                    <Icon className={`${isLarge ? 'w-7 h-7' : 'w-5 h-5'}`} style={{ color: card.color }} />
+                  </div>
+
+                  {/* Text */}
+                  <div className="flex-1 min-h-0">
+                    <p className={`font-bold leading-tight ${isLarge ? 'text-lg' : 'text-sm'}`}>
+                      {card.title}
+                    </p>
+                    <p className={`text-muted-foreground mt-1 ${isLarge ? 'text-xs line-clamp-3' : 'text-[11px] line-clamp-2'}`}>
+                      {card.description}
+                    </p>
+                  </div>
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between mt-auto pt-2">
+                    <Badge
+                      variant="outline"
+                      className={`${isLarge ? 'text-[10px] px-2 py-0.5' : 'text-[9px] px-1.5 py-0'}`}
+                      style={card.badge.ok ? {
+                        borderColor: 'hsl(var(--emerald, 160 84% 39%) / 0.4)',
+                        color: 'hsl(160 84% 60%)',
+                        backgroundColor: 'hsl(160 84% 39% / 0.1)',
+                      } : {
+                        borderColor: 'hsl(var(--muted-foreground) / 0.3)',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      {card.badge.ok && <CheckCircle2 className="w-3 h-3 mr-1" />}
+                      {card.badge.label}
+                    </Badge>
+                    <motion.div
+                      initial={{ opacity: 0, x: -5 }}
+                      whileHover={{ x: 2 }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    >
+                      <ArrowLeft className={`rotate-180 text-muted-foreground ${isLarge ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} />
+                    </motion.div>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </div>
     );
