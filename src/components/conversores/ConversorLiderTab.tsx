@@ -300,28 +300,30 @@ export function ConversorLiderTab() {
       
       const nomeConvertido = file.name.replace(/\.[^.]+$/, `_transformado.${tipoExportacao}`);
 
-      // Atualizar registro no banco com o resultado
-      await atualizarConversao.mutateAsync({
-        id: conversao.id,
-        status: resultado.erros.length > 0 ? "erro" : "sucesso",
-        totalLinhas: resultado.totalLinhas,
-        linhasProcessadas: resultado.outputRows.length,
-        linhasErro: resultado.erros.length,
-        mensagemErro: resultado.erros.length > 0 ? resultado.erros.join("; ") : undefined,
-        metadados: {
-          totalLancamentos: resultado.totalLancamentos,
-          warnings: resultado.warnings,
-          header0100: resultado.header0100,
-        },
-        conteudoConvertido,
-        nomeArquivoConvertido: nomeConvertido,
-      });
+      // Atualizar registro no banco com o resultado (apenas se persistiu)
+      if (conversaoId) {
+        await atualizarConversao.mutateAsync({
+          id: conversaoId,
+          status: resultado.erros.length > 0 ? "erro" : "sucesso",
+          totalLinhas: resultado.totalLinhas,
+          linhasProcessadas: resultado.outputRows.length,
+          linhasErro: resultado.erros.length,
+          mensagemErro: resultado.erros.length > 0 ? resultado.erros.join("; ") : undefined,
+          metadados: {
+            totalLancamentos: resultado.totalLancamentos,
+            warnings: resultado.warnings,
+            header0100: resultado.header0100,
+          },
+          conteudoConvertido,
+          nomeArquivoConvertido: nomeConvertido,
+        });
+      }
 
       const arquivoFinal: ArquivoProcessadoLocal = {
         ...novoArquivo,
         status: "sucesso",
         resultado,
-        conversaoId: conversao.id
+        conversaoId,
       };
 
       setArquivoAtual(arquivoFinal);
@@ -981,7 +983,7 @@ export function ConversorLiderTab() {
                   <Button 
                     onClick={handleProcessar} 
                     className="bg-violet-500 hover:bg-violet-600"
-                    disabled={isProcessing || !selectedFile || !empresaAtiva || !codigoEmpresa.trim()}
+                    disabled={isProcessing || !selectedFile || !codigoEmpresa.trim()}
                   >
                     {isProcessing ? (
                       <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Processando...</>
@@ -995,9 +997,9 @@ export function ConversorLiderTab() {
                     ✓ Arquivo selecionado: {selectedFile.name}
                   </p>
                 )}
-                {!empresaAtiva && (
+                {!codigoEmpresa.trim() && (
                   <p className="text-sm text-yellow-500 mt-2">
-                    ⚠ Selecione uma empresa para processar arquivos
+                    ⚠ Selecione uma empresa no Passo 1 para processar arquivos
                   </p>
                 )}
               </div>
