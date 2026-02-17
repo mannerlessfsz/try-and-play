@@ -403,40 +403,64 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   }, [onSaveResultadoConta, scheduleStatusFlush]);
 
   const handleBatchDebito = useCallback(async (ids: string[], codigo: string) => {
+    // Só aplicar em registros onde débito está vazio
+    const idsVazios = ids.filter((id) => {
+      const editado = editados[id];
+      if (editado?.debito) return false;
+      const original = resultados.find((r) => r.id === id);
+      return !original?.conta_debito_codigo;
+    });
+    if (idsVazios.length === 0) {
+      toast.info("Todos os lançamentos filtrados já possuem conta débito preenchida");
+      return;
+    }
     setEditados((prev) => {
       const next = { ...prev };
-      for (const id of ids) {
+      for (const id of idsVazios) {
         next[id] = { ...next[id], debito: codigo };
       }
       return next;
     });
     try {
-      await onSaveResultadosLote(ids, { conta_debito_codigo: codigo });
-      scheduleStatusFlush(ids);
+      await onSaveResultadosLote(idsVazios, { conta_debito_codigo: codigo });
+      scheduleStatusFlush(idsVazios);
       const conta = planoOptions.find(c => c.codigo === codigo);
-      toast.success(`Conta débito "${conta?.codigo || codigo}" salva em ${ids.length} lançamento(s)`);
+      const pulados = ids.length - idsVazios.length;
+      toast.success(`Conta débito "${conta?.codigo || codigo}" salva em ${idsVazios.length} lançamento(s)${pulados > 0 ? ` (${pulados} já preenchido(s) mantido(s))` : ""}`);
     } catch {
       toast.error("Erro ao salvar em lote");
     }
-  }, [onSaveResultadosLote, scheduleStatusFlush, planoOptions]);
+  }, [onSaveResultadosLote, scheduleStatusFlush, planoOptions, editados, resultados]);
 
   const handleBatchCredito = useCallback(async (ids: string[], codigo: string) => {
+    // Só aplicar em registros onde crédito está vazio
+    const idsVazios = ids.filter((id) => {
+      const editado = editados[id];
+      if (editado?.credito) return false;
+      const original = resultados.find((r) => r.id === id);
+      return !original?.conta_credito_codigo;
+    });
+    if (idsVazios.length === 0) {
+      toast.info("Todos os lançamentos filtrados já possuem conta crédito preenchida");
+      return;
+    }
     setEditados((prev) => {
       const next = { ...prev };
-      for (const id of ids) {
+      for (const id of idsVazios) {
         next[id] = { ...next[id], credito: codigo };
       }
       return next;
     });
     try {
-      await onSaveResultadosLote(ids, { conta_credito_codigo: codigo });
-      scheduleStatusFlush(ids);
+      await onSaveResultadosLote(idsVazios, { conta_credito_codigo: codigo });
+      scheduleStatusFlush(idsVazios);
       const conta = bancoOptions.find(c => c.codigo === codigo);
-      toast.success(`Conta crédito "${conta?.codigo || codigo}" salva em ${ids.length} lançamento(s)`);
+      const pulados = ids.length - idsVazios.length;
+      toast.success(`Conta crédito "${conta?.codigo || codigo}" salva em ${idsVazios.length} lançamento(s)${pulados > 0 ? ` (${pulados} já preenchido(s) mantido(s))` : ""}`);
     } catch {
       toast.error("Erro ao salvar em lote");
     }
-  }, [onSaveResultadosLote, scheduleStatusFlush, bancoOptions]);
+  }, [onSaveResultadosLote, scheduleStatusFlush, bancoOptions, editados, resultados]);
 
   const filteredIds = useMemo(() => filtrado.map((r) => r.id), [filtrado]);
   const pendentesIds = useMemo(() => filtrado.filter((r) => r.status === "pendente").map((r) => r.id), [filtrado]);
