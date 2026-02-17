@@ -305,6 +305,47 @@ export type Database = {
           },
         ]
       }
+      apae_planos_empresa: {
+        Row: {
+          classificacao: string | null
+          cnpj: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          ordem: number | null
+        }
+        Insert: {
+          classificacao?: string | null
+          cnpj?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          ordem?: number | null
+        }
+        Update: {
+          classificacao?: string | null
+          cnpj?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          ordem?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "apae_planos_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apae_razao_linhas: {
         Row: {
           conta_codigo: string
@@ -1314,6 +1355,7 @@ export type Database = {
       }
       empresas: {
         Row: {
+          apae_plano_contas_arquivo: string | null
           ativo: boolean
           cnpj: string | null
           created_at: string
@@ -1328,6 +1370,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          apae_plano_contas_arquivo?: string | null
           ativo?: boolean
           cnpj?: string | null
           created_at?: string
@@ -1342,6 +1385,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          apae_plano_contas_arquivo?: string | null
           ativo?: boolean
           cnpj?: string | null
           created_at?: string
