@@ -1,15 +1,14 @@
 import { cn } from "@/lib/utils";
-import { Check, FileSpreadsheet, Building2, FileText, Settings2, Download } from "lucide-react";
+import { Check, FileText, Settings2, Download } from "lucide-react";
 import { motion } from "framer-motion";
 
 export type ApaeStep = 1 | 2 | 3 | 4 | 5;
 
+// Steps for backward compat - now maps to 3 visible steps but keeps internal numbering
 const steps = [
-  { id: 1 as const, label: "Plano", icon: FileSpreadsheet },
-  { id: 2 as const, label: "Bancos", icon: Building2 },
-  { id: 3 as const, label: "Relatório", icon: FileText },
-  { id: 4 as const, label: "Processar", icon: Settings2 },
-  { id: 5 as const, label: "Exportar", icon: Download },
+  { id: 3 as ApaeStep, label: "Relatório", icon: FileText },
+  { id: 4 as ApaeStep, label: "Processar", icon: Settings2 },
+  { id: 5 as ApaeStep, label: "Exportar", icon: Download },
 ];
 
 interface Props {
@@ -19,13 +18,12 @@ interface Props {
 }
 
 export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
-  const progress = ((current - 1) / (steps.length - 1)) * 100;
+  const currentIdx = steps.findIndex(s => s.id === current);
+  const progress = currentIdx >= 0 ? (currentIdx / (steps.length - 1)) * 100 : 0;
 
   return (
     <div className="relative mb-6">
-      {/* Glass container */}
       <div className="glass rounded-xl p-3 relative overflow-hidden">
-        {/* Animated background glow */}
         <div
           className="absolute inset-0 opacity-20 transition-all duration-700"
           style={{
@@ -42,7 +40,6 @@ export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
 
             return (
               <div key={step.id} className="flex items-center flex-1 last:flex-none">
-                {/* Step node */}
                 <button
                   onClick={() => canClick && onStepClick(step.id)}
                   disabled={!canClick}
@@ -54,7 +51,6 @@ export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
                     !canClick && !isActive && !isDone && "text-muted-foreground/30 cursor-not-allowed"
                   )}
                 >
-                  {/* Active glow pill */}
                   {isActive && (
                     <motion.div
                       layoutId="apae-step-pill"
@@ -67,7 +63,6 @@ export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
                     />
                   )}
 
-                  {/* Done indicator dot */}
                   {isDone && !isActive && (
                     <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_hsl(160_100%_50%/0.6)]" />
                   )}
@@ -76,7 +71,6 @@ export function ApaeWizardSteps({ current, onStepClick, canGoTo }: Props) {
                   <span className="hidden sm:inline relative z-10">{step.label}</span>
                 </button>
 
-                {/* Connector line */}
                 {idx < steps.length - 1 && (
                   <div className="flex-1 mx-1 h-px relative">
                     <div className="absolute inset-0 bg-border" />
