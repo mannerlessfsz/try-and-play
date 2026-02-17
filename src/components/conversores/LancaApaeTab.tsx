@@ -275,6 +275,10 @@ export function LancaApaeTab() {
                 {sessoes.map((s, idx) => {
                   const isConcluido = s.status === "concluido";
                   const progressPercent = (s.passo_atual / 5) * 100;
+                  const isMovCaixa = s.tipo === "movimento_caixa";
+                  const accent = isMovCaixa ? "var(--orange)" : "var(--cyan)";
+                  const accentFrom = isMovCaixa ? "hsl(var(--orange))" : "hsl(var(--cyan))";
+                  const accentTo = isMovCaixa ? "hsl(var(--yellow))" : "hsl(var(--blue))";
                   return (
                     <motion.div
                       key={s.id}
@@ -283,31 +287,36 @@ export function LancaApaeTab() {
                       exit={{ opacity: 0, x: 20 }}
                       transition={{ delay: idx * 0.05 }}
                       onClick={() => handleSelecionarSessao(s.id)}
-                      className="group relative glass rounded-xl p-3.5 cursor-pointer transition-all duration-300 hover:border-[hsl(var(--cyan)/0.4)] hover:shadow-[0_0_25px_hsl(var(--cyan)/0.1)]"
+                      className="group relative glass rounded-xl p-3.5 cursor-pointer transition-all duration-300"
+                      style={{
+                        borderColor: `hsl(${accent} / 0)`,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = `hsl(${accent} / 0.4)`; e.currentTarget.style.boxShadow = `0 0 25px hsl(${accent} / 0.1)`; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = `hsl(${accent} / 0)`; e.currentTarget.style.boxShadow = 'none'; }}
                     >
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-xl overflow-hidden bg-border/50">
-                        <motion.div className="h-full bg-gradient-to-r from-[hsl(var(--cyan))] to-[hsl(var(--blue))]" initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 0.6, delay: idx * 0.05 + 0.2 }} />
+                        <motion.div className="h-full" style={{ background: `linear-gradient(to right, ${accentFrom}, ${accentTo})` }} initial={{ width: 0 }} animate={{ width: `${progressPercent}%` }} transition={{ duration: 0.6, delay: idx * 0.05 + 0.2 }} />
                       </div>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isConcluido ? "bg-emerald-500/15 border border-emerald-500/30" : "bg-[hsl(var(--cyan)/0.1)] border border-[hsl(var(--cyan)/0.2)]"}`}>
-                            {isConcluido ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Clock className="w-4 h-4 text-[hsl(var(--cyan))]" />}
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isConcluido ? "bg-emerald-500/15 border border-emerald-500/30" : ""}`} style={!isConcluido ? { background: `hsl(${accent} / 0.1)`, border: `1px solid hsl(${accent} / 0.2)` } : undefined}>
+                            {isConcluido ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> : <Clock className="w-4 h-4" style={{ color: `hsl(${accent})` }} />}
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold truncate">{s.nome_sessao || "Sessão sem nome"}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString("pt-BR")}</span>
                               <span className="text-[10px] text-muted-foreground">•</span>
-                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5">
-                                {s.tipo === "movimento_caixa" ? "Mov. Caixa" : "Contas Pagar"}
+                              <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5" style={{ borderColor: `hsl(${accent} / 0.4)`, color: `hsl(${accent})`, background: `hsl(${accent} / 0.08)` }}>
+                                {isMovCaixa ? "Mov. Caixa" : "Contas Pagar"}
                               </Badge>
                               <span className="text-[10px] text-muted-foreground">•</span>
-                              <span className="text-[10px] font-mono text-[hsl(var(--cyan))]">{s.passo_atual}/5</span>
+                              <span className="text-[10px] font-mono" style={{ color: `hsl(${accent})` }}>{s.passo_atual}/5</span>
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border ${isConcluido ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : "border-[hsl(var(--cyan)/0.3)] text-[hsl(var(--cyan))] bg-[hsl(var(--cyan)/0.05)]"}`}>
+                          <Badge variant="outline" className={`text-[9px] px-1.5 py-0 border ${isConcluido ? "border-emerald-500/40 text-emerald-400 bg-emerald-500/10" : ""}`} style={!isConcluido ? { borderColor: `hsl(${accent} / 0.3)`, color: `hsl(${accent})`, background: `hsl(${accent} / 0.05)` } : undefined}>
                             {isConcluido ? "Concluída" : "Em andamento"}
                           </Badge>
                           <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive" onClick={(e) => { e.stopPropagation(); handleDeletarSessao(s.id); }}>
