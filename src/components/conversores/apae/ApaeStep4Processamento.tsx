@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas, ApaeSessaoTipo } from "@/hooks/useApaeSessoes";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
 import { BatchEditPanel } from "./BatchEditPanel";
@@ -232,8 +233,9 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
   const [pagina, setPagina] = useState(1);
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente" | "ignorado">("todos");
   const [editados, setEditados] = useState<Record<string, { debito?: string; credito?: string }>>({});
+  const [ignorados, setIgnorados] = useState<Set<string>>(new Set());
 
   const planoByDescricao = useMemo(() => {
     const map = new Map<string, ApaePlanoContas>();
@@ -289,9 +291,22 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       .sort((a, b) => a.parId - b.parId);
   }, [linhas]);
 
+  // Initialize ignorados from existing resultados on first load
+  const ignoradosInitialized = useRef(false);
+  if (!ignoradosInitialized.current && resultados.length > 0) {
+    const initialIgnorados = new Set(resultados.filter(r => r.status === "ignorado").map(r => r.id));
+    if (initialIgnorados.size > 0) {
+      setIgnorados(initialIgnorados);
+    }
+    ignoradosInitialized.current = true;
+  }
+
   // Apply user edits on top of resultados
   const resultadosComEdits = useMemo(() => {
     return resultados.map((r) => {
+      if (ignorados.has(r.id)) {
+        return { ...r, status: "ignorado" };
+      }
       const edit = editados[r.id];
       if (!edit) return r;
       return {
@@ -301,12 +316,17 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         status: (edit.debito || r.conta_debito_codigo) && (edit.credito || r.conta_credito_codigo) ? "vinculado" : "pendente",
       };
     });
-  }, [resultados, editados]);
+  }, [resultados, editados, ignorados]);
 
   const filtrado = useMemo(() => {
     let lista = resultadosComEdits;
-    if (filtroStatus !== "todos") {
+    if (filtroStatus === "ignorado") {
+      lista = lista.filter((r) => r.status === "ignorado");
+    } else if (filtroStatus !== "todos") {
       lista = lista.filter((r) => r.status === filtroStatus);
+    } else {
+      // "todos" exclui ignorados por padrão
+      lista = lista.filter((r) => r.status !== "ignorado");
     }
     if (!buscaDebounced.trim()) return lista;
     const termo = buscaDebounced.toLowerCase();
@@ -462,11 +482,42 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
     }
   }, [onSaveResultadosLote, scheduleStatusFlush, bancoOptions, editados, resultados]);
 
+  const handleIgnorar = useCallback(async (id: string) => {
+    setIgnorados((prev) => new Set(prev).add(id));
+    try {
+      await supabase.from("apae_resultados").update({ status: "ignorado" }).eq("id", id);
+      toast.success("Lançamento ignorado");
+    } catch {
+      toast.error("Erro ao ignorar lançamento");
+    }
+  }, []);
+
+  const handleRestaurar = useCallback(async (id: string) => {
+    setIgnorados((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    // Determine correct status
+    const r = resultados.find((r) => r.id === id);
+    const edit = editados[id];
+    const hasDebito = edit?.debito || r?.conta_debito_codigo;
+    const hasCredito = edit?.credito || r?.conta_credito_codigo;
+    const newStatus = hasDebito && hasCredito ? "vinculado" : "pendente";
+    try {
+      await supabase.from("apae_resultados").update({ status: newStatus }).eq("id", id);
+      toast.success("Lançamento restaurado");
+    } catch {
+      toast.error("Erro ao restaurar lançamento");
+    }
+  }, [resultados, editados]);
+
   const filteredIds = useMemo(() => filtrado.map((r) => r.id), [filtrado]);
   const pendentesIds = useMemo(() => filtrado.filter((r) => r.status === "pendente").map((r) => r.id), [filtrado]);
 
   const vinculados = resultadosComEdits.filter((r) => r.status === "vinculado").length;
   const pendentes = resultadosComEdits.filter((r) => r.status === "pendente").length;
+  const ignoradosCount = ignorados.size;
 
   return (
     <div className="space-y-3">
@@ -513,6 +564,18 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                     ⚠ {pendentes}
                   </button>
                 )}
+                {ignoradosCount > 0 && (
+                  <button
+                    onClick={() => { setFiltroStatus(filtroStatus === "ignorado" ? "todos" : "ignorado"); setPagina(1); }}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-medium transition-all ${
+                      filtroStatus === "ignorado"
+                        ? "bg-muted/60 text-muted-foreground ring-1 ring-muted-foreground/40"
+                        : "bg-muted/30 text-muted-foreground/60 hover:bg-muted/50"
+                    }`}
+                  >
+                    ✕ {ignoradosCount}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -546,7 +609,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                   />
                 </div>
                 <div className="flex gap-1">
-                  {([["todos", "Todos"], ["pendente", "Pendentes"], ["vinculado", "Vinculados"]] as const).map(([key, label]) => (
+                  {([["todos", "Todos"], ["pendente", "Pendentes"], ["vinculado", "Vinculados"], ["ignorado", "Ignorados"]] as const).map(([key, label]) => (
                     <Button
                       key={key}
                       variant={filtroStatus === key ? "default" : "outline"}
@@ -555,6 +618,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                       onClick={() => { setFiltroStatus(key); setPagina(1); }}
                     >
                       {label}
+                      {key === "ignorado" && ignoradosCount > 0 && ` (${ignoradosCount})`}
                     </Button>
                   ))}
                 </div>
@@ -584,6 +648,9 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
                       bancoOptions={bancoOptions}
                       onUpdateDebito={handleUpdateDebito}
                       onUpdateCredito={handleUpdateCredito}
+                      onIgnorar={handleIgnorar}
+                      onRestaurar={handleRestaurar}
+                      isIgnorado={ignorados.has(r.id)}
                     />
                   );
                 })}
