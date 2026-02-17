@@ -9,8 +9,71 @@ import { FileText, Upload, Trash2, Search, Loader2, ChevronLeft, ChevronRight, A
 import { toast } from "sonner";
 import { readExcelFile } from "@/utils/fileParserUtils";
 import type { ApaeRelatorioLinha } from "@/hooks/useApaeSessoes";
+import type { ApaeSessaoTipo } from "@/hooks/useApaeSessoes";
 
 const ITEMS_PER_PAGE = 100;
+const DATE_REGEX = /^\d{2}\/\d{2}\/\d{4}$/;
+
+/** Parser para sessões "contas_a_pagar" — pares de linhas ímpares/pares */
+function parseContasAPagar(rows: any[][]): Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] {
+  const resultado: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] = [];
+  let parCounter = 0;
+  const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim() || null;
+
+  for (let i = 1; i < rows.length - 1; i += 2) {
+    const oddRow = rows[i];
+    const evenRow = rows[i + 1];
+    if (!oddRow) continue;
+
+    parCounter++;
+    resultado.push({
+      linha_numero: i + 1, tipo_linha: "dados", par_id: parCounter,
+      col_a: col(oddRow, 0), col_b: col(oddRow, 1), col_c: col(oddRow, 2),
+      col_d: col(oddRow, 3), col_e: col(oddRow, 4), col_f: col(oddRow, 5),
+      col_g: col(oddRow, 6), col_h: col(oddRow, 7), col_i: col(oddRow, 8),
+    });
+    if (evenRow) {
+      resultado.push({
+        linha_numero: i + 2, tipo_linha: "historico", par_id: parCounter,
+        col_a: col(evenRow, 0), col_b: col(evenRow, 1), col_c: col(evenRow, 2),
+        col_d: col(evenRow, 3), col_e: col(evenRow, 4), col_f: col(evenRow, 5),
+        col_g: col(evenRow, 6), col_h: col(evenRow, 7), col_i: col(evenRow, 8),
+      });
+    }
+  }
+  return resultado;
+}
+
+/** Parser para sessões "movimento_caixa" — cada linha (a partir da 3ª) é um lançamento.
+ *  Para na primeira linha sem data válida na coluna A. */
+function parseMovimentoCaixa(rows: any[][]): Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] {
+  const resultado: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] = [];
+  const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim() || null;
+
+  // Linha 0 = período, linha 1 = cabeçalho, dados a partir de linha 2 (index 2)
+  for (let i = 2; i < rows.length; i++) {
+    const row = rows[i];
+    if (!row) continue;
+
+    const colA = col(row, 0);
+    // Parar na primeira linha sem data válida
+    if (!colA || !DATE_REGEX.test(colA)) break;
+
+    resultado.push({
+      linha_numero: i + 1,
+      tipo_linha: "dados",
+      par_id: i - 1, // cada linha tem seu próprio ID sequencial
+      col_a: colA,           // DATA
+      col_b: col(row, 1),    // HISTÓRICO
+      col_c: col(row, 2),    // CONTA (banco)
+      col_d: col(row, 3),    // CENTRO DE CUSTO (código conta)
+      col_e: col(row, 4),    // VALOR
+      col_f: col(row, 5),    // OP (E/S)
+      col_g: null, col_h: null, col_i: null,
+    });
+  }
+  return resultado;
+}
 
 interface Props {
   linhas: ApaeRelatorioLinha[];
@@ -20,9 +83,10 @@ interface Props {
   onNext: () => void;
   onBack: () => void;
   saving: boolean;
+  sessaoTipo: ApaeSessaoTipo;
 }
 
-export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio, onRemoverRelatorio, onNext, onBack, saving }: Props) {
+export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio, onRemoverRelatorio, onNext, onBack, saving, sessaoTipo }: Props) {
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
@@ -64,36 +128,12 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
       const rows = await readExcelFile(file);
       if (rows.length < 3) throw new Error("Arquivo não contém dados suficientes.");
 
-      const resultado: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[] = [];
-      let parCounter = 0;
+      let resultado: Omit<ApaeRelatorioLinha, "id" | "sessao_id" | "created_at">[];
 
-      for (let i = 1; i < rows.length - 1; i += 2) {
-        const oddRow = rows[i];
-        const evenRow = rows[i + 1];
-        if (!oddRow) continue;
-
-        const col = (row: any[], idx: number) => String(row?.[idx] ?? "").trim() || null;
-        parCounter++;
-
-        resultado.push({
-          linha_numero: i + 1,
-          tipo_linha: "dados",
-          par_id: parCounter,
-          col_a: col(oddRow, 0), col_b: col(oddRow, 1), col_c: col(oddRow, 2),
-          col_d: col(oddRow, 3), col_e: col(oddRow, 4), col_f: col(oddRow, 5),
-          col_g: col(oddRow, 6), col_h: col(oddRow, 7), col_i: col(oddRow, 8),
-        });
-
-        if (evenRow) {
-          resultado.push({
-            linha_numero: i + 2,
-            tipo_linha: "historico",
-            par_id: parCounter,
-            col_a: col(evenRow, 0), col_b: col(evenRow, 1), col_c: col(evenRow, 2),
-            col_d: col(evenRow, 3), col_e: col(evenRow, 4), col_f: col(evenRow, 5),
-            col_g: col(evenRow, 6), col_h: col(evenRow, 7), col_i: col(evenRow, 8),
-          });
-        }
+      if (sessaoTipo === "movimento_caixa") {
+        resultado = parseMovimentoCaixa(rows);
+      } else {
+        resultado = parseContasAPagar(rows);
       }
 
       if (resultado.length === 0) throw new Error("Nenhum registro encontrado no arquivo.");
@@ -101,7 +141,11 @@ export function ApaeStep3Relatorio({ linhas, relatorioArquivo, onSalvarRelatorio
       await onSalvarRelatorio(resultado, file.name);
       setPagina(1);
       setBusca("");
-      toast.success(`${resultado.length} linha(s) importadas (${Math.floor(resultado.length / 2)} pares)!`);
+      if (sessaoTipo === "movimento_caixa") {
+        toast.success(`${resultado.length} lançamento(s) importado(s)!`);
+      } else {
+        toast.success(`${resultado.length} linha(s) importadas (${Math.floor(resultado.length / 2)} pares)!`);
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao processar arquivo");
     } finally {

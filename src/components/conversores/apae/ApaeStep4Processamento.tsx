@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Settings2, ArrowRight, ArrowLeft, Loader2, PlayCircle, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas } from "@/hooks/useApaeSessoes";
+import type { ApaeRelatorioLinha, ApaeResultado, ApaePlanoContas, ApaeSessaoTipo } from "@/hooks/useApaeSessoes";
 import { toast } from "sonner";
 import type { ApaeBancoAplicacao } from "@/hooks/useApaeBancoAplicacoes";
 import { LancamentoCard } from "./LancamentoCard";
@@ -42,6 +42,168 @@ function normalizeRelatorioName(str: string): string {
     .trim();
 }
 
+/** Extrai código da conta do texto "CÓDIGO - DESCRIÇÃO" */
+function extractCodigoConta(text: string): string | null {
+  if (!text) return null;
+  const parts = text.split(" - ");
+  const codigo = parts[0]?.trim();
+  return codigo || null;
+}
+
+/** Resolve conta banco via nome_relatorio lookup */
+function resolveContaBanco(contaRaw: string, lookup: Map<string, string>, textKeys: string[]): string | null {
+  const norm = normalizeRelatorioName(contaRaw);
+  // 1) Exact
+  const exact = lookup.get(norm);
+  if (exact) return exact;
+  // 2) Partial
+  if (norm) {
+    for (const key of textKeys) {
+      if (key.length < 4) continue;
+      if (norm.includes(key) || key.includes(norm)) {
+        return lookup.get(key) || null;
+      }
+    }
+    // 3) Digits fallback
+    const digits = contaRaw.replace(/\D/g, "");
+    if (digits.length >= 3) {
+      for (const [key, codigo] of lookup.entries()) {
+        if (!key.startsWith("__digits__")) continue;
+        const bd = key.replace("__digits__", "");
+        if (bd.includes(digits) || digits.includes(bd)) return codigo;
+      }
+    }
+  }
+  return null;
+}
+
+/** Processamento para sessões "contas_a_pagar" — lógica original intacta */
+function processarContasAPagar(
+  pares: { parId: number; dados?: ApaeRelatorioLinha; historico?: ApaeRelatorioLinha }[],
+  planoByDescricao: Map<string, ApaePlanoContas>,
+  planoByCodigo: Map<string, ApaePlanoContas>,
+  lookup: Map<string, string>,
+  textKeys: string[],
+): Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] {
+  const resultados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] = [];
+
+  for (const par of pares) {
+    const d = par.dados;
+    const h = par.historico;
+    if (!d) continue;
+
+    const fornecedor = (h?.col_b || "").trim();
+    const contaCreditoRaw = (d.col_c || "").trim();
+    const centroCusto = (d.col_d || "").trim();
+    const historicoOriginal = (d.col_b || "").trim();
+    const nDoc = (h?.col_e || "").trim();
+    const dataPagto = (d.col_h || "").trim();
+    const valorPago = (d.col_i || "").trim();
+
+    let contaDebitoCodigo: string | null = null;
+    const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
+    if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
+
+    const contaCreditoCodigo = resolveContaBanco(contaCreditoRaw, lookup, textKeys);
+
+    const parts: string[] = [fornecedor, historicoOriginal];
+    if (nDoc) parts.push(nDoc);
+    if (centroCusto) parts.push(`(CENTRO ${centroCusto})`);
+    parts.push(`PAGO EM ${contaCreditoRaw}`);
+    const historicoConcatenado = extractHistoricoFromGrupo(toUpperNoAccents(parts.join(" ")));
+
+    const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
+
+    resultados.push({
+      par_id: par.parId,
+      fornecedor,
+      conta_debito: fornecedor,
+      conta_debito_codigo: contaDebitoCodigo,
+      centro_custo: centroCusto,
+      n_doc: nDoc || null,
+      vencimento: (d.col_f || "").trim() || null,
+      valor: valorPago,
+      data_pagto: dataPagto,
+      valor_pago: valorPago,
+      historico_original: historicoOriginal,
+      historico_concatenado: historicoConcatenado,
+      conta_credito_codigo: contaCreditoCodigo,
+      status,
+    });
+  }
+  return resultados;
+}
+
+/** Processamento para sessões "movimento_caixa"
+ *  col_a=DATA, col_b=HISTÓRICO, col_c=CONTA(banco), col_d=CENTRO CUSTO(código conta), col_e=VALOR, col_f=OP(E/S)
+ *  E (Entrada) → débito=banco, crédito=código da col_d
+ *  S (Saída)   → débito=código da col_d, crédito=banco
+ */
+function processarMovimentoCaixa(
+  linhas: ApaeRelatorioLinha[],
+  planoByCodigo: Map<string, ApaePlanoContas>,
+  lookup: Map<string, string>,
+  textKeys: string[],
+): Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] {
+  const resultados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] = [];
+
+  const dados = linhas.filter(l => l.tipo_linha === "dados").sort((a, b) => a.linha_numero - b.linha_numero);
+
+  for (const l of dados) {
+    const data = (l.col_a || "").trim();
+    const historico = (l.col_b || "").trim();
+    const contaBancoRaw = (l.col_c || "").trim();
+    const centroCustoRaw = (l.col_d || "").trim();
+    const valor = (l.col_e || "").trim();
+    const op = (l.col_f || "").trim().toUpperCase();
+
+    // Extrair código da conta do centro de custo (formato "CÓDIGO - DESCRIÇÃO")
+    const codigoConta = extractCodigoConta(centroCustoRaw);
+
+    // Resolver conta banco via nome_relatorio
+    const contaBancoCodigo = resolveContaBanco(contaBancoRaw, lookup, textKeys);
+
+    // Verificar se o código da conta existe no plano
+    const contaExiste = codigoConta ? planoByCodigo.has(codigoConta) : false;
+
+    let contaDebitoCodigo: string | null = null;
+    let contaCreditoCodigo: string | null = null;
+
+    if (op === "E") {
+      // Entrada: débito = banco, crédito = código conta
+      contaDebitoCodigo = contaBancoCodigo;
+      contaCreditoCodigo = contaExiste ? codigoConta : null;
+    } else {
+      // Saída: débito = código conta, crédito = banco
+      contaDebitoCodigo = contaExiste ? codigoConta : null;
+      contaCreditoCodigo = contaBancoCodigo;
+    }
+
+    // Histórico concatenado: B + C + D
+    const historicoConcatenado = toUpperNoAccents([historico, contaBancoRaw, centroCustoRaw].filter(Boolean).join(" "));
+
+    const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
+
+    resultados.push({
+      par_id: l.par_id || 0,
+      fornecedor: historico,
+      conta_debito: op === "S" ? centroCustoRaw : contaBancoRaw,
+      conta_debito_codigo: contaDebitoCodigo,
+      centro_custo: centroCustoRaw,
+      n_doc: null,
+      vencimento: null,
+      valor,
+      data_pagto: data,
+      valor_pago: valor,
+      historico_original: historico,
+      historico_concatenado: historicoConcatenado,
+      conta_credito_codigo: contaCreditoCodigo,
+      status,
+    });
+  }
+  return resultados;
+}
+
 interface Props {
   linhas: ApaeRelatorioLinha[];
   planoContas: ApaePlanoContas[];
@@ -58,9 +220,10 @@ interface Props {
   onSaveResultadosLote: (ids: string[], updates: { conta_debito_codigo?: string; conta_credito_codigo?: string }) => Promise<void>;
   onSaveStatusResultados: (ids: string[]) => Promise<void>;
   onRefreshResultados: () => Promise<void>;
+  sessaoTipo: ApaeSessaoTipo;
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados, sessaoTipo }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -182,86 +345,12 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
       }
       textKeys.sort((a, b) => b.length - a.length);
 
-      const resultadosProcessados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[] = [];
+      let resultadosProcessados: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">[];
 
-      let lote = 1;
-      for (const par of pares) {
-        const d = par.dados;
-        const h = par.historico;
-        if (!d) continue;
-
-        const fornecedor = (h?.col_b || "").trim();
-        const contaCreditoRaw = (d.col_c || "").trim();
-        const centroCusto = (d.col_d || "").trim();
-        const historicoOriginalRaw = (d.col_b || "").trim();
-        const historicoOriginal = historicoOriginalRaw;
-        const nDoc = (h?.col_e || "").trim();
-        const dataPagto = (d.col_h || "").trim();
-        const valorPago = (d.col_i || "").trim();
-
-        let contaDebitoCodigo: string | null = null;
-        const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
-        if (matchDebito) contaDebitoCodigo = matchDebito.codigo;
-
-        // Match credit account using nome_relatorio from Step 2 mappings
-        let contaCreditoCodigo: string | null = null;
-        const contaCreditoNorm = normalizeRelatorioName(contaCreditoRaw);
-
-        // 1) Exact match
-        const exactMatch = lookup.get(contaCreditoNorm);
-        if (exactMatch) {
-          contaCreditoCodigo = exactMatch;
-        } else if (contaCreditoNorm) {
-          // 2) Partial match (prefer longest key)
-          for (const key of textKeys) {
-            if (key.length < 4) continue;
-            if (contaCreditoNorm.includes(key) || key.includes(contaCreditoNorm)) {
-              contaCreditoCodigo = lookup.get(key) || null;
-              break;
-            }
-          }
-
-          // 3) Fallback: digits-only comparison
-          if (!contaCreditoCodigo) {
-            const reportDigits = contaCreditoRaw.replace(/\D/g, "");
-            if (reportDigits.length >= 3) {
-              for (const [key, codigo] of lookup.entries()) {
-                if (!key.startsWith("__digits__")) continue;
-                const bancoDigits = key.replace("__digits__", "");
-                if (bancoDigits.includes(reportDigits) || reportDigits.includes(bancoDigits)) {
-                  contaCreditoCodigo = codigo;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        const parts: string[] = [fornecedor, historicoOriginal];
-        if (nDoc) parts.push(nDoc);
-        if (centroCusto) parts.push(`(CENTRO ${centroCusto})`);
-        parts.push(`PAGO EM ${contaCreditoRaw}`);
-        const historicoConcatenado = extractHistoricoFromGrupo(toUpperNoAccents(parts.join(" ")));
-
-        const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
-
-        resultadosProcessados.push({
-          par_id: par.parId,
-          fornecedor,
-          conta_debito: fornecedor,
-          conta_debito_codigo: contaDebitoCodigo,
-          centro_custo: centroCusto,
-          n_doc: nDoc || null,
-          vencimento: (d.col_f || "").trim() || null,
-          valor: valorPago,
-          data_pagto: dataPagto,
-          valor_pago: valorPago,
-          historico_original: historicoOriginal,
-          historico_concatenado: historicoConcatenado,
-          conta_credito_codigo: contaCreditoCodigo,
-          status,
-        });
-        lote++;
+      if (sessaoTipo === "movimento_caixa") {
+        resultadosProcessados = processarMovimentoCaixa(linhas, planoByCodigo, lookup, textKeys);
+      } else {
+        resultadosProcessados = processarContasAPagar(pares, planoByDescricao, planoByCodigo, lookup, textKeys);
       }
 
       setEditados({});
