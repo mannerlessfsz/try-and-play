@@ -23,14 +23,22 @@ interface Props {
 export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessaoStatus, onEncerrarSessao, onReabrirSessao }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
-  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente">("todos");
+  const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente" | "ignorado">("todos");
 
+  const ativos = useMemo(() => resultados.filter((r) => r.status !== "ignorado"), [resultados]);
   const vinculados = useMemo(() => resultados.filter((r) => r.status === "vinculado").length, [resultados]);
-  const pendentes = resultados.length - vinculados;
+  const pendentes = useMemo(() => resultados.filter((r) => r.status === "pendente").length, [resultados]);
+  const ignorados = useMemo(() => resultados.filter((r) => r.status === "ignorado").length, [resultados]);
 
   const filtrado = useMemo(() => {
     let lista = resultados;
-    if (filtroStatus !== "todos") lista = lista.filter((r) => r.status === filtroStatus);
+    if (filtroStatus === "ignorado") {
+      lista = lista.filter((r) => r.status === "ignorado");
+    } else if (filtroStatus !== "todos") {
+      lista = lista.filter((r) => r.status === filtroStatus);
+    } else {
+      lista = lista.filter((r) => r.status !== "ignorado");
+    }
     if (!busca.trim()) return lista;
     const termo = busca.toLowerCase();
     return lista.filter(
@@ -49,10 +57,10 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
   }, [filtrado, pagina]);
 
   const handleExportar = async () => {
-    if (resultados.length === 0) return;
+    if (ativos.length === 0) return;
 
     const header = "Data;Conta Débito;Conta Crédito;Valor;Histórico;Lote;Código Empresa";
-    const lines = resultados.map((r, idx) =>
+    const lines = ativos.map((r, idx) =>
       [
         r.data_pagto || "",
         r.conta_debito_codigo || "",
@@ -90,11 +98,12 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
             <div className="flex items-center gap-2">
               <Download className="w-4 h-4 text-primary" />
               <span className="text-sm font-semibold">Conferência</span>
-              <Badge variant="secondary" className="text-[10px]">{resultados.length} lanç.</Badge>
+              <Badge variant="secondary" className="text-[10px]">{ativos.length} lanç.</Badge>
               <Badge className="bg-emerald-600 text-[10px]">{vinculados} ok</Badge>
               {pendentes > 0 && <Badge variant="destructive" className="text-[10px]">{pendentes} pend.</Badge>}
+              {ignorados > 0 && <Badge variant="outline" className="text-[10px] text-muted-foreground">{ignorados} ignorado(s)</Badge>}
             </div>
-            <Button size="sm" onClick={handleExportar} disabled={resultados.length === 0}>
+            <Button size="sm" onClick={handleExportar} disabled={ativos.length === 0}>
               <FileDown className="w-3.5 h-3.5 mr-1.5" /> Exportar CSV
             </Button>
           </div>
@@ -110,7 +119,7 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
               />
             </div>
             <div className="flex gap-0.5">
-              {(["todos", "vinculado", "pendente"] as const).map((f) => (
+              {(["todos", "vinculado", "pendente", "ignorado"] as const).map((f) => (
                 <Button
                   key={f}
                   variant={filtroStatus === f ? "default" : "ghost"}
@@ -118,7 +127,7 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
                   className="h-7 text-xs px-2"
                   onClick={() => { setFiltroStatus(f); setPagina(1); }}
                 >
-                  {f === "todos" ? "Todos" : f === "vinculado" ? "Ok" : "Pend."}
+                  {f === "todos" ? "Todos" : f === "vinculado" ? "Ok" : f === "pendente" ? "Pend." : "Ignorados"}
                 </Button>
               ))}
             </div>
@@ -142,7 +151,7 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
                   {paginado.map((r, idx) => {
                     const globalIdx = (pagina - 1) * ITEMS_PER_PAGE + idx + 1;
                     return (
-                      <TableRow key={r.id}>
+                      <TableRow key={r.id} className={r.status === "ignorado" ? "opacity-40 line-through" : ""}>
                         <TableCell className="text-[11px] whitespace-nowrap py-1">{r.data_pagto}</TableCell>
                         <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{r.conta_debito_codigo}</TableCell>
                         <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{r.conta_credito_codigo}</TableCell>
