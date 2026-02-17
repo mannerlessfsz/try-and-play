@@ -179,10 +179,11 @@ function processarMovimentoCaixa(
       contaCreditoCodigo = contaBancoCodigo;
     }
 
-    // Histórico concatenado: B + "PAGO EM" + C + "(CENTRO DE CUSTO" + D + ")"
+    // Histórico concatenado: B + "PAGO EM" + C + "(CENTRO DE CUSTO" + D + ")" + sufixo
     const partes = [historico];
     if (contaBancoRaw) partes.push("PAGO EM " + contaBancoRaw);
     if (centroCustoRaw) partes.push("(CENTRO DE CUSTO " + centroCustoRaw + ")");
+    partes.push("CONFORME RELATORIO ERP ARGUS DO PERIODO");
     const historicoConcatenado = toUpperNoAccents(partes.join(" "));
 
     const status = contaDebitoCodigo && contaCreditoCodigo ? "vinculado" : "pendente";
