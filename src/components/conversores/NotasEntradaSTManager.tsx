@@ -35,11 +35,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
-
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-const formatPct = (v: number) => `${v.toFixed(2)}%`;
+const formatCurrencyRaw = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
+const formatPctRaw = (v: number) =>
+  new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 4 }).format(v * 100);
+
+const formatPct = (v: number) => `${formatPctRaw(v)}%`;
+
+const formatNumberRaw = (v: number) =>
+  new Intl.NumberFormat("pt-BR").format(v);
 
 const parseBRLNumber = (s: string): number => {
   if (!s) return 0;
@@ -834,8 +842,12 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                             <Input
                               className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[60px]"
                               defaultValue={
-                                col.type === "pct" ? (nota[col.key] != null ? String(Number(nota[col.key]) * 100) : "") :
-                                (nota[col.key] != null ? String(nota[col.key]) : "")
+                                nota[col.key] != null
+                                  ? col.type === "currency" ? formatCurrencyRaw(Number(nota[col.key]))
+                                  : col.type === "pct" ? formatPctRaw(Number(nota[col.key]))
+                                  : col.type === "number" ? formatNumberRaw(Number(nota[col.key]))
+                                  : String(nota[col.key])
+                                  : ""
                               }
                               placeholder="—"
                               onBlur={(e) => {
