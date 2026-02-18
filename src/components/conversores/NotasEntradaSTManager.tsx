@@ -322,9 +322,9 @@ export function NotasEntradaSTManager() {
     try {
       const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array", cellDates: true });
+      const wb = XLSX.read(buffer, { type: "array", cellDates: false });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true });
 
       // Find header row
       let headerIdx = -1;
@@ -403,12 +403,20 @@ export function NotasEntradaSTManager() {
         if (!s) return null;
 
         // Formato brasileiro: dd/mm/yyyy ou dd-mm-yyyy
+        // Também trata formato americano m/d/yy do Excel (quando raw:false era usado)
         const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
         if (brMatch) {
-          let [, dd, mm, yyyy] = brMatch;
-          let y = Number(yyyy);
+          let [, a, b, c] = brMatch;
+          let y = Number(c);
           if (y < 100) y += 2000;
-          return `${y}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          const n1 = Number(a);
+          const n2 = Number(b);
+          // Se o segundo número > 12, é formato americano m/d/yy (mês/dia/ano)
+          if (n2 > 12 && n1 <= 12) {
+            return `${y}-${String(n1).padStart(2, "0")}-${String(n2).padStart(2, "0")}`;
+          }
+          // Senão, assume brasileiro dd/mm/yyyy
+          return `${y}-${String(n2).padStart(2, "0")}-${String(n1).padStart(2, "0")}`;
         }
 
         // Try yyyy-mm-dd (ISO)
