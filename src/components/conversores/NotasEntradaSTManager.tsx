@@ -147,6 +147,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
   const [importingNfe, setImportingNfe] = useState(false);
   const nfeInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompetencia, setSelectedCompetencia] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("TODOS");
 
   // Drag-to-scroll logic for horizontal table navigation
   const useDragScroll = () => {
@@ -225,6 +226,11 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
       });
     }
 
+    // Filter by status
+    if (statusFilter !== "TODOS") {
+      result = result.filter((n) => (n as any).status === statusFilter);
+    }
+
     // Filter by search
     if (search) {
       const s = search.toLowerCase();
@@ -237,7 +243,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
     }
     
     return result;
-  }, [notas, search, activeCompetencia]);
+  }, [notas, search, activeCompetencia, statusFilter]);
 
   // Reversed display: last records first, but keep original numbering
   const filteredReversed = useMemo(() => {
@@ -690,6 +696,20 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
             </SelectContent>
           </Select>
 
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="TODOS">Todos status</SelectItem>
+              <SelectItem value="UTILIZAVEL">Utilizável</SelectItem>
+              <SelectItem value="NAO PAGO">Não Pago</SelectItem>
+              <SelectItem value="UTILIZADO">Utilizado</SelectItem>
+              <SelectItem value="NAO UTILIZAVEL">Não Utilizável</SelectItem>
+              <SelectItem value="VENDA INTERNA">Venda Interna</SelectItem>
+            </SelectContent>
+          </Select>
+
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
@@ -836,6 +856,26 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
               "VENDA INTERNA": "bg-purple-500/20 text-purple-400 border-purple-500/30",
             };
 
+            const CARD_BORDER_COLORS: Record<string, string> = {
+              "UTILIZAVEL": "border-emerald-500/40",
+              "NAO PAGO": "border-red-500/40",
+              "UTILIZADO": "border-blue-500/40",
+              "NAO UTILIZAVEL": "border-amber-500/40",
+              "VENDA INTERNA": "border-purple-500/40",
+            };
+
+            const CARD_HEADER_COLORS: Record<string, string> = {
+              "UTILIZAVEL": "bg-emerald-500/10",
+              "NAO PAGO": "bg-red-500/10",
+              "UTILIZADO": "bg-blue-500/10",
+              "NAO UTILIZAVEL": "bg-amber-500/10",
+              "VENDA INTERNA": "bg-purple-500/10",
+            };
+
+            const notaStatus = (nota as any).status || "";
+            const cardBorder = CARD_BORDER_COLORS[notaStatus] || "border-border/30";
+            const cardHeader = CARD_HEADER_COLORS[notaStatus] || "bg-muted/30";
+
             const renderField = (label: string, colKey: string, colType?: string, colSpan?: boolean) => {
               const col = columns.find(c => c.key === colKey);
               const value = (nota as any)[colKey];
@@ -908,10 +948,10 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.02, duration: 0.2 }}
-                className="glass rounded-xl border border-border/30 overflow-hidden"
+                className={`glass rounded-xl border overflow-hidden ${cardBorder}`}
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border/20">
+                <div className={`flex items-center justify-between px-4 py-2.5 ${cardHeader} border-b border-border/20`}>
                   <div className="flex items-center gap-3">
                     <span className="text-[10px] font-mono text-muted-foreground">#{originalIdx}</span>
                     <span className="text-sm font-bold">NF-e {(nota as any).nfe}</span>
