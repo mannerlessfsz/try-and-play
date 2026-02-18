@@ -95,7 +95,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { notas, isLoading, addNota, deleteNota, addMany } = useNotasEntradaST(empresaId);
+  const { notas, isLoading, addNota, updateNota, deleteNota, addMany } = useNotasEntradaST(empresaId);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -831,7 +831,29 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                                 : ""
                             }`}
                           >
-                            {formatCell(nota, col)}
+                            <Input
+                              className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[60px]"
+                              defaultValue={
+                                col.type === "pct" ? (nota[col.key] != null ? String(Number(nota[col.key]) * 100) : "") :
+                                (nota[col.key] != null ? String(nota[col.key]) : "")
+                              }
+                              placeholder="—"
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                let newVal: any = raw || null;
+                                if (raw && col.type === "currency") newVal = parseBRLNumber(raw);
+                                else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
+                                else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
+
+                                const oldVal = nota[col.key];
+                                if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
+                                  updateNota.mutate({ id: nota.id, [col.key]: newVal } as any);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                              }}
+                            />
                           </TableCell>
                         ))}
                         <TableCell className="px-2">
