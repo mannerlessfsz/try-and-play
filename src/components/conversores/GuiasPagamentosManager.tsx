@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { CreditCard, Trash2, Upload, Download, Search, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,13 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Auto-sync from Notas ST when component mounts and there are notas but no guias
+  useEffect(() => {
+    if (empresaId && !isLoading && !isLoadingNotas && notas.length > 0 && guias.length === 0) {
+      handleSyncFromNotas();
+    }
+  }, [empresaId, isLoading, isLoadingNotas, notas.length, guias.length]);
 
   const handleSyncFromNotas = async () => {
     if (!empresaId || notas.length === 0) {
