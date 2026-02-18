@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Tarefa, prioridadeColors } from "@/types/task";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Building2, FileText, Trash2, CheckCircle2, Circle, Timer,
   Search, Download, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, X, ChevronDown,
   Flame, Clock, Sparkles
 } from "lucide-react";
-import { motion, AnimatePresence, useInView } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
@@ -32,13 +32,6 @@ const prioridadeDot: Record<string, string> = {
   media: "bg-yellow-500",
   alta: "bg-red-500",
   urgente: "bg-purple-500",
-};
-
-const prioridadeGlow: Record<string, string> = {
-  baixa: "shadow-green-500/20",
-  media: "shadow-yellow-500/20",
-  alta: "shadow-red-500/30",
-  urgente: "shadow-purple-500/40",
 };
 
 function toDateKey(d: Date): string {
@@ -72,6 +65,14 @@ function getWeekDays(refDate: Date): string[] {
     days.push(toDateKey(d));
   }
   return days;
+}
+
+function formatDay(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").getDate().toString();
+}
+
+function formatWeekday(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" });
 }
 
 function formatMonthLabel(year: number, month: number): string {
@@ -110,267 +111,31 @@ function exportICS(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   URL.revokeObjectURL(url);
 }
 
-// ── Animated Timeline Node ──
-function TimelineNode({ dateStr, tasks, isSelected, isToday: today, side, index, onClick, expandedTaskId, setExpandedTaskId, getEmpresaNome, onDelete, onStatusChange, onUploadArquivo, onDeleteArquivo }: {
-  dateStr: string;
-  tasks: Tarefa[];
-  isSelected: boolean;
-  isToday: boolean;
-  side: "left" | "right";
-  index: number;
-  onClick: () => void;
-  expandedTaskId: string | null;
-  setExpandedTaskId: (id: string | null) => void;
-  getEmpresaNome: (id: string) => string;
-  onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: Tarefa["status"]) => void;
-  onUploadArquivo?: (tarefaId: string, file: File) => Promise<void>;
-  onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-40px" });
-  const count = tasks.length;
-  const allDone = count > 0 && tasks.every(t => t.status === "concluida");
-  const hasUrgent = tasks.some(t => t.prioridade === "alta" || t.prioridade === "urgente");
-  const overdue = dateStr !== "__no_date__" && isOverdue(dateStr);
-  const hasInProgress = tasks.some(t => t.status === "em_andamento");
-  const date = dateStr !== "__no_date__" ? new Date(dateStr + "T12:00:00") : null;
-  const completionRate = count > 0 ? tasks.filter(t => t.status === "concluida").length / count : 0;
-
-  // Node color
-  let nodeColor = "from-foreground/20 to-foreground/10";
-  let ringColor = "ring-foreground/15";
-  let glowClass = "";
-  if (isSelected) { nodeColor = "from-primary to-primary/70"; ringColor = "ring-primary/50"; glowClass = "shadow-[0_0_20px_rgba(var(--primary-rgb,239,68,68),0.4)]"; }
-  else if (today) { nodeColor = "from-primary to-primary/60"; ringColor = "ring-primary/40"; glowClass = "shadow-[0_0_15px_rgba(var(--primary-rgb,239,68,68),0.3)]"; }
-  else if (allDone) { nodeColor = "from-green-500 to-emerald-600"; ringColor = "ring-green-500/40"; }
-  else if (overdue && hasUrgent) { nodeColor = "from-red-500 to-rose-600"; ringColor = "ring-red-500/40"; glowClass = "shadow-[0_0_12px_rgba(239,68,68,0.3)]"; }
-  else if (overdue) { nodeColor = "from-amber-500 to-yellow-600"; ringColor = "ring-amber-500/30"; }
-  else if (hasInProgress) { nodeColor = "from-blue-500 to-cyan-600"; ringColor = "ring-blue-500/30"; }
-  else if (count > 0) { nodeColor = "from-foreground/40 to-foreground/25"; ringColor = "ring-foreground/20"; }
-
+// ── SVG Arc for completion ──
+function CompletionRing({ rate, size = 36, stroke = 3 }: { rate: number; size?: number; stroke?: number }) {
+  const r = (size - stroke) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ * (1 - rate);
   return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 30 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay: index * 0.04, duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-      className={`relative flex items-start gap-0 ${side === "right" ? "flex-row" : "flex-row-reverse"} mb-2`}
-    >
-      {/* Card side */}
-      <div className={`flex-1 ${side === "right" ? "pr-6" : "pl-6"}`}>
-        {count > 0 && (
-          <motion.div
-            layout
-            onClick={onClick}
-            className={`
-              relative cursor-pointer rounded-2xl border backdrop-blur-md p-3
-              transition-all duration-300 group
-              ${isSelected
-                ? "border-primary/40 bg-primary/5 shadow-lg shadow-primary/10"
-                : "border-foreground/8 bg-card/40 hover:bg-card/60 hover:border-foreground/15 hover:shadow-md"
-              }
-            `}
-          >
-            {/* Decorative gradient strip */}
-            <div className={`absolute ${side === "right" ? "right-0 top-4 w-1 h-8 rounded-l-full" : "left-0 top-4 w-1 h-8 rounded-r-full"} bg-gradient-to-b ${nodeColor} opacity-60`} />
-
-            {/* Date header */}
-            <div className="flex items-center gap-2 mb-2">
-              {date && (
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl font-black text-foreground/90 leading-none tabular-nums">
-                    {date.getDate()}
-                  </span>
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-bold uppercase text-muted-foreground/60 tracking-wider leading-none">
-                      {date.toLocaleDateString("pt-BR", { weekday: "short" })}
-                    </span>
-                    <span className="text-[8px] text-muted-foreground/40 leading-tight">
-                      {date.toLocaleDateString("pt-BR", { month: "short" })}
-                    </span>
-                  </div>
-                </div>
-              )}
-              {dateStr === "__no_date__" && (
-                <span className="text-xs font-semibold text-muted-foreground/50">Sem prazo</span>
-              )}
-
-              <div className="flex items-center gap-1 ml-auto">
-                {today && (
-                  <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-primary/20 text-primary border border-primary/30 animate-pulse">
-                    HOJE
-                  </span>
-                )}
-                {overdue && !allDone && (
-                  <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold bg-red-500/15 text-red-400 border border-red-500/20">
-                    <Flame className="w-2.5 h-2.5" /> ATRASO
-                  </span>
-                )}
-                <span className={`
-                  min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[9px] font-bold
-                  ${allDone ? "bg-green-500/20 text-green-400" : "bg-foreground/10 text-foreground/60"}
-                `}>
-                  {count}
-                </span>
-              </div>
-            </div>
-
-            {/* Completion arc */}
-            {count > 0 && (
-              <div className="w-full h-1 rounded-full bg-foreground/5 mb-2 overflow-hidden">
-                <motion.div
-                  className={`h-full rounded-full bg-gradient-to-r ${allDone ? "from-green-500 to-emerald-400" : "from-primary to-primary/50"}`}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${completionRate * 100}%` }}
-                  transition={{ delay: 0.3, duration: 0.6, ease: "easeOut" }}
-                />
-              </div>
-            )}
-
-            {/* Task preview chips */}
-            <div className="space-y-1">
-              {tasks.slice(0, isSelected ? tasks.length : 3).map((t) => (
-                <TaskChip
-                  key={t.id}
-                  tarefa={t}
-                  getEmpresaNome={getEmpresaNome}
-                  isExpanded={expandedTaskId === t.id}
-                  onToggle={() => setExpandedTaskId(expandedTaskId === t.id ? null : t.id)}
-                  onDelete={onDelete}
-                  onStatusChange={onStatusChange}
-                  onUploadArquivo={onUploadArquivo}
-                  onDeleteArquivo={onDeleteArquivo}
-                />
-              ))}
-              {!isSelected && tasks.length > 3 && (
-                <p className="text-[9px] text-muted-foreground/40 text-center pt-1">
-                  +{tasks.length - 3} tarefa{tasks.length - 3 > 1 ? "s" : ""}
-                </p>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Empty date — subtle indicator */}
-        {count === 0 && date && (
-          <div className="h-2" />
-        )}
-      </div>
-
-      {/* Central spine node */}
-      <div className="relative flex flex-col items-center z-10 flex-shrink-0" style={{ width: 40 }}>
-        <button
-          onClick={onClick}
-          className={`
-            relative rounded-full ring-2 transition-all duration-300 cursor-pointer
-            ${ringColor} ${glowClass}
-            ${isSelected ? "scale-125" : "hover:scale-110"}
-            ${count > 0 ? "w-5 h-5" : "w-2.5 h-2.5"}
-          `}
-        >
-          <div className={`w-full h-full rounded-full bg-gradient-to-br ${nodeColor}`} />
-          {/* Orbital dots for priority distribution */}
-          {count > 0 && hasUrgent && !isSelected && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 animate-ping opacity-40" />
-          )}
-          {today && !isSelected && (
-            <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary animate-pulse border border-background" />
-          )}
-        </button>
-      </div>
-
-      {/* Spacer for the other side */}
-      <div className="flex-1" />
-    </motion.div>
-  );
-}
-
-// ── Task Chip ──
-function TaskChip({ tarefa, getEmpresaNome, isExpanded, onToggle, onDelete, onStatusChange, onUploadArquivo, onDeleteArquivo }: {
-  tarefa: Tarefa;
-  getEmpresaNome: (id: string) => string;
-  isExpanded: boolean;
-  onToggle: () => void;
-  onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: Tarefa["status"]) => void;
-  onUploadArquivo?: (tarefaId: string, file: File) => Promise<void>;
-  onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
-}) {
-  return (
-    <motion.div
-      layout
-      className={`
-        rounded-xl border transition-all overflow-hidden
-        ${tarefa.status === "concluida" ? "opacity-50" : ""}
-        ${isExpanded
-          ? "border-primary/30 bg-primary/5 shadow-md shadow-primary/5"
-          : `border-foreground/6 bg-background/40 hover:border-foreground/12 ${prioridadeGlow[tarefa.prioridade]} hover:shadow-md`
-        }
-      `}
-    >
-      <div
-        className="flex items-center gap-2 p-2 cursor-pointer group"
-        onClick={onToggle}
-      >
-        <div className={`w-1 self-stretch rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
-        <div className="flex-1 min-w-0">
-          <p className={`text-[11px] font-medium truncate leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
-            {tarefa.titulo}
-          </p>
-          <span className="text-[9px] text-muted-foreground/60 flex items-center gap-0.5 truncate">
-            <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
-            {getEmpresaNome(tarefa.empresaId)}
-          </span>
-        </div>
-        <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-          {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
-            <button
-              key={s}
-              onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
-              className={`p-0.5 rounded transition-all ${
-                tarefa.status === s
-                  ? s === "concluida" ? "text-green-400"
-                    : s === "em_andamento" ? "text-blue-400"
-                      : "text-foreground/50"
-                  : "text-muted-foreground/20 hover:text-foreground/50"
-              }`}
-            >
-              {statusIcons[s]}
-            </button>
-          ))}
-        </div>
-        {/* Tiny progress arc */}
-        <div className="w-8 h-1 rounded-full bg-foreground/5 overflow-hidden flex-shrink-0">
-          <div className="h-full bg-gradient-to-r from-primary/80 to-primary/40 rounded-full transition-all" style={{ width: `${tarefa.progresso || 0}%` }} />
-        </div>
-        <ChevronDown className={`w-3 h-3 text-muted-foreground/30 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
-      </div>
-
-      <AnimatePresence>
-        {isExpanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden border-t border-foreground/8"
-          >
-            <div className="p-3">
-              <ExpandedTaskCard
-                tarefa={tarefa}
-                empresaNome={getEmpresaNome(tarefa.empresaId)}
-                onDelete={() => onDelete(tarefa.id)}
-                onStatusChange={(s) => onStatusChange(tarefa.id, s)}
-                onUploadArquivo={onUploadArquivo ? (file) => onUploadArquivo(tarefa.id, file) : undefined}
-                onDeleteArquivo={onDeleteArquivo}
-                defaultExpanded
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+    <svg width={size} height={size} className="absolute inset-0">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-foreground/5" />
+      <motion.circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke="url(#ringGrad)" strokeWidth={stroke}
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        initial={{ strokeDashoffset: circ }}
+        animate={{ strokeDashoffset: offset }}
+        transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+        transform={`rotate(-90 ${size / 2} ${size / 2})`}
+      />
+      <defs>
+        <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="hsl(var(--primary))" />
+          <stop offset="100%" stopColor="hsl(var(--primary) / 0.4)" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }
 
@@ -384,6 +149,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [currentMonth, setCurrentMonth] = useState(now.getMonth());
   const [weekRef, setWeekRef] = useState(now);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
+  const [userManuallySelected, setUserManuallySelected] = useState(false);
+  const todayRef = useRef<HTMLButtonElement>(null);
 
   const tasksByDate = useMemo(() => {
     const map: Record<string, Tarefa[]> = {};
@@ -395,45 +162,63 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return map;
   }, [tarefas]);
 
+  // Auto-select most relevant date
+  const autoSelectedDate = useMemo(() => {
+    const todayKey = toDateKey(now);
+    const relevantDates: string[] = [];
+    Object.entries(tasksByDate).forEach(([dateStr, tasks]) => {
+      if (dateStr === "__no_date__") return;
+      if (tasks.some(t => t.status !== "concluida")) relevantDates.push(dateStr);
+    });
+    if (relevantDates.length === 0) return null;
+    relevantDates.sort();
+    const overdue = relevantDates.filter(d => d < todayKey);
+    const upcoming = relevantDates.filter(d => d >= todayKey);
+    if (overdue.length > 0) return overdue[0];
+    if (upcoming.length > 0) return upcoming[0];
+    return null;
+  }, [tasksByDate]);
+
+  useEffect(() => {
+    if (!userManuallySelected && autoSelectedDate) setSelectedDate(autoSelectedDate);
+  }, [autoSelectedDate, userManuallySelected]);
+
+  useEffect(() => { setUserManuallySelected(false); }, [currentMonth, currentYear, weekRef]);
+
+  useEffect(() => {
+    setTimeout(() => {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }, 100);
+  }, [viewMode, currentMonth, currentYear]);
+
   const days = useMemo(() =>
     viewMode === "month" ? getDaysOfMonth(currentYear, currentMonth) : getWeekDays(weekRef),
     [viewMode, currentYear, currentMonth, weekRef]
   );
 
-  // Filter to only dates with tasks + today
-  const relevantDates = useMemo(() => {
-    const todayKey = toDateKey(now);
-    const dates = days.filter(d => (tasksByDate[d] && tasksByDate[d].length > 0) || isToday(d));
-    // Add no-date at end if exists
-    if (tasksByDate["__no_date__"]?.length) dates.push("__no_date__");
-    return dates;
-  }, [days, tasksByDate]);
+  const noDateTasks = tasksByDate["__no_date__"] || [];
 
-  // Search filter
   const filterTask = useCallback((t: Tarefa) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return t.titulo.toLowerCase().includes(q) || getEmpresaNome(t.empresaId).toLowerCase().includes(q);
   }, [searchQuery, getEmpresaNome]);
 
-  const filteredTasksByDate = useMemo(() => {
-    const map: Record<string, Tarefa[]> = {};
-    for (const [key, tasks] of Object.entries(tasksByDate)) {
-      const filtered = tasks.filter(filterTask);
-      if (filtered.length > 0) map[key] = filtered;
-    }
-    return map;
-  }, [tasksByDate, filterTask]);
+  const selectedTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    const list = selectedDate === "__no_date__" ? noDateTasks : (tasksByDate[selectedDate] || []);
+    return list.filter(filterTask);
+  }, [selectedDate, tasksByDate, noDateTasks, filterTask]);
 
-  // Dates to show in the vertical timeline
-  const visibleDates = useMemo(() => {
-    if (searchQuery) {
-      return Object.keys(filteredTasksByDate).sort();
+  useEffect(() => {
+    if (!userManuallySelected && autoSelectedDate && viewMode === "month") {
+      const d = new Date(autoSelectedDate + "T12:00:00");
+      if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) {
+        setCurrentYear(d.getFullYear());
+        setCurrentMonth(d.getMonth());
+      }
     }
-    return relevantDates;
-  }, [searchQuery, filteredTasksByDate, relevantDates]);
-
-  const noDateTasks = filteredTasksByDate["__no_date__"] || [];
+  }, [autoSelectedDate, userManuallySelected, viewMode, currentYear, currentMonth]);
 
   const goNext = () => {
     if (viewMode === "month") {
@@ -457,13 +242,43 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     const n = new Date();
     setCurrentYear(n.getFullYear()); setCurrentMonth(n.getMonth()); setWeekRef(n);
     setSelectedDate(toDateKey(n));
+    setUserManuallySelected(true);
+  };
+
+  // Node visual config
+  const getNodeStyle = (dateStr: string) => {
+    const tasks = tasksByDate[dateStr] || [];
+    const selected = selectedDate === dateStr;
+    const today = isToday(dateStr);
+    const count = tasks.length;
+    const allDone = count > 0 && tasks.every(t => t.status === "concluida");
+    const hasUrgent = tasks.some(t => t.prioridade === "alta" || t.prioridade === "urgente");
+    const hasInProgress = tasks.some(t => t.status === "em_andamento");
+    const overdue = isOverdue(dateStr);
+    const isWeekend = [0, 6].includes(new Date(dateStr + "T12:00:00").getDay());
+    const completionRate = count > 0 ? tasks.filter(t => t.status === "concluida").length / count : 0;
+
+    let bg = "bg-foreground/15";
+    let ring = "ring-foreground/10";
+    let glow = "";
+    let textColor = isWeekend ? "text-muted-foreground/30" : "text-muted-foreground/50";
+    let numColor = isWeekend ? "text-muted-foreground/25" : "text-muted-foreground/40";
+
+    if (selected) { bg = "bg-primary"; ring = "ring-primary/50"; glow = "shadow-[0_0_16px_hsl(var(--primary)/0.4)]"; textColor = "text-primary"; numColor = "text-primary"; }
+    else if (today && count === 0) { bg = "bg-primary/60"; ring = "ring-primary/40"; glow = "shadow-[0_0_10px_hsl(var(--primary)/0.25)]"; textColor = "text-primary/70"; numColor = "text-primary/80"; }
+    else if (today) { bg = "bg-primary"; ring = "ring-primary/40"; glow = "shadow-[0_0_10px_hsl(var(--primary)/0.3)]"; textColor = "text-primary"; numColor = "text-primary"; }
+    else if (allDone) { bg = "bg-green-500"; ring = "ring-green-500/40"; textColor = "text-green-400"; numColor = "text-green-400"; }
+    else if (overdue && hasUrgent) { bg = "bg-red-500"; ring = "ring-red-500/40"; glow = "shadow-[0_0_10px_rgba(239,68,68,0.25)]"; textColor = "text-red-400"; numColor = "text-red-400"; }
+    else if (overdue) { bg = "bg-amber-500"; ring = "ring-amber-500/30"; textColor = "text-amber-400"; numColor = "text-amber-400"; }
+    else if (hasInProgress) { bg = "bg-blue-500"; ring = "ring-blue-500/30"; textColor = "text-blue-400"; numColor = "text-blue-400"; }
+    else if (count > 0) { bg = "bg-foreground/40"; ring = "ring-foreground/20"; textColor = "text-foreground/70"; numColor = "text-foreground/60"; }
+
+    return { bg, ring, glow, textColor, numColor, count, allDone, hasUrgent, overdue, today, isWeekend, completionRate, hasInProgress };
   };
 
   // Stats
-  const totalInView = visibleDates.reduce((sum, d) => sum + (filteredTasksByDate[d]?.length || 0), 0);
-  const completedInView = visibleDates.reduce((sum, d) => {
-    return sum + (filteredTasksByDate[d]?.filter(t => t.status === "concluida").length || 0);
-  }, 0);
+  const totalTasks = tarefas.length;
+  const completedTasks = tarefas.filter(t => t.status === "concluida").length;
 
   return (
     <div className="space-y-3">
@@ -508,14 +323,13 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           )}
         </div>
 
-        {/* Stats pill */}
         <div className="flex items-center gap-2 ml-auto text-[10px]">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card/60 border border-foreground/8">
             <Sparkles className="w-3 h-3 text-primary" />
-            <span className="text-foreground/70 font-medium">{totalInView}</span>
+            <span className="text-foreground/70 font-medium">{totalTasks}</span>
             <span className="text-muted-foreground/40">|</span>
             <CheckCircle2 className="w-3 h-3 text-green-500" />
-            <span className="text-green-400/80 font-medium">{completedInView}</span>
+            <span className="text-green-400/80 font-medium">{completedTasks}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportCSV(tarefas, getEmpresaNome)}>
@@ -528,89 +342,268 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
       </div>
 
-      {/* ─── Vertical Flowing Timeline ─── */}
-      <div className="relative">
-        {/* Central spine — glowing animated gradient line */}
-        {visibleDates.length > 0 && (
-          <div className="absolute left-1/2 top-0 bottom-0 -translate-x-1/2 w-px">
-            <div className="w-full h-full bg-gradient-to-b from-primary/30 via-foreground/10 to-transparent" />
-            {/* Animated pulse traveling down */}
+      {/* ─── Horizontal Timeline Strip — ALL days visible ─── */}
+      <ScrollArea className="w-full">
+        <div className="relative px-2 pb-5 min-w-max">
+          {/* Glowing connection rail */}
+          <div className="absolute left-0 right-0 top-[54px] h-[2px] rounded-full overflow-hidden">
+            <div className="w-full h-full bg-foreground/8" />
             <motion.div
-              className="absolute top-0 left-0 w-full h-16 bg-gradient-to-b from-primary/40 to-transparent"
-              animate={{ top: ["0%", "100%"] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-              style={{ opacity: 0.4 }}
+              className="absolute top-0 h-full w-24 bg-gradient-to-r from-transparent via-primary/30 to-transparent"
+              animate={{ left: ["-96px", "100%"] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
             />
           </div>
-        )}
 
-        {/* Timeline nodes */}
-        <div className="relative py-4">
-          {visibleDates.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-16"
-            >
-              <div className="w-16 h-16 rounded-full bg-card/50 border border-foreground/10 flex items-center justify-center mx-auto mb-4">
-                <Clock className="w-6 h-6 text-muted-foreground/30" />
-              </div>
-              <p className="text-sm text-muted-foreground/50 font-medium">
-                {searchQuery ? "Nenhuma tarefa encontrada" : "Nenhuma tarefa neste período"}
-              </p>
-              <p className="text-[10px] text-muted-foreground/30 mt-1">
-                {searchQuery ? "Tente outro termo de busca" : "As tarefas aparecerão aqui ao serem criadas"}
-              </p>
-            </motion.div>
-          ) : (
-            visibleDates.map((dateStr, i) => {
-              const tasks = filteredTasksByDate[dateStr] || [];
-              const side: "left" | "right" = i % 2 === 0 ? "left" : "right";
-
-              // For dates with no tasks (like today with no tasks), show a minimal node
-              if (tasks.length === 0 && isToday(dateStr)) {
-                return (
-                  <motion.div
-                    key={dateStr}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="relative flex items-center justify-center mb-2"
-                  >
-                    <div className="relative z-10 w-4 h-4 rounded-full bg-gradient-to-br from-primary to-primary/60 ring-2 ring-primary/40 shadow-[0_0_12px_rgba(var(--primary-rgb,239,68,68),0.3)]">
-                      <span className="absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary animate-pulse border border-background" />
-                    </div>
-                    <span className="absolute left-1/2 -translate-x-1/2 mt-10 text-[8px] font-bold text-primary/60 uppercase tracking-widest">
-                      Hoje
-                    </span>
-                  </motion.div>
-                );
-              }
-
-              if (tasks.length === 0) return null;
+          <div className="flex items-start">
+            {days.map((dateStr) => {
+              const style = getNodeStyle(dateStr);
+              const hasIncomplete = style.count > 0 && !style.allDone;
 
               return (
-                <TimelineNode
+                <div
                   key={dateStr}
-                  dateStr={dateStr}
-                  tasks={tasks}
-                  isSelected={selectedDate === dateStr}
-                  isToday={dateStr !== "__no_date__" && isToday(dateStr)}
-                  side={side}
-                  index={i}
-                  onClick={() => setSelectedDate(prev => prev === dateStr ? null : dateStr)}
-                  expandedTaskId={selectedDate === dateStr ? expandedTaskId : null}
-                  setExpandedTaskId={setExpandedTaskId}
-                  getEmpresaNome={getEmpresaNome}
-                  onDelete={onDelete}
-                  onStatusChange={onStatusChange}
-                  onUploadArquivo={onUploadArquivo}
-                  onDeleteArquivo={onDeleteArquivo}
-                />
+                  className="flex flex-col items-center"
+                  style={{ width: viewMode === "week" ? "calc(100% / 7)" : 56, minWidth: viewMode === "week" ? 100 : 56, flexShrink: 0 }}
+                >
+                  {/* Weekday label */}
+                  <span className={`text-[10px] leading-none mb-1.5 font-medium ${style.textColor} transition-colors`}>
+                    {formatWeekday(dateStr)}
+                  </span>
+
+                  {/* Day number */}
+                  <span className={`text-sm font-black leading-none mb-2.5 tabular-nums ${style.numColor} transition-colors`}>
+                    {formatDay(dateStr)}
+                  </span>
+
+                  {/* Node with optional completion ring */}
+                  <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
+                    {/* Completion ring SVG */}
+                    {style.count > 0 && (
+                      <CompletionRing rate={style.completionRate} size={36} stroke={2} />
+                    )}
+
+                    <button
+                      ref={style.today ? todayRef : undefined}
+                      onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                      className={`
+                        relative z-10 rounded-full ring-2 transition-all duration-200 cursor-pointer
+                        hover:scale-110
+                        ${style.ring} ${style.glow}
+                        ${selectedDate === dateStr ? "scale-[1.2]" : ""}
+                        ${style.count > 0 ? "w-5 h-5" : "w-2.5 h-2.5"}
+                      `}
+                    >
+                      <div className={`w-full h-full rounded-full ${style.bg} transition-colors`} />
+                      {/* Ping for incomplete tasks */}
+                      {hasIncomplete && selectedDate !== dateStr && (
+                        <span className={`absolute inset-[-3px] rounded-full ${style.bg} animate-ping opacity-20`} />
+                      )}
+                      {/* Today indicator */}
+                      {style.today && selectedDate !== dateStr && (
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse border border-background" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Task count + priority dots */}
+                  {style.count > 0 && (
+                    <div className="flex flex-col items-center mt-1.5 gap-0.5">
+                      <span className={`text-[10px] font-bold ${style.numColor} tabular-nums`}>
+                        {style.count}
+                      </span>
+                      {/* Micro priority dots */}
+                      <div className="flex gap-px">
+                        {(tasksByDate[dateStr] || []).slice(0, 5).map((t, ti) => (
+                          <div key={ti} className={`w-1 h-1 rounded-full ${prioridadeDot[t.prioridade]}`} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               );
-            })
-          )}
+            })}
+
+            {/* No-date node */}
+            {noDateTasks.length > 0 && (
+              <div className="flex flex-col items-center" style={{ width: 56, minWidth: 56, flexShrink: 0 }}>
+                <span className="text-[9px] leading-none mb-1.5 text-muted-foreground/30 font-medium">s/d</span>
+                <span className="text-sm font-black leading-none mb-2.5 text-muted-foreground/40 tabular-nums">—</span>
+                <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
+                  <button
+                    onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
+                    className={`
+                      relative z-10 w-4 h-4 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-110
+                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_12px_hsl(var(--primary)/0.4)] scale-[1.2]" : "ring-foreground/15"}
+                    `}
+                  >
+                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/25"}`} />
+                  </button>
+                </div>
+                <span className={`mt-1.5 text-[10px] font-bold tabular-nums ${selectedDate === "__no_date__" ? "text-primary" : "text-muted-foreground/40"}`}>
+                  {noDateTasks.length}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+        <ScrollBar orientation="horizontal" />
+      </ScrollArea>
+
+      {/* ─── Expanded Task Panel for selected date ─── */}
+      <AnimatePresence mode="wait">
+        {selectedDate && (
+          <motion.div
+            key={selectedDate}
+            initial={{ opacity: 0, y: 12, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="overflow-hidden"
+          >
+            <div className="rounded-2xl border border-foreground/10 bg-card/30 backdrop-blur-md p-4">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  {selectedDate !== "__no_date__" && (
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-3xl font-black text-foreground tabular-nums leading-none">
+                        {new Date(selectedDate + "T12:00:00").getDate()}
+                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider leading-none">
+                          {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long" })}
+                        </span>
+                        <span className="text-[9px] text-muted-foreground/40 capitalize">
+                          {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { month: "long" })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {selectedDate === "__no_date__" && (
+                    <span className="text-sm font-bold text-foreground">Tarefas sem prazo</span>
+                  )}
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                    {selectedTasks.length} tarefa{selectedTasks.length !== 1 ? "s" : ""}
+                  </span>
+                  {selectedDate !== "__no_date__" && isOverdue(selectedDate) && selectedTasks.some(t => t.status !== "concluida") && (
+                    <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold">
+                      <Flame className="w-2.5 h-2.5" /> Atrasado
+                    </span>
+                  )}
+                </div>
+                <button onClick={() => setSelectedDate(null)} className="p-1.5 hover:bg-foreground/10 rounded-lg transition-colors">
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {selectedTasks.length === 0 ? (
+                <div className="text-center py-8">
+                  <Clock className="w-6 h-6 text-muted-foreground/20 mx-auto mb-2" />
+                  <p className="text-xs text-muted-foreground/40">
+                    {searchQuery ? "Nenhuma tarefa encontrada" : "Nenhuma tarefa nesta data"}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  {selectedTasks.map((tarefa, ti) => {
+                    const isExpanded = expandedTaskId === tarefa.id;
+                    return (
+                      <motion.div
+                        key={tarefa.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: ti * 0.04, duration: 0.25 }}
+                        className={`
+                          rounded-xl border transition-all overflow-hidden
+                          ${tarefa.status === "concluida" ? "opacity-50" : ""}
+                          ${isExpanded ? "border-primary/30 bg-card/70 shadow-md shadow-primary/5" : "border-foreground/8 bg-card/40 hover:border-foreground/15 hover:bg-card/60"}
+                          ${selectedDate !== "__no_date__" && isOverdue(selectedDate) && tarefa.status !== "concluida" ? "border-amber-500/15" : ""}
+                        `}
+                      >
+                        {/* Compact row */}
+                        <div
+                          className="flex items-center gap-2.5 p-2.5 cursor-pointer group"
+                          onClick={() => setExpandedTaskId(prev => prev === tarefa.id ? null : tarefa.id)}
+                        >
+                          <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-xs font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                              {tarefa.titulo}
+                            </p>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className="text-[10px] text-muted-foreground/60 flex items-center gap-0.5 truncate">
+                                <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
+                                {getEmpresaNome(tarefa.empresaId)}
+                              </span>
+                              {tarefa.arquivos && tarefa.arquivos.length > 0 && (
+                                <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5">
+                                  <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {(["pendente", "em_andamento", "concluida"] as const).map((s) => (
+                              <button
+                                key={s}
+                                onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
+                                className={`p-1 rounded transition-all ${
+                                  tarefa.status === s
+                                    ? s === "concluida" ? "bg-green-500/20 text-green-300"
+                                      : s === "em_andamento" ? "bg-blue-500/20 text-blue-300"
+                                        : "bg-foreground/10 text-foreground/60"
+                                    : "text-muted-foreground/25 hover:text-foreground/50 hover:bg-foreground/5"
+                                }`}
+                              >
+                                {statusIcons[s]}
+                              </button>
+                            ))}
+                          </div>
+                          <div className="w-10 h-1 bg-foreground/8 rounded-full overflow-hidden flex-shrink-0">
+                            <motion.div
+                              className="h-full bg-gradient-to-r from-primary to-primary/50 rounded-full"
+                              initial={{ width: 0 }}
+                              animate={{ width: `${tarefa.progresso || 0}%` }}
+                              transition={{ duration: 0.5, delay: ti * 0.05 }}
+                            />
+                          </div>
+                          <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground/30 transition-transform flex-shrink-0 ${isExpanded ? "rotate-180" : ""}`} />
+                        </div>
+
+                        {/* Expanded content */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="overflow-hidden border-t border-foreground/8"
+                            >
+                              <div className="p-3">
+                                <ExpandedTaskCard
+                                  tarefa={tarefa}
+                                  empresaNome={getEmpresaNome(tarefa.empresaId)}
+                                  onDelete={() => onDelete(tarefa.id)}
+                                  onStatusChange={(s) => onStatusChange(tarefa.id, s)}
+                                  onUploadArquivo={onUploadArquivo ? (file) => onUploadArquivo(tarefa.id, file) : undefined}
+                                  onDeleteArquivo={onDeleteArquivo}
+                                  defaultExpanded
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
