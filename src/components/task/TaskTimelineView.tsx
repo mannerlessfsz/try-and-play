@@ -1,9 +1,8 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Tarefa, prioridadeColors } from "@/types/task";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   Building2, FileText, Trash2, CheckCircle2, Circle, Timer,
-  Search, Download, CalendarDays, CalendarRange, ChevronLeft, ChevronRight, X, ChevronDown,
+  Search, Download, ChevronLeft, ChevronRight, X, ChevronDown,
   Flame, Clock, Sparkles
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -47,26 +46,6 @@ function isToday(dateStr: string): boolean {
   return new Date(dateStr + "T12:00:00").toDateString() === new Date().toDateString();
 }
 
-function getDaysOfMonth(year: number, month: number): string[] {
-  const days: string[] = [];
-  const count = new Date(year, month + 1, 0).getDate();
-  for (let i = 1; i <= count; i++) days.push(toDateKey(new Date(year, month, i)));
-  return days;
-}
-
-function getWeekDays(refDate: Date): string[] {
-  const day = refDate.getDay();
-  const start = new Date(refDate);
-  start.setDate(start.getDate() - day);
-  const days: string[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    days.push(toDateKey(d));
-  }
-  return days;
-}
-
 function formatDay(dateStr: string): string {
   return new Date(dateStr + "T12:00:00").getDate().toString();
 }
@@ -75,8 +54,19 @@ function formatWeekday(dateStr: string): string {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" });
 }
 
-function formatMonthLabel(year: number, month: number): string {
-  return new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+function formatMonthYear(dateStr: string): string {
+  return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+}
+
+/** Generate array of N days starting from a date */
+function getDaysFrom(startDate: Date, count: number): string[] {
+  const days: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(startDate);
+    d.setDate(startDate.getDate() + i);
+    days.push(toDateKey(d));
+  }
+  return days;
 }
 
 function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
@@ -160,18 +150,27 @@ function getUrgencyData(dateStr: string, tasksByDate: Record<string, Tarefa[]>) 
   if (diffDays <= 7) return { level: "safe" as const, color: "rgba(59,130,246,0.4)", hue: "#3b82f6", label: `${diffDays}d` };
   return { level: "none" as const, color: "rgba(255,255,255,0.04)", hue: "", label: "" };
 }
+
+const VISIBLE_DAYS = 15;
+
 // ── Main Component ──
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const now = new Date();
-  const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [currentYear, setCurrentYear] = useState(now.getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(now.getMonth());
-  const [weekRef, setWeekRef] = useState(now);
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [userManuallySelected, setUserManuallySelected] = useState(false);
-  const todayRef = useRef<HTMLButtonElement>(null);
+
+  // The start date of our 15-day window. Default: today - 3 days (so today is near start but not edge)
+  const [windowStart, setWindowStart] = useState<Date>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 3); return d;
+  });
+
+  // Drag state
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartDate = useRef<Date>(windowStart);
 
   const tasksByDate = useMemo(() => {
     const map: Record<string, Tarefa[]> = {};
@@ -204,18 +203,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     if (!userManuallySelected && autoSelectedDate) setSelectedDate(autoSelectedDate);
   }, [autoSelectedDate, userManuallySelected]);
 
-  useEffect(() => { setUserManuallySelected(false); }, [currentMonth, currentYear, weekRef]);
-
-  useEffect(() => {
-    setTimeout(() => {
-      todayRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
-    }, 100);
-  }, [viewMode, currentMonth, currentYear]);
-
-  const days = useMemo(() =>
-    viewMode === "month" ? getDaysOfMonth(currentYear, currentMonth) : getWeekDays(weekRef),
-    [viewMode, currentYear, currentMonth, weekRef]
-  );
+  const days = useMemo(() => getDaysFrom(windowStart, VISIBLE_DAYS), [windowStart]);
 
   const noDateTasks = tasksByDate["__no_date__"] || [];
 
@@ -231,40 +219,64 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list.filter(filterTask);
   }, [selectedDate, tasksByDate, noDateTasks, filterTask]);
 
-  useEffect(() => {
-    if (!userManuallySelected && autoSelectedDate && viewMode === "month") {
-      const d = new Date(autoSelectedDate + "T12:00:00");
-      if (d.getFullYear() !== currentYear || d.getMonth() !== currentMonth) {
-        setCurrentYear(d.getFullYear());
-        setCurrentMonth(d.getMonth());
-      }
-    }
-  }, [autoSelectedDate, userManuallySelected, viewMode, currentYear, currentMonth]);
+  // Navigation helpers
+  const shiftWindow = useCallback((daysDelta: number) => {
+    setWindowStart(prev => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + daysDelta);
+      return d;
+    });
+  }, []);
 
-  const goNext = () => {
-    if (viewMode === "month") {
-      if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
-      else setCurrentMonth(m => m + 1);
-    } else {
-      const d = new Date(weekRef); d.setDate(d.getDate() + 7); setWeekRef(d);
-    }
-    setSelectedDate(null);
-  };
-  const goPrev = () => {
-    if (viewMode === "month") {
-      if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
-      else setCurrentMonth(m => m - 1);
-    } else {
-      const d = new Date(weekRef); d.setDate(d.getDate() - 7); setWeekRef(d);
-    }
-    setSelectedDate(null);
-  };
-  const goToday = () => {
-    const n = new Date();
-    setCurrentYear(n.getFullYear()); setCurrentMonth(n.getMonth()); setWeekRef(n);
-    setSelectedDate(toDateKey(n));
+  const goToday = useCallback(() => {
+    const d = new Date(); d.setDate(d.getDate() - 3);
+    setWindowStart(d);
+    setSelectedDate(toDateKey(new Date()));
     setUserManuallySelected(true);
-  };
+  }, []);
+
+  // Keyboard navigation: Arrow Left/Right to shift window
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowLeft") { e.preventDefault(); shiftWindow(-1); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); shiftWindow(1); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [shiftWindow]);
+
+  // Mouse drag to pan timeline
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    // Don't start drag on buttons/inputs
+    if ((e.target as HTMLElement).closest("button, input, a")) return;
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartDate.current = new Date(windowStart);
+    e.preventDefault();
+  }, [windowStart]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStartX.current;
+    const colWidth = containerRef.current ? containerRef.current.offsetWidth / VISIBLE_DAYS : 80;
+    const daysDelta = Math.round(-dx / colWidth);
+    if (daysDelta !== 0) {
+      const newStart = new Date(dragStartDate.current);
+      newStart.setDate(newStart.getDate() + daysDelta);
+      setWindowStart(newStart);
+    }
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    isDragging.current = false;
+  }, []);
+
+  useEffect(() => {
+    const up = () => { isDragging.current = false; };
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+  }, []);
 
   // Node visual config
   const getNodeStyle = (dateStr: string) => {
@@ -301,32 +313,33 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const totalTasks = tarefas.length;
   const completedTasks = tarefas.filter(t => t.status === "concluida").length;
 
+  // Label for the window range
+  const windowLabel = useMemo(() => {
+    const first = new Date(days[0] + "T12:00:00");
+    const last = new Date(days[days.length - 1] + "T12:00:00");
+    const monthFirst = first.toLocaleDateString("pt-BR", { month: "long" });
+    const monthLast = last.toLocaleDateString("pt-BR", { month: "long" });
+    const year = first.getFullYear();
+    if (monthFirst === monthLast) {
+      return `${monthFirst.charAt(0).toUpperCase() + monthFirst.slice(1)} ${year}`;
+    }
+    return `${monthFirst.charAt(0).toUpperCase() + monthFirst.slice(1)} — ${monthLast.charAt(0).toUpperCase() + monthLast.slice(1)} ${year}`;
+  }, [days]);
+
   return (
     <div className="space-y-3">
       {/* ─── Toolbar ─── */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={goPrev}>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => shiftWindow(-3)}>
             <ChevronLeft className="w-4 h-4" />
           </Button>
-          <button onClick={goToday} className="text-xs font-semibold text-foreground/80 hover:text-foreground px-2 min-w-[140px] text-center capitalize">
-            {viewMode === "month"
-              ? formatMonthLabel(currentYear, currentMonth)
-              : `${new Date(days[0] + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} — ${new Date(days[6] + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}`
-            }
+          <button onClick={goToday} className="text-sm font-medium text-foreground/80 hover:text-foreground px-2 min-w-[180px] text-center capitalize">
+            {windowLabel}
           </button>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={goNext}>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => shiftWindow(3)}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-        </div>
-
-        <div className="flex bg-card/50 rounded-md p-0.5 border border-foreground/10">
-          <button onClick={() => { setViewMode("month"); setSelectedDate(null); }} className={`px-2 py-1 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${viewMode === "month" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-            <CalendarDays className="w-3 h-3" /> Mês
-          </button>
-          <button onClick={() => { setViewMode("week"); setSelectedDate(null); }} className={`px-2 py-1 rounded text-[10px] font-medium transition-all flex items-center gap-1 ${viewMode === "week" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
-            <CalendarRange className="w-3 h-3" /> Semana
-          </button>
         </div>
 
         <div className="relative flex-1 max-w-[220px]">
@@ -335,7 +348,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Buscar tarefa..."
-            className="h-7 pl-7 pr-7 text-xs bg-card/50 border-foreground/10"
+            className="h-7 pl-7 pr-7 text-sm bg-card/50 border-foreground/10"
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery("")} className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -344,7 +357,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           )}
         </div>
 
-        <div className="flex items-center gap-2 ml-auto text-[10px]">
+        <div className="flex items-center gap-2 ml-auto text-xs">
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-card/60 border border-foreground/8">
             <Sparkles className="w-3 h-3 text-primary" />
             <span className="text-foreground/70 font-medium">{totalTasks}</span>
@@ -353,236 +366,241 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             <span className="text-green-400/80 font-medium">{completedTasks}</span>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportCSV(tarefas, getEmpresaNome)}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportCSV(tarefas, getEmpresaNome)}>
               <Download className="w-3 h-3" /> CSV
             </Button>
-            <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportICS(tarefas, getEmpresaNome)}>
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground" onClick={() => exportICS(tarefas, getEmpresaNome)}>
               <Download className="w-3 h-3" /> ICS
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ─── Vertical Bar Timeline ─── */}
-      <ScrollArea className="w-full">
-        <div className="relative min-w-max" style={{ paddingTop: 120, paddingBottom: 120 }}>
-          {/* Central horizontal axis line */}
-          <div
-            className="absolute left-0 right-0 h-[3px] rounded-full"
-            style={{ top: "50%", transform: "translateY(-50%)", background: "linear-gradient(90deg, transparent 0%, hsl(var(--foreground) / 0.12) 5%, hsl(var(--foreground) / 0.12) 95%, transparent 100%)" }}
-          />
+      {/* Hint for drag/keyboard */}
+      <p className="text-xs text-muted-foreground/40 select-none">
+        ← → para navegar • arraste para mover
+      </p>
 
-          <div className="flex items-center relative">
-            {days.map((dateStr, dayIdx) => {
-              const style = getNodeStyle(dateStr);
-              const urgency = getUrgencyData(dateStr, tasksByDate);
-              const tasks = tasksByDate[dateStr] || [];
-              const isTop = dayIdx % 2 === 0; // Alternate top/bottom
-              const isWeekStart = new Date(dateStr + "T12:00:00").getDay() === 0;
-              const colW = viewMode === "week" ? 140 : 72;
+      {/* ─── 15-day Timeline ─── */}
+      <div
+        ref={containerRef}
+        className="relative select-none"
+        style={{ paddingTop: 120, paddingBottom: 120, cursor: isDragging.current ? "grabbing" : "grab" }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        {/* Central horizontal axis line */}
+        <div
+          className="absolute left-0 right-0 h-[3px] rounded-full"
+          style={{ top: "50%", transform: "translateY(-50%)", background: "linear-gradient(90deg, transparent 0%, hsl(var(--foreground) / 0.12) 5%, hsl(var(--foreground) / 0.12) 95%, transparent 100%)" }}
+        />
 
-              // Vertical bar color based on urgency
-              const barColors: Record<string, string> = {
-                overdue: "from-red-500 to-red-600",
-                critical: "from-amber-400 to-amber-500",
-                warning: "from-green-400 to-green-500",
-                safe: "from-blue-400 to-blue-500",
-                none: style.count > 0 && style.allDone ? "from-green-400 to-green-500" : "from-foreground/15 to-foreground/10",
-              };
-              const barColor = barColors[urgency.level] || barColors.none;
+        <div className="flex items-center relative">
+          {days.map((dateStr, dayIdx) => {
+            const style = getNodeStyle(dateStr);
+            const urgency = getUrgencyData(dateStr, tasksByDate);
+            const tasks = tasksByDate[dateStr] || [];
+            const isTop = dayIdx % 2 === 0;
+            const isWeekStart = new Date(dateStr + "T12:00:00").getDay() === 0;
 
-              // Icon for the node
-              const nodeIcon = style.count === 0 ? null
-                : style.allDone ? <CheckCircle2 className="w-3.5 h-3.5" />
-                : urgency.level === "overdue" ? <Flame className="w-3.5 h-3.5" />
-                : style.hasInProgress ? <Timer className="w-3.5 h-3.5" />
-                : <FileText className="w-3.5 h-3.5" />;
+            // Vertical bar color based on urgency
+            const barColors: Record<string, string> = {
+              overdue: "from-red-500 to-red-600",
+              critical: "from-amber-400 to-amber-500",
+              warning: "from-green-400 to-green-500",
+              safe: "from-blue-400 to-blue-500",
+              none: style.count > 0 && style.allDone ? "from-green-400 to-green-500" : "from-foreground/15 to-foreground/10",
+            };
+            const barColor = barColors[urgency.level] || barColors.none;
 
-              return (
-                <div
-                  key={dateStr}
-                  className="relative flex flex-col items-center"
-                  style={{ width: colW, minWidth: colW, flexShrink: 0, height: 240 }}
-                >
-                  {/* Week separator */}
-                  {isWeekStart && dayIdx > 0 && viewMode === "month" && (
-                    <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/[0.06] z-10" />
+            // Icon for the node
+            const nodeIcon = style.count === 0 ? null
+              : style.allDone ? <CheckCircle2 className="w-3.5 h-3.5" />
+              : urgency.level === "overdue" ? <Flame className="w-3.5 h-3.5" />
+              : style.hasInProgress ? <Timer className="w-3.5 h-3.5" />
+              : <FileText className="w-3.5 h-3.5" />;
+
+            return (
+              <div
+                key={dateStr}
+                className="relative flex flex-col items-center flex-1"
+                style={{ minWidth: 0, height: 240 }}
+              >
+                {/* Week separator */}
+                {isWeekStart && dayIdx > 0 && (
+                  <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/[0.06] z-10" />
+                )}
+
+                {/* ── Top section (card or empty) ── */}
+                <div className="flex flex-col items-center justify-end" style={{ height: 100, position: "relative" }}>
+                  {isTop && style.count > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
+                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
+                    >
+                      <button
+                        onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                        className={`
+                          w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
+                          ${selectedDate === dateStr
+                            ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
+                            : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
+                          }
+                        `}
+                      >
+                        {tasks.slice(0, 2).map((t) => (
+                          <div key={t.id} className="flex items-center gap-1 mb-0.5">
+                            <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
+                            <span className={`text-[9px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
+                              {t.titulo}
+                            </span>
+                          </div>
+                        ))}
+                        {tasks.length > 2 && (
+                          <span className="text-[8px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
+                        )}
+                      </button>
+                    </motion.div>
                   )}
-
-                  {/* ── Top section (card or empty) ── */}
-                  <div className="flex flex-col items-center justify-end" style={{ height: 100, position: "relative" }}>
-                    {isTop && style.count > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
-                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
-                      >
-                        <button
-                          onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
-                          className={`
-                            w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
-                            ${selectedDate === dateStr
-                              ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
-                              : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
-                            }
-                          `}
-                        >
-                          {/* Task preview lines */}
-                          {tasks.slice(0, 2).map((t, ti) => (
-                            <div key={t.id} className="flex items-center gap-1 mb-0.5">
-                              <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
-                              <span className={`text-[8px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
-                                {t.titulo}
-                              </span>
-                            </div>
-                          ))}
-                          {tasks.length > 2 && (
-                            <span className="text-[7px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
-                          )}
-                        </button>
-                      </motion.div>
-                    )}
-                  </div>
-
-                  {/* ── Central node area (axis crossing) ── */}
-                  <div className="relative flex flex-col items-center" style={{ height: 40 }}>
-                    {/* Vertical bar */}
-                    <div
-                      className={`absolute left-1/2 -translate-x-1/2 w-[3px] rounded-full bg-gradient-to-b ${barColor} transition-all duration-500`}
-                      style={{
-                        height: style.count > 0 ? (isTop ? 28 : 28) : 10,
-                        top: isTop ? -28 : "auto",
-                        bottom: !isTop ? -28 : "auto",
-                      }}
-                    />
-
-                    {/* Node circle on axis */}
-                    <button
-                      ref={style.today ? todayRef : undefined}
-                      onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
-                      className={`
-                        relative z-20 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer
-                        hover:brightness-125
-                        ${style.count > 0 ? "w-8 h-8" : "w-4 h-4"}
-                        ${selectedDate === dateStr
-                          ? "ring-2 ring-primary/60 shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
-                          : style.count > 0 ? `ring-2 ${style.ring}` : "ring-1 ring-foreground/10"
-                        }
-                        ${style.glow}
-                      `}
-                      style={{
-                        position: "absolute",
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        ...(style.count > 0 && urgency.hue ? {
-                          boxShadow: `0 0 12px ${urgency.hue}33, 0 0 24px ${urgency.hue}15`,
-                        } : {}),
-                      }}
-                    >
-                      <div className={`w-full h-full rounded-full ${style.bg} flex items-center justify-center text-primary-foreground transition-colors duration-300`}>
-                        {nodeIcon}
-                      </div>
-                      {/* Today beacon */}
-                      {style.today && selectedDate !== dateStr && (
-                        <>
-                          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse border border-background" />
-                          <span className="absolute inset-[-4px] rounded-full border border-primary/30 animate-pulse" />
-                        </>
-                      )}
-                    </button>
-
-                    {/* Date label — positioned on opposite side of card */}
-                    <div
-                      className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
-                      style={{ [isTop ? "bottom" : "top"]: -36 }}
-                    >
-                      <span className={`text-sm font-semibold tabular-nums leading-none ${selectedDate === dateStr ? "text-primary" : style.numColor} transition-colors`}>
-                        {formatDay(dateStr)}
-                      </span>
-                      <span className={`text-[9px] font-medium uppercase tracking-wider mt-0.5 ${style.textColor} transition-colors`}>
-                        {formatWeekday(dateStr)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── Bottom section (card or empty) ── */}
-                  <div className="flex flex-col items-center justify-start" style={{ height: 100, position: "relative" }}>
-                    {!isTop && style.count > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
-                        className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
-                      >
-                        <button
-                          onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
-                          className={`
-                            w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
-                            ${selectedDate === dateStr
-                              ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
-                              : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
-                            }
-                          `}
-                        >
-                          {tasks.slice(0, 2).map((t, ti) => (
-                            <div key={t.id} className="flex items-center gap-1 mb-0.5">
-                              <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
-                              <span className={`text-[8px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
-                                {t.titulo}
-                              </span>
-                            </div>
-                          ))}
-                          {tasks.length > 2 && (
-                            <span className="text-[7px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
-                          )}
-                        </button>
-                      </motion.div>
-                    )}
-                  </div>
                 </div>
-              );
-            })}
 
-            {/* No-date node */}
-            {noDateTasks.length > 0 && (
-              <div className="relative flex flex-col items-center" style={{ width: 72, minWidth: 72, flexShrink: 0, height: 240 }}>
-                <div style={{ height: 100 }} />
+                {/* ── Central node area (axis crossing) ── */}
                 <div className="relative flex flex-col items-center" style={{ height: 40 }}>
-                  <motion.button
-                    onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
+                  {/* Vertical bar */}
+                  <div
+                    className={`absolute left-1/2 -translate-x-1/2 w-[3px] rounded-full bg-gradient-to-b ${barColor} transition-all duration-500`}
+                    style={{
+                      height: style.count > 0 ? 28 : 10,
+                      top: isTop ? -28 : "auto",
+                      bottom: !isTop ? -28 : "auto",
+                    }}
+                  />
+
+                  {/* Node circle on axis */}
+                  <button
+                    onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
                     className={`
+                      relative z-20 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer
                       hover:brightness-125
-                      relative z-20 w-6 h-6 rounded-full ring-2 transition-all duration-300 cursor-pointer flex items-center justify-center
-                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)]" : "ring-foreground/12"}
+                      ${style.count > 0 ? "w-8 h-8" : "w-4 h-4"}
+                      ${selectedDate === dateStr
+                        ? "ring-2 ring-primary/60 shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
+                        : style.count > 0 ? `ring-2 ${style.ring}` : "ring-1 ring-foreground/10"
+                      }
+                      ${style.glow}
                     `}
-                    style={{ position: "absolute", top: "50%", transform: "translateY(-50%)" }}
+                    style={{
+                      position: "absolute",
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      ...(style.count > 0 && urgency.hue ? {
+                        boxShadow: `0 0 12px ${urgency.hue}33, 0 0 24px ${urgency.hue}15`,
+                      } : {}),
+                    }}
                   >
-                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/20"} flex items-center justify-center`}>
-                      <span className="text-[8px] font-bold text-primary-foreground">{noDateTasks.length}</span>
+                    <div className={`w-full h-full rounded-full ${style.bg} flex items-center justify-center text-primary-foreground transition-colors duration-300`}>
+                      {nodeIcon}
                     </div>
-                  </motion.button>
-                  <div className="absolute bottom-[-36px] left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <span className="text-sm font-semibold text-muted-foreground/30 leading-none">—</span>
-                    <span className="text-[9px] font-medium uppercase tracking-wider mt-0.5 text-muted-foreground/25">s/d</span>
+                    {/* Today beacon */}
+                    {style.today && selectedDate !== dateStr && (
+                      <>
+                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse border border-background" />
+                        <span className="absolute inset-[-4px] rounded-full border border-primary/30 animate-pulse" />
+                      </>
+                    )}
+                  </button>
+
+                  {/* Date label */}
+                  <div
+                    className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
+                    style={{ [isTop ? "bottom" : "top"]: -36 }}
+                  >
+                    <span className={`text-sm font-semibold tabular-nums leading-none ${selectedDate === dateStr ? "text-primary" : style.numColor} transition-colors`}>
+                      {formatDay(dateStr)}
+                    </span>
+                    <span className={`text-[9px] font-medium uppercase tracking-wider mt-0.5 ${style.textColor} transition-colors`}>
+                      {formatWeekday(dateStr)}
+                    </span>
                   </div>
                 </div>
-                <div style={{ height: 100 }} />
+
+                {/* ── Bottom section (card or empty) ── */}
+                <div className="flex flex-col items-center justify-start" style={{ height: 100, position: "relative" }}>
+                  {!isTop && style.count > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
+                      className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
+                    >
+                      <button
+                        onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                        className={`
+                          w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
+                          ${selectedDate === dateStr
+                            ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
+                            : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
+                          }
+                        `}
+                      >
+                        {tasks.slice(0, 2).map((t) => (
+                          <div key={t.id} className="flex items-center gap-1 mb-0.5">
+                            <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
+                            <span className={`text-[9px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
+                              {t.titulo}
+                            </span>
+                          </div>
+                        ))}
+                        {tasks.length > 2 && (
+                          <span className="text-[8px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
+                        )}
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            );
+          })}
+
+          {/* No-date node */}
+          {noDateTasks.length > 0 && (
+            <div className="relative flex flex-col items-center" style={{ width: 60, minWidth: 60, flexShrink: 0, height: 240 }}>
+              <div style={{ height: 100 }} />
+              <div className="relative flex flex-col items-center" style={{ height: 40 }}>
+                <button
+                  onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
+                  className={`
+                    relative z-20 w-6 h-6 rounded-full ring-2 transition-all duration-300 cursor-pointer flex items-center justify-center
+                    ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)]" : "ring-foreground/12"}
+                  `}
+                  style={{ position: "absolute", top: "50%", transform: "translateY(-50%)" }}
+                >
+                  <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/20"} flex items-center justify-center`}>
+                    <span className="text-[9px] font-medium text-primary-foreground">{noDateTasks.length}</span>
+                  </div>
+                </button>
+                <div className="absolute bottom-[-36px] left-1/2 -translate-x-1/2 flex flex-col items-center">
+                  <span className="text-sm font-semibold text-muted-foreground/30 leading-none">—</span>
+                  <span className="text-[9px] font-medium uppercase tracking-wider mt-0.5 text-muted-foreground/25">s/d</span>
+                </div>
+              </div>
+              <div style={{ height: 100 }} />
+            </div>
+          )}
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      </div>
 
       {/* ─── Expanded Task Panel for selected date ─── */}
       <AnimatePresence mode="wait">
         {selectedDate && (
           <motion.div
             key={selectedDate}
-            initial={{ opacity: 0, y: 12, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -8, scale: 0.98 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="overflow-hidden"
           >
@@ -596,23 +614,23 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                         {new Date(selectedDate + "T12:00:00").getDate()}
                       </span>
                       <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase text-muted-foreground/60 tracking-wider leading-none">
+                        <span className="text-xs font-medium uppercase text-muted-foreground/60 tracking-wider leading-none">
                           {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long" })}
                         </span>
-                        <span className="text-[9px] text-muted-foreground/40 capitalize">
+                        <span className="text-[10px] text-muted-foreground/40 capitalize">
                           {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { month: "long" })}
                         </span>
                       </div>
                     </div>
                   )}
                   {selectedDate === "__no_date__" && (
-                    <span className="text-sm font-bold text-foreground">Tarefas sem prazo</span>
+                    <span className="text-sm font-medium text-foreground">Tarefas sem prazo</span>
                   )}
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-medium">
                     {selectedTasks.length} tarefa{selectedTasks.length !== 1 ? "s" : ""}
                   </span>
                   {selectedDate !== "__no_date__" && isOverdue(selectedDate) && selectedTasks.some(t => t.status !== "concluida") && (
-                    <span className="flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-bold">
+                    <span className="flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-400 font-medium">
                       <Flame className="w-2.5 h-2.5" /> Atrasado
                     </span>
                   )}
@@ -625,7 +643,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               {selectedTasks.length === 0 ? (
                 <div className="text-center py-8">
                   <Clock className="w-6 h-6 text-muted-foreground/20 mx-auto mb-2" />
-                  <p className="text-xs text-muted-foreground/40">
+                  <p className="text-sm text-muted-foreground/40">
                     {searchQuery ? "Nenhuma tarefa encontrada" : "Nenhuma tarefa nesta data"}
                   </p>
                 </div>
@@ -653,16 +671,16 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                         >
                           <div className={`w-1 h-8 rounded-full flex-shrink-0 ${prioridadeDot[tarefa.prioridade]}`} />
                           <div className="flex-1 min-w-0">
-                            <p className={`text-xs font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                            <p className={`text-sm font-medium truncate ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground"}`}>
                               {tarefa.titulo}
                             </p>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[10px] text-muted-foreground/60 flex items-center gap-0.5 truncate">
+                              <span className="text-xs text-muted-foreground/60 flex items-center gap-0.5 truncate">
                                 <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
                                 {getEmpresaNome(tarefa.empresaId)}
                               </span>
                               {tarefa.arquivos && tarefa.arquivos.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground/50 flex items-center gap-0.5">
+                                <span className="text-xs text-muted-foreground/50 flex items-center gap-0.5">
                                   <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
                                 </span>
                               )}
