@@ -142,9 +142,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
       const icmsSTUn = quantidade > 0 ? icmsST / quantidade : 0;
       const saldoAnterior = saldosAnteriores[guia.id] ?? 0;
 
-      const saldoAtual = saldosEditadosManualmente.has(guia.id)
-        ? quantidade - saldoAnterior
-        : (saldoAnterior > 0 ? saldoAnterior : quantidade);
+      const saldoAtual = saldoAnterior > 0 ? quantidade - saldoAnterior : quantidade;
 
       return {
         guia,
