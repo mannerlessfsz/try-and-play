@@ -27,6 +27,14 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
   if (layout === "vertical") {
     return (
       <div className="space-y-4">
+        {/* Header label */}
+        <div className="flex items-center gap-2 px-1">
+          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_hsl(var(--primary)/0.4)]">
+            <TrendingUp className="w-3 h-3 text-primary-foreground" />
+          </div>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Métricas</span>
+        </div>
+
         {/* Radial completion ring - larger */}
         <div className="flex justify-center py-2">
           <div className="relative">
@@ -71,14 +79,24 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 transition={{ delay: i * 0.06 }}
                 onClick={() => onFilterClick(seg.id)}
                 className={`
-                  w-full flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all
+                  w-full flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-300 relative overflow-hidden group/seg
                   ${isActive ? `ring-1 ${seg.activeClass}` : "hover:bg-foreground/5"}
                 `}
+                style={isActive ? {
+                  boxShadow: `0 0 20px ${seg.color.replace(')', ' / 0.15)').replace('hsl(', 'hsl(')}`,
+                } : undefined}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${seg.bgClass}`}>
+                {/* Ambient glow on hover */}
+                <div 
+                  className="absolute -right-4 -top-4 w-16 h-16 rounded-full opacity-0 group-hover/seg:opacity-100 transition-opacity duration-500 blur-2xl pointer-events-none"
+                  style={{ background: seg.color }}
+                />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${seg.bgClass} border transition-all duration-300 relative z-10`}
+                  style={{ borderColor: `${seg.color.replace(')', ' / 0.25)').replace('hsl(', 'hsl(')}` }}
+                >
                   <Icon className={`w-4 h-4 ${seg.textClass}`} />
                 </div>
-                <div className="text-left min-w-0 flex-1">
+                <div className="text-left min-w-0 flex-1 relative z-10">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{seg.label}</p>
                   <div className="flex items-baseline gap-1.5">
                     <motion.p
@@ -93,7 +111,7 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                   </div>
                 </div>
                 {/* Progress bar */}
-                <div className="w-10 h-1.5 bg-foreground/5 rounded-full overflow-hidden flex-shrink-0">
+                <div className="w-10 h-1.5 bg-foreground/5 rounded-full overflow-hidden flex-shrink-0 relative z-10">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: total > 0 ? `${pct}%` : "0%" }}
