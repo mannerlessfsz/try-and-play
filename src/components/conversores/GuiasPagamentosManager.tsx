@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { CreditCard, Trash2, Upload, Download, Search, RefreshCw } from "lucide-react";
+import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
   const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
   // Auto-sync from Notas ST when component mounts and there are notas but no guias
@@ -274,7 +275,9 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((guia, idx) => (
+                  filtered.map((guia, idx) => {
+                    const isEditing = editingRowId === guia.id;
+                    return (
                     <TableRow key={guia.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
                       <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                         {idx + 1}
@@ -286,7 +289,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                             col.type === "currency" ? "text-right font-mono" : ""
                           }`}
                         >
-                          {(col as any).editable ? (
+                          {isEditing && (col as any).editable ? (
                             <Input
                               className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[80px]"
                               defaultValue={guia[col.key] ?? ""}
@@ -302,22 +305,34 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                               }}
                             />
                           ) : (
-                            formatCell(guia, col)
+                            <span>{formatCell(guia, col)}</span>
                           )}
                         </TableCell>
                       ))}
                       <TableCell className="px-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteGuia.mutate(guia.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-6 w-6 p-0 ${isEditing ? "text-green-500 hover:text-green-600" : "text-muted-foreground hover:text-primary"}`}
+                            onClick={() => setEditingRowId(isEditing ? null : guia.id)}
+                            title={isEditing ? "Confirmar" : "Editar"}
+                          >
+                            {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteGuia.mutate(guia.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
