@@ -183,8 +183,61 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
       // Detect header row
       const headerRow = rows[0].map(normalizeKey);
       
+      // Smart value parser: handles both BR (1.234,56) and US (1,234.56) formats
+      const parseSmartCurrency = (v: string): number => {
+        let s = String(v).replace(/[R$\s]/g, "").trim();
+        if (!s) return 0;
+        const lastComma = s.lastIndexOf(",");
+        const lastDot = s.lastIndexOf(".");
+        if (lastDot > lastComma) {
+          // US format: 1,234.56
+          s = s.replace(/,/g, "");
+        } else if (lastComma > lastDot) {
+          // BR format: 1.234,56
+          s = s.replace(/\./g, "").replace(",", ".");
+        }
+        return parseFloat(s) || 0;
+      };
+
+      // Smart date parser: handles M/D/YY, MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD, Date objects
+      const parseSmartDate = (v: any): string | null => {
+        if (!v) return null;
+        // If it's already a Date object (from xlsx cellDates:true)
+        if (v instanceof Date && !isNaN(v.getTime())) {
+          const y = v.getFullYear();
+          const m = String(v.getMonth() + 1).padStart(2, "0");
+          const d = String(v.getDate()).padStart(2, "0");
+          return `${y}-${m}-${d}`;
+        }
+        const s = String(v).trim();
+        if (!s) return null;
+        // Already ISO
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10);
+        // Try dd/mm/yyyy
+        const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+        if (brMatch) {
+          let [, p1, p2, p3] = brMatch;
+          let year = p3.length === 2 ? (parseInt(p3) > 50 ? `19${p3}` : `20${p3}`) : p3;
+          // Heuristic: if p1 > 12, it's DD/MM; if p2 > 12, it's MM/DD; else assume M/D (US)
+          let month: string, day: string;
+          if (parseInt(p1) > 12) {
+            day = p1.padStart(2, "0");
+            month = p2.padStart(2, "0");
+          } else if (parseInt(p2) > 12) {
+            month = p1.padStart(2, "0");
+            day = p2.padStart(2, "0");
+          } else {
+            // Ambiguous — assume M/D/YY (US) since that's what the spreadsheet uses
+            month = p1.padStart(2, "0");
+            day = p2.padStart(2, "0");
+          }
+          return `${year}-${month}-${day}`;
+        }
+        return parseDateBR(s);
+      };
+
       // Map known column names to DB fields
-      const fieldMap: Record<string, { dbKey: string; transform?: (v: string) => any }> = {
+      const fieldMap: Record<string, { dbKey: string; transform?: (v: any) => any }> = {
         "numeronota": { dbKey: "numero_nota" },
         "nnota": { dbKey: "numero_nota" },
         "nfe": { dbKey: "numero_nota" },
@@ -193,22 +246,23 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         "nfiscal": { dbKey: "numero_nota" },
         "nnf": { dbKey: "numero_nota" },
         "numeronf": { dbKey: "numero_nota" },
-        "valorguia": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
-        "valor": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
-        "valorst": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
-        "datanota": { dbKey: "data_nota", transform: (v) => parseDateBR(v) },
-        "dataemissao": { dbKey: "data_nota", transform: (v) => parseDateBR(v) },
-        "datapagamento": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
-        "datapagto": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
-        "dtpagamento": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
+        "valorguia": { dbKey: "valor_guia", transform: parseSmartCurrency },
+        "valor": { dbKey: "valor_guia", transform: parseSmartCurrency },
+        "valorst": { dbKey: "valor_guia", transform: parseSmartCurrency },
+        "datanota": { dbKey: "data_nota", transform: parseSmartDate },
+        "datadanota": { dbKey: "data_nota", transform: parseSmartDate },
+        "dataemissao": { dbKey: "data_nota", transform: parseSmartDate },
+        "datapagamento": { dbKey: "data_pagamento", transform: parseSmartDate },
+        "datapagto": { dbKey: "data_pagamento", transform: parseSmartDate },
+        "dtpagamento": { dbKey: "data_pagamento", transform: parseSmartDate },
         "numerodocpagamento": { dbKey: "numero_doc_pagamento" },
+        "numerodocpag": { dbKey: "numero_doc_pagamento" },
         "docpagamento": { dbKey: "numero_doc_pagamento" },
         "ndocpagamento": { dbKey: "numero_doc_pagamento" },
         "ndoc": { dbKey: "numero_doc_pagamento" },
         "documento": { dbKey: "numero_doc_pagamento" },
         "codigobarras": { dbKey: "codigo_barras" },
         "codbarras": { dbKey: "codigo_barras" },
-        "codigoDebarras": { dbKey: "codigo_barras" },
         "barras": { dbKey: "codigo_barras" },
         "produto": { dbKey: "produto" },
         "descricao": { dbKey: "produto" },
@@ -224,11 +278,12 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         "observacao": { dbKey: "observacoes" },
       };
 
-      // Find column indices (first match wins per dbKey)
-      const colMapping: { idx: number; dbKey: string; transform?: (v: string) => any }[] = [];
+      // Find column indices — exact match, then "contains" fallback
+      const colMapping: { idx: number; dbKey: string; transform?: (v: any) => any }[] = [];
       let notaIdx = -1;
       const usedDbKeys = new Set<string>();
 
+      // Pass 1: exact match
       headerRow.forEach((h, i) => {
         const mapping = fieldMap[h];
         if (mapping && !usedDbKeys.has(mapping.dbKey)) {
@@ -238,10 +293,29 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         }
       });
 
+      // Pass 2: "contains" fallback for unmapped headers
+      if (notaIdx === -1 || usedDbKeys.size < Object.keys(fieldMap).length) {
+        headerRow.forEach((h, i) => {
+          if (colMapping.some((c) => c.idx === i)) return; // already mapped
+          for (const [key, mapping] of Object.entries(fieldMap)) {
+            if (usedDbKeys.has(mapping.dbKey)) continue;
+            if (h.includes(key) || key.includes(h)) {
+              usedDbKeys.add(mapping.dbKey);
+              colMapping.push({ idx: i, dbKey: mapping.dbKey, transform: mapping.transform });
+              if (mapping.dbKey === "numero_nota") notaIdx = i;
+              break;
+            }
+          }
+        });
+      }
+
       if (notaIdx === -1) {
-        toast({ title: "Coluna de nota não encontrada", description: "O arquivo precisa ter uma coluna 'Número Nota', 'NFE', 'Nota', 'N NF' ou similar.", variant: "destructive" });
+        toast({ title: "Coluna de nota não encontrada", description: "O arquivo precisa ter uma coluna 'Número Nota', 'NFE', 'Nota' ou similar.", variant: "destructive" });
         return;
       }
+
+      console.log("Import: colunas detectadas:", colMapping.map((c) => `${c.dbKey}[${c.idx}]`).join(", "));
+      console.log("Import: cabeçalhos originais:", rows[0]);
 
       // Build maps of existing guias by numero_nota (exact and numeric-normalized)
       const guiasMapExact = new Map(guias.map((g) => [g.numero_nota.trim(), g]));
