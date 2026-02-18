@@ -141,7 +141,7 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
 
   // Original horizontal layout
   return (
-    <div className="relative rounded-2xl border border-foreground/8 bg-card/40 backdrop-blur-xl overflow-hidden">
+    <div className="relative rounded-2xl border border-foreground/8 bg-card/80 overflow-hidden">
       {/* Subtle grid pattern */}
       <div className="absolute inset-0 opacity-[0.02] bg-[linear-gradient(rgba(255,255,255,.1)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.1)_1px,transparent_1px)] bg-[size:20px_20px]" />
 
