@@ -424,7 +424,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                             w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
                             ${selectedDate === dateStr
                               ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
-                              : "border-foreground/8 bg-card/60 backdrop-blur-sm hover:border-foreground/20 hover:bg-card/80 hover:shadow-md hover:shadow-foreground/5"
+                              : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
                             }
                           `}
                         >
@@ -521,7 +521,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                             w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
                             ${selectedDate === dateStr
                               ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
-                              : "border-foreground/8 bg-card/60 backdrop-blur-sm hover:border-foreground/20 hover:bg-card/80 hover:shadow-md hover:shadow-foreground/5"
+                              : "border-foreground/8 bg-card/80 hover:border-foreground/20 hover:bg-card hover:shadow-md hover:shadow-foreground/5"
                             }
                           `}
                         >
@@ -586,7 +586,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
             className="overflow-hidden"
           >
-            <div className="rounded-2xl border border-foreground/10 bg-card/30 backdrop-blur-md p-4">
+            <div className="rounded-2xl border border-foreground/10 bg-card/90 p-4">
               {/* Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">

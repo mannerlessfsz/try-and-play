@@ -47,7 +47,7 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
           : "border-foreground/6 bg-card/50 hover:border-primary/20"
         }
         ${tarefa.status === "concluida" ? "opacity-50" : ""}
-        backdrop-blur-xl transition-colors duration-200
+        transition-colors duration-200
       `}
       style={{
         boxShadow: tarefa.status !== "concluida" ? "0 2px 12px -4px rgba(0,0,0,0.3)" : "none"

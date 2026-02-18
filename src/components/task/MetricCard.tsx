@@ -87,7 +87,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
         whileTap={{ y: 0 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className={`
-          relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl
+          relative overflow-hidden rounded-2xl border bg-gradient-to-br
           will-change-transform
           ${isActive ? cfg.active : cfg.gradient}
           ${isActive ? cfg.glow : ""}

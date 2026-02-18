@@ -401,7 +401,7 @@ export default function TaskVault() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-40" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="min-h-screen bg-background pt-14 pb-40" style={{ fontFamily: "'Inter', sans-serif", WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" }}>
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
@@ -415,7 +415,7 @@ export default function TaskVault() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className="mb-5 glass rounded-2xl p-5 space-y-4 relative overflow-hidden group/frame"
+          className="mb-5 rounded-2xl border border-border/50 bg-card/80 p-5 space-y-4 relative overflow-hidden group/frame"
         >
           {/* Radial ambient glow */}
           <div 
@@ -522,7 +522,7 @@ export default function TaskVault() {
               exit={{ opacity: 0, height: 0 }}
               className="mb-4 overflow-hidden"
             >
-              <div className="bg-card/60 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl">
+              <div className="bg-card/90 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-3">
                 <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
                 <p className="text-sm text-foreground/80">
                   A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar entre modos.
@@ -606,7 +606,7 @@ export default function TaskVault() {
                                 transition={{ duration: 0.2 }}
                                 className="overflow-hidden"
                               >
-                                <div className="mt-1 rounded-xl border border-primary/20 bg-card/60 backdrop-blur-xl p-3">
+                                <div className="mt-1 rounded-xl border border-primary/20 bg-card/90 p-3">
                                   <ExpandedTaskCard
                                     tarefa={tarefa}
                                     empresaNome={getEmpresaNome(tarefa.empresaId)}
@@ -632,7 +632,7 @@ export default function TaskVault() {
                 );
               })
             ) : (
-              <div className={`bg-card/30 backdrop-blur-xl rounded-2xl border p-4 ${
+              <div className={`bg-card/80 rounded-2xl border p-4 ${
                 activeFilter === "em_andamento" ? "border-blue-500/20" : 
                 activeFilter === "concluida" ? "border-green-500/20" : 
                 "border-yellow-500/20"

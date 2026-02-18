@@ -109,7 +109,7 @@ export function ExpandedTaskCard({
   };
 
   return (
-    <div className="bg-card/60 backdrop-blur-xl rounded-lg border border-foreground/10 overflow-hidden hover:border-red-500/30 transition-all duration-200">
+    <div className="bg-card/90 rounded-lg border border-foreground/10 overflow-hidden hover:border-red-500/30 transition-all duration-200">
       {/* Header - Compact */}
       <div 
         className="px-3 py-2 cursor-pointer flex items-center gap-3"
