@@ -437,7 +437,6 @@ export default function TaskVault() {
           <div className="flex items-center gap-3 relative flex-wrap z-10">
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <motion.div 
-                whileHover={{ scale: 1.1 }}
                 className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
               >
                 <ListTodo className="w-4 h-4 text-primary-foreground" />
@@ -459,8 +458,8 @@ export default function TaskVault() {
 
             {activeFilter !== "all" && (
               <motion.div 
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className="flex items-center gap-1.5"
               >
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.2)]">

@@ -33,11 +33,10 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
       layout
       initial={{ opacity: 0, x: -20, rotateZ: -1 }}
       animate={{ opacity: 1, x: 0, rotateZ: 0 }}
-      exit={{ opacity: 0, scale: 0.9, rotateZ: 2 }}
+      exit={{ opacity: 0, rotateZ: 2 }}
       transition={{ type: "spring", stiffness: 400, damping: 30, delay: index * 0.04 }}
       whileHover={{ 
         y: -4, 
-        scale: 1.02,
         rotateZ: 0.5,
         transition: { type: "spring", stiffness: 600, damping: 20 }
       }}
