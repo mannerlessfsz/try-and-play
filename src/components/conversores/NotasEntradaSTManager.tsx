@@ -986,6 +986,9 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
 
                 {/* Body - grid de campos */}
                 <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-2.5">
+                  {renderField("Cód. Fornecedor", "cod_fornecedor")}
+                  {renderField("Série", "serie")}
+                  {renderField("Subsérie", "subserie")}
                   {renderField("NCM", "ncm")}
                   {renderField("Quantidade", "quantidade", "number")}
                   {renderField("Valor Produto", "valor_produto", "currency")}
