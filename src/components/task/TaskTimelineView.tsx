@@ -363,195 +363,213 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
       </div>
 
-      {/* ─── Horizontal Timeline Strip — ALL days visible ─── */}
+      {/* ─── Vertical Bar Timeline ─── */}
       <ScrollArea className="w-full">
-        <div className="relative px-2 pb-6 pt-1 min-w-max">
-          {/* ── SVG Gradient Rail — smooth urgency color blending ── */}
-          <svg className="absolute left-0 right-0 top-[58px] h-[6px] w-full overflow-visible" style={{ minWidth: days.length * (viewMode === "week" ? 100 : 56) }}>
-            <defs>
-              <linearGradient id="urgencyRailGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                {days.map((dateStr, i) => {
-                  const urgency = getUrgencyData(dateStr, tasksByDate);
-                  const pct = (i / Math.max(days.length - 1, 1)) * 100;
-                  return <stop key={dateStr} offset={`${pct}%`} stopColor={urgency.color} />;
-                })}
-              </linearGradient>
-              <filter id="railGlow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            {/* Background track */}
-            <rect x="0" y="1" width="100%" height="4" rx="2" fill="currentColor" className="text-foreground/[0.04]" />
-            {/* Gradient rail */}
-            <rect x="0" y="0.5" width="100%" height="5" rx="2.5" fill="url(#urgencyRailGrad)" filter="url(#railGlow)" opacity="0.9" />
-            {/* Shimmer overlay */}
-            <motion.rect
-              x="-120" y="0" width="120" height="6" rx="3"
-              fill="url(#shimmerGrad)" opacity="0.5"
-              animate={{ x: ["-120", `${days.length * (viewMode === "week" ? 100 : 56) + 120}`] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
-            />
-            <defs>
-              <linearGradient id="shimmerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="white" stopOpacity="0" />
-                <stop offset="50%" stopColor="white" stopOpacity="0.15" />
-                <stop offset="100%" stopColor="white" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-          </svg>
+        <div className="relative min-w-max" style={{ paddingTop: 120, paddingBottom: 120 }}>
+          {/* Central horizontal axis line */}
+          <div
+            className="absolute left-0 right-0 h-[3px] rounded-full"
+            style={{ top: "50%", transform: "translateY(-50%)", background: "linear-gradient(90deg, transparent 0%, hsl(var(--foreground) / 0.12) 5%, hsl(var(--foreground) / 0.12) 95%, transparent 100%)" }}
+          />
 
-          <div className="flex items-start relative">
+          <div className="flex items-center relative">
             {days.map((dateStr, dayIdx) => {
               const style = getNodeStyle(dateStr);
               const urgency = getUrgencyData(dateStr, tasksByDate);
-              const hasIncomplete = style.count > 0 && !style.allDone;
+              const tasks = tasksByDate[dateStr] || [];
+              const isTop = dayIdx % 2 === 0; // Alternate top/bottom
               const isWeekStart = new Date(dateStr + "T12:00:00").getDay() === 0;
-              const colW = viewMode === "week" ? "calc(100% / 7)" : 56;
-              const minW = viewMode === "week" ? 100 : 56;
+              const colW = viewMode === "week" ? 140 : 72;
+
+              // Vertical bar color based on urgency
+              const barColors: Record<string, string> = {
+                overdue: "from-red-500 to-red-600",
+                critical: "from-amber-400 to-amber-500",
+                warning: "from-green-400 to-green-500",
+                safe: "from-blue-400 to-blue-500",
+                none: style.count > 0 && style.allDone ? "from-green-400 to-green-500" : "from-foreground/15 to-foreground/10",
+              };
+              const barColor = barColors[urgency.level] || barColors.none;
+
+              // Icon for the node
+              const nodeIcon = style.count === 0 ? null
+                : style.allDone ? <CheckCircle2 className="w-3.5 h-3.5" />
+                : urgency.level === "overdue" ? <Flame className="w-3.5 h-3.5" />
+                : style.hasInProgress ? <Timer className="w-3.5 h-3.5" />
+                : <FileText className="w-3.5 h-3.5" />;
 
               return (
-                <div key={dateStr} className="relative flex flex-col items-center group/day" style={{ width: colW, minWidth: minW, flexShrink: 0 }}>
+                <div
+                  key={dateStr}
+                  className="relative flex flex-col items-center"
+                  style={{ width: colW, minWidth: colW, flexShrink: 0, height: 240 }}
+                >
                   {/* Week separator */}
                   {isWeekStart && dayIdx > 0 && viewMode === "month" && (
-                    <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/[0.06]" />
+                    <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/[0.06] z-10" />
                   )}
 
-                  {/* Weekday label */}
-                  <span className={`text-[9px] leading-none mb-1 font-semibold uppercase tracking-wider ${style.textColor} transition-colors`}>
-                    {formatWeekday(dateStr)}
-                  </span>
-
-                  {/* Day number */}
-                  <motion.span
-                    className={`text-sm font-black leading-none mb-3 tabular-nums transition-colors ${style.numColor}`}
-                    whileHover={{ scale: 1.15 }}
-                  >
-                    {formatDay(dateStr)}
-                  </motion.span>
-
-                  {/* ── Node ── */}
-                  <div className="relative flex items-center justify-center" style={{ width: 40, height: 40 }}>
-                    {/* Completion ring */}
-                    {style.count > 0 && (
-                      <CompletionRing rate={style.completionRate} size={40} stroke={2.5} urgencyHue={urgency.hue || undefined} />
+                  {/* ── Top section (card or empty) ── */}
+                  <div className="flex flex-col items-center justify-end" style={{ height: 100, position: "relative" }}>
+                    {isTop && style.count > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
+                        className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
+                      >
+                        <button
+                          onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                          className={`
+                            w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
+                            ${selectedDate === dateStr
+                              ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
+                              : "border-foreground/8 bg-card/60 backdrop-blur-sm hover:border-foreground/20 hover:bg-card/80 hover:shadow-md hover:shadow-foreground/5"
+                            }
+                          `}
+                        >
+                          {/* Task preview lines */}
+                          {tasks.slice(0, 2).map((t, ti) => (
+                            <div key={t.id} className="flex items-center gap-1 mb-0.5">
+                              <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
+                              <span className={`text-[8px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
+                                {t.titulo}
+                              </span>
+                            </div>
+                          ))}
+                          {tasks.length > 2 && (
+                            <span className="text-[7px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
+                          )}
+                        </button>
+                      </motion.div>
                     )}
+                  </div>
 
-                    {/* Glow backdrop for active nodes */}
-                    {style.count > 0 && urgency.hue && (
-                      <div
-                        className="absolute inset-[-6px] rounded-full blur-md opacity-20 transition-opacity duration-500"
-                        style={{ backgroundColor: urgency.hue }}
-                      />
-                    )}
+                  {/* ── Central node area (axis crossing) ── */}
+                  <div className="relative flex flex-col items-center" style={{ height: 40 }}>
+                    {/* Vertical bar */}
+                    <div
+                      className={`absolute left-1/2 -translate-x-1/2 w-[3px] rounded-full bg-gradient-to-b ${barColor} transition-all duration-500`}
+                      style={{
+                        height: style.count > 0 ? (isTop ? 28 : 28) : 10,
+                        top: isTop ? -28 : "auto",
+                        bottom: !isTop ? -28 : "auto",
+                      }}
+                    />
 
+                    {/* Node circle on axis */}
                     <motion.button
                       ref={style.today ? todayRef : undefined}
                       onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
                       whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={{ scale: 0.9 }}
                       className={`
-                        relative z-10 rounded-full ring-2 transition-all duration-300 cursor-pointer
-                        ${style.ring} ${style.glow}
-                        ${selectedDate === dateStr ? "scale-[1.25]" : ""}
-                        ${style.count > 0 ? "w-[18px] h-[18px]" : "w-2 h-2"}
+                        relative z-20 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer
+                        ${style.count > 0 ? "w-8 h-8" : "w-4 h-4"}
+                        ${selectedDate === dateStr
+                          ? "ring-2 ring-primary/60 shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
+                          : style.count > 0 ? `ring-2 ${style.ring}` : "ring-1 ring-foreground/10"
+                        }
+                        ${style.glow}
                       `}
+                      style={{
+                        position: "absolute",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        ...(style.count > 0 && urgency.hue ? {
+                          boxShadow: `0 0 12px ${urgency.hue}33, 0 0 24px ${urgency.hue}15`,
+                        } : {}),
+                      }}
                     >
-                      <div className={`w-full h-full rounded-full ${style.bg} transition-colors duration-300`} />
-                      {/* Ping for incomplete */}
-                      {hasIncomplete && selectedDate !== dateStr && (
-                        <span className={`absolute inset-[-4px] rounded-full ${style.bg} animate-ping opacity-15`} />
-                      )}
+                      <div className={`w-full h-full rounded-full ${style.bg} flex items-center justify-center text-primary-foreground transition-colors duration-300`}>
+                        {nodeIcon}
+                      </div>
                       {/* Today beacon */}
                       {style.today && selectedDate !== dateStr && (
                         <>
-                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary animate-pulse border-2 border-background" />
-                          <span className="absolute inset-[-6px] rounded-full border border-primary/30 animate-pulse" />
+                          <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse border border-background" />
+                          <span className="absolute inset-[-4px] rounded-full border border-primary/30 animate-pulse" />
                         </>
                       )}
                     </motion.button>
-                  </div>
 
-                  {/* ── Below-node info ── */}
-                  <div className="flex flex-col items-center mt-1.5 min-h-[24px]">
-                    {style.count > 0 ? (
-                      <>
-                        {/* Urgency countdown badge */}
-                        {urgency.level !== "none" && (
-                          <motion.span
-                            initial={{ opacity: 0, y: 4 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className={`
-                              text-[8px] font-bold px-1.5 py-0.5 rounded-full mb-0.5 leading-none
-                              ${urgency.level === "overdue" ? "bg-red-500/20 text-red-400" :
-                                urgency.level === "critical" ? "bg-amber-500/15 text-amber-400" :
-                                urgency.level === "warning" ? "bg-green-500/15 text-green-400" :
-                                "bg-blue-500/15 text-blue-400"}
-                            `}
-                          >
-                            {urgency.label}
-                          </motion.span>
-                        )}
-                        {/* Task count */}
-                        <span className={`text-[9px] font-bold ${style.numColor} tabular-nums`}>
-                          {style.count}
-                        </span>
-                        {/* Priority dots */}
-                        <div className="flex gap-[2px] mt-0.5">
-                          {(tasksByDate[dateStr] || []).slice(0, 5).map((t, ti) => (
-                            <div key={ti} className={`w-1 h-1 rounded-full ${prioridadeDot[t.prioridade]}`} />
-                          ))}
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-
-                  {/* Hover tooltip for quick preview */}
-                  {style.count > 0 && (
-                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 opacity-0 group-hover/day:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
-                      <div className="bg-card/95 backdrop-blur-xl border border-foreground/10 rounded-lg px-2.5 py-1.5 shadow-xl min-w-[120px] max-w-[180px]">
-                        {(tasksByDate[dateStr] || []).slice(0, 3).map(t => (
-                          <div key={t.id} className="flex items-center gap-1.5 py-0.5">
-                            <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
-                            <span className={`text-[9px] truncate ${t.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground/80"}`}>
-                              {t.titulo}
-                            </span>
-                          </div>
-                        ))}
-                        {(tasksByDate[dateStr]?.length || 0) > 3 && (
-                          <p className="text-[8px] text-muted-foreground/40 mt-0.5">+{(tasksByDate[dateStr]?.length || 0) - 3} mais</p>
-                        )}
-                      </div>
+                    {/* Date label — positioned on opposite side of card */}
+                    <div
+                      className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
+                      style={{ [isTop ? "bottom" : "top"]: -36 }}
+                    >
+                      <span className={`text-sm font-black tabular-nums leading-none ${selectedDate === dateStr ? "text-primary" : style.numColor} transition-colors`}>
+                        {formatDay(dateStr)}
+                      </span>
+                      <span className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 ${style.textColor} transition-colors`}>
+                        {formatWeekday(dateStr)}
+                      </span>
                     </div>
-                  )}
+                  </div>
+
+                  {/* ── Bottom section (card or empty) ── */}
+                  <div className="flex flex-col items-center justify-start" style={{ height: 100, position: "relative" }}>
+                    {!isTop && style.count > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: dayIdx * 0.02, duration: 0.3 }}
+                        className="absolute top-0 left-1/2 -translate-x-1/2 w-[calc(100%-8px)]"
+                      >
+                        <button
+                          onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                          className={`
+                            w-full rounded-lg border p-2 text-left transition-all duration-200 group/card cursor-pointer
+                            ${selectedDate === dateStr
+                              ? "border-primary/40 bg-primary/10 shadow-lg shadow-primary/10"
+                              : "border-foreground/8 bg-card/60 backdrop-blur-sm hover:border-foreground/20 hover:bg-card/80 hover:shadow-md hover:shadow-foreground/5"
+                            }
+                          `}
+                        >
+                          {tasks.slice(0, 2).map((t, ti) => (
+                            <div key={t.id} className="flex items-center gap-1 mb-0.5">
+                              <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
+                              <span className={`text-[8px] leading-tight truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/70"}`}>
+                                {t.titulo}
+                              </span>
+                            </div>
+                          ))}
+                          {tasks.length > 2 && (
+                            <span className="text-[7px] text-muted-foreground/40">+{tasks.length - 2} mais</span>
+                          )}
+                        </button>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               );
             })}
 
             {/* No-date node */}
             {noDateTasks.length > 0 && (
-              <div className="flex flex-col items-center group/day" style={{ width: 56, minWidth: 56, flexShrink: 0 }}>
-                <span className="text-[9px] leading-none mb-1 text-muted-foreground/25 font-semibold uppercase tracking-wider">s/d</span>
-                <span className="text-sm font-black leading-none mb-3 text-muted-foreground/30 tabular-nums">—</span>
-                <div className="relative flex items-center justify-center" style={{ width: 40, height: 40 }}>
+              <div className="relative flex flex-col items-center" style={{ width: 72, minWidth: 72, flexShrink: 0, height: 240 }}>
+                <div style={{ height: 100 }} />
+                <div className="relative flex flex-col items-center" style={{ height: 40 }}>
                   <motion.button
                     onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
                     whileHover={{ scale: 1.15 }}
                     whileTap={{ scale: 0.95 }}
                     className={`
-                      relative z-10 w-4 h-4 rounded-full ring-2 transition-all duration-300 cursor-pointer
-                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)] scale-[1.25]" : "ring-foreground/12"}
+                      relative z-20 w-6 h-6 rounded-full ring-2 transition-all duration-300 cursor-pointer flex items-center justify-center
+                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)]" : "ring-foreground/12"}
                     `}
+                    style={{ position: "absolute", top: "50%", transform: "translateY(-50%)" }}
                   >
-                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/20"}`} />
+                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/20"} flex items-center justify-center`}>
+                      <span className="text-[8px] font-bold text-primary-foreground">{noDateTasks.length}</span>
+                    </div>
                   </motion.button>
+                  <div className="absolute bottom-[-36px] left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <span className="text-sm font-black text-muted-foreground/30 leading-none">—</span>
+                    <span className="text-[8px] font-semibold uppercase tracking-wider mt-0.5 text-muted-foreground/25">s/d</span>
+                  </div>
                 </div>
-                <span className={`mt-1.5 text-[9px] font-bold tabular-nums ${selectedDate === "__no_date__" ? "text-primary" : "text-muted-foreground/35"}`}>
-                  {noDateTasks.length}
-                </span>
+                <div style={{ height: 100 }} />
               </div>
             )}
           </div>
