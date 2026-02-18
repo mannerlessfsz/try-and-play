@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AjustaSpedTab } from "./AjustaSpedTab";
 import { NotasEntradaSTManager } from "./NotasEntradaSTManager";
+import { GuiasPagamentosManager } from "./GuiasPagamentosManager";
 
 type AjustaSpedView = "home" | "notas_entrada" | "guias_pagamentos" | "control_cred" | "ajusta_sped";
 
@@ -28,7 +29,7 @@ const subModules = [
     description: "Registro das guias de pagamento (DARJ/GNRE) vinculadas às notas de entrada ST — autenticações e valores pagos",
     color: "hsl(var(--blue))",
     step: 2,
-    status: "novo" as const,
+    status: "ativo" as const,
   },
   {
     id: "control_cred" as const,
@@ -255,9 +256,7 @@ export function AjustaSpedHome() {
           {activeView === "ajusta_sped" && <AjustaSpedTab />}
           
           {activeView === "notas_entrada" && <NotasEntradaSTManager />}
-          {activeView === "guias_pagamentos" && (
-            <PlaceholderCard title="Guias Pagamentos" icon={CreditCard} color="hsl(var(--blue))" />
-          )}
+          {activeView === "guias_pagamentos" && <GuiasPagamentosManager />}
           {activeView === "control_cred" && (
             <PlaceholderCard title="ControlCredICMSST" icon={BarChart3} color="hsl(270 80% 60%)" />
           )}

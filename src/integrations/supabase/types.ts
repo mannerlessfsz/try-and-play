@@ -1749,6 +1749,65 @@ export type Database = {
           },
         ]
       }
+      guias_pagamentos: {
+        Row: {
+          codigo_barras: string | null
+          created_at: string
+          credito_icms_proprio: string | null
+          credito_icms_st: string | null
+          data_nota: string | null
+          data_pagamento: string | null
+          empresa_id: string
+          id: string
+          numero_doc_pagamento: string | null
+          numero_nota: string
+          observacoes: string | null
+          produto: string | null
+          updated_at: string
+          valor_guia: number
+        }
+        Insert: {
+          codigo_barras?: string | null
+          created_at?: string
+          credito_icms_proprio?: string | null
+          credito_icms_st?: string | null
+          data_nota?: string | null
+          data_pagamento?: string | null
+          empresa_id: string
+          id?: string
+          numero_doc_pagamento?: string | null
+          numero_nota: string
+          observacoes?: string | null
+          produto?: string | null
+          updated_at?: string
+          valor_guia?: number
+        }
+        Update: {
+          codigo_barras?: string | null
+          created_at?: string
+          credito_icms_proprio?: string | null
+          credito_icms_st?: string | null
+          data_nota?: string | null
+          data_pagamento?: string | null
+          empresa_id?: string
+          id?: string
+          numero_doc_pagamento?: string | null
+          numero_nota?: string
+          observacoes?: string | null
+          produto?: string | null
+          updated_at?: string
+          valor_guia?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guias_pagamentos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       importacoes_extrato: {
         Row: {
           conta_bancaria_id: string
