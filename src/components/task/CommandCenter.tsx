@@ -32,7 +32,7 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
           <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_12px_hsl(var(--primary)/0.4)]">
             <TrendingUp className="w-3 h-3 text-primary-foreground" />
           </div>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Métricas</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Métricas</span>
         </div>
 
         {/* Radial completion ring - larger */}
@@ -56,11 +56,11 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 key={completionRate}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="text-xl font-bold text-foreground tabular-nums leading-none"
+                className="text-2xl font-bold text-foreground tabular-nums leading-none"
               >
                 {completionRate}%
               </motion.span>
-              <span className="text-[8px] text-muted-foreground uppercase tracking-wider mt-1">concluído</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">concluído</span>
             </div>
           </div>
         </div>
@@ -97,14 +97,14 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                   <Icon className={`w-4 h-4 ${seg.textClass}`} />
                 </div>
                 <div className="text-left min-w-0 flex-1 relative z-10">
-                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{seg.label}</p>
+                  <p className="text-xs text-muted-foreground leading-none mb-0.5">{seg.label}</p>
                   <div className="flex items-baseline gap-1.5">
                     <p
-                      className="text-lg font-bold text-foreground tabular-nums leading-tight"
+                      className="text-xl font-bold text-foreground tabular-nums leading-tight"
                     >
                       {seg.value}
                     </p>
-                    <span className="text-[9px] text-muted-foreground/60">{pct}%</span>
+                    <span className="text-[11px] text-muted-foreground/60">{pct}%</span>
                   </div>
                 </div>
                 {/* Progress bar */}
@@ -166,11 +166,11 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
               key={completionRate}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="text-lg font-bold text-foreground tabular-nums leading-none"
+              className="text-xl font-bold text-foreground tabular-nums leading-none"
             >
               {completionRate}%
             </motion.span>
-            <span className="text-[8px] text-muted-foreground uppercase tracking-wider mt-0.5">concluído</span>
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">concluído</span>
           </div>
         </div>
 
@@ -196,8 +196,8 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                   <Icon className={`w-4 h-4 ${seg.textClass}`} />
                 </div>
                 <div className="text-left min-w-0">
-                  <p className="text-[10px] text-muted-foreground leading-none">{seg.label}</p>
-                  <p className="text-xl font-bold text-foreground tabular-nums leading-tight">
+                  <p className="text-xs text-muted-foreground leading-none">{seg.label}</p>
+                  <p className="text-2xl font-bold text-foreground tabular-nums leading-tight">
                     {seg.value}
                   </p>
                 </div>

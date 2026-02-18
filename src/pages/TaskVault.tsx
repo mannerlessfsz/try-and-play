@@ -442,15 +442,15 @@ export default function TaskVault() {
                 <ListTodo className="w-4 h-4 text-primary-foreground" />
               </motion.div>
               <div>
-                <h2 className="text-sm font-bold text-foreground leading-tight">Tarefas</h2>
-                <p className="text-[10px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
+                <h2 className="text-base font-bold text-foreground leading-tight">Tarefas</h2>
+                <p className="text-xs text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
 
             <select 
               value={selectedEmpresaId}
               onChange={(e) => setSelectedEmpresaId(e.target.value)}
-              className="bg-background/50 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-xs text-foreground/80"
+              className="bg-background/50 border border-foreground/10 rounded-lg px-2.5 py-1.5 text-sm text-foreground/80"
             >
               <option value="all">Todas Empresas</option>
               {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
@@ -462,7 +462,7 @@ export default function TaskVault() {
                 animate={{ opacity: 1 }}
                 className="flex items-center gap-1.5"
               >
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.2)]">
+                <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.2)]">
                   {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
                 </span>
                 <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">✕</button>
@@ -482,7 +482,7 @@ export default function TaskVault() {
                     key={mode} 
                     onClick={() => handleSetViewMode(mode)} 
                     title={`${label} (${shortcut})`}
-                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-sm font-medium ${viewMode === mode ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
                   >
                     {viewMode === mode && (
                       <motion.div
@@ -524,7 +524,7 @@ export default function TaskVault() {
             >
               <div className="bg-card/60 border border-primary/20 rounded-xl px-4 py-2.5 flex items-center gap-3 backdrop-blur-xl">
                 <GanttChart className="w-4 h-4 text-primary flex-shrink-0" />
-                <p className="text-xs text-foreground/80">
+                <p className="text-sm text-foreground/80">
                   A <strong className="text-primary">Timeline</strong> é a visualização padrão. Use <kbd className="px-1 py-0.5 rounded bg-foreground/10 text-[10px] font-mono">Ctrl+1/2/3</kbd> para alternar entre modos.
                 </p>
                 <button onClick={dismissOnboardTip} className="ml-auto text-muted-foreground hover:text-foreground text-xs flex-shrink-0">✕</button>
