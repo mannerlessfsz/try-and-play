@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2, SearchCheck, ChevronDown, ChevronUp, List } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -161,6 +161,47 @@ export function NotasEntradaSTManager() {
   const [selectedCompetencia, setSelectedCompetencia] = useState<string>("todas");
   const [showAllRecords, setShowAllRecords] = useState(false);
   const [allRecordsPage, setAllRecordsPage] = useState(0);
+
+  // Drag-to-scroll logic for horizontal table navigation
+  const useDragScroll = () => {
+    const ref = useRef<HTMLDivElement>(null);
+    const isDragging = useRef(false);
+    const startX = useRef(0);
+    const scrollLeft = useRef(0);
+
+    const onMouseDown = useCallback((e: React.MouseEvent) => {
+      const el = ref.current;
+      if (!el) return;
+      isDragging.current = true;
+      startX.current = e.pageX - el.offsetLeft;
+      scrollLeft.current = el.scrollLeft;
+      el.style.cursor = "grabbing";
+      el.style.userSelect = "none";
+    }, []);
+
+    const onMouseMove = useCallback((e: React.MouseEvent) => {
+      if (!isDragging.current) return;
+      e.preventDefault();
+      const el = ref.current;
+      if (!el) return;
+      const x = e.pageX - el.offsetLeft;
+      el.scrollLeft = scrollLeft.current - (x - startX.current);
+    }, []);
+
+    const onMouseUp = useCallback(() => {
+      isDragging.current = false;
+      const el = ref.current;
+      if (el) {
+        el.style.cursor = "grab";
+        el.style.userSelect = "";
+      }
+    }, []);
+
+    return { ref, onMouseDown, onMouseMove, onMouseUp, onMouseLeave: onMouseUp };
+  };
+
+  const filteredScrollProps = useDragScroll();
+  const allRecordsScrollProps = useDragScroll();
 
   // Extract unique competências
   const competencias = useMemo(() => {
@@ -908,7 +949,7 @@ export function NotasEntradaSTManager() {
             </Badge>
           )}
         </div>
-        <div className="overflow-x-auto cursor-grab active:cursor-grabbing scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
+        <div ref={filteredScrollProps.ref} onMouseDown={filteredScrollProps.onMouseDown} onMouseMove={filteredScrollProps.onMouseMove} onMouseUp={filteredScrollProps.onMouseUp} onMouseLeave={filteredScrollProps.onMouseLeave} className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           <div className="min-w-[1800px]">
             <Table>
               <TableHeader>
@@ -995,7 +1036,7 @@ export function NotasEntradaSTManager() {
 
           {showAllRecords && (
             <>
-              <div className="overflow-x-auto cursor-grab active:cursor-grabbing scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent border-t border-border/30">
+              <div ref={allRecordsScrollProps.ref} onMouseDown={allRecordsScrollProps.onMouseDown} onMouseMove={allRecordsScrollProps.onMouseMove} onMouseUp={allRecordsScrollProps.onMouseUp} onMouseLeave={allRecordsScrollProps.onMouseLeave} className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent border-t border-border/30">
                 <div className="min-w-[1800px]">
                   <Table>
                     <TableHeader>
