@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check } from "lucide-react";
+import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check, FileSpreadsheet } from "lucide-react";
+import { readExcelFile, normalizeKey } from "@/utils/fileParserUtils";
 import { ViewModeSelector, type ViewMode } from "./ViewModeSelector";
 import { GuiasCompactCards, GuiasAccordionCards, GuiasGridCards } from "./GuiasViewCards";
 import { motion } from "framer-motion";
@@ -161,6 +162,114 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
     }
   };
 
+  // Import XLSM/XLSX to fill missing fields only
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !empresaId) return;
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+
+    setIsImporting(true);
+    try {
+      const rows = await readExcelFile(file);
+      if (rows.length < 2) {
+        toast({ title: "Arquivo vazio", description: "Nenhuma linha de dados encontrada.", variant: "destructive" });
+        return;
+      }
+
+      // Detect header row
+      const headerRow = rows[0].map(normalizeKey);
+      
+      // Map known column names to DB fields
+      const fieldMap: Record<string, { dbKey: string; transform?: (v: string) => any }> = {
+        "numeronota": { dbKey: "numero_nota" },
+        "nfe": { dbKey: "numero_nota" },
+        "nota": { dbKey: "numero_nota" },
+        "valorguia": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
+        "valor": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
+        "datanota": { dbKey: "data_nota", transform: (v) => parseDateBR(v) },
+        "datapagamento": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
+        "numerodocpagamento": { dbKey: "numero_doc_pagamento" },
+        "docpagamento": { dbKey: "numero_doc_pagamento" },
+        "codigobarras": { dbKey: "codigo_barras" },
+        "codbarras": { dbKey: "codigo_barras" },
+        "produto": { dbKey: "produto" },
+        "creditoicmsproprio": { dbKey: "credito_icms_proprio" },
+        "icmsproprio": { dbKey: "credito_icms_proprio" },
+        "creditoicmsst": { dbKey: "credito_icms_st" },
+        "icmsst": { dbKey: "credito_icms_st" },
+        "status": { dbKey: "status" },
+        "observacoes": { dbKey: "observacoes" },
+      };
+
+      // Find column indices
+      const colMapping: { idx: number; dbKey: string; transform?: (v: string) => any }[] = [];
+      let notaIdx = -1;
+
+      headerRow.forEach((h, i) => {
+        const mapping = fieldMap[h];
+        if (mapping) {
+          colMapping.push({ idx: i, dbKey: mapping.dbKey, transform: mapping.transform });
+          if (mapping.dbKey === "numero_nota") notaIdx = i;
+        }
+      });
+
+      if (notaIdx === -1) {
+        toast({ title: "Coluna de nota não encontrada", description: "O arquivo precisa ter uma coluna 'Número Nota', 'NFE' ou 'Nota'.", variant: "destructive" });
+        return;
+      }
+
+      // Build a map of existing guias by numero_nota
+      const guiasMap = new Map(guias.map((g) => [g.numero_nota.trim(), g]));
+
+      let updatedCount = 0;
+      let skippedCount = 0;
+
+      for (let r = 1; r < rows.length; r++) {
+        const row = rows[r];
+        const notaValue = String(row[notaIdx] ?? "").trim();
+        if (!notaValue) continue;
+
+        const existing = guiasMap.get(notaValue);
+        if (!existing) {
+          skippedCount++;
+          continue;
+        }
+
+        // Build updates only for fields that are currently null/empty
+        const updates: Record<string, any> = {};
+        for (const col of colMapping) {
+          if (col.dbKey === "numero_nota") continue; // skip key field
+          const cellValue = String(row[col.idx] ?? "").trim();
+          if (!cellValue) continue; // nothing to fill
+
+          const currentVal = (existing as any)[col.dbKey];
+          const isEmpty = currentVal == null || String(currentVal).trim() === "" || String(currentVal).trim() === "0";
+          if (!isEmpty) continue; // field already has data
+
+          updates[col.dbKey] = col.transform ? col.transform(cellValue) : cellValue;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateGuia.mutateAsync({ id: existing.id, ...updates } as any);
+          updatedCount++;
+        }
+      }
+
+      const parts: string[] = [];
+      if (updatedCount > 0) parts.push(`${updatedCount} guia(s) atualizada(s)`);
+      if (skippedCount > 0) parts.push(`${skippedCount} nota(s) não encontrada(s)`);
+      toast({ title: "Importação concluída", description: parts.join(", ") || "Nenhum campo faltante para preencher." });
+    } catch (err: any) {
+      toast({ title: "Erro na importação", description: err.message, variant: "destructive" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Drag-to-scroll
   const useDragScroll = () => {
     const ref = useRef<HTMLDivElement>(null);
@@ -267,14 +376,23 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
             />
           </div>
 
-          <label className="cursor-pointer">
-            <input type="file" accept=".xlsx,.xls" className="hidden" disabled />
-            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" asChild>
-              <span>
-                <Upload className="w-3.5 h-3.5" /> Importar XLSX
-              </span>
-            </Button>
-          </label>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.xlsm"
+            className="hidden"
+            onChange={handleImportXlsx}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isImporting}
+          >
+            <Upload className="w-3.5 h-3.5" />
+            {isImporting ? "Importando..." : "Importar XLSX"}
+          </Button>
 
           <Button
             variant="outline"
