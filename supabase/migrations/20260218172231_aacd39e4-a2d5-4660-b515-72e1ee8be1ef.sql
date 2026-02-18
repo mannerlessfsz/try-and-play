@@ -1,0 +1,1 @@
+ALTER TABLE public.notas_entrada_st ADD COLUMN chave_nfe TEXT DEFAULT NULL;

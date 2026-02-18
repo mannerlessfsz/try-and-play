@@ -2364,6 +2364,7 @@ export type Database = {
       notas_entrada_st: {
         Row: {
           bc_icms_st: number | null
+          chave_nfe: string | null
           competencia: string | null
           created_at: string
           created_by: string | null
@@ -2393,6 +2394,7 @@ export type Database = {
         }
         Insert: {
           bc_icms_st?: number | null
+          chave_nfe?: string | null
           competencia?: string | null
           created_at?: string
           created_by?: string | null
@@ -2422,6 +2424,7 @@ export type Database = {
         }
         Update: {
           bc_icms_st?: number | null
+          chave_nfe?: string | null
           competencia?: string | null
           created_at?: string
           created_by?: string | null

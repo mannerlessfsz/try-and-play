@@ -128,7 +128,7 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
   { key: "valor_fecp", label: "Valor FECP", width: "w-28", type: "currency" },
   { key: "valor_st_un", label: "Valor ST UN", width: "w-24", type: "currency" },
   { key: "total_st", label: "TOTAL ST", width: "w-28", type: "currency" },
-  { key: "data_pagamento", label: "Pagamento", width: "w-24", type: "date" },
+  { key: "chave_nfe", label: "Chave NFE", width: "w-48" },
 ];
 
 interface NotasEntradaSTManagerProps {
@@ -291,6 +291,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
       valor_st_un: Number(newNota.valor_st_un) || 0,
       total_st: Number(newNota.total_st) || 0,
       data_pagamento: newNota.data_pagamento || null,
+      chave_nfe: newNota.chave_nfe || null,
       observacoes: newNota.observacoes || null,
     } as any;
 
@@ -468,6 +469,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
           valor_st_un: colStUn >= 0 ? parseNum(row[colStUn]) : 0,
           total_st: colTotalSt >= 0 ? parseNum(row[colTotalSt]) : 0,
           data_pagamento: null,
+          chave_nfe: null,
           observacoes: null,
         });
       }
@@ -579,6 +581,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         valor_st_un: 0,
         total_st: 0,
         data_pagamento: null,
+        chave_nfe: nfe.chave_acesso || null,
         observacoes: `CFOP: ${prod.cfop || ""} | Chave: ${nfe.chave_acesso || ""}`,
       }));
 
@@ -607,6 +610,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
           valor_st_un: 0,
           total_st: 0,
           data_pagamento: null,
+          chave_nfe: nfe.chave_acesso || null,
           observacoes: `Chave: ${nfe.chave_acesso || ""}`,
         };
         addNota.mutate(singleNota as any);
@@ -757,7 +761,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   { key: "valor_fecp", label: "Valor FECP", type: "number" },
                   { key: "valor_st_un", label: "Valor ST UN", type: "number" },
                   { key: "total_st", label: "Total ST", type: "number" },
-                  { key: "data_pagamento", label: "Data Pagamento", type: "date" },
+                  { key: "chave_nfe", label: "Chave NFE", type: "text" },
                 ].map((f) => (
                   <div key={f.key} className={f.key === "fornecedor" ? "col-span-2" : ""}>
                     <Label className="text-xs">{f.label}</Label>
