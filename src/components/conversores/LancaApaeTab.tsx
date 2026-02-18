@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useApaeSessoes, type ApaePlanoContas, type ApaeRelatorioLinha, type ApaeResultado, type ApaeSessaoTipo } from "@/hooks/useApaeSessoes";
+import type { DuplicadoCP } from "./apae/ApaeStep4Processamento";
 import { useApaeBancoAplicacoes } from "@/hooks/useApaeBancoAplicacoes";
 import { useApaePlanoEmpresa } from "@/hooks/useApaePlanoEmpresa";
 import { useApaeBancoAplicacoesEmpresa } from "@/hooks/useApaeBancoAplicacoesEmpresa";
@@ -40,6 +41,7 @@ export function LancaApaeTab() {
   const [resultados, setResultados] = useState<ApaeResultado[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [duplicadosCP, setDuplicadosCP] = useState<DuplicadoCP[]>([]);
 
   // Dialog de nova sessão
   const [showNovaDialog, setShowNovaDialog] = useState(false);
@@ -627,6 +629,9 @@ export function LancaApaeTab() {
                 }
               }}
               sessaoTipo={sessaoInfo?.tipo || "contas_a_pagar"}
+              empresaId={empresaAtiva?.id}
+              sessaoId={sessaoAtiva || undefined}
+              onDuplicadosFound={setDuplicadosCP}
             />
           )}
 
@@ -644,6 +649,7 @@ export function LancaApaeTab() {
                 if (!sessaoAtiva) return;
                 await atualizarSessao.mutateAsync({ id: sessaoAtiva, status: "em_andamento" });
               }}
+              duplicadosCP={duplicadosCP}
             />
           )}
         </motion.div>

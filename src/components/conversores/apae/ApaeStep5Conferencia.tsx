@@ -5,10 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown, Lock, Unlock, FileText } from "lucide-react";
+import { Download, ArrowLeft, Search, ChevronLeft, ChevronRight, FileDown, Lock, Unlock, FileText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 import type { ApaeResultado } from "@/hooks/useApaeSessoes";
+import type { DuplicadoCP } from "./ApaeStep4Processamento";
 
 const ITEMS_PER_PAGE = 100;
 
@@ -19,9 +20,10 @@ interface Props {
   sessaoStatus: string;
   onEncerrarSessao: () => Promise<void>;
   onReabrirSessao: () => Promise<void>;
+  duplicadosCP?: DuplicadoCP[];
 }
 
-export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessaoStatus, onEncerrarSessao, onReabrirSessao }: Props) {
+export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessaoStatus, onEncerrarSessao, onReabrirSessao, duplicadosCP = [] }: Props) {
   const [busca, setBusca] = useState("");
   const [pagina, setPagina] = useState(1);
   const [filtroStatus, setFiltroStatus] = useState<"todos" | "vinculado" | "pendente" | "ignorado">("todos");
@@ -66,7 +68,6 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
     const margin = 14;
     let y = margin;
 
-    // Header
     doc.setFontSize(14);
     doc.setFont("helvetica", "bold");
     doc.text("Relatório de Lançamentos Ignorados", margin, y);
@@ -76,7 +77,6 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
     doc.text(`Empresa: ${codigoEmpresa}  |  Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}  |  Total: ${lista.length}`, margin, y);
     y += 8;
 
-    // Table header
     doc.setFillColor(60, 60, 70);
     doc.rect(margin, y, pageW - margin * 2, 7, "F");
     doc.setTextColor(255, 255, 255);
@@ -91,7 +91,6 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
     doc.text("Fornecedor", cols[5], y + 5, { align: "right" });
     y += 7;
 
-    // Rows
     doc.setFont("helvetica", "normal");
     doc.setTextColor(30, 30, 35);
     const maxHistW = cols[5] - cols[4] - 30;
@@ -121,6 +120,68 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
 
     doc.save(`ignorados_${codigoEmpresa}_${new Date().toISOString().slice(0, 10)}.pdf`);
     toast.success("PDF de ignorados exportado!");
+  };
+
+  const handleExportarDuplicadosPdf = () => {
+    if (duplicadosCP.length === 0) return;
+
+    const doc = new jsPDF({ orientation: "landscape" });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = margin;
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text("Relatório de Lançamentos Duplicados (Contas a Pagar × Mov. Caixa)", margin, y);
+    y += 7;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Empresa: ${codigoEmpresa}  |  Gerado em: ${new Date().toLocaleDateString("pt-BR")} ${new Date().toLocaleTimeString("pt-BR")}  |  Total: ${duplicadosCP.length}`, margin, y);
+    y += 8;
+
+    doc.setFillColor(60, 60, 70);
+    doc.rect(margin, y, pageW - margin * 2, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    const cols = [margin + 2, margin + 25, margin + 55, margin + 85, margin + 115, pageW - margin - 2];
+    doc.text("Data", cols[0], y + 5);
+    doc.text("Débito", cols[1], y + 5);
+    doc.text("Crédito (Banco)", cols[2], y + 5);
+    doc.text("Valor", cols[3], y + 5);
+    doc.text("Histórico", cols[4], y + 5);
+    doc.text("Sessão C.P.", cols[5], y + 5, { align: "right" });
+    y += 7;
+
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(30, 30, 35);
+    const maxHistW = cols[5] - cols[4] - 40;
+
+    duplicadosCP.forEach((d, idx) => {
+      const r = d.movimento_caixa;
+      if (y > doc.internal.pageSize.getHeight() - 15) {
+        doc.addPage();
+        y = margin;
+      }
+      if (idx % 2 === 0) {
+        doc.setFillColor(255, 250, 240);
+        doc.rect(margin, y, pageW - margin * 2, 6, "F");
+      }
+      doc.setFontSize(7);
+      doc.text(r.data_pagto || "-", cols[0], y + 4.5);
+      doc.text(r.conta_debito_codigo || "-", cols[1], y + 4.5);
+      doc.text(r.conta_credito_codigo || "-", cols[2], y + 4.5);
+      doc.text(r.valor_pago || r.valor || "-", cols[3], y + 4.5);
+      const hist = r.historico_concatenado || "-";
+      const truncHist = doc.getTextWidth(hist) > maxHistW ? hist.substring(0, 80) + "..." : hist;
+      doc.text(truncHist, cols[4], y + 4.5);
+      const sessaoNome = d.contas_pagar_sessao_nome || d.contas_pagar_sessao_id.slice(0, 8);
+      doc.text(sessaoNome.length > 25 ? sessaoNome.substring(0, 25) + "..." : sessaoNome, cols[5], y + 4.5, { align: "right" });
+      y += 6;
+    });
+
+    doc.save(`duplicados_cp_mc_${codigoEmpresa}_${new Date().toISOString().slice(0, 10)}.pdf`);
+    toast.success("PDF de duplicados exportado!");
   };
 
   const handleExportar = async () => {
@@ -159,6 +220,57 @@ export function ApaeStep5Conferencia({ resultados, codigoEmpresa, onBack, sessao
 
   return (
     <div className="space-y-3">
+      {/* Duplicados CP card */}
+      {duplicadosCP.length > 0 && (
+        <Card className="border-amber-500/30 bg-amber-500/5">
+          <CardContent className="pt-4 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span className="text-sm font-semibold text-amber-300">Lançamentos encontrados em Contas a Pagar</span>
+                <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-400">
+                  {duplicadosCP.length} duplicado(s)
+                </Badge>
+              </div>
+              <Button size="sm" variant="outline" className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10" onClick={handleExportarDuplicadosPdf}>
+                <FileText className="w-3.5 h-3.5 mr-1.5" /> PDF Duplicados
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Estes lançamentos de saída do Movimento Caixa já constam em sessões de Contas a Pagar (mesma data e banco) e foram removidos do lote principal.
+            </p>
+            <ScrollArea className="max-h-[30vh]">
+              <div className="min-w-[700px]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-[11px]">Data</TableHead>
+                      <TableHead className="text-[11px]">Débito</TableHead>
+                      <TableHead className="text-[11px]">Crédito</TableHead>
+                      <TableHead className="text-[11px]">Valor</TableHead>
+                      <TableHead className="text-[11px] min-w-[200px]">Histórico</TableHead>
+                      <TableHead className="text-[11px]">Sessão C.P.</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {duplicadosCP.map((d, idx) => (
+                      <TableRow key={idx} className="opacity-70">
+                        <TableCell className="text-[11px] whitespace-nowrap py-1">{d.movimento_caixa.data_pagto}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{d.movimento_caixa.conta_debito_codigo}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap font-mono py-1">{d.movimento_caixa.conta_credito_codigo}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap py-1">{d.movimento_caixa.valor_pago || d.movimento_caixa.valor}</TableCell>
+                        <TableCell className="text-[10px] font-mono break-all py-1">{d.movimento_caixa.historico_concatenado}</TableCell>
+                        <TableCell className="text-[11px] whitespace-nowrap py-1 text-amber-400">{d.contas_pagar_sessao_nome || d.contas_pagar_sessao_id.slice(0, 8)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardContent className="pt-4 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">

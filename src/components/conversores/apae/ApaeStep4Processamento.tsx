@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { supabase as supabaseClient } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -226,9 +227,46 @@ interface Props {
   onSaveStatusResultados: (ids: string[]) => Promise<void>;
   onRefreshResultados: () => Promise<void>;
   sessaoTipo: ApaeSessaoTipo;
+  empresaId?: string;
+  sessaoId?: string;
+  onDuplicadosFound?: (duplicados: DuplicadoCP[]) => void;
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados, sessaoTipo }: Props) {
+export interface DuplicadoCP {
+  movimento_caixa: Omit<ApaeResultado, "id" | "sessao_id" | "created_at">;
+  contas_pagar_sessao_id: string;
+  contas_pagar_sessao_nome: string | null;
+}
+
+/** Busca resultados de sessões Contas a Pagar concluídas/em andamento da mesma empresa */
+async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: string): Promise<{ resultados: ApaeResultado[]; sessoes: Record<string, string | null> }> {
+  // 1. Buscar sessões contas_a_pagar da mesma empresa (exceto a atual)
+  const { data: sessoes, error: errSessoes } = await supabaseClient
+    .from("apae_sessoes")
+    .select("id, nome_sessao")
+    .eq("empresa_id", empresaId)
+    .eq("tipo", "contas_a_pagar")
+    .neq("id", sessaoIdAtual);
+  if (errSessoes || !sessoes || sessoes.length === 0) return { resultados: [], sessoes: {} };
+
+  const sessaoMap: Record<string, string | null> = {};
+  sessoes.forEach(s => { sessaoMap[s.id] = s.nome_sessao; });
+
+  // 2. Buscar resultados dessas sessões (que não são ignorados)
+  const allResultados: ApaeResultado[] = [];
+  for (const s of sessoes) {
+    const { data, error } = await supabaseClient
+      .from("apae_resultados")
+      .select("*")
+      .eq("sessao_id", s.id)
+      .neq("status", "ignorado");
+    if (!error && data) allResultados.push(...(data as ApaeResultado[]));
+  }
+
+  return { resultados: allResultados, sessoes: sessaoMap };
+}
+
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados, sessaoTipo, empresaId, sessaoId, onDuplicadosFound }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -373,6 +411,70 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
 
       if (sessaoTipo === "movimento_caixa") {
         resultadosProcessados = processarMovimentoCaixa(linhas, planoByCodigo, lookup, textKeys);
+
+        // --- Deduplicação cruzada com Contas a Pagar ---
+        if (empresaId && sessaoId) {
+          try {
+            const { resultados: cpResultados, sessoes: cpSessoes } = await buscarResultadosContasAPagar(empresaId, sessaoId);
+            
+            if (cpResultados.length > 0) {
+              // Criar chave de lookup: "data_pagto|conta_credito_codigo" para contas a pagar
+              const cpLookup = new Map<string, { sessaoId: string; resultado: ApaeResultado }[]>();
+              for (const r of cpResultados) {
+                const data = (r.data_pagto || "").trim();
+                const banco = (r.conta_credito_codigo || "").trim();
+                if (!data || !banco) continue;
+                const key = `${data}|${banco}`;
+                if (!cpLookup.has(key)) cpLookup.set(key, []);
+                cpLookup.get(key)!.push({ sessaoId: r.sessao_id, resultado: r });
+              }
+
+              // Separar: saídas do movimento caixa que já existem em contas a pagar
+              const duplicados: DuplicadoCP[] = [];
+              const unicos: typeof resultadosProcessados = [];
+
+              for (const r of resultadosProcessados) {
+                // Saídas no movimento caixa: crédito = banco
+                const isSaida = (r.conta_credito_codigo || "").trim() !== "";
+                const data = (r.data_pagto || "").trim();
+                const banco = (r.conta_credito_codigo || "").trim();
+                
+                // Verificar se é saída e se tem match em contas a pagar
+                const key = `${data}|${banco}`;
+                const matches = isSaida && data && banco ? cpLookup.get(key) : undefined;
+                
+                if (matches && matches.length > 0) {
+                  // Encontrou duplicata — usar o primeiro match e remover para evitar duplicidade dupla
+                  const match = matches.shift()!;
+                  duplicados.push({
+                    movimento_caixa: r,
+                    contas_pagar_sessao_id: match.sessaoId,
+                    contas_pagar_sessao_nome: cpSessoes[match.sessaoId] || null,
+                  });
+                  // Se não sobrou mais matches para essa chave, remove do map
+                  if (matches.length === 0) cpLookup.delete(key);
+                } else {
+                  unicos.push(r);
+                }
+              }
+
+              if (duplicados.length > 0) {
+                toast.info(`${duplicados.length} lançamento(s) de saída já encontrado(s) em Contas a Pagar — removidos automaticamente`);
+                onDuplicadosFound?.(duplicados);
+              } else {
+                onDuplicadosFound?.([]);
+              }
+
+              resultadosProcessados = unicos;
+            } else {
+              onDuplicadosFound?.([]);
+            }
+          } catch (err) {
+            console.error("Erro na deduplicação cruzada:", err);
+            // Continua sem deduplicação
+            onDuplicadosFound?.([]);
+          }
+        }
       } else {
         resultadosProcessados = processarContasAPagar(pares, planoByDescricao, planoByCodigo, lookup, textKeys);
       }
