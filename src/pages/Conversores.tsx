@@ -117,7 +117,7 @@ const Conversores = () => {
         </div>
       </div>
 
-      <div className="pt-16 pb-12 px-4 md:px-8 max-w-7xl mx-auto">
+      <div className="pt-16 pb-12 px-4 md:px-8 lg:px-12 max-w-[1600px] mx-auto">
         <AnimatePresence mode="wait">
           {!activeTab ? (
             <motion.div
