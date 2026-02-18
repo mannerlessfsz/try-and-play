@@ -237,8 +237,8 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                 <TableRow key={row.guia.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
                   <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_nota}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{row.quantidade || "-"}</TableCell>
-                  <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.saldoAnterior)}</TableCell>
-                  <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.saldoAtual)}</TableCell>
+                  <TableCell className="text-[11px] px-2 text-right font-mono">{row.saldoAnterior}</TableCell>
+                  <TableCell className="text-[11px] px-2 text-right font-mono">{row.saldoAtual}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsProprio)}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsST)}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsProprioUn)}</TableCell>

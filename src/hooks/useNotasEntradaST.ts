@@ -26,6 +26,7 @@ export interface NotaEntradaST {
   valor_st_un: number;
   total_st: number;
   data_pagamento: string | null;
+  chave_nfe: string | null;
   observacoes: string | null;
   created_at: string;
   updated_at: string;
