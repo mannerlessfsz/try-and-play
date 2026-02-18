@@ -22,6 +22,7 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
   const queryClient = useQueryClient();
   const queryKey = ["controle_saldos_notas", empresaId, competenciaAno, competenciaMes];
 
+  // Saldos da competência ATUAL (para restaurar confirmações)
   const { data: saldos = [], isLoading } = useQuery({
     queryKey,
     queryFn: async () => {
@@ -38,7 +39,7 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
     enabled: !!empresaId && !!competenciaAno && !!competenciaMes,
   });
 
-  // Busca saldos do mês anterior para sugerir como Saldo Anterior
+  // Saldos do mês anterior para sugestão
   const getSaldosMesAnterior = (ano: number, mes: number) => {
     const mesAnterior = mes === 1 ? 12 : mes - 1;
     const anoAnterior = mes === 1 ? ano - 1 : ano;
@@ -62,10 +63,10 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
     enabled: !!empresaId && !!competenciaAno && !!competenciaMes,
   });
 
+  // Salvar saldos em lote (usado pelo Step 2)
   const salvarSaldos = useMutation({
     mutationFn: async (items: SaldoNotaInsert[]) => {
       if (items.length === 0) return;
-      // Upsert: se já existe para empresa+guia+competência, atualiza
       const { error } = await supabase
         .from("controle_saldos_notas" as any)
         .upsert(items as any, {
@@ -79,6 +80,52 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
     },
     onError: (err: any) => {
       toast.error("Erro ao salvar saldos: " + err.message);
+    },
+  });
+
+  // Salvar/remover confirmação individual (Step 1)
+  const salvarConfirmacao = useMutation({
+    mutationFn: async ({ guiaId, numeroNota, saldoAnterior, quantidade, confirmar }: {
+      guiaId: string;
+      numeroNota: string;
+      saldoAnterior: number;
+      quantidade: number;
+      confirmar: boolean;
+    }) => {
+      if (!empresaId || !competenciaAno || !competenciaMes) return;
+
+      if (confirmar) {
+        const { error } = await supabase
+          .from("controle_saldos_notas" as any)
+          .upsert({
+            empresa_id: empresaId,
+            guia_id: guiaId,
+            numero_nota: numeroNota,
+            competencia_ano: competenciaAno,
+            competencia_mes: competenciaMes,
+            saldo_remanescente: saldoAnterior,
+            quantidade_original: quantidade,
+            quantidade_consumida: 0,
+          } as any, {
+            onConflict: "empresa_id,guia_id,competencia_ano,competencia_mes",
+          });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("controle_saldos_notas" as any)
+          .delete()
+          .eq("empresa_id", empresaId)
+          .eq("guia_id", guiaId)
+          .eq("competencia_ano", competenciaAno)
+          .eq("competencia_mes", competenciaMes);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao salvar confirmação: " + err.message);
     },
   });
 
@@ -97,5 +144,6 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
     isLoadingSugestoes,
     sugestoesSaldoAnterior,
     salvarSaldos,
+    salvarConfirmacao,
   };
 }
