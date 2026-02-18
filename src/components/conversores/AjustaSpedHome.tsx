@@ -88,12 +88,12 @@ export function AjustaSpedHome() {
               const isActive = mod.status === "ativo";
               const stCfg = statusConfig[mod.status];
 
-              // Cascade positions: alternating left/right, shifting progressively
+              // Cascade staircase: each step shifts 2 cols right, widths vary for bento feel
               const gridPositions = [
-                "col-span-12 md:col-span-7 md:col-start-1",   // 1 - left wide
-                "col-span-12 md:col-span-7 md:col-start-3",   // 2 - shifted right
-                "col-span-12 md:col-span-7 md:col-start-5",   // 3 - more right
-                "col-span-12 md:col-span-8 md:col-start-5",   // 4 - right wide (highlight)
+                "col-span-12 md:col-span-8 md:col-start-1",   // 1 - starts left, wide
+                "col-span-12 md:col-span-8 md:col-start-2",   // 2 - slight shift
+                "col-span-12 md:col-span-9 md:col-start-3",   // 3 - wider, more shift
+                "col-span-12 md:col-span-10 md:col-start-3",  // 4 - widest, final position (hero)
               ];
 
               return (
