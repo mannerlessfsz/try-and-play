@@ -2183,6 +2183,104 @@ export type Database = {
           },
         ]
       }
+      notas_entrada_st: {
+        Row: {
+          bc_icms_st: number | null
+          competencia: string | null
+          created_at: string
+          created_by: string | null
+          data_pagamento: string | null
+          desconto: number | null
+          empresa_id: string
+          fornecedor: string
+          frete: number | null
+          id: string
+          ipi: number | null
+          ncm: string | null
+          nfe: string
+          observacoes: string | null
+          pct_fecp: number | null
+          pct_icms_interestadual: number | null
+          pct_icms_interno: number | null
+          pct_mva: number | null
+          quantidade: number | null
+          total_st: number | null
+          updated_at: string
+          valor_fecp: number | null
+          valor_icms_nf: number | null
+          valor_icms_st: number | null
+          valor_produto: number | null
+          valor_st_un: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          bc_icms_st?: number | null
+          competencia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string | null
+          desconto?: number | null
+          empresa_id: string
+          fornecedor: string
+          frete?: number | null
+          id?: string
+          ipi?: number | null
+          ncm?: string | null
+          nfe: string
+          observacoes?: string | null
+          pct_fecp?: number | null
+          pct_icms_interestadual?: number | null
+          pct_icms_interno?: number | null
+          pct_mva?: number | null
+          quantidade?: number | null
+          total_st?: number | null
+          updated_at?: string
+          valor_fecp?: number | null
+          valor_icms_nf?: number | null
+          valor_icms_st?: number | null
+          valor_produto?: number | null
+          valor_st_un?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          bc_icms_st?: number | null
+          competencia?: string | null
+          created_at?: string
+          created_by?: string | null
+          data_pagamento?: string | null
+          desconto?: number | null
+          empresa_id?: string
+          fornecedor?: string
+          frete?: number | null
+          id?: string
+          ipi?: number | null
+          ncm?: string | null
+          nfe?: string
+          observacoes?: string | null
+          pct_fecp?: number | null
+          pct_icms_interestadual?: number | null
+          pct_icms_interno?: number | null
+          pct_mva?: number | null
+          quantidade?: number | null
+          total_st?: number | null
+          updated_at?: string
+          valor_fecp?: number | null
+          valor_icms_nf?: number | null
+          valor_icms_st?: number | null
+          valor_produto?: number | null
+          valor_st_un?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_entrada_st_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orcamento_itens: {
         Row: {
           created_at: string
