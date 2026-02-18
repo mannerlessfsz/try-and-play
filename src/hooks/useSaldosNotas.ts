@@ -103,9 +103,9 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
             numero_nota: numeroNota,
             competencia_ano: competenciaAno,
             competencia_mes: competenciaMes,
-            saldo_remanescente: saldoAnterior,
+            saldo_remanescente: quantidade - saldoAnterior,
             quantidade_original: quantidade,
-            quantidade_consumida: 0,
+            quantidade_consumida: saldoAnterior,
           } as any, {
             onConflict: "empresa_id,guia_id,competencia_ano,competencia_mes",
           });
