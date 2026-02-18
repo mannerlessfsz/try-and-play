@@ -186,54 +186,86 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
       // Map known column names to DB fields
       const fieldMap: Record<string, { dbKey: string; transform?: (v: string) => any }> = {
         "numeronota": { dbKey: "numero_nota" },
+        "nnota": { dbKey: "numero_nota" },
         "nfe": { dbKey: "numero_nota" },
         "nota": { dbKey: "numero_nota" },
+        "notafiscal": { dbKey: "numero_nota" },
+        "nfiscal": { dbKey: "numero_nota" },
+        "nnf": { dbKey: "numero_nota" },
+        "numeronf": { dbKey: "numero_nota" },
         "valorguia": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
         "valor": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
+        "valorst": { dbKey: "valor_guia", transform: (v) => parseFloat(String(v).replace(/\./g, "").replace(",", ".")) || 0 },
         "datanota": { dbKey: "data_nota", transform: (v) => parseDateBR(v) },
+        "dataemissao": { dbKey: "data_nota", transform: (v) => parseDateBR(v) },
         "datapagamento": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
+        "datapagto": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
+        "dtpagamento": { dbKey: "data_pagamento", transform: (v) => parseDateBR(v) },
         "numerodocpagamento": { dbKey: "numero_doc_pagamento" },
         "docpagamento": { dbKey: "numero_doc_pagamento" },
+        "ndocpagamento": { dbKey: "numero_doc_pagamento" },
+        "ndoc": { dbKey: "numero_doc_pagamento" },
+        "documento": { dbKey: "numero_doc_pagamento" },
         "codigobarras": { dbKey: "codigo_barras" },
         "codbarras": { dbKey: "codigo_barras" },
+        "codigoDebarras": { dbKey: "codigo_barras" },
+        "barras": { dbKey: "codigo_barras" },
         "produto": { dbKey: "produto" },
+        "descricao": { dbKey: "produto" },
         "creditoicmsproprio": { dbKey: "credito_icms_proprio" },
         "icmsproprio": { dbKey: "credito_icms_proprio" },
+        "creditoproprio": { dbKey: "credito_icms_proprio" },
         "creditoicmsst": { dbKey: "credito_icms_st" },
         "icmsst": { dbKey: "credito_icms_st" },
+        "creditost": { dbKey: "credito_icms_st" },
         "status": { dbKey: "status" },
         "observacoes": { dbKey: "observacoes" },
+        "obs": { dbKey: "observacoes" },
+        "observacao": { dbKey: "observacoes" },
       };
 
-      // Find column indices
+      // Find column indices (first match wins per dbKey)
       const colMapping: { idx: number; dbKey: string; transform?: (v: string) => any }[] = [];
       let notaIdx = -1;
+      const usedDbKeys = new Set<string>();
 
       headerRow.forEach((h, i) => {
         const mapping = fieldMap[h];
-        if (mapping) {
+        if (mapping && !usedDbKeys.has(mapping.dbKey)) {
+          usedDbKeys.add(mapping.dbKey);
           colMapping.push({ idx: i, dbKey: mapping.dbKey, transform: mapping.transform });
           if (mapping.dbKey === "numero_nota") notaIdx = i;
         }
       });
 
       if (notaIdx === -1) {
-        toast({ title: "Coluna de nota não encontrada", description: "O arquivo precisa ter uma coluna 'Número Nota', 'NFE' ou 'Nota'.", variant: "destructive" });
+        toast({ title: "Coluna de nota não encontrada", description: "O arquivo precisa ter uma coluna 'Número Nota', 'NFE', 'Nota', 'N NF' ou similar.", variant: "destructive" });
         return;
       }
 
-      // Build a map of existing guias by numero_nota
-      const guiasMap = new Map(guias.map((g) => [g.numero_nota.trim(), g]));
+      // Build maps of existing guias by numero_nota (exact and numeric-normalized)
+      const guiasMapExact = new Map(guias.map((g) => [g.numero_nota.trim(), g]));
+      const guiasMapNumeric = new Map<string, typeof guias[0]>();
+      guias.forEach((g) => {
+        const num = g.numero_nota.trim().replace(/^0+/, "");
+        if (num) guiasMapNumeric.set(num, g);
+      });
+
+      const findGuia = (notaStr: string) => {
+        const trimmed = notaStr.trim();
+        return guiasMapExact.get(trimmed) || guiasMapNumeric.get(trimmed.replace(/^0+/, "")) || null;
+      };
 
       let updatedCount = 0;
       let skippedCount = 0;
+      let errorCount = 0;
 
       for (let r = 1; r < rows.length; r++) {
         const row = rows[r];
         const notaValue = String(row[notaIdx] ?? "").trim();
         if (!notaValue) continue;
 
-        const existing = guiasMap.get(notaValue);
+        const existing = findGuia(notaValue);
         if (!existing) {
           skippedCount++;
           continue;
@@ -242,27 +274,38 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         // Build updates only for fields that are currently null/empty
         const updates: Record<string, any> = {};
         for (const col of colMapping) {
-          if (col.dbKey === "numero_nota") continue; // skip key field
+          if (col.dbKey === "numero_nota") continue;
           const cellValue = String(row[col.idx] ?? "").trim();
-          if (!cellValue) continue; // nothing to fill
+          if (!cellValue) continue;
 
           const currentVal = (existing as any)[col.dbKey];
-          const isEmpty = currentVal == null || String(currentVal).trim() === "" || String(currentVal).trim() === "0";
-          if (!isEmpty) continue; // field already has data
+          // Consider empty: null, undefined, empty string. "0" only empty for currency fields.
+          const isEmptyVal = currentVal == null || String(currentVal).trim() === "";
+          if (!isEmptyVal) continue;
 
           updates[col.dbKey] = col.transform ? col.transform(cellValue) : cellValue;
         }
 
         if (Object.keys(updates).length > 0) {
-          await updateGuia.mutateAsync({ id: existing.id, ...updates } as any);
-          updatedCount++;
+          try {
+            await updateGuia.mutateAsync({ id: existing.id, ...updates } as any);
+            updatedCount++;
+          } catch (err) {
+            console.error(`Erro ao atualizar guia ${notaValue}:`, err);
+            errorCount++;
+          }
         }
       }
 
       const parts: string[] = [];
       if (updatedCount > 0) parts.push(`${updatedCount} guia(s) atualizada(s)`);
       if (skippedCount > 0) parts.push(`${skippedCount} nota(s) não encontrada(s)`);
-      toast({ title: "Importação concluída", description: parts.join(", ") || "Nenhum campo faltante para preencher." });
+      if (errorCount > 0) parts.push(`${errorCount} erro(s)`);
+      toast({
+        title: errorCount > 0 ? "Importação parcial" : "Importação concluída",
+        description: parts.join(", ") || "Nenhum campo faltante para preencher.",
+        variant: errorCount > 0 ? "destructive" : "default",
+      });
     } catch (err: any) {
       toast({ title: "Erro na importação", description: err.message, variant: "destructive" });
     } finally {
