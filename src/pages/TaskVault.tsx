@@ -15,7 +15,7 @@ import {
   Calendar, Filter, SortAsc, Search, FileDown, FileUp,
   Settings, Users, Tag, Flag, Star, Bell, Zap, Building2,
   AlertTriangle, Activity, List, Columns, Loader2, FileText, Briefcase, RefreshCw,
-  GanttChart
+  GanttChart, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -373,10 +373,23 @@ export default function TaskVault() {
     },
   ], [tarefasModelo.length]);
 
-  // Sidebar content - Activity Pulse Feed
+  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
+
+  // Sidebar content - Metrics + Heatmap (vertical)
   const sidebarContent = (
-    <div className="p-3">
-      <ActivityPulseFeed atividades={atividades} />
+    <div className="p-3 space-y-4">
+      <CommandCenter
+        total={totalTarefas}
+        emAndamento={tarefasEmAndamento}
+        concluidas={tarefasConcluidas}
+        atrasadas={tarefasAtrasadas}
+        activeFilter={activeFilter}
+        onFilterClick={handleFilterClick}
+        layout="vertical"
+      />
+      <div className="border-t border-foreground/8 pt-3">
+        <TaskHeatmap tarefas={tarefasFiltradas} layout="vertical" />
+      </div>
     </div>
   );
 
@@ -392,7 +405,7 @@ export default function TaskVault() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-28">
+    <div className="min-h-screen bg-background pt-14 pb-40">
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
@@ -403,23 +416,8 @@ export default function TaskVault() {
       <div className="p-4 pr-72">
         {/* Unified control frame */}
         <div className="mb-5 bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 p-5 space-y-4">
-          {/* Command Center */}
-          <div>
-          <CommandCenter
-            total={totalTarefas}
-            emAndamento={tarefasEmAndamento}
-            concluidas={tarefasConcluidas}
-            atrasadas={tarefasAtrasadas}
-            activeFilter={activeFilter}
-            onFilterClick={handleFilterClick}
-          />
-         </div>
-
-          {/* Task Heatmap */}
-          <TaskHeatmap tarefas={tarefasFiltradas} />
-
           {/* Controls bar */}
-          <div className="flex items-center gap-3 relative flex-wrap pt-3 border-t border-foreground/5">
+          <div className="flex items-center gap-3 relative flex-wrap">
             <div className="flex items-center gap-2.5 flex-shrink-0">
               <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
                 <ListTodo className="w-3.5 h-3.5 text-primary" />
@@ -700,6 +698,56 @@ export default function TaskVault() {
         onClose={() => setShowSettingsModal(false)}
         initialTab={settingsInitialTab}
       />
+
+      {/* ─── Bottom Activity Panel ─── */}
+      <div
+        className={`
+          fixed bottom-0 left-0 right-64 z-30
+          transition-all duration-300 ease-out
+        `}
+      >
+        {/* Toggle bar */}
+        <button
+          onClick={() => setActivityPanelOpen(prev => !prev)}
+          className="w-full flex items-center gap-2 px-4 py-2 bg-card/95 backdrop-blur-xl border-t border-foreground/10 hover:bg-card transition-colors"
+        >
+          <div className="relative">
+            <Activity className="w-3.5 h-3.5 text-primary" />
+            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+          </div>
+          <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
+            Atividade Recente
+          </span>
+          <span className="text-[9px] text-muted-foreground/50 tabular-nums">
+            {atividades.length}
+          </span>
+          <div className="ml-auto">
+            <motion.div
+              animate={{ rotate: activityPanelOpen ? 180 : 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+            </motion.div>
+          </div>
+        </button>
+
+        {/* Expandable content */}
+        <AnimatePresence>
+          {activityPanelOpen && (
+            <motion.div
+              initial={{ height: 0 }}
+              animate={{ height: 220 }}
+              exit={{ height: 0 }}
+              transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="overflow-hidden bg-card/95 backdrop-blur-xl border-t border-foreground/5"
+            >
+              <div className="h-full overflow-y-auto p-3">
+                <ActivityPulseFeed atividades={atividades} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
     </div>
   );

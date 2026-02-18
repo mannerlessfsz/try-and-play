@@ -9,9 +9,10 @@ interface CommandCenterProps {
   atrasadas: number;
   activeFilter: string;
   onFilterClick: (filter: string) => void;
+  layout?: "horizontal" | "vertical";
 }
 
-export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activeFilter, onFilterClick }: CommandCenterProps) {
+export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activeFilter, onFilterClick, layout = "horizontal" }: CommandCenterProps) {
   const completionRate = total > 0 ? Math.round((concluidas / total) * 100) : 0;
   const circumference = 2 * Math.PI * 28;
   const strokeDashoffset = circumference - (completionRate / 100) * circumference;
@@ -23,6 +24,103 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
     { id: "urgente", label: "Atraso", value: atrasadas, icon: AlertTriangle, color: "hsl(45, 100%, 60%)", bgClass: "bg-yellow-500/15", textClass: "text-yellow-400", activeClass: "ring-yellow-500/50 bg-yellow-500/20" },
   ], [total, emAndamento, concluidas, atrasadas]);
 
+  if (layout === "vertical") {
+    return (
+      <div className="space-y-3">
+        {/* Radial completion ring - centered */}
+        <div className="flex justify-center">
+          <div className="relative">
+            <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90">
+              <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth="3" />
+              <motion.circle
+                cx="32" cy="32" r="28" fill="none"
+                stroke="hsl(var(--primary))"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                initial={{ strokeDashoffset: circumference }}
+                animate={{ strokeDashoffset }}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <motion.span
+                key={completionRate}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-base font-bold text-foreground tabular-nums leading-none"
+              >
+                {completionRate}%
+              </motion.span>
+              <span className="text-[7px] text-muted-foreground uppercase tracking-wider mt-0.5">concluído</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Segment buttons - vertical stack */}
+        <div className="space-y-1">
+          {segments.map((seg, i) => {
+            const isActive = activeFilter === seg.id;
+            const Icon = seg.icon;
+            return (
+              <motion.button
+                key={seg.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.06 }}
+                onClick={() => onFilterClick(seg.id)}
+                className={`
+                  w-full flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all
+                  ${isActive ? `ring-1 ${seg.activeClass}` : "hover:bg-foreground/5"}
+                `}
+              >
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center ${seg.bgClass}`}>
+                  <Icon className={`w-3 h-3 ${seg.textClass}`} />
+                </div>
+                <div className="text-left min-w-0 flex-1">
+                  <p className="text-[9px] text-muted-foreground leading-none">{seg.label}</p>
+                  <motion.p
+                    key={seg.value}
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: 1 }}
+                    className="text-sm font-bold text-foreground tabular-nums leading-tight"
+                  >
+                    {seg.value}
+                  </motion.p>
+                </div>
+                {/* Mini bar */}
+                <div className="w-8 h-1 bg-foreground/5 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: total > 0 ? `${(seg.value / total) * 100}%` : "0%" }}
+                    transition={{ duration: 0.8, delay: i * 0.1 }}
+                    className="h-full rounded-full"
+                    style={{ backgroundColor: seg.color }}
+                  />
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {/* Bottom progress bar */}
+        <div className="flex h-1 rounded-full overflow-hidden">
+          {total > 0 ? (
+            <>
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(concluidas / total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/60" />
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(emAndamento / total) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 }} className="bg-blue-500/60" />
+              <motion.div initial={{ width: 0 }} animate={{ width: `${(atrasadas / total) * 100}%` }} transition={{ duration: 0.8, delay: 0.2 }} className="bg-yellow-500/60" />
+              <div className="flex-1 bg-foreground/5" />
+            </>
+          ) : (
+            <div className="flex-1 bg-foreground/5" />
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Original horizontal layout
   return (
     <div className="relative rounded-2xl border border-foreground/8 bg-card/40 backdrop-blur-xl overflow-hidden">
       {/* Subtle grid pattern */}
@@ -57,10 +155,8 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
           </div>
         </div>
 
-        {/* Divider */}
         <div className="w-px h-12 bg-foreground/8" />
 
-        {/* Segment buttons */}
         <div className="flex-1 flex items-center gap-2">
           {segments.map((seg, i) => {
             const isActive = activeFilter === seg.id;
@@ -91,7 +187,6 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                     {seg.value}
                   </motion.p>
                 </div>
-                {/* Mini bar showing proportion */}
                 <div className="w-12 h-1 bg-foreground/5 rounded-full overflow-hidden ml-auto hidden lg:block">
                   <motion.div
                     initial={{ width: 0 }}
@@ -106,7 +201,6 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
           })}
         </div>
 
-        {/* Trend indicator */}
         <div className="hidden xl:flex flex-col items-center gap-1 px-3 flex-shrink-0">
           <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
             <TrendingUp className="w-4 h-4 text-primary" />
@@ -115,7 +209,6 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
         </div>
       </div>
 
-      {/* Bottom progress bar showing all segments */}
       <div className="flex h-1">
         {total > 0 ? (
           <>
