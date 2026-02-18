@@ -401,7 +401,7 @@ export default function TaskVault() {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-40">
+    <div className="min-h-screen bg-background pt-14 pb-40" style={{ fontFamily: "'Inter', sans-serif" }}>
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
@@ -442,7 +442,7 @@ export default function TaskVault() {
                 <ListTodo className="w-4 h-4 text-primary-foreground" />
               </motion.div>
               <div>
-                <h2 className="text-base font-bold text-foreground leading-tight">Tarefas</h2>
+                <h2 className="text-base font-semibold text-foreground leading-tight">Tarefas</h2>
                 <p className="text-xs text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
               </div>
             </div>
