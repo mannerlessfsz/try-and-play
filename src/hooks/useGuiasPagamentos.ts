@@ -34,7 +34,7 @@ export function useGuiasPagamentos(empresaId: string | undefined) {
         .from("guias_pagamentos" as any)
         .select("*")
         .eq("empresa_id", empresaId)
-        .order("data_pagamento", { ascending: false });
+        .order("data_nota", { ascending: false });
       if (error) throw error;
       return data as unknown as GuiaPagamento[];
     },
