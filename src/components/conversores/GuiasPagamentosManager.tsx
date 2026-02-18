@@ -58,16 +58,16 @@ const getStatusOption = (status: string | null) =>
   STATUS_OPTIONS.find((s) => s.value === status) || STATUS_OPTIONS[1]; // default NAO PAGO
 
 const columns = [
-  { key: "numero_nota", label: "Número Nota", width: "w-28", editable: true },
-  { key: "valor_guia", label: "Valor Guia", width: "w-32", type: "currency" as const, editable: true },
-  { key: "data_nota", label: "Data da Nota", width: "w-28", type: "date" as const, editable: true },
-  { key: "data_pagamento", label: "Data Pagamento", width: "w-28", type: "date" as const, editable: true },
-  { key: "numero_doc_pagamento", label: "Número Doc Pag.", width: "w-32", editable: true },
-  { key: "codigo_barras", label: "Código Barras", width: "w-64", editable: true },
-  { key: "produto", label: "Produto", width: "w-36", editable: true },
-  { key: "credito_icms_proprio", label: "Crédito ICMS Próprio", width: "w-36", type: "currency" as const, editable: true },
-  { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36", type: "currency" as const, editable: true },
-  { key: "status", label: "Status", width: "w-36", type: "status" as const, editable: true },
+  { key: "numero_nota", label: "Nota", width: "w-auto", editable: true },
+  { key: "valor_guia", label: "Valor", width: "w-auto", type: "currency" as const, editable: true },
+  { key: "data_nota", label: "Dt. Nota", width: "w-auto", type: "date" as const, editable: true },
+  { key: "data_pagamento", label: "Dt. Pagto", width: "w-auto", type: "date" as const, editable: true },
+  { key: "numero_doc_pagamento", label: "Doc Pag.", width: "w-auto", editable: true },
+  { key: "codigo_barras", label: "Cód. Barras", width: "w-auto", editable: true },
+  { key: "produto", label: "Produto", width: "w-auto", editable: true },
+  { key: "credito_icms_proprio", label: "ICMS Próprio", width: "w-auto", type: "currency" as const, editable: true },
+  { key: "credito_icms_st", label: "ICMS-ST", width: "w-auto", type: "currency" as const, editable: true },
+  { key: "status", label: "Status", width: "w-auto", type: "status" as const, editable: true },
 ];
 
 interface GuiasPagamentosManagerProps {
@@ -663,7 +663,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           onMouseLeave={scrollProps.onMouseLeave}
           className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
         >
-          <div className="min-w-[1600px]">
+          <div>
             <Table wrapperClassName="overflow-visible">
               <TableHeader>
                  <TableRow className="hover:bg-transparent">
@@ -674,7 +674,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                   </TableHead>
                   <TableHead className="w-8 text-[10px] px-2">#</TableHead>
                   {columns.map((col) => (
-                    <TableHead key={col.key} className={`text-[10px] px-2 whitespace-nowrap ${col.width}`}>
+                    <TableHead key={col.key} className={`text-[10px] px-1.5 whitespace-nowrap ${col.width}`}>
                       {col.label}
                     </TableHead>
                   ))}
@@ -711,7 +711,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                       {columns.map((col) => (
                         <TableCell
                           key={col.key}
-                          className={`text-[11px] px-2 whitespace-nowrap ${
+                          className={`text-[11px] px-1.5 ${
                             col.type === "currency" ? "text-right font-mono" : ""
                           }`}
                         >
