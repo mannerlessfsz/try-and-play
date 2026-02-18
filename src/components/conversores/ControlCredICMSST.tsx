@@ -46,16 +46,34 @@ export function ControlCredICMSST({ empresaId }: Props) {
   const [saldosAnteriores, setSaldosAnteriores] = useState<Record<string, number>>({});
   const [competenciaMes, setCompetenciaMes] = useState(now.getMonth() + 1);
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
+  const [dadosRestaurados, setDadosRestaurados] = useState(false);
   const [sugestoesAplicadas, setSugestoesAplicadas] = useState(false);
 
   const queryClient = useQueryClient();
   const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
-  const { sugestoesSaldoAnterior, isLoadingSugestoes, salvarSaldos } = useSaldosNotas(empresaId, competenciaAno, competenciaMes);
+  const { saldos, isLoading: isLoadingSaldosAtuais, sugestoesSaldoAnterior, isLoadingSugestoes, salvarSaldos, salvarConfirmacao } = useSaldosNotas(empresaId, competenciaAno, competenciaMes);
 
-  // Aplicar sugestões do mês anterior quando carregarem
+  // Restaurar dados persistidos da competência atual
   useEffect(() => {
-    if (!isLoadingSugestoes && sugestoesSaldoAnterior.size > 0 && !sugestoesAplicadas) {
+    if (!isLoadingSaldosAtuais && saldos.length > 0 && !dadosRestaurados) {
+      const saldosRestaurados: Record<string, number> = {};
+      const confirmadosRestaurados = new Set<string>();
+      saldos.forEach(s => {
+        saldosRestaurados[s.guia_id] = s.saldo_remanescente;
+        confirmadosRestaurados.add(s.guia_id);
+      });
+      setSaldosAnteriores(prev => ({ ...saldosRestaurados, ...prev }));
+      setConfirmados(confirmadosRestaurados);
+      setDadosRestaurados(true);
+    } else if (!isLoadingSaldosAtuais && saldos.length === 0 && !dadosRestaurados) {
+      setDadosRestaurados(true);
+    }
+  }, [isLoadingSaldosAtuais, saldos, dadosRestaurados]);
+
+  // Aplicar sugestões do mês anterior APENAS se não há dados persistidos
+  useEffect(() => {
+    if (dadosRestaurados && saldos.length === 0 && !isLoadingSugestoes && sugestoesSaldoAnterior.size > 0 && !sugestoesAplicadas) {
       const novosSaldos: Record<string, number> = {};
       sugestoesSaldoAnterior.forEach((saldo, guiaId) => {
         novosSaldos[guiaId] = saldo;
@@ -63,10 +81,11 @@ export function ControlCredICMSST({ empresaId }: Props) {
       setSaldosAnteriores(prev => ({ ...novosSaldos, ...prev }));
       setSugestoesAplicadas(true);
     }
-  }, [isLoadingSugestoes, sugestoesSaldoAnterior, sugestoesAplicadas]);
+  }, [dadosRestaurados, saldos.length, isLoadingSugestoes, sugestoesSaldoAnterior, sugestoesAplicadas]);
 
-  // Reset sugestões quando muda competência
+  // Reset quando muda competência
   useEffect(() => {
+    setDadosRestaurados(false);
     setSugestoesAplicadas(false);
     setSaldosAnteriores({});
     setConfirmados(new Set());
@@ -129,20 +148,58 @@ export function ControlCredICMSST({ empresaId }: Props) {
   }, [guiasUtilizaveis, notasByNfe, saldosAnteriores]);
 
   const handleToggleConfirm = useCallback((guiaId: string) => {
+    const row = enrichedRows.find(r => r.guia.id === guiaId);
+    if (!row) return;
+    const isConfirmed = confirmados.has(guiaId);
+    
     setConfirmados(prev => {
       const s = new Set(prev);
       if (s.has(guiaId)) s.delete(guiaId); else s.add(guiaId);
       return s;
     });
-  }, []);
+
+    salvarConfirmacao.mutate({
+      guiaId,
+      numeroNota: row.guia.numero_nota,
+      saldoAnterior: row.saldoAnterior,
+      quantidade: row.quantidade,
+      confirmar: !isConfirmed,
+    });
+  }, [enrichedRows, confirmados, salvarConfirmacao]);
 
   const handleConfirmAll = useCallback(() => {
     setConfirmados(new Set(enrichedRows.map(r => r.guia.id)));
-  }, [enrichedRows]);
+    // Salvar todas de uma vez
+    if (!empresaId) return;
+    const items = enrichedRows.map(r => ({
+      empresa_id: empresaId,
+      guia_id: r.guia.id,
+      numero_nota: r.guia.numero_nota,
+      competencia_ano: competenciaAno,
+      competencia_mes: competenciaMes,
+      saldo_remanescente: r.saldoAnterior,
+      quantidade_original: r.quantidade,
+      quantidade_consumida: 0,
+    }));
+    salvarSaldos.mutate(items as any);
+  }, [enrichedRows, empresaId, competenciaAno, competenciaMes, salvarSaldos]);
 
   const handleSaldoChange = useCallback((guiaId: string, value: number) => {
     setSaldosAnteriores(prev => ({ ...prev, [guiaId]: value }));
-  }, []);
+    // Se já está confirmado, atualizar no banco também
+    if (confirmados.has(guiaId)) {
+      const row = enrichedRows.find(r => r.guia.id === guiaId);
+      if (row) {
+        salvarConfirmacao.mutate({
+          guiaId,
+          numeroNota: row.guia.numero_nota,
+          saldoAnterior: value,
+          quantidade: row.quantidade,
+          confirmar: true,
+        });
+      }
+    }
+  }, [confirmados, enrichedRows, salvarConfirmacao]);
 
   const allConfirmed = enrichedRows.length > 0 && enrichedRows.every(r => confirmados.has(r.guia.id));
 
