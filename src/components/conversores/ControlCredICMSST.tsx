@@ -63,7 +63,8 @@ export function ControlCredICMSST({ empresaId }: Props) {
       const saldosRestaurados: Record<string, number> = {};
       const confirmadosRestaurados = new Set<string>();
       saldos.forEach(s => {
-        saldosRestaurados[s.guia_id] = s.saldo_remanescente;
+        // saldo_remanescente é o que sobrou; o campo "saldo anterior" no form é a qtd já consumida
+        saldosRestaurados[s.guia_id] = s.quantidade_consumida;
         confirmadosRestaurados.add(s.guia_id);
       });
       setSaldosAnteriores(prev => ({ ...saldosRestaurados, ...prev }));

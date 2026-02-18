@@ -129,11 +129,11 @@ export function useSaldosNotas(empresaId: string | undefined, competenciaAno?: n
     },
   });
 
-  // Mapa de guia_id -> saldo_remanescente do mês anterior (para sugestão)
+  // Mapa de guia_id -> quantidade_consumida do mês anterior (para sugestão como "saldo anterior" no form)
   const sugestoesSaldoAnterior = new Map<string, number>();
   saldosMesAnterior.forEach(s => {
-    if (s.saldo_remanescente > 0) {
-      sugestoesSaldoAnterior.set(s.guia_id, s.saldo_remanescente);
+    if (s.quantidade_consumida > 0) {
+      sugestoesSaldoAnterior.set(s.guia_id, s.quantidade_consumida);
     }
   });
 
