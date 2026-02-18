@@ -338,6 +338,23 @@ export function NotasEntradaSTManager() {
 
       const parseDate = (v: any): string | null => {
         if (!v) return null;
+
+        // Handle Date objects directly (Excel cellDates:true returns these)
+        if (v instanceof Date) {
+          const y = v.getFullYear();
+          const m = v.getMonth() + 1;
+          const d = v.getDate();
+          if (y > 1000) return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          return null;
+        }
+
+        // Handle Excel serial date numbers
+        if (typeof v === "number" && v > 1 && v < 100000) {
+          const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+          const date = new Date(excelEpoch.getTime() + v * 86400000);
+          return date.toISOString().split("T")[0];
+        }
+
         const s = String(v).trim();
         if (!s) return null;
         // Try various date formats
