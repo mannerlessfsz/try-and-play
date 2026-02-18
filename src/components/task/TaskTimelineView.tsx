@@ -139,6 +139,40 @@ function CompletionRing({ rate, size = 36, stroke = 3 }: { rate: number; size?: 
   );
 }
 
+// Urgency color for a date based on closest incomplete task deadline
+// Returns the rail segment color for a given day
+function getUrgencyColor(dateStr: string, tasksByDate: Record<string, Tarefa[]>): string {
+  const tasks = tasksByDate[dateStr] || [];
+  // Only consider incomplete tasks
+  const incomplete = tasks.filter(t => t.status !== "concluida");
+  if (incomplete.length === 0) return "bg-foreground/8"; // neutral — no tasks or all done
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const targetDate = new Date(dateStr + "T12:00:00");
+  const diffMs = targetDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "bg-red-500/70";       // overdue → red
+  if (diffDays <= 2) return "bg-amber-500/60";     // 0-2 days → yellow/amber
+  if (diffDays <= 4) return "bg-green-500/50";     // 3-4 days → green
+  if (diffDays <= 7) return "bg-blue-500/40";      // 5-7 days → blue
+  return "bg-foreground/8";                         // >7 days → neutral
+}
+
+function getUrgencyGlow(dateStr: string, tasksByDate: Record<string, Tarefa[]>): string {
+  const tasks = tasksByDate[dateStr] || [];
+  const incomplete = tasks.filter(t => t.status !== "concluida");
+  if (incomplete.length === 0) return "";
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const targetDate = new Date(dateStr + "T12:00:00");
+  const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) return "shadow-[0_0_6px_rgba(239,68,68,0.4)]";
+  if (diffDays <= 2) return "shadow-[0_0_4px_rgba(245,158,11,0.3)]";
+  return "";
+}
+
 // ── Main Component ──
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const now = new Date();
@@ -345,14 +379,20 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       {/* ─── Horizontal Timeline Strip — ALL days visible ─── */}
       <ScrollArea className="w-full">
         <div className="relative px-2 pb-5 min-w-max">
-          {/* Glowing connection rail */}
-          <div className="absolute left-0 right-0 top-[54px] h-[2px] rounded-full overflow-hidden">
-            <div className="w-full h-full bg-foreground/8" />
-            <motion.div
-              className="absolute top-0 h-full w-24 bg-gradient-to-r from-transparent via-primary/30 to-transparent"
-              animate={{ left: ["-96px", "100%"] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "linear" }}
-            />
+          {/* Segmented urgency rail — color changes per day based on deadline proximity */}
+          <div className="absolute left-0 right-0 top-[54px] h-[2px] flex">
+            {days.map((dateStr, i) => {
+              const segColor = getUrgencyColor(dateStr, tasksByDate);
+              const segGlow = getUrgencyGlow(dateStr, tasksByDate);
+              const colWidth = viewMode === "week" ? "calc(100% / 7)" : 56;
+              return (
+                <div
+                  key={dateStr}
+                  className={`h-full ${segColor} ${segGlow} transition-colors duration-500`}
+                  style={{ width: colWidth, minWidth: viewMode === "week" ? 100 : 56, flexShrink: 0 }}
+                />
+              );
+            })}
           </div>
 
           <div className="flex items-start">
