@@ -828,6 +828,14 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
             const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
             const isEditing = editingRowId === nota.id;
 
+            const STATUS_COLORS: Record<string, string> = {
+              "UTILIZAVEL": "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+              "NAO PAGO": "bg-red-500/20 text-red-400 border-red-500/30",
+              "UTILIZADO": "bg-blue-500/20 text-blue-400 border-blue-500/30",
+              "NAO UTILIZAVEL": "bg-amber-500/20 text-amber-400 border-amber-500/30",
+              "VENDA INTERNA": "bg-purple-500/20 text-purple-400 border-purple-500/30",
+            };
+
             const renderField = (label: string, colKey: string, colType?: string, colSpan?: boolean) => {
               const col = columns.find(c => c.key === colKey);
               const value = (nota as any)[colKey];
@@ -838,6 +846,8 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                 : colType === "number" ? new Intl.NumberFormat("pt-BR").format(Number(value) || 0)
                 : colType === "date" ? formatDateBR(value)
                 : String(value ?? "");
+
+              const isStatus = colKey === "status";
 
               return (
                 <div key={colKey} className={colSpan ? "col-span-2 sm:col-span-3 lg:col-span-4" : ""}>
@@ -879,6 +889,10 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                       }}
                       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                     />
+                  ) : isStatus && value ? (
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_COLORS[value] || "bg-muted text-muted-foreground"}`}>
+                      {value}
+                    </span>
                   ) : (
                     <p className={`text-xs font-medium truncate ${colType === "currency" || colType === "number" ? "font-mono" : ""}`}>
                       {formatted || "—"}
