@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { CommandCenter } from "@/components/task/CommandCenter";
-import { TaskHeatmap } from "@/components/task/TaskHeatmap";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
 import { AnimatePresence, motion } from "framer-motion";
@@ -375,9 +374,9 @@ export default function TaskVault() {
 
   const [activityPanelOpen, setActivityPanelOpen] = useState(false);
 
-  // Sidebar content - Metrics + Heatmap (vertical)
+  // Sidebar content - Expanded Metrics
   const sidebarContent = (
-    <div className="p-3 space-y-4">
+    <div className="p-3">
       <CommandCenter
         total={totalTarefas}
         emAndamento={tarefasEmAndamento}
@@ -387,9 +386,6 @@ export default function TaskVault() {
         onFilterClick={handleFilterClick}
         layout="vertical"
       />
-      <div className="border-t border-foreground/8 pt-3">
-        <TaskHeatmap tarefas={tarefasFiltradas} layout="vertical" />
-      </div>
     </div>
   );
 

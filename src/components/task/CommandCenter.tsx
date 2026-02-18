@@ -26,11 +26,11 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
 
   if (layout === "vertical") {
     return (
-      <div className="space-y-3">
-        {/* Radial completion ring - centered */}
-        <div className="flex justify-center">
+      <div className="space-y-4">
+        {/* Radial completion ring - larger */}
+        <div className="flex justify-center py-2">
           <div className="relative">
-            <svg width="64" height="64" viewBox="0 0 64 64" className="-rotate-90">
+            <svg width="96" height="96" viewBox="0 0 64 64" className="-rotate-90">
               <circle cx="32" cy="32" r="28" fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth="3" />
               <motion.circle
                 cx="32" cy="32" r="28" fill="none"
@@ -48,20 +48,21 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 key={completionRate}
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className="text-base font-bold text-foreground tabular-nums leading-none"
+                className="text-xl font-bold text-foreground tabular-nums leading-none"
               >
                 {completionRate}%
               </motion.span>
-              <span className="text-[7px] text-muted-foreground uppercase tracking-wider mt-0.5">concluído</span>
+              <span className="text-[8px] text-muted-foreground uppercase tracking-wider mt-1">concluído</span>
             </div>
           </div>
         </div>
 
-        {/* Segment buttons - vertical stack */}
-        <div className="space-y-1">
+        {/* Segment cards - expanded vertical */}
+        <div className="space-y-1.5">
           {segments.map((seg, i) => {
             const isActive = activeFilter === seg.id;
             const Icon = seg.icon;
+            const pct = total > 0 ? Math.round((seg.value / total) * 100) : 0;
             return (
               <motion.button
                 key={seg.id}
@@ -70,29 +71,32 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 transition={{ delay: i * 0.06 }}
                 onClick={() => onFilterClick(seg.id)}
                 className={`
-                  w-full flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all
+                  w-full flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all
                   ${isActive ? `ring-1 ${seg.activeClass}` : "hover:bg-foreground/5"}
                 `}
               >
-                <div className={`w-6 h-6 rounded-md flex items-center justify-center ${seg.bgClass}`}>
-                  <Icon className={`w-3 h-3 ${seg.textClass}`} />
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${seg.bgClass}`}>
+                  <Icon className={`w-4 h-4 ${seg.textClass}`} />
                 </div>
                 <div className="text-left min-w-0 flex-1">
-                  <p className="text-[9px] text-muted-foreground leading-none">{seg.label}</p>
-                  <motion.p
-                    key={seg.value}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    className="text-sm font-bold text-foreground tabular-nums leading-tight"
-                  >
-                    {seg.value}
-                  </motion.p>
+                  <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{seg.label}</p>
+                  <div className="flex items-baseline gap-1.5">
+                    <motion.p
+                      key={seg.value}
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="text-lg font-bold text-foreground tabular-nums leading-tight"
+                    >
+                      {seg.value}
+                    </motion.p>
+                    <span className="text-[9px] text-muted-foreground/60">{pct}%</span>
+                  </div>
                 </div>
-                {/* Mini bar */}
-                <div className="w-8 h-1 bg-foreground/5 rounded-full overflow-hidden">
+                {/* Progress bar */}
+                <div className="w-10 h-1.5 bg-foreground/5 rounded-full overflow-hidden flex-shrink-0">
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: total > 0 ? `${(seg.value / total) * 100}%` : "0%" }}
+                    animate={{ width: total > 0 ? `${pct}%` : "0%" }}
                     transition={{ duration: 0.8, delay: i * 0.1 }}
                     className="h-full rounded-full"
                     style={{ backgroundColor: seg.color }}
@@ -103,8 +107,8 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
           })}
         </div>
 
-        {/* Bottom progress bar */}
-        <div className="flex h-1 rounded-full overflow-hidden">
+        {/* Bottom stacked progress bar */}
+        <div className="flex h-1.5 rounded-full overflow-hidden">
           {total > 0 ? (
             <>
               <motion.div initial={{ width: 0 }} animate={{ width: `${(concluidas / total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/60" />
