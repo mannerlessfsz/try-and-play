@@ -908,7 +908,7 @@ export function NotasEntradaSTManager() {
             </Badge>
           )}
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto cursor-grab active:cursor-grabbing scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           <div className="min-w-[1800px]">
             <Table>
               <TableHeader>
@@ -940,7 +940,7 @@ export function NotasEntradaSTManager() {
                     // Original index (1-based) from the full notas array
                     const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
                     return (
-                      <TableRow key={nota.id} className={`transition-colors ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
+                      <TableRow key={nota.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
                         <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                           {originalIdx}
                         </TableCell>
@@ -995,7 +995,7 @@ export function NotasEntradaSTManager() {
 
           {showAllRecords && (
             <>
-              <div className="overflow-x-auto border-t border-border/30">
+              <div className="overflow-x-auto cursor-grab active:cursor-grabbing scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent border-t border-border/30">
                 <div className="min-w-[1800px]">
                   <Table>
                     <TableHeader>
@@ -1013,7 +1013,7 @@ export function NotasEntradaSTManager() {
                       {allRecordsPaged.map((nota, idx) => {
                         const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
                         return (
-                          <TableRow key={nota.id} className={`transition-colors ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
+                          <TableRow key={nota.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
                             <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                               {originalIdx}
                             </TableCell>
