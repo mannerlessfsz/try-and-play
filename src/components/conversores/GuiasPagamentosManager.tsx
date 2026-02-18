@@ -84,6 +84,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<GuiaStatus | "TODOS">("TODOS");
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -464,15 +465,19 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const scrollProps = useDragScroll();
 
   const filtered = useMemo(() => {
-    if (!search) return guias;
+    let result = guias;
+    if (statusFilter !== "TODOS") {
+      result = result.filter((g) => (g.status || "NAO PAGO") === statusFilter);
+    }
+    if (!search) return result;
     const s = search.toLowerCase();
-    return guias.filter(
+    return result.filter(
       (g) =>
         g.numero_nota.toLowerCase().includes(s) ||
         (g.produto && g.produto.toLowerCase().includes(s)) ||
         (g.numero_doc_pagamento && g.numero_doc_pagamento.toLowerCase().includes(s))
     );
-  }, [guias, search]);
+  }, [guias, search, statusFilter]);
 
   const formatCell = (guia: any, col: typeof columns[0]) => {
     const val = guia[col.key];
@@ -564,8 +569,8 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         </div>
       </div>
 
-      {/* Totals */}
-      <div className="flex gap-3 flex-wrap">
+      {/* Totals + Status Filter */}
+      <div className="flex gap-3 flex-wrap items-end">
         <div className="glass rounded-lg px-3 py-2">
           <p className="text-[10px] text-muted-foreground">Total Guias</p>
           <p className="text-sm font-bold">{totals.count}</p>
@@ -573,6 +578,32 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         <div className="glass rounded-lg px-3 py-2 border-[hsl(var(--blue))/0.3]">
           <p className="text-[10px] text-muted-foreground">Valor Total</p>
           <p className="text-sm font-bold text-[hsl(var(--blue))]">{formatCurrency(totals.valor_total)}</p>
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          <span className="text-[10px] text-muted-foreground mr-1">Filtrar:</span>
+          <Badge
+            variant={statusFilter === "TODOS" ? "default" : "outline"}
+            className="cursor-pointer text-[10px] px-2 py-0.5 hover:opacity-80 transition-opacity"
+            onClick={() => setStatusFilter("TODOS")}
+          >
+            Todos ({guias.length})
+          </Badge>
+          {STATUS_OPTIONS.map((opt) => {
+            const count = guias.filter((g) => (g.status || "NAO PAGO") === opt.value).length;
+            if (count === 0) return null;
+            return (
+              <Badge
+                key={opt.value}
+                variant="outline"
+                className={`cursor-pointer text-[10px] px-2 py-0.5 hover:opacity-80 transition-opacity ${
+                  statusFilter === opt.value ? opt.color + " ring-1 ring-current" : "opacity-60"
+                }`}
+                onClick={() => setStatusFilter(statusFilter === opt.value ? "TODOS" : opt.value)}
+              >
+                {opt.label} ({count})
+              </Badge>
+            );
+          })}
         </div>
       </div>
 
