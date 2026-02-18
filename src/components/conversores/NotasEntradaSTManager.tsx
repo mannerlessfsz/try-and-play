@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2, SearchCheck } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,7 +34,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
-import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
+
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -87,71 +87,15 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
   { key: "data_pagamento", label: "Pagamento", width: "w-24" },
 ];
 
-export function NotasEntradaSTManager() {
+interface NotasEntradaSTManagerProps {
+  empresaId?: string;
+}
+
+export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Local empresa selector state
-  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string | null>(() => {
-    return localStorage.getItem("notasST_empresaId") || null;
-  });
-  const [showNewEmpresaDialog, setShowNewEmpresaDialog] = useState(false);
-  const [newEmpresaForm, setNewEmpresaForm] = useState({ nome: "", cnpj: "" });
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
-
-  // Fetch empresas directly
-  const { data: empresas = [] } = useQuery({
-    queryKey: ["empresas-conversores"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("empresas")
-        .select("id, nome, cnpj")
-        .eq("ativo", true)
-        .order("nome");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  // Auto-select first empresa or restore from localStorage
-  const empresaAtiva = useMemo(() => {
-    if (selectedEmpresaId) {
-      const found = empresas.find((e) => e.id === selectedEmpresaId);
-      if (found) return found;
-    }
-    if (empresas.length > 0) return empresas[0];
-    return null;
-  }, [empresas, selectedEmpresaId]);
-
-  const handleSelectEmpresa = (id: string) => {
-    setSelectedEmpresaId(id);
-    localStorage.setItem("notasST_empresaId", id);
-  };
-
-  const createEmpresa = useMutation({
-    mutationFn: async (data: { nome: string; cnpj: string }) => {
-      const { data: result, error } = await supabase
-        .from("empresas")
-        .insert({ nome: data.nome, cnpj: data.cnpj || null })
-        .select()
-        .single();
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["empresas-conversores"] });
-      handleSelectEmpresa(data.id);
-      setShowNewEmpresaDialog(false);
-      setNewEmpresaForm({ nome: "", cnpj: "" });
-      toast.success("Empresa cadastrada com sucesso");
-    },
-    onError: (err: any) => {
-      toast.error("Erro ao cadastrar empresa: " + err.message);
-    },
-  });
-
-  const { notas, isLoading, addNota, deleteNota, addMany } = useNotasEntradaST(empresaAtiva?.id);
+  const { notas, isLoading, addNota, deleteNota, addMany } = useNotasEntradaST(empresaId);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -273,13 +217,13 @@ export function NotasEntradaSTManager() {
   }, [notas]);
 
   const handleAdd = () => {
-    if (!empresaAtiva?.id || !newNota.nfe || !newNota.fornecedor) {
+    if (!empresaId || !newNota.nfe || !newNota.fornecedor) {
       toast.error("NF-e e Fornecedor são obrigatórios");
       return;
     }
 
     const nota: NotaEntradaSTInsert = {
-      empresa_id: empresaAtiva.id,
+      empresa_id: empresaId,
       nfe: newNota.nfe,
       fornecedor: newNota.fornecedor,
       competencia: newNota.competencia || null,
@@ -314,7 +258,7 @@ export function NotasEntradaSTManager() {
 
   const handleImportXlsx = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !empresaAtiva?.id) return;
+    if (!file || !empresaId) return;
 
     try {
       const XLSX = await import("xlsx");
@@ -456,7 +400,7 @@ export function NotasEntradaSTManager() {
         existingKeys.add(key);
 
         notasToInsert.push({
-          empresa_id: empresaAtiva.id,
+          empresa_id: empresaId,
           nfe,
           fornecedor: forn,
           competencia: colComp >= 0 ? parseDate(row[colComp]) : null,
@@ -528,7 +472,7 @@ export function NotasEntradaSTManager() {
 
   const handleImportNfe = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !empresaAtiva?.id) return;
+    if (!file || !empresaId) return;
 
     const fileName = file.name.toLowerCase();
     const isXML = fileName.endsWith(".xml");
@@ -567,7 +511,7 @@ export function NotasEntradaSTManager() {
 
       // Map each product from the NF-e to a nota entrada ST record
       const notasToInsert: NotaEntradaSTInsert[] = nfe.produtos.map((prod: any) => ({
-        empresa_id: empresaAtiva.id,
+        empresa_id: empresaId,
         nfe: nfe.numero || "",
         fornecedor: nfe.emitente?.nome || "",
         competencia: nfe.data_emissao || null,
@@ -595,7 +539,7 @@ export function NotasEntradaSTManager() {
       if (notasToInsert.length === 0) {
         // If no products, create a single entry with totals
         const singleNota: NotaEntradaSTInsert = {
-          empresa_id: empresaAtiva.id,
+          empresa_id: empresaId,
           nfe: nfe.numero || "",
           fornecedor: nfe.emitente?.nome || "",
           competencia: nfe.data_emissao || null,
@@ -657,115 +601,12 @@ export function NotasEntradaSTManager() {
     return String(v ?? "");
   };
 
-  const handleCnpjChange = (value: string) => {
-    const formatted = formatCnpj(value);
-    setNewEmpresaForm((p) => ({ ...p, cnpj: formatted }));
-  };
 
-  const handleBuscarCnpj = async () => {
-    const digits = cleanCnpj(newEmpresaForm.cnpj);
-    if (digits.length !== 14) {
-      toast.error("Digite um CNPJ completo com 14 dígitos");
-      return;
-    }
-    if (!isValidCnpj(digits)) {
-      toast.error("CNPJ inválido (dígito verificador incorreto)");
-      return;
-    }
-
-    // Check if empresa already exists with this CNPJ
-    const existing = empresas.find((e) => e.cnpj && cleanCnpj(e.cnpj) === digits);
-    if (existing) {
-      handleSelectEmpresa(existing.id);
-      setShowNewEmpresaDialog(false);
-      toast.info(`Empresa "${existing.nome}" já cadastrada — selecionada automaticamente`);
-      return;
-    }
-
-    setBuscandoCnpj(true);
-    try {
-      const data = await fetchCnpjData(digits);
-      setNewEmpresaForm({
-        nome: data.razao_social || data.nome_fantasia || "",
-        cnpj: formatCnpj(digits),
-      });
-      toast.success("Dados encontrados na Receita Federal");
-    } catch (err: any) {
-      toast.error(err.message || "Erro ao buscar CNPJ");
-    } finally {
-      setBuscandoCnpj(false);
-    }
-  };
-
-  const renderNewEmpresaDialog = () => (
-    <Dialog open={showNewEmpresaDialog} onOpenChange={(open) => {
-      setShowNewEmpresaDialog(open);
-      if (!open) setNewEmpresaForm({ nome: "", cnpj: "" });
-    }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" /> Nova Empresa
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>CNPJ</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newEmpresaForm.cnpj}
-                onChange={(e) => handleCnpjChange(e.target.value)}
-                placeholder="00.000.000/0001-00"
-                maxLength={18}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={handleBuscarCnpj}
-                disabled={buscandoCnpj || cleanCnpj(newEmpresaForm.cnpj).length < 14}
-                title="Buscar CNPJ na Receita Federal"
-              >
-                {buscandoCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
-              </Button>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Digite o CNPJ e clique na lupa para buscar automaticamente
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label>Nome da Empresa *</Label>
-            <Input
-              value={newEmpresaForm.nome}
-              onChange={(e) => setNewEmpresaForm((p) => ({ ...p, nome: e.target.value }))}
-              placeholder="Razão Social ou Nome Fantasia"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowNewEmpresaDialog(false)}>Cancelar</Button>
-          <Button
-            onClick={() => createEmpresa.mutate(newEmpresaForm)}
-            disabled={!newEmpresaForm.nome || createEmpresa.isPending}
-          >
-            {createEmpresa.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Cadastrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
-  if (!empresaAtiva) {
+  if (!empresaId) {
     return (
       <div className="glass rounded-2xl p-8 text-center space-y-4">
-        <Building2 className="w-12 h-12 mx-auto text-muted-foreground" />
-        <p className="text-muted-foreground">Nenhuma empresa cadastrada.</p>
-        <Button onClick={() => setShowNewEmpresaDialog(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Cadastrar Empresa
-        </Button>
-        {renderNewEmpresaDialog()}
+        <FileText className="w-12 h-12 mx-auto text-muted-foreground" />
+        <p className="text-muted-foreground">Selecione uma empresa no painel acima para continuar.</p>
       </div>
     );
   }
@@ -776,29 +617,6 @@ export function NotasEntradaSTManager() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
-      {renderNewEmpresaDialog()}
-
-      {/* Empresa Selector */}
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-        <Select value={empresaAtiva.id} onValueChange={handleSelectEmpresa}>
-          <SelectTrigger className="w-60 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {empresas.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.nome} {e.cnpj ? `(${e.cnpj})` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowNewEmpresaDialog(true)}>
-          <Plus className="w-3.5 h-3.5" /> Nova
-        </Button>
-      </div>
-
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[hsl(var(--orange))] to-[hsl(var(--orange))/0.6] flex items-center justify-center">
