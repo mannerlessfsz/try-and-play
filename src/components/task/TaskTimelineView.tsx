@@ -458,13 +458,12 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                     />
 
                     {/* Node circle on axis */}
-                    <motion.button
+                    <button
                       ref={style.today ? todayRef : undefined}
                       onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
                       className={`
                         relative z-20 flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer
+                        hover:brightness-125
                         ${style.count > 0 ? "w-8 h-8" : "w-4 h-4"}
                         ${selectedDate === dateStr
                           ? "ring-2 ring-primary/60 shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
@@ -491,7 +490,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           <span className="absolute inset-[-4px] rounded-full border border-primary/30 animate-pulse" />
                         </>
                       )}
-                    </motion.button>
+                    </button>
 
                     {/* Date label — positioned on opposite side of card */}
                     <div

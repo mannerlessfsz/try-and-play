@@ -83,11 +83,12 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
       <motion.div
         ref={ref}
         onClick={onClick}
-        whileHover={{ scale: 1.03, y: -2 }}
+        whileHover={{ y: -2 }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className={`
           relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl
+          will-change-transform
           ${isActive ? cfg.active : cfg.gradient}
           ${isActive ? cfg.glow : ""}
           ${cfg.ring}
