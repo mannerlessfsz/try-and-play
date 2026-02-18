@@ -78,32 +78,62 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
 
     setIsSyncing(true);
     try {
-      // Deduplicate: only sync notas whose nfe is not already in guias
-      const existingNotas = new Set(guias.map((g) => g.numero_nota));
-      const newNotas = notas.filter((n) => !existingNotas.has(n.nfe));
+      const existingGuiasMap = new Map(guias.map((g) => [g.numero_nota, g]));
+      const newNotas: typeof notas = [];
+      const updatedCount = { value: 0 };
 
-      if (newNotas.length === 0) {
-        toast({ title: "Tudo sincronizado", description: "Todas as notas já estão em Guias Pagamentos." });
-        setIsSyncing(false);
-        return;
+      for (const n of notas) {
+        const existing = existingGuiasMap.get(n.nfe);
+        if (!existing) {
+          newNotas.push(n);
+        } else {
+          // Update existing guia with latest data from nota
+          const updates: Record<string, any> = {};
+          const newValorGuia = n.total_st || 0;
+          const newDataNota = n.competencia || null;
+          const newDataPagamento = n.data_pagamento || null;
+          const newCreditoIcmsProprio = n.valor_icms_nf != null ? String(n.valor_icms_nf) : null;
+          const newCreditoIcmsSt = n.total_st != null ? String(n.total_st) : null;
+
+          if (Number(existing.valor_guia) !== newValorGuia) updates.valor_guia = newValorGuia;
+          if (existing.data_nota !== newDataNota) updates.data_nota = newDataNota;
+          if (existing.data_pagamento !== newDataPagamento) updates.data_pagamento = newDataPagamento;
+          if (existing.credito_icms_proprio !== newCreditoIcmsProprio) updates.credito_icms_proprio = newCreditoIcmsProprio;
+          if (existing.credito_icms_st !== newCreditoIcmsSt) updates.credito_icms_st = newCreditoIcmsSt;
+
+          if (Object.keys(updates).length > 0) {
+            await updateGuia.mutateAsync({ id: existing.id, ...updates } as any);
+            updatedCount.value++;
+          }
+        }
       }
 
-      const guiasToInsert = newNotas.map((n) => ({
-        empresa_id: empresaId,
-        numero_nota: n.nfe,
-        valor_guia: n.total_st || 0,
-        data_nota: n.competencia || null,
-        data_pagamento: n.data_pagamento || null,
-        numero_doc_pagamento: null,
-        codigo_barras: null,
-        produto: null,
-        credito_icms_proprio: n.valor_icms_nf != null ? String(n.valor_icms_nf) : null,
-        credito_icms_st: n.total_st != null ? String(n.total_st) : null,
-        observacoes: null,
-      }));
+      // Insert new guias
+      if (newNotas.length > 0) {
+        const guiasToInsert = newNotas.map((n) => ({
+          empresa_id: empresaId,
+          numero_nota: n.nfe,
+          valor_guia: n.total_st || 0,
+          data_nota: n.competencia || null,
+          data_pagamento: n.data_pagamento || null,
+          numero_doc_pagamento: null,
+          codigo_barras: null,
+          produto: null,
+          credito_icms_proprio: n.valor_icms_nf != null ? String(n.valor_icms_nf) : null,
+          credito_icms_st: n.total_st != null ? String(n.total_st) : null,
+          observacoes: null,
+        }));
+        await addMany.mutateAsync(guiasToInsert);
+      }
 
-      await addMany.mutateAsync(guiasToInsert);
-      toast({ title: `${newNotas.length} guia(s) sincronizada(s)`, description: "Dados importados de Notas Entrada ST." });
+      if (newNotas.length === 0 && updatedCount.value === 0) {
+        toast({ title: "Tudo sincronizado", description: "Nenhuma alteração detectada nas Notas." });
+      } else {
+        const parts: string[] = [];
+        if (newNotas.length > 0) parts.push(`${newNotas.length} nova(s)`);
+        if (updatedCount.value > 0) parts.push(`${updatedCount.value} atualizada(s)`);
+        toast({ title: `Sincronização concluída`, description: `Guias: ${parts.join(", ")}.` });
+      }
     } catch (err: any) {
       toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" });
     } finally {
