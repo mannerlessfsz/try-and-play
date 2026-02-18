@@ -934,7 +934,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                       {value}
                     </span>
                   ) : (
-                    <p className={`text-xs font-medium truncate ${colType === "currency" || colType === "number" ? "font-mono" : ""}`}>
+                    <p className={`text-xs font-medium break-all ${colType === "currency" || colType === "number" ? "font-mono" : ""}`}>
                       {formatted || "—"}
                     </p>
                   )}
