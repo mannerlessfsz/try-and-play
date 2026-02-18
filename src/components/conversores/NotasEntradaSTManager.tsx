@@ -356,25 +356,42 @@ export function NotasEntradaSTManager() {
         return null;
       };
 
+      // Build a set of existing nota keys to detect duplicates
+      const existingKeys = new Set(
+        notas.map((n) => `${n.nfe}|${n.fornecedor}|${n.ncm || ""}|${n.valor_total}`)
+      );
+
       const notasToInsert: NotaEntradaSTInsert[] = [];
+      let skippedCount = 0;
 
       for (const row of dataRows) {
         const nfe = String(row[colNfe] ?? "").replace(/,/g, "").trim();
         const forn = String(row[colForn] ?? "").trim();
         if (!nfe || !forn) continue;
 
+        const ncm = colNcm >= 0 ? String(row[colNcm] ?? "").trim() : "";
+        const valorTotal = colValTotal >= 0 ? parseNum(row[colValTotal]) : 0;
+        const key = `${nfe}|${forn}|${ncm}|${valorTotal}`;
+
+        // Skip if already exists in DB or already queued for insert
+        if (existingKeys.has(key)) {
+          skippedCount++;
+          continue;
+        }
+        existingKeys.add(key);
+
         notasToInsert.push({
           empresa_id: empresaAtiva.id,
           nfe,
           fornecedor: forn,
           competencia: colComp >= 0 ? parseDate(row[colComp]) : null,
-          ncm: colNcm >= 0 ? String(row[colNcm] ?? "").trim() : null,
+          ncm: ncm || null,
           quantidade: colQtd >= 0 ? parseNum(row[colQtd]) : 0,
           valor_produto: colValProd >= 0 ? parseNum(row[colValProd]) : 0,
           ipi: colIpi >= 0 ? parseNum(row[colIpi]) : 0,
           frete: colFrete >= 0 ? parseNum(row[colFrete]) : 0,
           desconto: colDesc >= 0 ? parseNum(row[colDesc]) : 0,
-          valor_total: colValTotal >= 0 ? parseNum(row[colValTotal]) : 0,
+          valor_total: valorTotal,
           pct_mva: colMva >= 0 ? parsePct(String(row[colMva])) : 0,
           pct_icms_interno: colIcmsInt >= 0 ? parsePct(String(row[colIcmsInt])) : 0,
           pct_fecp: colFecp >= 0 ? parsePct(String(row[colFecp])) : 0,
@@ -391,8 +408,16 @@ export function NotasEntradaSTManager() {
       }
 
       if (notasToInsert.length === 0) {
-        toast.error("Nenhuma nota válida encontrada na planilha");
+        if (skippedCount > 0) {
+          toast.info(`Todas as ${skippedCount} notas da planilha já existem no sistema`);
+        } else {
+          toast.error("Nenhuma nota válida encontrada na planilha");
+        }
         return;
+      }
+
+      if (skippedCount > 0) {
+        toast.info(`${skippedCount} nota(s) duplicada(s) ignorada(s)`);
       }
 
       addMany.mutate(notasToInsert as any);
@@ -894,11 +919,11 @@ export function NotasEntradaSTManager() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredReversed.map((nota) => {
+                  filteredReversed.map((nota, idx) => {
                     // Original index (1-based) from the full notas array
                     const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
                     return (
-                      <TableRow key={nota.id} className="hover:bg-muted/30 transition-colors">
+                      <TableRow key={nota.id} className={`transition-colors ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
                         <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                           {originalIdx}
                         </TableCell>
@@ -968,10 +993,10 @@ export function NotasEntradaSTManager() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {allRecordsPaged.map((nota) => {
+                      {allRecordsPaged.map((nota, idx) => {
                         const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
                         return (
-                          <TableRow key={nota.id} className="hover:bg-muted/30 transition-colors">
+                          <TableRow key={nota.id} className={`transition-colors ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-muted/40`}>
                             <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                               {originalIdx}
                             </TableCell>
