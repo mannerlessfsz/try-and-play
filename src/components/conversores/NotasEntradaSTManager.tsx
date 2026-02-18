@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Pencil, Check } from "lucide-react";
+import { ViewModeSelector, type ViewMode } from "./ViewModeSelector";
+import { NotasCompactCards, NotasAccordionCards, NotasGridCards } from "./NotasViewCards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -146,6 +148,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
   const [importingNfe, setImportingNfe] = useState(false);
   const nfeInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompetencia, setSelectedCompetencia] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   // Drag-to-scroll logic for horizontal table navigation
   const useDragScroll = () => {
@@ -659,6 +662,8 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+          <ViewModeSelector value={viewMode} onChange={setViewMode} />
+
           {/* Competência filter */}
           <Select value={activeCompetencia} onValueChange={(v) => { setSelectedCompetencia(v); setPage(0); }}>
             <SelectTrigger className="w-40 h-8 text-xs">
@@ -798,7 +803,13 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         ))}
       </div>
 
-      {/* Filtered table (by competência) */}
+      {viewMode === "cards" ? (
+        <NotasCompactCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
+      ) : viewMode === "accordion" ? (
+        <NotasAccordionCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
+      ) : viewMode === "grid" ? (
+        <NotasGridCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
+      ) : (
       <div className="glass rounded-xl overflow-hidden">
         <div className="px-4 py-2 border-b border-border/30 flex items-center justify-between">
           <p className="text-[10px] text-muted-foreground">
@@ -924,6 +935,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
           </div>
         </div>
       </div>
+      )}
 
     </motion.div>
   );

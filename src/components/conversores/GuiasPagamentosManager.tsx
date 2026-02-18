@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check } from "lucide-react";
+import { ViewModeSelector, type ViewMode } from "./ViewModeSelector";
+import { GuiasCompactCards, GuiasAccordionCards, GuiasGridCards } from "./GuiasViewCards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +80,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const [search, setSearch] = useState("");
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   // Auto-sync from Notas ST when component mounts and there are notas but no guias
   useEffect(() => {
@@ -252,6 +255,8 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          <ViewModeSelector value={viewMode} onChange={setViewMode} />
+
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
@@ -300,7 +305,13 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         </div>
       </div>
 
-      {/* Table */}
+      {viewMode === "cards" ? (
+        <GuiasCompactCards guias={filtered} onUpdate={(data: any) => updateGuia.mutate(data)} onDelete={(id: string) => deleteGuia.mutate(id)} />
+      ) : viewMode === "accordion" ? (
+        <GuiasAccordionCards guias={filtered} onUpdate={(data: any) => updateGuia.mutate(data)} onDelete={(id: string) => deleteGuia.mutate(id)} />
+      ) : viewMode === "grid" ? (
+        <GuiasGridCards guias={filtered} onUpdate={(data: any) => updateGuia.mutate(data)} onDelete={(id: string) => deleteGuia.mutate(id)} />
+      ) : (
       <div className="glass rounded-xl overflow-hidden">
         <div className="px-4 py-2 border-b border-border/30 flex items-center justify-between">
           <p className="text-[10px] text-muted-foreground">
@@ -450,6 +461,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           </div>
         </div>
       </div>
+      )}
     </motion.div>
   );
 }
