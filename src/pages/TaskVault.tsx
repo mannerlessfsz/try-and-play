@@ -410,14 +410,38 @@ export default function TaskVault() {
       />
       
       <div className="p-4 pr-72">
-        {/* Unified control frame */}
-        <div className="mb-5 bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 p-5 space-y-4">
+        {/* Unified control frame - glass with ambient glow */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+          className="mb-5 glass rounded-2xl p-5 space-y-4 relative overflow-hidden group/frame"
+        >
+          {/* Radial ambient glow */}
+          <div 
+            className="absolute -top-12 -right-12 w-40 h-40 rounded-full opacity-0 group-hover/frame:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
+            style={{ background: "hsl(var(--primary))" }}
+          />
+          {/* Bottom accent line */}
+          <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
+            <motion.div
+              className="h-full"
+              style={{ background: "linear-gradient(90deg, hsl(var(--primary)), hsl(var(--primary) / 0.3))" }}
+              initial={{ width: "0%" }}
+              animate={{ width: "60%" }}
+              transition={{ duration: 1.2, delay: 0.3 }}
+            />
+          </div>
+
           {/* Controls bar */}
-          <div className="flex items-center gap-3 relative flex-wrap">
+          <div className="flex items-center gap-3 relative flex-wrap z-10">
             <div className="flex items-center gap-2.5 flex-shrink-0">
-              <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
-                <ListTodo className="w-3.5 h-3.5 text-primary" />
-              </div>
+              <motion.div 
+                whileHover={{ scale: 1.1 }}
+                className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-[0_0_20px_hsl(var(--primary)/0.4)]"
+              >
+                <ListTodo className="w-4 h-4 text-primary-foreground" />
+              </motion.div>
               <div>
                 <h2 className="text-sm font-bold text-foreground leading-tight">Tarefas</h2>
                 <p className="text-[10px] text-muted-foreground">{filteredTarefas.length} tarefa{filteredTarefas.length !== 1 ? "s" : ""}</p>
@@ -434,18 +458,22 @@ export default function TaskVault() {
             </select>
 
             {activeFilter !== "all" && (
-              <div className="flex items-center gap-1.5">
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30">
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-1.5"
+              >
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-primary/20 text-primary border border-primary/30 shadow-[0_0_10px_hsl(var(--primary)/0.2)]">
                   {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
                 </span>
-                <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground">✕</button>
-              </div>
+                <button onClick={() => setActiveFilter("all")} className="text-[10px] text-muted-foreground hover:text-foreground transition-colors">✕</button>
+              </motion.div>
             )}
 
             <div className="flex-1" />
 
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="flex bg-background/50 rounded-xl p-1 border border-foreground/8">
+              <div className="flex glass rounded-xl p-1">
                 {([
                   { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
                   { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
@@ -455,21 +483,36 @@ export default function TaskVault() {
                     key={mode} 
                     onClick={() => handleSetViewMode(mode)} 
                     title={`${label} (${shortcut})`}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
+                    className={`relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-all text-xs font-medium ${viewMode === mode ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"}`}
                   >
-                    <MIcon className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">{label}</span>
+                    {viewMode === mode && (
+                      <motion.div
+                        layoutId="taskvault-view-pill"
+                        className="absolute inset-0 rounded-lg"
+                        style={{
+                          background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7))",
+                          boxShadow: "0 0 20px hsl(var(--primary) / 0.5), 0 0 40px hsl(var(--primary) / 0.2)",
+                        }}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                    <MIcon className="w-3.5 h-3.5 relative z-10" />
+                    <span className="hidden sm:inline relative z-10">{label}</span>
                   </button>
                 ))}
               </div>
-              <Button size="sm" onClick={() => setShowModal(true)} className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl shadow-lg shadow-primary/20">
+              <Button 
+                size="sm" 
+                onClick={() => setShowModal(true)} 
+                className="bg-gradient-to-r from-primary to-primary/70 text-primary-foreground rounded-xl shadow-[0_0_20px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.6)] transition-shadow"
+              >
                 <Plus className="w-4 h-4 mr-1" /> Nova Tarefa
               </Button>
             </div>
 
           </div>
 
-        </div>
+        </motion.div>
 
         {/* Onboard tip - below the frame */}
         <AnimatePresence>
@@ -493,7 +536,17 @@ export default function TaskVault() {
 
         {/* Content based on view mode */}
         {viewMode === "timeline" ? (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-primary/15 p-4">
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, type: "spring", stiffness: 200, damping: 20 }}
+            className="glass rounded-2xl p-4 relative overflow-hidden"
+            style={{ borderColor: "hsl(var(--primary) / 0.15)" }}
+          >
+            <div 
+              className="absolute -top-16 left-1/2 -translate-x-1/2 w-64 h-32 rounded-full opacity-30 blur-3xl pointer-events-none"
+              style={{ background: "hsl(var(--primary) / 0.15)" }}
+            />
             <TaskTimelineView
               tarefas={filteredTarefas}
               getEmpresaNome={getEmpresaNome}
@@ -502,20 +555,37 @@ export default function TaskVault() {
               onUploadArquivo={handleUploadArquivo}
               onDeleteArquivo={handleDeleteArquivo}
             />
-          </div>
+          </motion.div>
         ) : viewMode === "kanban" ? (
-          <div className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}>
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={`grid gap-4 ${activeFilter === "all" ? "grid-cols-3" : "grid-cols-1"}`}
+          >
             {activeFilter === "all" ? (
-              (["pendente", "em_andamento", "concluida"] as const).map(status => {
+              (["pendente", "em_andamento", "concluida"] as const).map((status, colIdx) => {
                 const colConfig = {
-                  pendente: { border: "border-foreground/8", dot: "bg-muted-foreground", label: "Pendentes", badge: "bg-muted text-muted-foreground" },
-                  em_andamento: { border: "border-blue-500/15", dot: "bg-blue-500 animate-pulse", label: "Em Andamento", badge: "bg-blue-500/15 text-blue-400" },
-                  concluida: { border: "border-green-500/15", dot: "bg-green-500", label: "Concluídas", badge: "bg-green-500/15 text-green-400" },
+                  pendente: { border: "border-foreground/8", dot: "bg-muted-foreground", label: "Pendentes", badge: "bg-muted text-muted-foreground", glow: "hsl(var(--muted-foreground) / 0.1)" },
+                  em_andamento: { border: "border-blue-500/15", dot: "bg-blue-500 animate-pulse", label: "Em Andamento", badge: "bg-blue-500/15 text-blue-400", glow: "hsl(210 100% 55% / 0.1)" },
+                  concluida: { border: "border-green-500/15", dot: "bg-green-500", label: "Concluídas", badge: "bg-green-500/15 text-green-400", glow: "hsl(142 76% 36% / 0.1)" },
                 };
                 const col = colConfig[status];
                 return (
-                  <div key={status} className={`bg-card/20 backdrop-blur-xl rounded-2xl border ${col.border} overflow-hidden`}>
-                    <div className="flex items-center gap-2 px-4 py-3 border-b border-foreground/5">
+                  <motion.div 
+                    key={status} 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: colIdx * 0.08, type: "spring", stiffness: 200, damping: 20 }}
+                    className={`glass rounded-2xl overflow-hidden relative group/col`}
+                    style={{ borderColor: `${col.glow.replace('0.1', '0.2')}` }}
+                  >
+                    {/* Column ambient glow */}
+                    <div 
+                      className="absolute -top-8 left-1/2 -translate-x-1/2 w-32 h-16 rounded-full opacity-0 group-hover/col:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
+                      style={{ background: col.glow }}
+                    />
+                    <div className="flex items-center gap-2 px-4 py-3 border-b border-foreground/5 relative z-10">
                       <div className={`w-2 h-2 rounded-full ${col.dot}`} />
                       <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
                       <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-medium ${col.badge}`}>
@@ -559,7 +629,7 @@ export default function TaskVault() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })
             ) : (
@@ -602,9 +672,14 @@ export default function TaskVault() {
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         ) : (
-          <div className="bg-card/30 backdrop-blur-xl rounded-2xl border border-foreground/8 overflow-hidden">
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, type: "spring", stiffness: 200, damping: 20 }}
+            className="glass rounded-2xl overflow-hidden"
+          >
             <table className="w-full">
               <thead className="bg-card/60 border-b border-foreground/8">
                 <tr>
@@ -675,7 +750,7 @@ export default function TaskVault() {
                 ))}
               </tbody>
             </table>
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -696,34 +771,36 @@ export default function TaskVault() {
       />
 
       {/* ─── Bottom Activity Panel ─── */}
-      <div
-        className={`
-          fixed bottom-0 left-0 right-64 z-30
-          transition-all duration-300 ease-out
-        `}
-      >
+      <div className="fixed bottom-0 left-0 right-64 z-30 transition-all duration-300 ease-out">
         {/* Toggle bar */}
         <button
           onClick={() => setActivityPanelOpen(prev => !prev)}
-          className="w-full flex items-center gap-2 px-4 py-2 bg-card/95 backdrop-blur-xl border-t border-foreground/10 hover:bg-card transition-colors"
+          className="w-full flex items-center gap-2 px-4 py-2.5 glass border-t border-foreground/10 hover:bg-card/60 transition-all duration-300 relative overflow-hidden group/activity"
         >
-          <div className="relative">
-            <Activity className="w-3.5 h-3.5 text-primary" />
-            <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-          </div>
-          <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
-            Atividade Recente
-          </span>
-          <span className="text-[9px] text-muted-foreground/50 tabular-nums">
-            {atividades.length}
-          </span>
-          <div className="ml-auto">
-            <motion.div
-              animate={{ rotate: activityPanelOpen ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-            </motion.div>
+          {/* Subtle glow on hover */}
+          <div 
+            className="absolute inset-0 opacity-0 group-hover/activity:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style={{ background: "radial-gradient(ellipse at 20% 50%, hsl(var(--primary) / 0.08), transparent 60%)" }}
+          />
+          <div className="relative z-10 flex items-center gap-2 w-full">
+            <div className="relative">
+              <Activity className="w-3.5 h-3.5 text-primary" />
+              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full animate-pulse shadow-[0_0_6px_hsl(142_76%_36%/0.6)]" style={{ background: "hsl(142, 76%, 36%)" }} />
+            </div>
+            <span className="text-[10px] font-semibold text-foreground/70 uppercase tracking-wider">
+              Atividade Recente
+            </span>
+            <span className="text-[9px] text-muted-foreground/50 tabular-nums">
+              {atividades.length}
+            </span>
+            <div className="ml-auto">
+              <motion.div
+                animate={{ rotate: activityPanelOpen ? 180 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+              </motion.div>
+            </div>
           </div>
         </button>
 
@@ -735,9 +812,13 @@ export default function TaskVault() {
               animate={{ height: 220 }}
               exit={{ height: 0 }}
               transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
-              className="overflow-hidden bg-card/95 backdrop-blur-xl border-t border-foreground/5"
+              className="overflow-hidden glass border-t border-foreground/5 relative"
             >
-              <div className="h-full overflow-y-auto p-3">
+              <div 
+                className="absolute top-0 left-0 right-0 h-16 pointer-events-none opacity-40"
+                style={{ background: "radial-gradient(ellipse at 50% 0%, hsl(var(--primary) / 0.1), transparent 70%)" }}
+              />
+              <div className="h-full overflow-y-auto p-3 relative z-10">
                 <ActivityPulseFeed atividades={atividades} />
               </div>
             </motion.div>
