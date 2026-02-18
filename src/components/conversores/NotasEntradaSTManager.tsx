@@ -125,6 +125,7 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
   { key: "valor_icms_nf", label: "ICMS na NF", width: "w-28", type: "currency" },
   { key: "valor_icms_st", label: "Valor ICMS ST", width: "w-28", type: "currency" },
   { key: "valor_fecp", label: "Valor FECP", width: "w-28", type: "currency" },
+  { key: "icms_proprio_un", label: "ICMS Próprio UN", width: "w-28", type: "currency" },
   { key: "valor_st_un", label: "Valor ST UN", width: "w-24", type: "currency" },
   { key: "total_st", label: "TOTAL ST", width: "w-28", type: "currency" },
   { key: "chave_nfe", label: "Chave NFE", width: "w-[340px]" },
@@ -873,14 +874,16 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
             };
 
             const notaStatus = (nota as any).status || "";
+            const icmsProprioUn = nota.quantidade > 0 ? nota.valor_icms_nf / nota.quantidade : 0;
+            const notaWithCalc = { ...nota, icms_proprio_un: icmsProprioUn } as any;
             const cardBorder = CARD_BORDER_COLORS[notaStatus] || "border-border/30";
             const cardHeader = CARD_HEADER_COLORS[notaStatus] || "bg-muted/30";
 
             const renderField = (label: string, colKey: string, colType?: string, colSpan?: boolean) => {
               const col = columns.find(c => c.key === colKey);
-              const value = (nota as any)[colKey];
+              const value = notaWithCalc[colKey];
               const formatted = col
-                ? formatCell(nota, col)
+                ? formatCell(notaWithCalc, col)
                 : colType === "currency" ? formatCurrency(Number(value) || 0)
                 : colType === "pct" ? formatPct(Number(value) || 0)
                 : colType === "number" ? new Intl.NumberFormat("pt-BR").format(Number(value) || 0)
@@ -892,7 +895,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
               return (
                 <div key={colKey} className={colSpan ? "col-span-2 sm:col-span-3 lg:col-span-4" : ""}>
                   <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
-                  {isEditing ? (
+                  {isEditing && colKey !== "icms_proprio_un" ? (
                     <Input
                       className="h-7 text-xs px-2 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background"
                       defaultValue={
@@ -998,6 +1001,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   {renderField("ICMS na NF", "valor_icms_nf", "currency")}
                   {renderField("Valor ICMS ST", "valor_icms_st", "currency")}
                   {renderField("Valor FECP", "valor_fecp", "currency")}
+                  {renderField("ICMS Próprio UN", "icms_proprio_un", "currency")}
                   {renderField("Valor ST UN", "valor_st_un", "currency")}
                   {renderField("TOTAL ST", "total_st", "currency")}
                   {renderField("Data Pagamento", "data_pagamento", "date")}
