@@ -1176,6 +1176,122 @@ export type Database = {
           },
         ]
       }
+      controle_creditos_guias: {
+        Row: {
+          controle_id: string
+          created_at: string
+          credito_icms_proprio: number
+          credito_icms_st: number
+          guia_id: string
+          id: string
+          numero_nota: string
+          observacao: string | null
+          status_guia: string | null
+          valor_guia: number
+          valor_utilizado: number
+        }
+        Insert: {
+          controle_id: string
+          created_at?: string
+          credito_icms_proprio?: number
+          credito_icms_st?: number
+          guia_id: string
+          id?: string
+          numero_nota: string
+          observacao?: string | null
+          status_guia?: string | null
+          valor_guia?: number
+          valor_utilizado?: number
+        }
+        Update: {
+          controle_id?: string
+          created_at?: string
+          credito_icms_proprio?: number
+          credito_icms_st?: number
+          guia_id?: string
+          id?: string
+          numero_nota?: string
+          observacao?: string | null
+          status_guia?: string | null
+          valor_guia?: number
+          valor_utilizado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controle_creditos_guias_controle_id_fkey"
+            columns: ["controle_id"]
+            isOneToOne: false
+            referencedRelation: "controle_creditos_icms_st"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      controle_creditos_icms_st: {
+        Row: {
+          competencia_ano: number
+          competencia_mes: number
+          conferido_em: string | null
+          conferido_por: string | null
+          created_at: string
+          credito_periodo: number
+          empresa_id: string
+          estornado_periodo: number
+          guias_nao_pagas: number
+          guias_utilizadas: number
+          guias_utilizaveis: number
+          id: string
+          observacoes: string | null
+          saldo_anterior: number
+          saldo_final: number
+          status: string
+          total_guias: number
+          updated_at: string
+          utilizado_periodo: number
+        }
+        Insert: {
+          competencia_ano: number
+          competencia_mes: number
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          credito_periodo?: number
+          empresa_id: string
+          estornado_periodo?: number
+          guias_nao_pagas?: number
+          guias_utilizadas?: number
+          guias_utilizaveis?: number
+          id?: string
+          observacoes?: string | null
+          saldo_anterior?: number
+          saldo_final?: number
+          status?: string
+          total_guias?: number
+          updated_at?: string
+          utilizado_periodo?: number
+        }
+        Update: {
+          competencia_ano?: number
+          competencia_mes?: number
+          conferido_em?: string | null
+          conferido_por?: string | null
+          created_at?: string
+          credito_periodo?: number
+          empresa_id?: string
+          estornado_periodo?: number
+          guias_nao_pagas?: number
+          guias_utilizadas?: number
+          guias_utilizaveis?: number
+          id?: string
+          observacoes?: string | null
+          saldo_anterior?: number
+          saldo_final?: number
+          status?: string
+          total_guias?: number
+          updated_at?: string
+          utilizado_periodo?: number
+        }
+        Relationships: []
+      }
       conversoes_arquivos: {
         Row: {
           arquivo_convertido_url: string | null

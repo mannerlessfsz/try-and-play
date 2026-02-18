@@ -17,6 +17,7 @@ import {
 import { AjustaSpedTab } from "./AjustaSpedTab";
 import { NotasEntradaSTManager } from "./NotasEntradaSTManager";
 import { GuiasPagamentosManager } from "./GuiasPagamentosManager";
+import { ControlCredICMSST } from "./ControlCredICMSST";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -51,7 +52,7 @@ const subModules = [
     description: "Controle e cálculo dos créditos de ICMS-ST — valores de ICMS Próprio e ST proporcionais por nota fiscal",
     color: "hsl(270 80% 60%)",
     step: 3,
-    status: "novo" as const,
+    status: "ativo" as const,
   },
   {
     id: "ajusta_sped" as const,
@@ -426,9 +427,7 @@ export function AjustaSpedHome() {
           
           {activeView === "notas_entrada" && <NotasEntradaSTManager empresaId={empresaAtiva?.id} />}
           {activeView === "guias_pagamentos" && <GuiasPagamentosManager empresaId={empresaAtiva?.id} />}
-          {activeView === "control_cred" && (
-            <PlaceholderCard title="ControlCredICMSST" icon={BarChart3} color="hsl(270 80% 60%)" />
-          )}
+          {activeView === "control_cred" && <ControlCredICMSST empresaId={empresaAtiva?.id} />}
         </motion.div>
       )}
     </AnimatePresence>
