@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2 } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Pencil, Check } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +105,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
 
   const { notas, isLoading, addNota, updateNota, deleteNota, addMany } = useNotasEntradaST(empresaId);
   const [search, setSearch] = useState("");
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [page, setPage] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newNota, setNewNota] = useState<Record<string, string>>({});
@@ -821,8 +822,8 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   </TableRow>
                 ) : (
                   filteredReversed.map((nota, idx) => {
-                    // Original index (1-based) from the full notas array
                     const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
+                    const isEditing = editingRowId === nota.id;
                     return (
                       <TableRow key={nota.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
                         <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
@@ -839,44 +840,59 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                                 : ""
                             }`}
                           >
-                            <Input
-                              className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[60px]"
-                              defaultValue={
-                                nota[col.key] != null
-                                  ? col.type === "currency" ? formatCurrencyRaw(Number(nota[col.key]))
-                                  : col.type === "pct" ? formatPctRaw(Number(nota[col.key]))
-                                  : col.type === "number" ? formatNumberRaw(Number(nota[col.key]))
-                                  : String(nota[col.key])
-                                  : ""
-                              }
-                              placeholder="—"
-                              onBlur={(e) => {
-                                const raw = e.target.value;
-                                let newVal: any = raw || null;
-                                if (raw && col.type === "currency") newVal = parseBRLNumber(raw);
-                                else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
-                                else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
-
-                                const oldVal = nota[col.key];
-                                if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
-                                  updateNota.mutate({ id: nota.id, [col.key]: newVal } as any);
+                            {isEditing ? (
+                              <Input
+                                className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[60px]"
+                                defaultValue={
+                                  nota[col.key] != null
+                                    ? col.type === "currency" ? formatCurrencyRaw(Number(nota[col.key]))
+                                    : col.type === "pct" ? formatPctRaw(Number(nota[col.key]))
+                                    : col.type === "number" ? formatNumberRaw(Number(nota[col.key]))
+                                    : String(nota[col.key])
+                                    : ""
                                 }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                              }}
-                            />
+                                placeholder="—"
+                                onBlur={(e) => {
+                                  const raw = e.target.value;
+                                  let newVal: any = raw || null;
+                                  if (raw && col.type === "currency") newVal = parseBRLNumber(raw);
+                                  else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
+                                  else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
+
+                                  const oldVal = nota[col.key];
+                                  if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
+                                    updateNota.mutate({ id: nota.id, [col.key]: newVal } as any);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                }}
+                              />
+                            ) : (
+                              <span>{formatCell(nota, col)}</span>
+                            )}
                           </TableCell>
                         ))}
                         <TableCell className="px-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                            onClick={() => deleteNota.mutate(nota.id)}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className={`h-6 w-6 p-0 ${isEditing ? "text-green-500 hover:text-green-600" : "text-muted-foreground hover:text-primary"}`}
+                              onClick={() => setEditingRowId(isEditing ? null : nota.id)}
+                              title={isEditing ? "Confirmar" : "Editar"}
+                            >
+                              {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => deleteNota.mutate(nota.id)}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     );
