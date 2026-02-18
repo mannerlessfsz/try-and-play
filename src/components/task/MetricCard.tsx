@@ -101,7 +101,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
         <div className="relative z-10 flex items-start justify-between">
           <div className="flex-1">
             <p className="text-xs font-medium text-muted-foreground tracking-wide uppercase">{title}</p>
-            <p className="text-3xl font-bold text-foreground mt-1 tabular-nums">{displayValue}</p>
+            <p className="text-3xl font-semibold text-foreground mt-1 tabular-nums">{displayValue}</p>
             {change && (
               <p className={`text-xs mt-1 ${changeType === "down" ? "text-red-400" : "text-muted-foreground/60"}`}>
                 {change}

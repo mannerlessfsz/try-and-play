@@ -62,7 +62,7 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
           <div className="opacity-0 group-hover:opacity-30 transition-opacity mt-0.5">
             <GripVertical className="w-3 h-3 text-muted-foreground" />
           </div>
-          <h4 className={`font-semibold text-sm text-foreground flex-1 leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
+          <h4 className={`font-medium text-sm text-foreground flex-1 leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
             {tarefa.titulo}
           </h4>
           <button

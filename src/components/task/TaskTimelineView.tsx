@@ -497,10 +497,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                       className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center"
                       style={{ [isTop ? "bottom" : "top"]: -36 }}
                     >
-                      <span className={`text-sm font-black tabular-nums leading-none ${selectedDate === dateStr ? "text-primary" : style.numColor} transition-colors`}>
+                      <span className={`text-sm font-semibold tabular-nums leading-none ${selectedDate === dateStr ? "text-primary" : style.numColor} transition-colors`}>
                         {formatDay(dateStr)}
                       </span>
-                      <span className={`text-[8px] font-semibold uppercase tracking-wider mt-0.5 ${style.textColor} transition-colors`}>
+                      <span className={`text-[9px] font-medium uppercase tracking-wider mt-0.5 ${style.textColor} transition-colors`}>
                         {formatWeekday(dateStr)}
                       </span>
                     </div>
@@ -563,8 +563,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                     </div>
                   </motion.button>
                   <div className="absolute bottom-[-36px] left-1/2 -translate-x-1/2 flex flex-col items-center">
-                    <span className="text-sm font-black text-muted-foreground/30 leading-none">—</span>
-                    <span className="text-[8px] font-semibold uppercase tracking-wider mt-0.5 text-muted-foreground/25">s/d</span>
+                    <span className="text-sm font-semibold text-muted-foreground/30 leading-none">—</span>
+                    <span className="text-[9px] font-medium uppercase tracking-wider mt-0.5 text-muted-foreground/25">s/d</span>
                   </div>
                 </div>
                 <div style={{ height: 100 }} />
@@ -592,7 +592,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 <div className="flex items-center gap-3">
                   {selectedDate !== "__no_date__" && (
                     <div className="flex items-baseline gap-1.5">
-                      <span className="text-3xl font-black text-foreground tabular-nums leading-none">
+                      <span className="text-3xl font-semibold text-foreground tabular-nums leading-none">
                         {new Date(selectedDate + "T12:00:00").getDate()}
                       </span>
                       <div className="flex flex-col">
