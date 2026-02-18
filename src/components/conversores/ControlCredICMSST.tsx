@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, FileText, Package, ChevronRight, RefreshCw, Check, Pencil, X,
-  Globe, Cog, ClipboardList, Calendar
+  Globe, Cog, ClipboardList, Calendar, Lock, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,6 +48,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
   const [dadosRestaurados, setDadosRestaurados] = useState(false);
   const [sugestoesAplicadas, setSugestoesAplicadas] = useState(false);
+  const [competenciaConfirmada, setCompetenciaConfirmada] = useState(false);
 
   const queryClient = useQueryClient();
   const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
@@ -89,7 +90,16 @@ export function ControlCredICMSST({ empresaId }: Props) {
     setSugestoesAplicadas(false);
     setSaldosAnteriores({});
     setConfirmados(new Set());
+    setCompetenciaConfirmada(false);
+    setActiveStep("notas-utilizaveis");
   }, [competenciaMes, competenciaAno]);
+
+  // Auto-confirmar competência se já existem dados persistidos
+  useEffect(() => {
+    if (dadosRestaurados && saldos.length > 0 && !competenciaConfirmada) {
+      setCompetenciaConfirmada(true);
+    }
+  }, [dadosRestaurados, saldos.length, competenciaConfirmada]);
 
 
   const handleSync = useCallback(async () => {
@@ -247,7 +257,11 @@ export function ControlCredICMSST({ empresaId }: Props) {
           {/* Competência Selector */}
           <div className="flex items-center gap-1.5">
             <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-            <Select value={String(competenciaMes)} onValueChange={v => setCompetenciaMes(Number(v))}>
+            <Select 
+              value={String(competenciaMes)} 
+              onValueChange={v => setCompetenciaMes(Number(v))}
+              disabled={competenciaConfirmada}
+            >
               <SelectTrigger className="h-8 w-[90px] text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -260,7 +274,11 @@ export function ControlCredICMSST({ empresaId }: Props) {
               </SelectContent>
             </Select>
             <span className="text-xs text-muted-foreground">/</span>
-            <Select value={String(competenciaAno)} onValueChange={v => setCompetenciaAno(Number(v))}>
+            <Select 
+              value={String(competenciaAno)} 
+              onValueChange={v => setCompetenciaAno(Number(v))}
+              disabled={competenciaConfirmada}
+            >
               <SelectTrigger className="h-8 w-[80px] text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -271,111 +289,158 @@ export function ControlCredICMSST({ empresaId }: Props) {
               </SelectContent>
             </Select>
           </div>
-          {sugestoesSaldoAnterior.size > 0 && (
+          {competenciaConfirmada ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+              onClick={() => setCompetenciaConfirmada(false)}
+            >
+              <Pencil className="w-3 h-3" />
+              Alterar
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={() => setCompetenciaConfirmada(true)}
+            >
+              <Check className="w-3 h-3" />
+              Confirmar Competência
+            </Button>
+          )}
+          {competenciaConfirmada && sugestoesSaldoAnterior.size > 0 && (
             <Badge variant="outline" className="text-[9px] h-6 bg-blue-500/10 text-blue-400 border-blue-500/30">
               {sugestoesSaldoAnterior.size} sugestão(ões)
             </Badge>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs gap-1.5"
-            onClick={handleSync}
-            disabled={syncing || isLoading}
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-            Sincronizar
-          </Button>
+          {competenciaConfirmada && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs gap-1.5"
+              onClick={handleSync}
+              disabled={syncing || isLoading}
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+              Sincronizar
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Step Navigation */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <StepButton
-          label="1. Notas Utilizáveis"
-          icon={FileText}
-          active={activeStep === "notas-utilizaveis"}
-          count={guiasUtilizaveis.length}
-          onClick={() => setActiveStep("notas-utilizaveis")}
-        />
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <StepButton
-          label="2. Mov. Estoque"
-          icon={Package}
-          active={activeStep === "movimento-estoque"}
-          onClick={() => allConfirmed && setActiveStep("movimento-estoque")}
-          disabled={!allConfirmed}
-        />
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <StepButton
-          label="3. Notas Fora Estado"
-          icon={Globe}
-          active={activeStep === "notas-fora-estado"}
-          onClick={() => setActiveStep("notas-fora-estado")}
-          disabled
-        />
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <StepButton
-          label="4. Processamento"
-          icon={Cog}
-          active={activeStep === "processamento"}
-          onClick={() => setActiveStep("processamento")}
-          disabled
-        />
-        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-        <StepButton
-          label="5. Relatório Final"
-          icon={ClipboardList}
-          active={activeStep === "relatorio-final"}
-          onClick={() => setActiveStep("relatorio-final")}
-          disabled
-        />
-      </div>
-
-      {/* Step Content */}
-      {activeStep === "notas-utilizaveis" && (
-        <NotasUtilizaveisStep
-          rows={enrichedRows}
-          isLoading={isLoading}
-          confirmados={confirmados}
-          onToggleConfirm={handleToggleConfirm}
-          onConfirmAll={handleConfirmAll}
-          onSaldoChange={handleSaldoChange}
-          allConfirmed={allConfirmed}
-          onAvancar={handleAvancarStep2}
-        />
-      )}
-
-      {activeStep === "movimento-estoque" && (
-        <MovimentoEstoqueStep
-          notasUtilizaveis={enrichedRows}
-          onAvancar={handleAvancarStep3}
-          empresaId={empresaId}
-          competenciaAno={competenciaAno}
-          competenciaMes={competenciaMes}
-          salvarSaldos={salvarSaldos}
-        />
-      )}
-
-      {activeStep === "notas-fora-estado" && (
-        <div className="glass rounded-xl p-8 text-center space-y-3">
-          <Globe className="w-10 h-10 mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Notas Fora Estado — em breve.</p>
+      {/* Gate: Competência não confirmada */}
+      {!competenciaConfirmada ? (
+        <div className="glass rounded-xl p-10 text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-muted/50 flex items-center justify-center mx-auto">
+            <Lock className="w-7 h-7 text-muted-foreground" />
+          </div>
+          <div className="space-y-1.5">
+            <h4 className="font-semibold text-sm">Selecione e confirme a competência</h4>
+            <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              Escolha o mês/ano de competência acima e clique em <strong>"Confirmar Competência"</strong> para iniciar o processamento. 
+              Não é permitido processar a mesma competência duas vezes.
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Após confirmar, a competência ficará travada durante o processamento.</span>
+          </div>
         </div>
-      )}
+      ) : (
+        <>
+          {/* Step Navigation */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant="secondary" className="text-[10px] h-7 mr-2">
+              {String(competenciaMes).padStart(2, "0")}/{competenciaAno}
+            </Badge>
+            <StepButton
+              label="1. Notas Utilizáveis"
+              icon={FileText}
+              active={activeStep === "notas-utilizaveis"}
+              count={guiasUtilizaveis.length}
+              onClick={() => setActiveStep("notas-utilizaveis")}
+            />
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <StepButton
+              label="2. Mov. Estoque"
+              icon={Package}
+              active={activeStep === "movimento-estoque"}
+              onClick={() => allConfirmed && setActiveStep("movimento-estoque")}
+              disabled={!allConfirmed}
+            />
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <StepButton
+              label="3. Notas Fora Estado"
+              icon={Globe}
+              active={activeStep === "notas-fora-estado"}
+              onClick={() => setActiveStep("notas-fora-estado")}
+              disabled
+            />
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <StepButton
+              label="4. Processamento"
+              icon={Cog}
+              active={activeStep === "processamento"}
+              onClick={() => setActiveStep("processamento")}
+              disabled
+            />
+            <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <StepButton
+              label="5. Relatório Final"
+              icon={ClipboardList}
+              active={activeStep === "relatorio-final"}
+              onClick={() => setActiveStep("relatorio-final")}
+              disabled
+            />
+          </div>
 
-      {activeStep === "processamento" && (
-        <div className="glass rounded-xl p-8 text-center space-y-3">
-          <Cog className="w-10 h-10 mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Processamento — em breve.</p>
-        </div>
-      )}
+          {/* Step Content */}
+          {activeStep === "notas-utilizaveis" && (
+            <NotasUtilizaveisStep
+              rows={enrichedRows}
+              isLoading={isLoading}
+              confirmados={confirmados}
+              onToggleConfirm={handleToggleConfirm}
+              onConfirmAll={handleConfirmAll}
+              onSaldoChange={handleSaldoChange}
+              allConfirmed={allConfirmed}
+              onAvancar={handleAvancarStep2}
+            />
+          )}
 
-      {activeStep === "relatorio-final" && (
-        <div className="glass rounded-xl p-8 text-center space-y-3">
-          <ClipboardList className="w-10 h-10 mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Relatório Final — em breve.</p>
-        </div>
+          {activeStep === "movimento-estoque" && (
+            <MovimentoEstoqueStep
+              notasUtilizaveis={enrichedRows}
+              onAvancar={handleAvancarStep3}
+              empresaId={empresaId}
+              competenciaAno={competenciaAno}
+              competenciaMes={competenciaMes}
+              salvarSaldos={salvarSaldos}
+            />
+          )}
+
+          {activeStep === "notas-fora-estado" && (
+            <div className="glass rounded-xl p-8 text-center space-y-3">
+              <Globe className="w-10 h-10 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Notas Fora Estado — em breve.</p>
+            </div>
+          )}
+
+          {activeStep === "processamento" && (
+            <div className="glass rounded-xl p-8 text-center space-y-3">
+              <Cog className="w-10 h-10 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Processamento — em breve.</p>
+            </div>
+          )}
+
+          {activeStep === "relatorio-final" && (
+            <div className="glass rounded-xl p-8 text-center space-y-3">
+              <ClipboardList className="w-10 h-10 mx-auto text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Relatório Final — em breve.</p>
+            </div>
+          )}
+        </>
       )}
     </motion.div>
   );
