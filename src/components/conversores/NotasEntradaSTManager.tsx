@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Pencil, Check } from "lucide-react";
-import { ViewModeSelector, type ViewMode } from "./ViewModeSelector";
 import { NotasCompactCards, NotasAccordionCards, NotasGridCards } from "./NotasViewCards";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -148,7 +147,6 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
   const [importingNfe, setImportingNfe] = useState(false);
   const nfeInputRef = useRef<HTMLInputElement>(null);
   const [selectedCompetencia, setSelectedCompetencia] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
 
   // Drag-to-scroll logic for horizontal table navigation
   const useDragScroll = () => {
@@ -673,7 +671,6 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-          <ViewModeSelector value={viewMode} onChange={setViewMode} />
 
           {/* Competência filter */}
           <Select value={activeCompetencia} onValueChange={(v) => { setSelectedCompetencia(v); setPage(0); }}>
@@ -819,149 +816,137 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         ))}
       </div>
 
-      {viewMode === "cards" ? (
-        <NotasCompactCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
-      ) : viewMode === "accordion" ? (
-        <NotasAccordionCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
-      ) : viewMode === "grid" ? (
-        <NotasGridCards notas={filteredReversed} onUpdate={(data: any) => updateNota.mutate(data)} onDelete={(id: string) => deleteNota.mutate(id)} />
-      ) : (
-      <div className="glass rounded-xl overflow-hidden">
-        <div className="px-4 py-2 border-b border-border/30 flex items-center justify-between">
-          <p className="text-[10px] text-muted-foreground">
-            {activeCompetencia !== "todas"
-              ? `${filteredReversed.length} registro${filteredReversed.length !== 1 ? "s" : ""} na competência ${activeCompetencia.split("-").reverse().join("/")}`
-              : `${filteredReversed.length} registro${filteredReversed.length !== 1 ? "s" : ""}`}
-          </p>
-          {activeCompetencia !== "todas" && (
-            <Badge variant="outline" className="text-[10px]">
-              Filtrado: {activeCompetencia.split("-").reverse().join("/")}
-            </Badge>
-          )}
-        </div>
-        <div ref={filteredScrollProps.ref} onMouseDown={filteredScrollProps.onMouseDown} onMouseMove={filteredScrollProps.onMouseMove} onMouseUp={filteredScrollProps.onMouseUp} onMouseLeave={filteredScrollProps.onMouseLeave} className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
-          <div className="min-w-[1800px]">
-            <Table wrapperClassName="overflow-visible">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-8 text-[10px] px-2">#</TableHead>
-                  {columns.map((col) => (
-                    <TableHead key={col.key} className={`text-[10px] px-2 whitespace-nowrap ${col.width}`}>
-                      {col.label}
-                    </TableHead>
-                  ))}
-                  <TableHead className="w-8 px-2" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length + 2} className="text-center text-xs text-muted-foreground py-8">
-                      Carregando...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredReversed.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={columns.length + 2} className="text-center text-xs text-muted-foreground py-8">
-                      {search || activeCompetencia !== "todas" ? "Nenhuma nota encontrada para o filtro selecionado" : "Nenhuma nota cadastrada. Importe uma planilha ou adicione manualmente."}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredReversed.map((nota, idx) => {
-                    const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
-                    const isEditing = editingRowId === nota.id;
-                    return (
-                      <TableRow key={nota.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
-                        <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
-                          {originalIdx}
-                        </TableCell>
-                        {columns.map((col) => (
-                          <TableCell
-                            key={col.key}
-                            className={`text-[11px] px-2 whitespace-nowrap ${
-                              col.type === "currency" || col.type === "number"
-                                ? "text-right font-mono"
-                                : col.type === "pct"
-                                ? "text-center font-mono"
-                                : ""
-                            }`}
-                          >
-                            {isEditing ? (
-                              <Input
-                                className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[60px]"
-                                defaultValue={
-                                  nota[col.key] != null
-                                    ? col.type === "currency" ? formatCurrencyRaw(Number(nota[col.key]))
-                                    : col.type === "pct" ? formatPctRaw(Number(nota[col.key]))
-                                    : col.type === "number" ? formatNumberRaw(Number(nota[col.key]))
-                                    : col.type === "date" ? formatDateBR(nota[col.key])
-                                    : String(nota[col.key])
-                                    : ""
-                                }
-                                placeholder={col.type === "date" ? "dd/mm/aaaa" : "—"}
-                                onBlur={(e) => {
-                                  const raw = e.target.value;
-                                  let newVal: any = raw || null;
-                                  if (raw && col.type === "currency") newVal = parseBRLNumber(raw);
-                                  else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
-                                  else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
-                                  else if (raw && col.type === "date") newVal = parseDateBR(raw);
-
-                                  // Validar chave NFE: exatamente 44 dígitos
-                                  if (col.key === "chave_nfe" && newVal) {
-                                    const digits = String(newVal).replace(/\D/g, "");
-                                    if (digits.length !== 44) {
-                                      toast.error(`Chave NFE inválida — deve ter 44 dígitos (tem ${digits.length}).`);
-                                      return;
-                                    }
-                                    newVal = digits;
-                                  }
-
-                                  const oldVal = nota[col.key];
-                                  if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
-                                    updateNota.mutate({ id: nota.id, [col.key]: newVal } as any);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                                }}
-                              />
-                            ) : (
-                              <span>{formatCell(nota, col)}</span>
-                            )}
-                          </TableCell>
-                        ))}
-                        <TableCell className="px-2">
-                          <div className="flex items-center gap-1">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className={`h-6 w-6 p-0 ${isEditing ? "text-green-500 hover:text-green-600" : "text-muted-foreground hover:text-primary"}`}
-                              onClick={() => setEditingRowId(isEditing ? null : nota.id)}
-                              title={isEditing ? "Confirmar" : "Editar"}
-                            >
-                              {isEditing ? <Check className="w-3 h-3" /> : <Pencil className="w-3 h-3" />}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                              onClick={() => deleteNota.mutate(nota.id)}
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+      <div className="space-y-3">
+        {isLoading ? (
+          <div className="glass rounded-xl p-8 text-center text-xs text-muted-foreground">Carregando...</div>
+        ) : filteredReversed.length === 0 ? (
+          <div className="glass rounded-xl p-8 text-center text-xs text-muted-foreground">
+            {search || activeCompetencia !== "todas" ? "Nenhuma nota encontrada para o filtro selecionado" : "Nenhuma nota cadastrada. Importe uma planilha ou adicione manualmente."}
           </div>
-        </div>
+        ) : (
+          filteredReversed.map((nota, idx) => {
+            const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
+            const isEditing = editingRowId === nota.id;
+
+            const renderField = (label: string, colKey: string, colType?: string, colSpan?: boolean) => {
+              const col = columns.find(c => c.key === colKey);
+              const value = (nota as any)[colKey];
+              const formatted = col ? formatCell(nota, col) : String(value ?? "");
+
+              return (
+                <div key={colKey} className={colSpan ? "col-span-2 sm:col-span-3 lg:col-span-4" : ""}>
+                  <p className="text-[10px] text-muted-foreground mb-0.5">{label}</p>
+                  {isEditing ? (
+                    <Input
+                      className="h-7 text-xs px-2 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background"
+                      defaultValue={
+                        value != null
+                          ? colType === "currency" ? formatCurrencyRaw(Number(value))
+                          : colType === "pct" ? formatPctRaw(Number(value))
+                          : colType === "number" ? formatNumberRaw(Number(value))
+                          : colType === "date" ? formatDateBR(value)
+                          : String(value)
+                          : ""
+                      }
+                      placeholder={colType === "date" ? "dd/mm/aaaa" : "—"}
+                      onBlur={(e) => {
+                        const raw = e.target.value;
+                        let newVal: any = raw || null;
+                        if (raw && colType === "currency") newVal = parseBRLNumber(raw);
+                        else if (raw && colType === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
+                        else if (raw && colType === "number") newVal = parseFloat(raw.replace(",", "."));
+                        else if (raw && colType === "date") newVal = parseDateBR(raw);
+
+                        if (colKey === "chave_nfe" && newVal) {
+                          const digits = String(newVal).replace(/\D/g, "");
+                          if (digits.length !== 44) {
+                            toast.error(`Chave NFE inválida — deve ter 44 dígitos (tem ${digits.length}).`);
+                            return;
+                          }
+                          newVal = digits;
+                        }
+
+                        const oldVal = (nota as any)[colKey];
+                        if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
+                          updateNota.mutate({ id: nota.id, [colKey]: newVal } as any);
+                        }
+                      }}
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                    />
+                  ) : (
+                    <p className={`text-xs font-medium truncate ${colType === "currency" || colType === "number" ? "font-mono" : ""}`}>
+                      {formatted || "—"}
+                    </p>
+                  )}
+                </div>
+              );
+            };
+
+            return (
+              <motion.div
+                key={nota.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.02, duration: 0.2 }}
+                className="glass rounded-xl border border-border/30 overflow-hidden"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border/20">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-mono text-muted-foreground">#{originalIdx}</span>
+                    <span className="text-sm font-bold">NF-e {(nota as any).nfe}</span>
+                    <span className="text-xs text-muted-foreground">— {(nota as any).fornecedor}</span>
+                    {(nota as any).competencia && (
+                      <Badge variant="outline" className="text-[10px]">{formatDateBR((nota as any).competencia)}</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 w-7 p-0 ${isEditing ? "text-green-500 hover:text-green-600" : "text-muted-foreground hover:text-primary"}`}
+                      onClick={() => setEditingRowId(isEditing ? null : nota.id)}
+                      title={isEditing ? "Confirmar" : "Editar"}
+                    >
+                      {isEditing ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => deleteNota.mutate(nota.id)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Body - grid de campos */}
+                <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-x-4 gap-y-2.5">
+                  {renderField("NCM", "ncm")}
+                  {renderField("Quantidade", "quantidade", "number")}
+                  {renderField("Valor Produto", "valor_produto", "currency")}
+                  {renderField("IPI", "ipi", "currency")}
+                  {renderField("Frete", "frete", "currency")}
+                  {renderField("Desconto", "desconto", "currency")}
+                  {renderField("Valor Total", "valor_total", "currency")}
+                  {renderField("% MVA", "pct_mva", "pct")}
+                  {renderField("% ICMS Interno", "pct_icms_interno", "pct")}
+                  {renderField("% FECP", "pct_fecp", "pct")}
+                  {renderField("% ICMS Interest.", "pct_icms_interestadual", "pct")}
+                  {renderField("BC ICMS ST", "bc_icms_st", "currency")}
+                  {renderField("ICMS na NF", "valor_icms_nf", "currency")}
+                  {renderField("Valor ICMS ST", "valor_icms_st", "currency")}
+                  {renderField("Valor FECP", "valor_fecp", "currency")}
+                  {renderField("Valor ST UN", "valor_st_un", "currency")}
+                  {renderField("TOTAL ST", "total_st", "currency")}
+                  {renderField("Chave NFE", "chave_nfe", undefined, true)}
+                </div>
+              </motion.div>
+            );
+          })
+        )}
       </div>
-      )}
 
     </motion.div>
   );
