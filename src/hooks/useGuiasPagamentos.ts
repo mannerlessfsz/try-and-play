@@ -60,6 +60,25 @@ export function useGuiasPagamentos(empresaId: string | undefined) {
     },
   });
 
+  const updateGuia = useMutation({
+    mutationFn: async ({ id, ...updates }: Partial<GuiaPagamento> & { id: string }) => {
+      const { data, error } = await supabase
+        .from("guias_pagamentos" as any)
+        .update(updates as any)
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
+    onError: (err: any) => {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    },
+  });
+
   const deleteGuia = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -95,5 +114,5 @@ export function useGuiasPagamentos(empresaId: string | undefined) {
     },
   });
 
-  return { guias, isLoading, addGuia, deleteGuia, addMany };
+  return { guias, isLoading, addGuia, updateGuia, deleteGuia, addMany };
 }

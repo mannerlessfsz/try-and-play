@@ -30,7 +30,7 @@ interface GuiasPagamentosManagerProps {
 }
 
 export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProps) {
-  const { guias, isLoading, deleteGuia, addMany } = useGuiasPagamentos(empresaId);
+  const { guias, isLoading, deleteGuia, updateGuia, addMany } = useGuiasPagamentos(empresaId);
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
   const { toast } = useToast();
   const [search, setSearch] = useState("");
@@ -286,7 +286,24 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                             col.type === "currency" ? "text-right font-mono" : ""
                           }`}
                         >
-                          {formatCell(guia, col)}
+                          {(col as any).editable ? (
+                            <Input
+                              className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[80px]"
+                              defaultValue={guia[col.key] ?? ""}
+                              placeholder="—"
+                              onBlur={(e) => {
+                                const newVal = e.target.value || null;
+                                if (newVal !== (guia[col.key] ?? null)) {
+                                  updateGuia.mutate({ id: guia.id, [col.key]: newVal } as any);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                              }}
+                            />
+                          ) : (
+                            formatCell(guia, col)
+                          )}
                         </TableCell>
                       ))}
                       <TableCell className="px-2">
