@@ -1292,6 +1292,56 @@ export type Database = {
         }
         Relationships: []
       }
+      controle_saldos_notas: {
+        Row: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at: string
+          empresa_id: string
+          guia_id: string
+          id: string
+          numero_nota: string
+          quantidade_consumida: number
+          quantidade_original: number
+          saldo_remanescente: number
+          updated_at: string
+        }
+        Insert: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at?: string
+          empresa_id: string
+          guia_id: string
+          id?: string
+          numero_nota: string
+          quantidade_consumida?: number
+          quantidade_original?: number
+          saldo_remanescente?: number
+          updated_at?: string
+        }
+        Update: {
+          competencia_ano?: number
+          competencia_mes?: number
+          created_at?: string
+          empresa_id?: string
+          guia_id?: string
+          id?: string
+          numero_nota?: string
+          quantidade_consumida?: number
+          quantidade_original?: number
+          saldo_remanescente?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controle_saldos_notas_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversoes_arquivos: {
         Row: {
           arquivo_convertido_url: string | null
