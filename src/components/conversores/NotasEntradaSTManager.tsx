@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2 } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2, SearchCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -96,6 +97,7 @@ export function NotasEntradaSTManager() {
   });
   const [showNewEmpresaDialog, setShowNewEmpresaDialog] = useState(false);
   const [newEmpresaForm, setNewEmpresaForm] = useState({ nome: "", cnpj: "" });
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
 
   // Fetch empresas directly
   const { data: empresas = [] } = useQuery({
@@ -509,8 +511,51 @@ export function NotasEntradaSTManager() {
     return String(v ?? "");
   };
 
+  const handleCnpjChange = (value: string) => {
+    const formatted = formatCnpj(value);
+    setNewEmpresaForm((p) => ({ ...p, cnpj: formatted }));
+  };
+
+  const handleBuscarCnpj = async () => {
+    const digits = cleanCnpj(newEmpresaForm.cnpj);
+    if (digits.length !== 14) {
+      toast.error("Digite um CNPJ completo com 14 dígitos");
+      return;
+    }
+    if (!isValidCnpj(digits)) {
+      toast.error("CNPJ inválido (dígito verificador incorreto)");
+      return;
+    }
+
+    // Check if empresa already exists with this CNPJ
+    const existing = empresas.find((e) => e.cnpj && cleanCnpj(e.cnpj) === digits);
+    if (existing) {
+      handleSelectEmpresa(existing.id);
+      setShowNewEmpresaDialog(false);
+      toast.info(`Empresa "${existing.nome}" já cadastrada — selecionada automaticamente`);
+      return;
+    }
+
+    setBuscandoCnpj(true);
+    try {
+      const data = await fetchCnpjData(digits);
+      setNewEmpresaForm({
+        nome: data.razao_social || data.nome_fantasia || "",
+        cnpj: formatCnpj(digits),
+      });
+      toast.success("Dados encontrados na Receita Federal");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao buscar CNPJ");
+    } finally {
+      setBuscandoCnpj(false);
+    }
+  };
+
   const renderNewEmpresaDialog = () => (
-    <Dialog open={showNewEmpresaDialog} onOpenChange={setShowNewEmpresaDialog}>
+    <Dialog open={showNewEmpresaDialog} onOpenChange={(open) => {
+      setShowNewEmpresaDialog(open);
+      if (!open) setNewEmpresaForm({ nome: "", cnpj: "" });
+    }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -519,19 +564,36 @@ export function NotasEntradaSTManager() {
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
+            <Label>CNPJ</Label>
+            <div className="flex gap-2">
+              <Input
+                value={newEmpresaForm.cnpj}
+                onChange={(e) => handleCnpjChange(e.target.value)}
+                placeholder="00.000.000/0001-00"
+                maxLength={18}
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleBuscarCnpj}
+                disabled={buscandoCnpj || cleanCnpj(newEmpresaForm.cnpj).length < 14}
+                title="Buscar CNPJ na Receita Federal"
+              >
+                {buscandoCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Digite o CNPJ e clique na lupa para buscar automaticamente
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label>Nome da Empresa *</Label>
             <Input
               value={newEmpresaForm.nome}
               onChange={(e) => setNewEmpresaForm((p) => ({ ...p, nome: e.target.value }))}
-              placeholder="Nome da empresa"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>CNPJ</Label>
-            <Input
-              value={newEmpresaForm.cnpj}
-              onChange={(e) => setNewEmpresaForm((p) => ({ ...p, cnpj: e.target.value }))}
-              placeholder="00.000.000/0001-00"
+              placeholder="Razão Social ou Nome Fantasia"
             />
           </div>
         </div>
@@ -541,6 +603,7 @@ export function NotasEntradaSTManager() {
             onClick={() => createEmpresa.mutate(newEmpresaForm)}
             disabled={!newEmpresaForm.nome || createEmpresa.isPending}
           >
+            {createEmpresa.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
             Cadastrar
           </Button>
         </DialogFooter>
