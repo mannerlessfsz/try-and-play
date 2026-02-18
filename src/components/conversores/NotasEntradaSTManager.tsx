@@ -268,6 +268,13 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
       return;
     }
 
+    // Validar chave NFE se preenchida
+    const chaveNfe = (newNota.chave_nfe || "").replace(/\D/g, "");
+    if (chaveNfe && chaveNfe.length !== 44) {
+      toast.error(`Chave NFE inválida — deve ter 44 dígitos. Atualmente tem ${chaveNfe.length}.`);
+      return;
+    }
+
     const nota: NotaEntradaSTInsert = {
       empresa_id: empresaId,
       nfe: newNota.nfe,
@@ -291,7 +298,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
       valor_st_un: Number(newNota.valor_st_un) || 0,
       total_st: Number(newNota.total_st) || 0,
       data_pagamento: newNota.data_pagamento || null,
-      chave_nfe: newNota.chave_nfe || null,
+      chave_nfe: chaveNfe || null,
       observacoes: newNota.observacoes || null,
     } as any;
 
@@ -899,6 +906,16 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                                   else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
                                   else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
                                   else if (raw && col.type === "date") newVal = parseDateBR(raw);
+
+                                  // Validar chave NFE: exatamente 44 dígitos
+                                  if (col.key === "chave_nfe" && newVal) {
+                                    const digits = String(newVal).replace(/\D/g, "");
+                                    if (digits.length !== 44) {
+                                      toast.error(`Chave NFE inválida — deve ter 44 dígitos (tem ${digits.length}).`);
+                                      return;
+                                    }
+                                    newVal = digits;
+                                  }
 
                                   const oldVal = nota[col.key];
                                   if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
