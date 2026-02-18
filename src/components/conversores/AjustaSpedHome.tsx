@@ -1,14 +1,27 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { 
   Zap, FileText, CreditCard, BarChart3, ArrowLeft, ArrowRight, Sparkles,
-  FileSpreadsheet, Receipt, Calculator
+  FileSpreadsheet, Receipt, Calculator, Building2, Plus, SearchCheck, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import { AjustaSpedTab } from "./AjustaSpedTab";
 import { NotasEntradaSTManager } from "./NotasEntradaSTManager";
 import { GuiasPagamentosManager } from "./GuiasPagamentosManager";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
 
 type AjustaSpedView = "home" | "notas_entrada" | "guias_pagamentos" | "control_cred" | "ajusta_sped";
 
@@ -58,6 +71,83 @@ const statusConfig = {
 
 export function AjustaSpedHome() {
   const [activeView, setActiveView] = useState<AjustaSpedView>("home");
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // ─── Empresa selector (shared across all sub-steps) ───
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string | null>(() =>
+    localStorage.getItem("ajustaSped_empresaId") || null
+  );
+  const [showNewEmpresaDialog, setShowNewEmpresaDialog] = useState(false);
+  const [newEmpresaForm, setNewEmpresaForm] = useState({ nome: "", cnpj: "" });
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+
+  const { data: empresas = [] } = useQuery({
+    queryKey: ["empresas-conversores"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("empresas")
+        .select("id, nome, cnpj")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const empresaAtiva = useMemo(() => {
+    if (selectedEmpresaId) {
+      const found = empresas.find((e) => e.id === selectedEmpresaId);
+      if (found) return found;
+    }
+    if (empresas.length > 0) return empresas[0];
+    return null;
+  }, [empresas, selectedEmpresaId]);
+
+  const handleSelectEmpresa = (id: string) => {
+    setSelectedEmpresaId(id);
+    localStorage.setItem("ajustaSped_empresaId", id);
+  };
+
+  const handleCnpjChange = (value: string) => {
+    const formatted = formatCnpj(value);
+    setNewEmpresaForm((p) => ({ ...p, cnpj: formatted }));
+  };
+
+  const handleBuscarCnpj = async () => {
+    const cnpj = cleanCnpj(newEmpresaForm.cnpj);
+    if (!isValidCnpj(cnpj)) { toast.error("CNPJ inválido"); return; }
+    setBuscandoCnpj(true);
+    try {
+      const data = await fetchCnpjData(cnpj);
+      if (data) {
+        setNewEmpresaForm((p) => ({ ...p, nome: data.razao_social || data.nome_fantasia || p.nome }));
+        toast.success("Dados do CNPJ carregados");
+      }
+    } catch { toast.error("Erro ao buscar CNPJ"); }
+    finally { setBuscandoCnpj(false); }
+  };
+
+  const createEmpresa = useMutation({
+    mutationFn: async (data: { nome: string; cnpj: string }) => {
+      const { data: result, error } = await supabase
+        .from("empresas")
+        .insert({ nome: data.nome, cnpj: data.cnpj || null })
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["empresas-conversores"] });
+      handleSelectEmpresa(data.id);
+      setShowNewEmpresaDialog(false);
+      setNewEmpresaForm({ nome: "", cnpj: "" });
+      toast.success("Empresa cadastrada");
+    },
+    onError: (err: any) => toast.error("Erro: " + err.message),
+  });
 
   return (
     <AnimatePresence mode="wait">
@@ -71,17 +161,96 @@ export function AjustaSpedHome() {
           className="space-y-6"
         >
           {/* Header */}
-          <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[hsl(var(--cyan))] to-[hsl(var(--blue))] flex items-center justify-center shadow-[0_0_30px_hsl(var(--cyan)/0.4)]">
-              <Zap className="w-5 h-5 text-background" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[hsl(var(--cyan))] to-[hsl(var(--blue))] flex items-center justify-center shadow-[0_0_30px_hsl(var(--cyan)/0.4)]">
+                <Zap className="w-5 h-5 text-background" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold tracking-tight">Ajusta SPED</h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Pipeline de ajuste — da entrada de notas ao arquivo SPED ajustado
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold tracking-tight">Ajusta SPED</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Pipeline de ajuste — da entrada de notas ao arquivo SPED ajustado
-              </p>
+
+            {/* Empresa selector */}
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+              {empresaAtiva ? (
+                <Select value={empresaAtiva.id} onValueChange={handleSelectEmpresa}>
+                  <SelectTrigger className="w-60 h-8 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {empresas.map((e) => (
+                      <SelectItem key={e.id} value={e.id}>
+                        {e.nome} {e.cnpj ? `(${e.cnpj})` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-xs text-muted-foreground">Nenhuma empresa</span>
+              )}
+              <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowNewEmpresaDialog(true)}>
+                <Plus className="w-3.5 h-3.5" /> Nova
+              </Button>
             </div>
           </div>
+
+          {/* New Empresa Dialog */}
+          <Dialog open={showNewEmpresaDialog} onOpenChange={(open) => {
+            setShowNewEmpresaDialog(open);
+            if (!open) setNewEmpresaForm({ nome: "", cnpj: "" });
+          }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Building2 className="w-5 h-5" /> Nova Empresa
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>CNPJ</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={newEmpresaForm.cnpj}
+                      onChange={(e) => handleCnpjChange(e.target.value)}
+                      placeholder="00.000.000/0001-00"
+                      maxLength={18}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button" variant="outline" size="icon"
+                      onClick={handleBuscarCnpj}
+                      disabled={buscandoCnpj || cleanCnpj(newEmpresaForm.cnpj).length < 14}
+                    >
+                      {buscandoCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Nome da Empresa *</Label>
+                  <Input
+                    value={newEmpresaForm.nome}
+                    onChange={(e) => setNewEmpresaForm((p) => ({ ...p, nome: e.target.value }))}
+                    placeholder="Razão Social ou Nome Fantasia"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowNewEmpresaDialog(false)}>Cancelar</Button>
+                <Button
+                  onClick={() => createEmpresa.mutate(newEmpresaForm)}
+                  disabled={!newEmpresaForm.nome || createEmpresa.isPending}
+                >
+                  {createEmpresa.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Cadastrar
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Bento Cascade Grid */}
           <div className="grid grid-cols-12 gap-3 md:gap-4">
@@ -255,8 +424,8 @@ export function AjustaSpedHome() {
 
           {activeView === "ajusta_sped" && <AjustaSpedTab />}
           
-          {activeView === "notas_entrada" && <NotasEntradaSTManager />}
-          {activeView === "guias_pagamentos" && <GuiasPagamentosManager />}
+          {activeView === "notas_entrada" && <NotasEntradaSTManager empresaId={empresaAtiva?.id} />}
+          {activeView === "guias_pagamentos" && <GuiasPagamentosManager empresaId={empresaAtiva?.id} />}
           {activeView === "control_cred" && (
             <PlaceholderCard title="ControlCredICMSST" icon={BarChart3} color="hsl(270 80% 60%)" />
           )}

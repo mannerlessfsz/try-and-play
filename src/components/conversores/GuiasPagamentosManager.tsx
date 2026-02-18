@@ -1,25 +1,12 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import { CreditCard, Plus, Trash2, Upload, Download, Search, Building2, SearchCheck, Loader2 } from "lucide-react";
+import { CreditCard, Trash2, Upload, Download, Search } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
 import { useGuiasPagamentos } from "@/hooks/useGuiasPagamentos";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "sonner";
-import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -36,99 +23,12 @@ const columns = [
   { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36" },
 ];
 
-const ROWS_PER_PAGE = 100;
+interface GuiasPagamentosManagerProps {
+  empresaId?: string;
+}
 
-export function GuiasPagamentosManager() {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-
-  // Empresa selector (same pattern as NotasEntradaSTManager)
-  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string | null>(() => {
-    return localStorage.getItem("guiasPag_empresaId") || null;
-  });
-  const [showNewEmpresaDialog, setShowNewEmpresaDialog] = useState(false);
-  const [newEmpresaForm, setNewEmpresaForm] = useState({ nome: "", cnpj: "" });
-  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
-
-  const { data: empresas = [] } = useQuery({
-    queryKey: ["empresas-conversores"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("empresas")
-        .select("id, nome, cnpj")
-        .eq("ativo", true)
-        .order("nome");
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
-
-  const empresaAtiva = useMemo(() => {
-    if (selectedEmpresaId) {
-      const found = empresas.find((e) => e.id === selectedEmpresaId);
-      if (found) return found;
-    }
-    if (empresas.length > 0) return empresas[0];
-    return null;
-  }, [empresas, selectedEmpresaId]);
-
-  const handleSelectEmpresa = (id: string) => {
-    setSelectedEmpresaId(id);
-    localStorage.setItem("guiasPag_empresaId", id);
-  };
-
-  const createEmpresa = useMutation({
-    mutationFn: async (data: { nome: string; cnpj: string }) => {
-      const { data: result, error } = await supabase
-        .from("empresas")
-        .insert({ nome: data.nome, cnpj: data.cnpj || null })
-        .select()
-        .single();
-      if (error) throw error;
-      return result;
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["empresas-conversores"] });
-      handleSelectEmpresa(data.id);
-      setShowNewEmpresaDialog(false);
-      setNewEmpresaForm({ nome: "", cnpj: "" });
-      toast.success("Empresa cadastrada com sucesso");
-    },
-    onError: (err: any) => {
-      toast.error("Erro ao cadastrar empresa: " + err.message);
-    },
-  });
-
-  const handleCnpjChange = (value: string) => {
-    const formatted = formatCnpj(value);
-    setNewEmpresaForm((p) => ({ ...p, cnpj: formatted }));
-  };
-
-  const handleBuscarCnpj = async () => {
-    const cnpj = cleanCnpj(newEmpresaForm.cnpj);
-    if (!isValidCnpj(cnpj)) {
-      toast.error("CNPJ inválido");
-      return;
-    }
-    setBuscandoCnpj(true);
-    try {
-      const data = await fetchCnpjData(cnpj);
-      if (data) {
-        setNewEmpresaForm((p) => ({
-          ...p,
-          nome: data.razao_social || data.nome_fantasia || p.nome,
-        }));
-        toast.success("Dados do CNPJ carregados");
-      }
-    } catch {
-      toast.error("Erro ao buscar CNPJ");
-    } finally {
-      setBuscandoCnpj(false);
-    }
-  };
-
-  const { guias, isLoading, deleteGuia } = useGuiasPagamentos(empresaAtiva?.id);
+export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProps) {
+  const { guias, isLoading, deleteGuia } = useGuiasPagamentos(empresaId);
   const [search, setSearch] = useState("");
 
   // Drag-to-scroll
@@ -189,89 +89,23 @@ export function GuiasPagamentosManager() {
     if (col.type === "date") {
       try {
         const d = new Date(val);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString("pt-BR");
-        }
+        if (!isNaN(d.getTime())) return d.toLocaleDateString("pt-BR");
       } catch {}
       return String(val);
     }
     return String(val);
   };
 
-  // Totals
-  const totals = useMemo(() => {
-    return {
-      count: guias.length,
-      valor_total: guias.reduce((acc, g) => acc + (Number(g.valor_guia) || 0), 0),
-    };
-  }, [guias]);
+  const totals = useMemo(() => ({
+    count: guias.length,
+    valor_total: guias.reduce((acc, g) => acc + (Number(g.valor_guia) || 0), 0),
+  }), [guias]);
 
-  const renderNewEmpresaDialog = () => (
-    <Dialog open={showNewEmpresaDialog} onOpenChange={(open) => {
-      setShowNewEmpresaDialog(open);
-      if (!open) setNewEmpresaForm({ nome: "", cnpj: "" });
-    }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" /> Nova Empresa
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4 py-2">
-          <div className="space-y-2">
-            <Label>CNPJ</Label>
-            <div className="flex gap-2">
-              <Input
-                value={newEmpresaForm.cnpj}
-                onChange={(e) => handleCnpjChange(e.target.value)}
-                placeholder="00.000.000/0001-00"
-                maxLength={18}
-                className="flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={handleBuscarCnpj}
-                disabled={buscandoCnpj || cleanCnpj(newEmpresaForm.cnpj).length < 14}
-                title="Buscar CNPJ na Receita Federal"
-              >
-                {buscandoCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label>Nome da Empresa *</Label>
-            <Input
-              value={newEmpresaForm.nome}
-              onChange={(e) => setNewEmpresaForm((p) => ({ ...p, nome: e.target.value }))}
-              placeholder="Razão Social ou Nome Fantasia"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowNewEmpresaDialog(false)}>Cancelar</Button>
-          <Button
-            onClick={() => createEmpresa.mutate(newEmpresaForm)}
-            disabled={!newEmpresaForm.nome || createEmpresa.isPending}
-          >
-            {createEmpresa.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Cadastrar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-
-  if (!empresaAtiva) {
+  if (!empresaId) {
     return (
       <div className="glass rounded-2xl p-8 text-center space-y-4">
-        <Building2 className="w-12 h-12 mx-auto text-muted-foreground" />
-        <p className="text-muted-foreground">Nenhuma empresa cadastrada.</p>
-        <Button onClick={() => setShowNewEmpresaDialog(true)} className="gap-2">
-          <Plus className="w-4 h-4" /> Cadastrar Empresa
-        </Button>
-        {renderNewEmpresaDialog()}
+        <CreditCard className="w-12 h-12 mx-auto text-muted-foreground" />
+        <p className="text-muted-foreground">Selecione uma empresa no painel acima para continuar.</p>
       </div>
     );
   }
@@ -282,28 +116,6 @@ export function GuiasPagamentosManager() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
-      {renderNewEmpresaDialog()}
-
-      {/* Empresa Selector */}
-      <div className="flex items-center gap-2">
-        <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-        <Select value={empresaAtiva.id} onValueChange={handleSelectEmpresa}>
-          <SelectTrigger className="w-60 h-8 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {empresas.map((e) => (
-              <SelectItem key={e.id} value={e.id}>
-                {e.nome} {e.cnpj ? `(${e.cnpj})` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowNewEmpresaDialog(true)}>
-          <Plus className="w-3.5 h-3.5" /> Nova
-        </Button>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
