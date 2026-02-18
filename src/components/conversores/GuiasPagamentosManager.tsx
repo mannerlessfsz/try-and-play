@@ -249,7 +249,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
         >
           <div className="min-w-[1400px]">
-            <Table>
+            <Table wrapperClassName="overflow-visible">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-8 text-[10px] px-2">#</TableHead>
