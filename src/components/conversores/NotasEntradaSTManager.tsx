@@ -402,13 +402,22 @@ export function NotasEntradaSTManager() {
         const s = String(v).trim();
         if (!s) return null;
 
-        // Try dd/mm/yyyy or dd/mm/yy
+        // Try dd/mm/yyyy or dd/mm/yy (Brazilian format)
         const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
         if (brMatch) {
-          let [, dd, mm, yyyy] = brMatch;
-          let y = Number(yyyy);
-          if (y < 100) y += 2000;
-          return `${y}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          let [, a, b, c] = brMatch;
+          let year = Number(c);
+          if (year < 100) year += 2000;
+          const day = Number(a);
+          const month = Number(b);
+          // Validate month/day ranges
+          if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+            return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+          }
+          // If month > 12, maybe it's mm/dd/yyyy format
+          if (day >= 1 && day <= 12 && month >= 1 && month <= 31) {
+            return `${year}-${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}`;
+          }
         }
 
         // Try yyyy-mm-dd (ISO)
