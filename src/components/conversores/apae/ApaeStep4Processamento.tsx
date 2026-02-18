@@ -99,8 +99,9 @@ function processarContasAPagar(
     const centroCusto = (d.col_d || "").trim();
     const historicoOriginal = (d.col_b || "").trim();
     const nDoc = (h?.col_e || "").trim();
-    const dataPagto = (d.col_h || "").trim();
-    const valorPago = (d.col_i || "").trim();
+    // col_h/col_i podem estar vazias neste tipo de relatório — fallback para col_a (data) e col_e (valor)
+    const dataPagto = (d.col_h || d.col_a || "").trim();
+    const valorPago = (d.col_i || d.col_e || "").trim();
 
     let contaDebitoCodigo: string | null = null;
     const matchDebito = planoByDescricao.get(fornecedor.toLowerCase()) || planoByCodigo.get(fornecedor);
@@ -239,19 +240,19 @@ export interface DuplicadoCP {
   contas_pagar_sessao_nome: string | null;
 }
 
-/** Busca resultados de sessões Contas a Pagar com mesmo codigo_vinculo */
+/** Busca resultados de sessões Contas a Pagar com mesmo codigo_vinculo.
+ *  Enriquece data_pagto e valor_pago a partir das linhas do relatório quando vazios. */
 async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: string, codigoVinculo: string | null): Promise<{ resultados: ApaeResultado[]; sessoes: Record<string, string | null> }> {
   if (!codigoVinculo) return { resultados: [], sessoes: {} };
   
   // 1. Buscar sessões contas_a_pagar da mesma empresa com mesmo codigo_vinculo
-  let query = supabaseClient
+  const { data: sessoes, error: errSessoes } = await supabaseClient
     .from("apae_sessoes")
     .select("id, nome_sessao")
     .eq("empresa_id", empresaId)
     .eq("tipo", "contas_a_pagar")
     .eq("codigo_vinculo", codigoVinculo)
     .neq("id", sessaoIdAtual);
-  const { data: sessoes, error: errSessoes } = await query;
   if (errSessoes || !sessoes || sessoes.length === 0) return { resultados: [], sessoes: {} };
 
   const sessaoMap: Record<string, string | null> = {};
@@ -266,6 +267,40 @@ async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: st
       .eq("sessao_id", s.id)
       .neq("status", "ignorado");
     if (!error && data) allResultados.push(...(data as ApaeResultado[]));
+  }
+
+  // 3. Enriquecer resultados que têm data_pagto ou valor vazios usando linhas do relatório
+  const needsEnrichment = allResultados.some(r => !r.data_pagto?.trim() || !r.valor_pago?.trim());
+  if (needsEnrichment) {
+    // Buscar linhas do relatório agrupadas por par_id para cada sessão
+    for (const s of sessoes) {
+      const sessaoResultados = allResultados.filter(r => r.sessao_id === s.id && (!r.data_pagto?.trim() || !r.valor_pago?.trim()));
+      if (sessaoResultados.length === 0) continue;
+
+      const parIds = [...new Set(sessaoResultados.map(r => r.par_id))];
+      const { data: linhas, error: errLinhas } = await supabaseClient
+        .from("apae_relatorio_linhas")
+        .select("par_id, tipo_linha, col_a, col_e")
+        .eq("sessao_id", s.id)
+        .eq("tipo_linha", "dados")
+        .in("par_id", parIds);
+      if (errLinhas || !linhas) continue;
+
+      // Map par_id → linha dados
+      const linhaMap = new Map<number, { col_a: string | null; col_e: string | null }>();
+      for (const l of linhas) {
+        if (l.par_id != null) linhaMap.set(l.par_id, { col_a: l.col_a, col_e: l.col_e });
+      }
+
+      // Preencher campos vazios
+      for (const r of sessaoResultados) {
+        const linha = linhaMap.get(r.par_id);
+        if (!linha) continue;
+        if (!r.data_pagto?.trim()) r.data_pagto = (linha.col_a || "").trim();
+        if (!r.valor_pago?.trim()) r.valor_pago = (linha.col_e || "").trim();
+        if (!r.valor?.trim()) r.valor = (linha.col_e || "").trim();
+      }
+    }
   }
 
   return { resultados: allResultados, sessoes: sessaoMap };
