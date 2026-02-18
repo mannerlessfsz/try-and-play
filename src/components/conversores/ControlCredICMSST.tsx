@@ -43,8 +43,6 @@ export function ControlCredICMSST({ empresaId }: Props) {
 
   // Build enriched rows for Step 1
   const enrichedRows = useMemo(() => {
-    let saldoAcumulado = 0;
-
     return guiasUtilizaveis.map((guia) => {
       const nfeKey = guia.numero_nota.replace(/^0+/, "");
       const nota = notasByNfe.get(nfeKey);
@@ -53,18 +51,14 @@ export function ControlCredICMSST({ empresaId }: Props) {
       const icmsST = parseFloat(String(guia.credito_icms_st || "0")) || 0;
       const icmsProprioUn = quantidade > 0 ? icmsProprio / quantidade : 0;
       const icmsSTUn = quantidade > 0 ? icmsST / quantidade : 0;
-      const totalIcmsProprio = icmsProprio * (quantidade > 0 ? 1 : 1); // Total per nota
-      const totalIcmsST = icmsST * (quantidade > 0 ? 1 : 1); // Total per nota
-
-      const saldoAnterior = saldoAcumulado;
-      saldoAcumulado += icmsST;
-      const saldoAtual = saldoAcumulado;
+      const totalIcmsProprio = icmsProprio;
+      const totalIcmsST = icmsST;
 
       return {
         guia,
         quantidade,
-        saldoAnterior,
-        saldoAtual,
+        saldoAnterior: 0,
+        saldoAtual: 0,
         icmsProprio,
         icmsST,
         icmsProprioUn,
@@ -209,30 +203,12 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
     );
   }
 
-  // Totals
-  const totals = rows.reduce(
-    (acc, r) => ({
-      quantidade: acc.quantidade + r.quantidade,
-      icmsProprio: acc.icmsProprio + r.icmsProprio,
-      icmsST: acc.icmsST + r.icmsST,
-      totalIcmsProprio: acc.totalIcmsProprio + r.totalIcmsProprio,
-      totalIcmsST: acc.totalIcmsST + r.totalIcmsST,
-    }),
-    { quantidade: 0, icmsProprio: 0, icmsST: 0, totalIcmsProprio: 0, totalIcmsST: 0 }
-  );
-
   return (
     <div className="space-y-3">
       {/* Summary badges */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
           {rows.length} nota(s) utilizável(is)
-        </Badge>
-        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30">
-          Total ICMS Próprio: {formatCurrency(totals.icmsProprio)}
-        </Badge>
-        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/30">
-          Total ICMS-ST: {formatCurrency(totals.icmsST)}
         </Badge>
       </div>
 
@@ -273,21 +249,6 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsST)}</TableCell>
                 </TableRow>
               ))}
-              {/* Totals row */}
-              <TableRow className="bg-muted/40 font-bold border-t-2 border-border">
-                <TableCell className="text-[10px] px-2">TOTAL</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{totals.quantidade}</TableCell>
-                <TableCell className="text-[10px] px-2" />
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(rows[rows.length - 1]?.saldoAtual || 0)}</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totals.icmsProprio)}</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totals.icmsST)}</TableCell>
-                <TableCell className="text-[10px] px-2" />
-                <TableCell className="text-[10px] px-2" />
-                <TableCell className="text-[10px] px-2" />
-                <TableCell className="text-[10px] px-2" />
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totals.totalIcmsProprio)}</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totals.totalIcmsST)}</TableCell>
-              </TableRow>
             </TableBody>
           </Table>
         </div>
