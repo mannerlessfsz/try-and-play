@@ -3,10 +3,14 @@ import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { useGuiasPagamentos } from "@/hooks/useGuiasPagamentos";
+import { useGuiasPagamentos, type GuiaStatus } from "@/hooks/useGuiasPagamentos";
 import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
 import { useToast } from "@/hooks/use-toast";
 
@@ -39,16 +43,28 @@ const parseDateBR = (s: string): string | null => {
   return trimmed || null;
 };
 
+const STATUS_OPTIONS: { value: GuiaStatus; label: string; color: string }[] = [
+  { value: "PAGO", label: "Pago", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { value: "NAO PAGO", label: "Não Pago", color: "bg-red-500/20 text-red-400 border-red-500/30" },
+  { value: "UTILIZADO", label: "Utilizado", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  { value: "NAO UTILIZAVEL", label: "Não Utilizável", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
+  { value: "VENDA INTERNA", label: "Venda Interna", color: "bg-purple-500/20 text-purple-400 border-purple-500/30" },
+];
+
+const getStatusOption = (status: string | null) =>
+  STATUS_OPTIONS.find((s) => s.value === status) || STATUS_OPTIONS[1]; // default NAO PAGO
+
 const columns = [
   { key: "numero_nota", label: "Número Nota", width: "w-28" },
   { key: "valor_guia", label: "Valor Guia", width: "w-32", type: "currency" as const },
   { key: "data_nota", label: "Data da Nota", width: "w-28", type: "date" as const },
-  { key: "data_pagamento", label: "Data Pagamento", width: "w-28", type: "date" as const },
+  { key: "data_pagamento", label: "Data Pagamento", width: "w-28", type: "date" as const, editable: true },
   { key: "numero_doc_pagamento", label: "Número Doc Pag.", width: "w-32", editable: true },
   { key: "codigo_barras", label: "Código Barras", width: "w-64", editable: true },
   { key: "produto", label: "Produto", width: "w-36", editable: true },
   { key: "credito_icms_proprio", label: "Crédito ICMS Próprio", width: "w-36", type: "currency" as const },
   { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36", type: "currency" as const },
+  { key: "status", label: "Status", width: "w-36", type: "status" as const, editable: true },
 ];
 
 interface GuiasPagamentosManagerProps {
@@ -122,6 +138,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           credito_icms_proprio: n.valor_icms_nf != null ? String(n.valor_icms_nf) : null,
           credito_icms_st: n.total_st != null ? String(n.total_st) : null,
           observacoes: null,
+          status: "NAO PAGO" as GuiaStatus,
         }));
         await addMany.mutateAsync(guiasToInsert);
       }
@@ -298,7 +315,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           onMouseLeave={scrollProps.onMouseLeave}
           className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent"
         >
-          <div className="min-w-[1400px]">
+          <div className="min-w-[1600px]">
             <Table wrapperClassName="overflow-visible">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -340,20 +357,64 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
                           }`}
                         >
                           {isEditing && (col as any).editable ? (
-                            <Input
-                              className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[80px]"
-                              defaultValue={guia[col.key] ?? ""}
-                              placeholder="—"
-                              onBlur={(e) => {
-                                const newVal = e.target.value || null;
-                                if (newVal !== (guia[col.key] ?? null)) {
-                                  updateGuia.mutate({ id: guia.id, [col.key]: newVal } as any);
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-                              }}
-                            />
+                            col.type === "status" ? (
+                              <Select
+                                defaultValue={guia[col.key] || "NAO PAGO"}
+                                onValueChange={(val) => {
+                                  updateGuia.mutate({ id: guia.id, status: val } as any);
+                                }}
+                              >
+                                <SelectTrigger className="h-6 text-[11px] min-w-[120px] border-dashed border-muted-foreground/30 bg-transparent">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {STATUS_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value} className="text-[11px]">
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : col.type === "date" ? (
+                              <Input
+                                className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[90px]"
+                                defaultValue={formatDateBR(guia[col.key])}
+                                placeholder="dd/mm/aaaa"
+                                onBlur={(e) => {
+                                  const newVal = parseDateBR(e.target.value);
+                                  if (newVal !== (guia[col.key] ?? null)) {
+                                    updateGuia.mutate({ id: guia.id, [col.key]: newVal } as any);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                }}
+                              />
+                            ) : (
+                              <Input
+                                className="h-6 text-[11px] px-1.5 border-dashed border-muted-foreground/30 bg-transparent focus:bg-background min-w-[80px]"
+                                defaultValue={guia[col.key] ?? ""}
+                                placeholder="—"
+                                onBlur={(e) => {
+                                  const newVal = e.target.value || null;
+                                  if (newVal !== (guia[col.key] ?? null)) {
+                                    updateGuia.mutate({ id: guia.id, [col.key]: newVal } as any);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                                }}
+                              />
+                            )
+                          ) : col.type === "status" ? (
+                            (() => {
+                              const opt = getStatusOption(guia[col.key]);
+                              return (
+                                <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 border ${opt.color}`}>
+                                  {opt.label}
+                                </Badge>
+                              );
+                            })()
                           ) : (
                             <span>{formatCell(guia, col)}</span>
                           )}

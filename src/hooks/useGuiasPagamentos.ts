@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
+export type GuiaStatus = "PAGO" | "NAO PAGO" | "UTILIZADO" | "NAO UTILIZAVEL" | "VENDA INTERNA";
+
 export interface GuiaPagamento {
   id: string;
   empresa_id: string;
@@ -15,6 +17,7 @@ export interface GuiaPagamento {
   credito_icms_proprio: string | null;
   credito_icms_st: string | null;
   observacoes: string | null;
+  status: GuiaStatus | null;
   created_at: string;
   updated_at: string;
 }
