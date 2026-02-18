@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNotasEntradaST, NotaEntradaSTInsert } from "@/hooks/useNotasEntradaST";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const formatCurrency = (v: number) =>
@@ -83,6 +84,8 @@ export function NotasEntradaSTManager() {
   const [page, setPage] = useState(0);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newNota, setNewNota] = useState<Record<string, string>>({});
+  const [importingNfe, setImportingNfe] = useState(false);
+  const nfeInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     if (!search) return notas;
@@ -305,6 +308,113 @@ export function NotasEntradaSTManager() {
     URL.revokeObjectURL(url);
   };
 
+  const handleImportNfe = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !empresaAtiva?.id) return;
+
+    const fileName = file.name.toLowerCase();
+    const isXML = fileName.endsWith(".xml");
+    const isPDF = fileName.endsWith(".pdf");
+
+    if (!isXML && !isPDF) {
+      toast.error("Arquivo deve ser XML ou PDF de NF-e");
+      return;
+    }
+
+    setImportingNfe(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const url = `https://${projectId}.supabase.co/functions/v1/parse-nfe`;
+
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const result = await res.json();
+
+      if (!result.success) {
+        toast.error("Erro ao processar NF-e: " + (result.error || "Erro desconhecido"));
+        return;
+      }
+
+      const nfe = result.data;
+
+      // Map each product from the NF-e to a nota entrada ST record
+      const notasToInsert: NotaEntradaSTInsert[] = nfe.produtos.map((prod: any) => ({
+        empresa_id: empresaAtiva.id,
+        nfe: nfe.numero || "",
+        fornecedor: nfe.emitente?.nome || "",
+        competencia: nfe.data_emissao || null,
+        ncm: prod.ncm || null,
+        quantidade: prod.quantidade || 0,
+        valor_produto: prod.valor_total || 0,
+        ipi: 0,
+        frete: 0,
+        desconto: 0,
+        valor_total: prod.valor_total || 0,
+        pct_mva: 0,
+        pct_icms_interno: 0,
+        pct_fecp: 0,
+        pct_icms_interestadual: 0,
+        bc_icms_st: 0,
+        valor_icms_nf: 0,
+        valor_icms_st: 0,
+        valor_fecp: 0,
+        valor_st_un: 0,
+        total_st: 0,
+        data_pagamento: null,
+        observacoes: `CFOP: ${prod.cfop || ""} | Chave: ${nfe.chave_acesso || ""}`,
+      }));
+
+      if (notasToInsert.length === 0) {
+        // If no products, create a single entry with totals
+        const singleNota: NotaEntradaSTInsert = {
+          empresa_id: empresaAtiva.id,
+          nfe: nfe.numero || "",
+          fornecedor: nfe.emitente?.nome || "",
+          competencia: nfe.data_emissao || null,
+          ncm: null,
+          quantidade: 1,
+          valor_produto: nfe.total_produtos || 0,
+          ipi: nfe.total_ipi || 0,
+          frete: 0,
+          desconto: 0,
+          valor_total: nfe.total_nfe || 0,
+          pct_mva: 0,
+          pct_icms_interno: 0,
+          pct_fecp: 0,
+          pct_icms_interestadual: 0,
+          bc_icms_st: 0,
+          valor_icms_nf: nfe.total_icms || 0,
+          valor_icms_st: 0,
+          valor_fecp: 0,
+          valor_st_un: 0,
+          total_st: 0,
+          data_pagamento: null,
+          observacoes: `Chave: ${nfe.chave_acesso || ""}`,
+        };
+        addNota.mutate(singleNota as any);
+        toast.success("NF-e importada com sucesso (1 registro)");
+      } else {
+        addMany.mutate(notasToInsert as any);
+        toast.success(`NF-e importada: ${notasToInsert.length} produto(s)`);
+      }
+    } catch (err: any) {
+      toast.error("Erro ao importar NF-e: " + err.message);
+    } finally {
+      setImportingNfe(false);
+      e.target.value = "";
+    }
+  };
+
   const formatCell = (nota: any, col: (typeof columns)[0]) => {
     const v = nota[col.key];
     if (col.type === "currency") return formatCurrency(Number(v) || 0);
@@ -376,6 +486,23 @@ export function NotasEntradaSTManager() {
             <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" asChild>
               <span>
                 <Upload className="w-3.5 h-3.5" /> Importar XLSX
+              </span>
+            </Button>
+          </label>
+
+          <label className="cursor-pointer">
+            <input
+              ref={nfeInputRef}
+              type="file"
+              accept=".xml,.pdf"
+              onChange={handleImportNfe}
+              className="hidden"
+              disabled={importingNfe}
+            />
+            <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" asChild disabled={importingNfe}>
+              <span>
+                {importingNfe ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileUp className="w-3.5 h-3.5" />}
+                Importar NF-e
               </span>
             </Button>
           </label>
