@@ -584,6 +584,7 @@ export type Database = {
       }
       apae_sessoes: {
         Row: {
+          codigo_vinculo: string | null
           created_at: string
           created_by: string | null
           empresa_id: string
@@ -598,6 +599,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          codigo_vinculo?: string | null
           created_at?: string
           created_by?: string | null
           empresa_id: string
@@ -612,6 +614,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          codigo_vinculo?: string | null
           created_at?: string
           created_by?: string | null
           empresa_id?: string

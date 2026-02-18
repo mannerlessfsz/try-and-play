@@ -1,0 +1,1 @@
+ALTER TABLE public.apae_sessoes ADD COLUMN codigo_vinculo text DEFAULT NULL;
