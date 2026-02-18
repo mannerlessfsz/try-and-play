@@ -58,16 +58,17 @@ const getStatusOption = (status: string | null) =>
   STATUS_OPTIONS.find((s) => s.value === status) || STATUS_OPTIONS[1]; // default NAO PAGO
 
 const columns = [
-  { key: "numero_nota", label: "Número Nota", width: "w-28" },
-  { key: "valor_guia", label: "Valor Guia", width: "w-32", type: "currency" as const },
-  { key: "data_nota", label: "Data da Nota", width: "w-28", type: "date" as const },
+  { key: "numero_nota", label: "Número Nota", width: "w-28", editable: true },
+  { key: "valor_guia", label: "Valor Guia", width: "w-32", type: "currency" as const, editable: true },
+  { key: "data_nota", label: "Data da Nota", width: "w-28", type: "date" as const, editable: true },
   { key: "data_pagamento", label: "Data Pagamento", width: "w-28", type: "date" as const, editable: true },
   { key: "numero_doc_pagamento", label: "Número Doc Pag.", width: "w-32", editable: true },
   { key: "codigo_barras", label: "Código Barras", width: "w-64", editable: true },
   { key: "produto", label: "Produto", width: "w-36", editable: true },
-  { key: "credito_icms_proprio", label: "Crédito ICMS Próprio", width: "w-36", type: "currency" as const },
-  { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36", type: "currency" as const },
+  { key: "credito_icms_proprio", label: "Crédito ICMS Próprio", width: "w-36", type: "currency" as const, editable: true },
+  { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36", type: "currency" as const, editable: true },
   { key: "status", label: "Status", width: "w-36", type: "status" as const, editable: true },
+  { key: "observacoes", label: "Observações", width: "w-48", editable: true },
 ];
 
 interface GuiasPagamentosManagerProps {
