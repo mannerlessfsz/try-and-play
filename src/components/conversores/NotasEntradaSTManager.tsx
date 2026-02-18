@@ -128,7 +128,7 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
   { key: "valor_fecp", label: "Valor FECP", width: "w-28", type: "currency" },
   { key: "valor_st_un", label: "Valor ST UN", width: "w-24", type: "currency" },
   { key: "total_st", label: "TOTAL ST", width: "w-28", type: "currency" },
-  { key: "chave_nfe", label: "Chave NFE", width: "w-48" },
+  { key: "chave_nfe", label: "Chave NFE", width: "w-[340px]" },
 ];
 
 interface NotasEntradaSTManagerProps {
@@ -761,16 +761,21 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   { key: "valor_fecp", label: "Valor FECP", type: "number" },
                   { key: "valor_st_un", label: "Valor ST UN", type: "number" },
                   { key: "total_st", label: "Total ST", type: "number" },
-                  { key: "chave_nfe", label: "Chave NFE", type: "text" },
+                  { key: "chave_nfe", label: "Chave NFE", type: "text", minLength: 44, maxLength: 44, pattern: "[0-9]*", placeholder: "44 dígitos numéricos" },
                 ].map((f) => (
-                  <div key={f.key} className={f.key === "fornecedor" ? "col-span-2" : ""}>
+                  <div key={f.key} className={f.key === "fornecedor" ? "col-span-2" : f.key === "chave_nfe" ? "col-span-2" : ""}>
                     <Label className="text-xs">{f.label}</Label>
                     <Input
                       type={f.type}
                       value={newNota[f.key] || ""}
-                      onChange={(e) => setNewNota((p) => ({ ...p, [f.key]: e.target.value }))}
+                      onChange={(e) => {
+                        const val = f.key === "chave_nfe" ? e.target.value.replace(/\D/g, "") : e.target.value;
+                        setNewNota((p) => ({ ...p, [f.key]: val }));
+                      }}
                       className="h-8 text-xs mt-1"
                       step={f.type === "number" ? "0.01" : undefined}
+                      maxLength={(f as any).maxLength}
+                      placeholder={(f as any).placeholder}
                     />
                   </div>
                 ))}
