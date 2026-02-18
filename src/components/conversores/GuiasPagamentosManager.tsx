@@ -47,7 +47,7 @@ const parseDateBR = (s: string): string | null => {
 };
 
 const STATUS_OPTIONS: { value: GuiaStatus; label: string; color: string }[] = [
-  { value: "PAGO", label: "Pago", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  { value: "UTILIZAVEL", label: "Utilizável", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
   { value: "NAO PAGO", label: "Não Pago", color: "bg-red-500/20 text-red-400 border-red-500/30" },
   { value: "UTILIZADO", label: "Utilizado", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
   { value: "NAO UTILIZAVEL", label: "Não Utilizável", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
