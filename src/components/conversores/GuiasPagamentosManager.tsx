@@ -84,7 +84,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isBatchUpdating, setIsBatchUpdating] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<GuiaStatus | "TODOS">("TODOS");
+  const [statusFilter, setStatusFilter] = useState<GuiaStatus | "TODOS">("UTILIZAVEL");
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
