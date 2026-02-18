@@ -54,8 +54,8 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <motion.span
                 key={completionRate}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
                 className="text-xl font-bold text-foreground tabular-nums leading-none"
               >
                 {completionRate}%
@@ -99,14 +99,11 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 <div className="text-left min-w-0 flex-1 relative z-10">
                   <p className="text-[10px] text-muted-foreground leading-none mb-0.5">{seg.label}</p>
                   <div className="flex items-baseline gap-1.5">
-                    <motion.p
-                      key={seg.value}
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
+                    <p
                       className="text-lg font-bold text-foreground tabular-nums leading-tight"
                     >
                       {seg.value}
-                    </motion.p>
+                    </p>
                     <span className="text-[9px] text-muted-foreground/60">{pct}%</span>
                   </div>
                 </div>
@@ -167,8 +164,8 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <motion.span
               key={completionRate}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               className="text-lg font-bold text-foreground tabular-nums leading-none"
             >
               {completionRate}%
@@ -200,14 +197,9 @@ export function CommandCenter({ total, emAndamento, concluidas, atrasadas, activ
                 </div>
                 <div className="text-left min-w-0">
                   <p className="text-[10px] text-muted-foreground leading-none">{seg.label}</p>
-                  <motion.p
-                    key={seg.value}
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    className="text-xl font-bold text-foreground tabular-nums leading-tight"
-                  >
+                  <p className="text-xl font-bold text-foreground tabular-nums leading-tight">
                     {seg.value}
-                  </motion.p>
+                  </p>
                 </div>
                 <div className="w-12 h-1 bg-foreground/5 rounded-full overflow-hidden ml-auto hidden lg:block">
                   <motion.div

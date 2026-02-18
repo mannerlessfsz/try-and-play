@@ -551,9 +551,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 <div className="relative flex flex-col items-center" style={{ height: 40 }}>
                   <motion.button
                     onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
-                    whileHover={{ scale: 1.15 }}
-                    whileTap={{ scale: 0.95 }}
                     className={`
+                      hover:brightness-125
                       relative z-20 w-6 h-6 rounded-full ring-2 transition-all duration-300 cursor-pointer flex items-center justify-center
                       ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)]" : "ring-foreground/12"}
                     `}

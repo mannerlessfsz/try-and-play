@@ -84,7 +84,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
         ref={ref}
         onClick={onClick}
         whileHover={{ y: -2 }}
-        whileTap={{ scale: 0.98 }}
+        whileTap={{ y: 0 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
         className={`
           relative overflow-hidden rounded-2xl border bg-gradient-to-br backdrop-blur-xl
@@ -108,7 +108,7 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
               </p>
             )}
           </div>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg} transition-all group-hover:scale-110`}>
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg} transition-all group-hover:brightness-125`}>
             <Icon className="w-5 h-5" />
           </div>
         </div>
@@ -118,8 +118,8 @@ export const MetricCard = forwardRef<HTMLDivElement, MetricCardProps>(
 
         {isActive && (
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className={`absolute top-2 right-2 w-2 h-2 rounded-full ${cfg.dot} animate-pulse`}
           />
         )}

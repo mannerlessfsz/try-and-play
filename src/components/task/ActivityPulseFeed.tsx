@@ -80,8 +80,7 @@ export function ActivityPulseFeed({ atividades }: ActivityPulseFeedProps) {
             >
               {/* Pulse node */}
               <div className="relative z-10 flex-shrink-0 mt-0.5">
-                <motion.div
-                  whileHover={{ scale: 1.3 }}
+                <div
                   className={`
                     w-[18px] h-[18px] rounded-full ${config.color}
                     flex items-center justify-center
@@ -92,7 +91,7 @@ export function ActivityPulseFeed({ atividades }: ActivityPulseFeedProps) {
                   {index === 0 && (
                     <span className={`absolute inset-0 rounded-full ${config.color} animate-ping opacity-30`} />
                   )}
-                </motion.div>
+                </div>
               </div>
 
               {/* Content */}
