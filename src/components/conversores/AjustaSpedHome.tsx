@@ -81,63 +81,59 @@ export function AjustaSpedHome() {
             </div>
           </div>
 
-          {/* Vertical Pipeline */}
-          <div className="flex gap-4">
-            {/* Left connector rail */}
-            <div className="flex flex-col items-center shrink-0 pt-1">
-              {subModules.map((mod, index) => (
-                <div key={mod.id} className="flex flex-col items-center">
-                  {/* Step dot */}
-                  <div
-                    className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold font-mono border-2 z-10 transition-all duration-300"
-                    style={{
-                      backgroundColor: mod.color + "18",
-                      borderColor: mod.color + (mod.status === "ativo" ? "80" : "30"),
-                      color: mod.color,
-                      boxShadow: mod.status === "ativo" ? `0 0 16px ${mod.color}30` : "none",
-                    }}
-                  >
-                    {mod.step}
-                  </div>
-                  {/* Connector line */}
-                  {index < subModules.length - 1 && (
-                    <div
-                      className="w-[2px] h-[calc(100%-0.25rem)] min-h-[2.5rem]"
-                      style={{
-                        background: `linear-gradient(180deg, ${mod.color}40, ${subModules[index + 1].color}40)`,
-                      }}
-                    />
+          {/* Bento Cascade Grid */}
+          <div className="grid grid-cols-12 gap-3 md:gap-4">
+            {subModules.map((mod, index) => {
+              const Icon = mod.icon;
+              const isActive = mod.status === "ativo";
+              const stCfg = statusConfig[mod.status];
+
+              // Cascade positions: alternating left/right, shifting progressively
+              const gridPositions = [
+                "col-span-12 md:col-span-7 md:col-start-1",   // 1 - left wide
+                "col-span-12 md:col-span-7 md:col-start-3",   // 2 - shifted right
+                "col-span-12 md:col-span-7 md:col-start-5",   // 3 - more right
+                "col-span-12 md:col-span-8 md:col-start-5",   // 4 - right wide (highlight)
+              ];
+
+              return (
+                <motion.div
+                  key={mod.id}
+                  initial={{ opacity: 0, y: 20, x: index % 2 === 0 ? -15 : 15 }}
+                  animate={{ opacity: 1, y: 0, x: 0 }}
+                  transition={{ delay: index * 0.1, type: "spring", stiffness: 180, damping: 20 }}
+                  className={`${gridPositions[index]} relative`}
+                >
+                  {/* Diagonal connector from previous card */}
+                  {index > 0 && (
+                    <div className="hidden md:block absolute -top-4 left-0 right-0 h-4 pointer-events-none overflow-visible">
+                      <svg className="absolute w-full h-8 -top-2" viewBox="0 0 100 16" preserveAspectRatio="none">
+                        <path
+                          d={index % 2 === 0 ? "M 30 0 Q 50 16, 20 16" : "M 20 0 Q 40 16, 50 16"}
+                          fill="none"
+                          stroke={mod.color}
+                          strokeWidth="0.5"
+                          strokeOpacity="0.3"
+                          strokeDasharray="2 2"
+                        />
+                      </svg>
+                    </div>
                   )}
-                </div>
-              ))}
-            </div>
 
-            {/* Cards */}
-            <div className="flex-1 flex flex-col gap-3 min-w-0">
-              {subModules.map((mod, index) => {
-                const Icon = mod.icon;
-                const isActive = mod.status === "ativo";
-                const stCfg = statusConfig[mod.status];
-
-                return (
                   <motion.div
-                    key={mod.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1, type: "spring", stiffness: 180, damping: 20 }}
-                    whileHover={isActive ? { scale: 1.005, x: 4 } : {}}
-                    whileTap={isActive ? { scale: 0.995 } : {}}
+                    whileHover={isActive ? { scale: 1.01, y: -2 } : {}}
+                    whileTap={isActive ? { scale: 0.99 } : {}}
                     onClick={() => isActive && setActiveView(mod.id)}
-                    className={`glass rounded-2xl p-5 relative overflow-hidden flex items-center gap-5 transition-all duration-300 group ${
+                    className={`glass rounded-2xl p-5 md:p-6 relative overflow-hidden transition-all duration-300 group ${
                       isActive
-                        ? "cursor-pointer hover:shadow-[0_0_35px_hsl(var(--cyan)/0.15)]"
-                        : "opacity-50 cursor-default"
+                        ? "cursor-pointer"
+                        : "opacity-45 cursor-default"
                     }`}
                     style={{ borderColor: "transparent" }}
                     onMouseEnter={(e) => {
                       if (isActive) {
                         (e.currentTarget as HTMLElement).style.borderColor = mod.color + "50";
-                        (e.currentTarget as HTMLElement).style.boxShadow = `0 0 35px ${mod.color}20`;
+                        (e.currentTarget as HTMLElement).style.boxShadow = `0 0 40px ${mod.color}20`;
                       }
                     }}
                     onMouseLeave={(e) => {
@@ -147,7 +143,7 @@ export function AjustaSpedHome() {
                   >
                     {/* Radial glow */}
                     <div
-                      className="absolute -top-8 -right-8 w-32 h-32 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
+                      className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
                       style={{ background: mod.color }}
                     />
 
@@ -157,47 +153,69 @@ export function AjustaSpedHome() {
                       style={{ background: mod.color, opacity: isActive ? 0.8 : 0.25 }}
                     />
 
-                    {/* Icon */}
+                    {/* Step number watermark */}
                     <div
-                      className="shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110"
-                      style={{
-                        backgroundColor: mod.color + "12",
-                        borderColor: mod.color + "25",
-                      }}
+                      className="absolute -right-2 -bottom-4 text-[72px] font-black font-mono leading-none pointer-events-none select-none"
+                      style={{ color: mod.color, opacity: 0.04 }}
                     >
-                      <Icon className="w-6 h-6" style={{ color: mod.color }} />
+                      {mod.step}
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2.5">
-                        <p className="font-bold text-[15px]">{mod.title}</p>
-                        <Badge
-                          variant="outline"
-                          className="text-[9px] px-1.5 py-0 shrink-0"
+                    <div className="relative z-10 flex items-start gap-4">
+                      {/* Step badge + Icon stacked */}
+                      <div className="shrink-0 flex flex-col items-center gap-2">
+                        <div
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono border"
                           style={{
-                            borderColor: isActive ? mod.color + "40" : undefined,
-                            color: isActive ? mod.color : undefined,
-                            backgroundColor: isActive ? mod.color + "10" : undefined,
+                            backgroundColor: mod.color + "15",
+                            borderColor: mod.color + "30",
+                            color: mod.color,
                           }}
                         >
-                          {stCfg.label}
-                        </Badge>
+                          {mod.step}
+                        </div>
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110"
+                          style={{
+                            backgroundColor: mod.color + "12",
+                            borderColor: mod.color + "25",
+                          }}
+                        >
+                          <Icon className="w-5.5 h-5.5" style={{ color: mod.color }} />
+                        </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        {mod.description}
-                      </p>
-                    </div>
 
-                    {/* Action */}
-                    {isActive && (
-                      <div
-                        className="shrink-0 flex items-center gap-1.5 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                        style={{ color: mod.color }}
-                      >
-                        Abrir <ArrowRight className="w-4 h-4" />
+                      {/* Content */}
+                      <div className="flex-1 min-w-0 pt-0.5">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <h3 className="font-bold text-base">{mod.title}</h3>
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] px-1.5 py-0 shrink-0"
+                            style={{
+                              borderColor: isActive ? mod.color + "40" : undefined,
+                              color: isActive ? mod.color : undefined,
+                              backgroundColor: isActive ? mod.color + "10" : undefined,
+                            }}
+                          >
+                            {stCfg.label}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
+                          {mod.description}
+                        </p>
+
+                        {/* Action */}
+                        {isActive && (
+                          <div
+                            className="flex items-center gap-1.5 mt-3 text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                            style={{ color: mod.color }}
+                          >
+                            Abrir módulo <ArrowRight className="w-4 h-4" />
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
 
                     {/* Bottom progress bar */}
                     <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
@@ -205,14 +223,14 @@ export function AjustaSpedHome() {
                         className="h-full"
                         style={{ background: `linear-gradient(90deg, ${mod.color}, transparent)` }}
                         initial={{ width: "0%" }}
-                        whileInView={{ width: isActive ? "80%" : "20%" }}
+                        whileInView={{ width: isActive ? "85%" : "20%" }}
                         transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
                       />
                     </div>
                   </motion.div>
-                );
-              })}
-            </div>
+                </motion.div>
+              );
+            })}
           </div>
         </motion.div>
       ) : (
