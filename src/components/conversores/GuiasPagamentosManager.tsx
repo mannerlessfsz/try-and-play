@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback } from "react";
-import { CreditCard, Trash2, Upload, Download, Search } from "lucide-react";
+import { CreditCard, Trash2, Upload, Download, Search, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { useGuiasPagamentos } from "@/hooks/useGuiasPagamentos";
+import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
+import { useToast } from "@/hooks/use-toast";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -28,8 +30,52 @@ interface GuiasPagamentosManagerProps {
 }
 
 export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProps) {
-  const { guias, isLoading, deleteGuia } = useGuiasPagamentos(empresaId);
+  const { guias, isLoading, deleteGuia, addMany } = useGuiasPagamentos(empresaId);
+  const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSyncFromNotas = async () => {
+    if (!empresaId || notas.length === 0) {
+      toast({ title: "Sem notas para sincronizar", description: "Cadastre notas em 'Notas Entrada ST' primeiro.", variant: "destructive" });
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      // Deduplicate: only sync notas whose nfe is not already in guias
+      const existingNotas = new Set(guias.map((g) => g.numero_nota));
+      const newNotas = notas.filter((n) => !existingNotas.has(n.nfe));
+
+      if (newNotas.length === 0) {
+        toast({ title: "Tudo sincronizado", description: "Todas as notas já estão em Guias Pagamentos." });
+        setIsSyncing(false);
+        return;
+      }
+
+      const guiasToInsert = newNotas.map((n) => ({
+        empresa_id: empresaId,
+        numero_nota: n.nfe,
+        valor_guia: n.total_st || 0,
+        data_nota: n.competencia || null,
+        data_pagamento: n.data_pagamento || null,
+        numero_doc_pagamento: null,
+        codigo_barras: null,
+        produto: null,
+        credito_icms_proprio: n.valor_icms_nf != null ? String(n.valor_icms_nf) : null,
+        credito_icms_st: n.total_st != null ? String(n.total_st) : null,
+        observacoes: null,
+      }));
+
+      await addMany.mutateAsync(guiasToInsert);
+      toast({ title: `${newNotas.length} guia(s) sincronizada(s)`, description: "Dados importados de Notas Entrada ST." });
+    } catch (err: any) {
+      toast({ title: "Erro ao sincronizar", description: err.message, variant: "destructive" });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Drag-to-scroll
   const useDragScroll = () => {
@@ -149,6 +195,17 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
               </span>
             </Button>
           </label>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={handleSyncFromNotas}
+            disabled={isSyncing || isLoadingNotas || !empresaId}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+            {isSyncing ? "Sincronizando..." : "Sincronizar de Notas ST"}
+          </Button>
 
           <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" disabled={guias.length === 0}>
             <Download className="w-3.5 h-3.5" /> CSV
