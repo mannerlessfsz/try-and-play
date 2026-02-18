@@ -1,15 +1,17 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, FileText, Package, ChevronRight, RefreshCw, Check, Pencil, X,
-  Globe, Cog, ClipboardList
+  Globe, Cog, ClipboardList, Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGuiasPagamentos, type GuiaPagamento } from "@/hooks/useGuiasPagamentos";
 import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
+import { useSaldosNotas } from "@/hooks/useSaldosNotas";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MovimentoEstoqueStep } from "./MovimentoEstoqueStep";
@@ -37,14 +39,39 @@ interface Props {
 type Step = "notas-utilizaveis" | "movimento-estoque" | "notas-fora-estado" | "processamento" | "relatorio-final";
 
 export function ControlCredICMSST({ empresaId }: Props) {
+  const now = new Date();
   const [activeStep, setActiveStep] = useState<Step>("notas-utilizaveis");
   const [syncing, setSyncing] = useState(false);
   const [confirmados, setConfirmados] = useState<Set<string>>(new Set());
   const [saldosAnteriores, setSaldosAnteriores] = useState<Record<string, number>>({});
+  const [competenciaMes, setCompetenciaMes] = useState(now.getMonth() + 1);
+  const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
+  const [sugestoesAplicadas, setSugestoesAplicadas] = useState(false);
 
   const queryClient = useQueryClient();
   const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
+  const { sugestoesSaldoAnterior, isLoadingSugestoes, salvarSaldos } = useSaldosNotas(empresaId, competenciaAno, competenciaMes);
+
+  // Aplicar sugestões do mês anterior quando carregarem
+  useEffect(() => {
+    if (!isLoadingSugestoes && sugestoesSaldoAnterior.size > 0 && !sugestoesAplicadas) {
+      const novosSaldos: Record<string, number> = {};
+      sugestoesSaldoAnterior.forEach((saldo, guiaId) => {
+        novosSaldos[guiaId] = saldo;
+      });
+      setSaldosAnteriores(prev => ({ ...novosSaldos, ...prev }));
+      setSugestoesAplicadas(true);
+    }
+  }, [isLoadingSugestoes, sugestoesSaldoAnterior, sugestoesAplicadas]);
+
+  // Reset sugestões quando muda competência
+  useEffect(() => {
+    setSugestoesAplicadas(false);
+    setSaldosAnteriores({});
+    setConfirmados(new Set());
+  }, [competenciaMes, competenciaAno]);
+
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
@@ -159,16 +186,50 @@ export function ControlCredICMSST({ empresaId }: Props) {
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs gap-1.5"
-          onClick={handleSync}
-          disabled={syncing || isLoading}
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
-          Sincronizar
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Competência Selector */}
+          <div className="flex items-center gap-1.5">
+            <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+            <Select value={String(competenciaMes)} onValueChange={v => setCompetenciaMes(Number(v))}>
+              <SelectTrigger className="h-8 w-[90px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <SelectItem key={i + 1} value={String(i + 1)} className="text-xs">
+                    {String(i + 1).padStart(2, "0")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="text-xs text-muted-foreground">/</span>
+            <Select value={String(competenciaAno)} onValueChange={v => setCompetenciaAno(Number(v))}>
+              <SelectTrigger className="h-8 w-[80px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
+                  <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {sugestoesSaldoAnterior.size > 0 && (
+            <Badge variant="outline" className="text-[9px] h-6 bg-blue-500/10 text-blue-400 border-blue-500/30">
+              {sugestoesSaldoAnterior.size} sugestão(ões)
+            </Badge>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={handleSync}
+            disabled={syncing || isLoading}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin" : ""}`} />
+            Sincronizar
+          </Button>
+        </div>
       </div>
 
       {/* Step Navigation */}
@@ -232,6 +293,10 @@ export function ControlCredICMSST({ empresaId }: Props) {
         <MovimentoEstoqueStep
           notasUtilizaveis={enrichedRows}
           onAvancar={handleAvancarStep3}
+          empresaId={empresaId}
+          competenciaAno={competenciaAno}
+          competenciaMes={competenciaMes}
+          salvarSaldos={salvarSaldos}
         />
       )}
 

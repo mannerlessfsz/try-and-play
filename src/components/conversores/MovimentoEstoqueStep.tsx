@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Upload, Package, ArrowDown, ArrowUp, FileText, Check, ChevronRight
+  Upload, Package, ArrowDown, ArrowUp, FileText, Check, ChevronRight, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,8 @@ import {
   type MovimentoEstoqueParsed,
   type MovimentoEstoqueRow,
 } from "@/utils/movimentoEstoqueParser";
+import type { UseMutationResult } from "@tanstack/react-query";
+import type { SaldoNotaInsert } from "@/hooks/useSaldosNotas";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -44,11 +46,15 @@ interface ConsumoNota {
 interface Props {
   notasUtilizaveis: EnrichedNotaRow[];
   onAvancar: () => void;
+  empresaId?: string;
+  competenciaAno?: number;
+  competenciaMes?: number;
+  salvarSaldos?: UseMutationResult<void, any, SaldoNotaInsert[], unknown>;
 }
 
 /* ── Component ── */
 
-export function MovimentoEstoqueStep({ notasUtilizaveis, onAvancar }: Props) {
+export function MovimentoEstoqueStep({ notasUtilizaveis, onAvancar, empresaId, competenciaAno, competenciaMes, salvarSaldos }: Props) {
   const [parsed, setParsed] = useState<MovimentoEstoqueParsed | null>(null);
   const [fileName, setFileName] = useState("");
 
@@ -297,12 +303,35 @@ export function MovimentoEstoqueStep({ notasUtilizaveis, onAvancar }: Props) {
         </div>
       </div>
 
-      {/* Avançar */}
+      {/* Salvar Saldos + Avançar */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex justify-end"
+        className="flex justify-end gap-2"
       >
+        {salvarSaldos && empresaId && competenciaAno && competenciaMes && (
+          <Button
+            variant="outline"
+            className="gap-2 text-xs"
+            onClick={() => {
+              const items: SaldoNotaInsert[] = consumo.map(c => ({
+                empresa_id: empresaId,
+                guia_id: c.guiaId,
+                numero_nota: c.numeroNota,
+                competencia_ano: competenciaAno,
+                competencia_mes: competenciaMes,
+                saldo_remanescente: c.saldoFinal,
+                quantidade_original: c.saldoInicial,
+                quantidade_consumida: c.consumido,
+              }));
+              salvarSaldos.mutate(items);
+            }}
+            disabled={salvarSaldos.isPending}
+          >
+            <Save className="w-3.5 h-3.5" />
+            {salvarSaldos.isPending ? "Salvando..." : "Salvar Saldos Remanescentes"}
+          </Button>
+        )}
         <Button onClick={onAvancar} className="gap-2 text-xs">
           Avançar para Notas Fora Estado
           <ChevronRight className="w-4 h-4" />
