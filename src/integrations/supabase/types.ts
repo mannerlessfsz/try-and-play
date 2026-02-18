@@ -2415,6 +2415,7 @@ export type Database = {
         Row: {
           bc_icms_st: number | null
           chave_nfe: string | null
+          cod_fornecedor: string | null
           codigo_barras: string | null
           competencia: string | null
           created_at: string
@@ -2438,7 +2439,9 @@ export type Database = {
           pct_mva: number | null
           produto: string | null
           quantidade: number | null
+          serie: string | null
           status: string | null
+          subserie: string | null
           total_st: number | null
           updated_at: string
           valor_fecp: number | null
@@ -2451,6 +2454,7 @@ export type Database = {
         Insert: {
           bc_icms_st?: number | null
           chave_nfe?: string | null
+          cod_fornecedor?: string | null
           codigo_barras?: string | null
           competencia?: string | null
           created_at?: string
@@ -2474,7 +2478,9 @@ export type Database = {
           pct_mva?: number | null
           produto?: string | null
           quantidade?: number | null
+          serie?: string | null
           status?: string | null
+          subserie?: string | null
           total_st?: number | null
           updated_at?: string
           valor_fecp?: number | null
@@ -2487,6 +2493,7 @@ export type Database = {
         Update: {
           bc_icms_st?: number | null
           chave_nfe?: string | null
+          cod_fornecedor?: string | null
           codigo_barras?: string | null
           competencia?: string | null
           created_at?: string
@@ -2510,7 +2517,9 @@ export type Database = {
           pct_mva?: number | null
           produto?: string | null
           quantidade?: number | null
+          serie?: string | null
           status?: string | null
+          subserie?: string | null
           total_st?: number | null
           updated_at?: string
           valor_fecp?: number | null
