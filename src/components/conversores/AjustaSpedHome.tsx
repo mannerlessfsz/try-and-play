@@ -81,113 +81,144 @@ export function AjustaSpedHome() {
             </div>
           </div>
 
-          {/* Flow indicator */}
-          <div className="glass rounded-xl p-3 relative overflow-hidden">
-            <div className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground">
-              <span className="text-[hsl(var(--orange))]">① Notas</span>
-              <ArrowRight className="w-3 h-3 opacity-30" />
-              <span className="text-[hsl(var(--blue))]">② Guias</span>
-              <ArrowRight className="w-3 h-3 opacity-30" />
-              <span className="text-[hsl(270_80%_60%)]">③ Controle</span>
-              <ArrowRight className="w-3 h-3 opacity-30" />
-              <span className="text-[hsl(var(--cyan))]">④ SPED</span>
-            </div>
-          </div>
-
-          {/* Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Cascade Flow */}
+          <div className="flex flex-col gap-0">
             {subModules.map((mod, index) => {
               const Icon = mod.icon;
               const isActive = mod.status === "ativo";
               const stCfg = statusConfig[mod.status];
+              const isLast = index === subModules.length - 1;
 
               return (
-                <motion.div
-                  key={mod.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.08, type: "spring", stiffness: 200, damping: 20 }}
-                  whileHover={isActive ? { scale: 1.02 } : {}}
-                  whileTap={isActive ? { scale: 0.98 } : {}}
-                  onClick={() => isActive && setActiveView(mod.id)}
-                  className={`glass rounded-2xl p-5 relative overflow-hidden flex flex-col transition-all duration-300 group ${
-                    isActive 
-                      ? "cursor-pointer hover:shadow-[0_0_35px_hsl(var(--cyan)/0.15)]" 
-                      : "opacity-60 cursor-default"
-                  }`}
-                  style={{ borderColor: "transparent" }}
-                  onMouseEnter={(e) => {
-                    if (isActive) {
-                      (e.currentTarget as HTMLElement).style.borderColor = mod.color + "50";
-                      (e.currentTarget as HTMLElement).style.boxShadow = `0 0 35px ${mod.color}20`;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.borderColor = "transparent";
-                    (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                  }}
-                >
-                  {/* Radial glow */}
-                  <div
-                    className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
-                    style={{ background: mod.color }}
-                  />
-
-                  {/* Step number */}
-                  <div className="absolute top-3 right-3 text-[10px] font-mono opacity-30">
-                    {String(mod.step).padStart(2, "0")}
-                  </div>
-
-                  {/* Bottom bar */}
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
-                    <motion.div
-                      className="h-full"
-                      style={{ background: `linear-gradient(90deg, ${mod.color}, transparent)` }}
-                      initial={{ width: "0%" }}
-                      whileInView={{ width: isActive ? "80%" : "30%" }}
-                      transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
+                <div key={mod.id} className="relative" style={{ paddingLeft: `${index * 24}px` }}>
+                  {/* Connector line from previous */}
+                  {index > 0 && (
+                    <div
+                      className="absolute top-0 h-4 w-[2px] rounded-full"
+                      style={{
+                        left: `${index * 24 + 22}px`,
+                        background: `linear-gradient(180deg, ${subModules[index - 1].color}50, ${mod.color}50)`,
+                      }}
                     />
-                  </div>
+                  )}
 
-                  <div className="relative z-10 flex flex-col h-full gap-3">
-                    <div className="flex items-start justify-between">
-                      <div
-                        className="w-11 h-11 rounded-xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110"
-                        style={{
-                          backgroundColor: mod.color + "12",
-                          borderColor: mod.color + "25",
-                        }}
-                      >
-                        <Icon className="w-5 h-5" style={{ color: mod.color }} />
-                      </div>
+                  {/* Connector arrow */}
+                  {index > 0 && (
+                    <div
+                      className="absolute top-0 flex items-center justify-center"
+                      style={{ left: `${index * 24 + 16}px` }}
+                    >
+                      <ArrowRight
+                        className="w-3 h-3 rotate-90 opacity-30"
+                        style={{ color: mod.color }}
+                      />
+                    </div>
+                  )}
 
-                      <Badge
-                        variant="outline"
-                        className="text-[9px] px-1.5 py-0"
-                        style={{
-                          borderColor: isActive ? mod.color + "40" : undefined,
-                          color: isActive ? mod.color : undefined,
-                          backgroundColor: isActive ? mod.color + "10" : undefined,
-                        }}
-                      >
-                        {stCfg.label}
-                      </Badge>
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1, type: "spring", stiffness: 180, damping: 20 }}
+                    whileHover={isActive ? { scale: 1.01, x: 4 } : {}}
+                    whileTap={isActive ? { scale: 0.99 } : {}}
+                    onClick={() => isActive && setActiveView(mod.id)}
+                    className={`glass rounded-2xl p-4 relative overflow-hidden flex items-center gap-4 transition-all duration-300 group ${
+                      index > 0 ? "mt-2" : ""
+                    } ${
+                      isActive
+                        ? "cursor-pointer hover:shadow-[0_0_35px_hsl(var(--cyan)/0.15)]"
+                        : "opacity-50 cursor-default"
+                    }`}
+                    style={{ borderColor: "transparent" }}
+                    onMouseEnter={(e) => {
+                      if (isActive) {
+                        (e.currentTarget as HTMLElement).style.borderColor = mod.color + "50";
+                        (e.currentTarget as HTMLElement).style.boxShadow = `0 0 35px ${mod.color}20`;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.borderColor = "transparent";
+                      (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                    }}
+                  >
+                    {/* Radial glow */}
+                    <div
+                      className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none"
+                      style={{ background: mod.color }}
+                    />
+
+                    {/* Left accent bar */}
+                    <div
+                      className="absolute left-0 top-2 bottom-2 w-[3px] rounded-full"
+                      style={{ background: mod.color, opacity: isActive ? 0.8 : 0.25 }}
+                    />
+
+                    {/* Step badge */}
+                    <div
+                      className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold font-mono border transition-all duration-300"
+                      style={{
+                        backgroundColor: mod.color + "15",
+                        borderColor: mod.color + "30",
+                        color: mod.color,
+                      }}
+                    >
+                      {mod.step}
                     </div>
 
-                    <div>
-                      <p className="font-bold text-sm">{mod.title}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1 line-clamp-3">
+                    {/* Icon */}
+                    <div
+                      className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border transition-all duration-300 group-hover:scale-110"
+                      style={{
+                        backgroundColor: mod.color + "12",
+                        borderColor: mod.color + "25",
+                      }}
+                    >
+                      <Icon className="w-5 h-5" style={{ color: mod.color }} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-sm truncate">{mod.title}</p>
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] px-1.5 py-0 shrink-0"
+                          style={{
+                            borderColor: isActive ? mod.color + "40" : undefined,
+                            color: isActive ? mod.color : undefined,
+                            backgroundColor: isActive ? mod.color + "10" : undefined,
+                          }}
+                        >
+                          {stCfg.label}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
                         {mod.description}
                       </p>
                     </div>
 
+                    {/* Action */}
                     {isActive && (
-                      <div className="flex items-center gap-1 mt-auto pt-1 text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ color: mod.color }}>
-                        Abrir <ArrowRight className="w-3 h-3" />
+                      <div
+                        className="shrink-0 flex items-center gap-1 text-[11px] font-medium opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        style={{ color: mod.color }}
+                      >
+                        Abrir <ArrowRight className="w-3.5 h-3.5" />
                       </div>
                     )}
-                  </div>
-                </motion.div>
+
+                    {/* Bottom progress bar */}
+                    <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
+                      <motion.div
+                        className="h-full"
+                        style={{ background: `linear-gradient(90deg, ${mod.color}, transparent)` }}
+                        initial={{ width: "0%" }}
+                        whileInView={{ width: isActive ? "80%" : "20%" }}
+                        transition={{ duration: 1, delay: index * 0.1 + 0.3 }}
+                      />
+                    </div>
+                  </motion.div>
+                </div>
               );
             })}
           </div>
