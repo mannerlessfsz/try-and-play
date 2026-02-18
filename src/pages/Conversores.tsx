@@ -17,7 +17,7 @@ import { ConversorFiscal } from "@/components/conversores/ConversorFiscal";
 import { ConversorExtrato } from "@/components/conversores/ConversorExtrato";
 import { ConversorDocumentos } from "@/components/conversores/ConversorDocumentos";
 import ConversorItauSispag from "@/components/conversores/ConversorItauSispag";
-import { AjustaSpedTab } from "@/components/conversores/AjustaSpedTab";
+import { AjustaSpedHome } from "@/components/conversores/AjustaSpedHome";
 import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
 import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
 import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
@@ -334,7 +334,7 @@ const Conversores = () => {
               {activeTab === "extrato" && <ConversorExtrato />}
               {activeTab === "documentos" && <ConversorDocumentos />}
               {activeTab === "itausispag" && <ConversorItauSispag />}
-              {activeTab === "ajustasped" && <AjustaSpedTab />}
+              {activeTab === "ajustasped" && <AjustaSpedHome />}
               {activeTab === "lancaapae" && <LancaApaeTab />}
               {activeTab === "casa" && <ConversorCasaTab />}
               {activeTab === "lider" && <ConversorLiderTab />}
