@@ -28,11 +28,24 @@ export interface NotaEntradaST {
   data_pagamento: string | null;
   chave_nfe: string | null;
   observacoes: string | null;
+  numero_doc_pagamento: string | null;
+  codigo_barras: string | null;
+  produto: string | null;
+  credito_icms_proprio: string | null;
+  credito_icms_st: string | null;
+  status: string | null;
   created_at: string;
   updated_at: string;
 }
 
-export type NotaEntradaSTInsert = Omit<NotaEntradaST, "id" | "created_at" | "updated_at">;
+export type NotaEntradaSTInsert = Omit<NotaEntradaST, "id" | "created_at" | "updated_at" | "numero_doc_pagamento" | "codigo_barras" | "produto" | "credito_icms_proprio" | "credito_icms_st" | "status"> & {
+  numero_doc_pagamento?: string | null;
+  codigo_barras?: string | null;
+  produto?: string | null;
+  credito_icms_proprio?: string | null;
+  credito_icms_st?: string | null;
+  status?: string | null;
+};
 
 export function useNotasEntradaST(empresaId: string | undefined) {
   const { toast } = useToast();

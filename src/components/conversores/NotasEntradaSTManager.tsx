@@ -940,6 +940,14 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   {renderField("Valor FECP", "valor_fecp", "currency")}
                   {renderField("Valor ST UN", "valor_st_un", "currency")}
                   {renderField("TOTAL ST", "total_st", "currency")}
+                  {renderField("Data Pagamento", "data_pagamento", "date")}
+                  {renderField("Doc. Pagamento", "numero_doc_pagamento")}
+                  {renderField("Código Barras", "codigo_barras")}
+                  {renderField("Produto", "produto")}
+                  {renderField("Créd. ICMS Próprio", "credito_icms_proprio")}
+                  {renderField("Créd. ICMS ST", "credito_icms_st")}
+                  {renderField("Status", "status")}
+                  {renderField("Observações", "observacoes")}
                   {renderField("Chave NFE", "chave_nfe", undefined, true)}
                 </div>
               </motion.div>
