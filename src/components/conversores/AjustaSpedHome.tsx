@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AjustaSpedTab } from "./AjustaSpedTab";
+import { NotasEntradaSTManager } from "./NotasEntradaSTManager";
 
 type AjustaSpedView = "home" | "notas_entrada" | "guias_pagamentos" | "control_cred" | "ajusta_sped";
 
@@ -18,7 +19,7 @@ const subModules = [
     description: "Cadastro e importação das notas fiscais de entrada com Substituição Tributária para composição dos créditos",
     color: "hsl(var(--orange))",
     step: 1,
-    status: "novo" as const,
+    status: "ativo" as const,
   },
   {
     id: "guias_pagamentos" as const,
@@ -253,9 +254,7 @@ export function AjustaSpedHome() {
 
           {activeView === "ajusta_sped" && <AjustaSpedTab />}
           
-          {activeView === "notas_entrada" && (
-            <PlaceholderCard title="Notas Entrada ST" icon={FileText} color="hsl(var(--orange))" />
-          )}
+          {activeView === "notas_entrada" && <NotasEntradaSTManager />}
           {activeView === "guias_pagamentos" && (
             <PlaceholderCard title="Guias Pagamentos" icon={CreditCard} color="hsl(var(--blue))" />
           )}
