@@ -1763,6 +1763,7 @@ export type Database = {
           numero_nota: string
           observacoes: string | null
           produto: string | null
+          status: string | null
           updated_at: string
           valor_guia: number
         }
@@ -1779,6 +1780,7 @@ export type Database = {
           numero_nota: string
           observacoes?: string | null
           produto?: string | null
+          status?: string | null
           updated_at?: string
           valor_guia?: number
         }
@@ -1795,6 +1797,7 @@ export type Database = {
           numero_nota?: string
           observacoes?: string | null
           produto?: string | null
+          status?: string | null
           updated_at?: string
           valor_guia?: number
         }
