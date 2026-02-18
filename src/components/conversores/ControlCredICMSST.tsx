@@ -1,12 +1,11 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  BarChart3, FileText, Package, ChevronRight, RefreshCw, Filter
+  BarChart3, FileText, Package, ChevronRight, RefreshCw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGuiasPagamentos, type GuiaPagamento } from "@/hooks/useGuiasPagamentos";
 import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
 import { useQueryClient } from "@tanstack/react-query";
@@ -23,14 +22,13 @@ type Step = "notas-utilizaveis" | "movimento-estoque";
 
 export function ControlCredICMSST({ empresaId }: Props) {
   const [activeStep, setActiveStep] = useState<Step>("notas-utilizaveis");
-  const [competenciaFiltro, setCompetenciaFiltro] = useState<string>("todas");
   const [syncing, setSyncing] = useState(false);
 
   const queryClient = useQueryClient();
   const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
 
-  // Sync: invalidate both queries to refresh from DB
+  // Sync: re-fetch data from Guias and Notas Entrada ST
   const handleSync = useCallback(async () => {
     setSyncing(true);
     await Promise.all([
@@ -49,7 +47,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
     [guias]
   );
 
-  // Map NFE -> nota for cross-referencing
+  // Map NFE -> nota for cross-referencing quantidade
   const notasByNfe = useMemo(() => {
     const map = new Map<string, typeof notas[0]>();
     notas.forEach(n => {
@@ -59,54 +57,33 @@ export function ControlCredICMSST({ empresaId }: Props) {
     return map;
   }, [notas]);
 
-  // Extract unique competencias from notas for filter
-  const competenciasDisponiveis = useMemo(() => {
-    const set = new Set<string>();
-    notas.forEach(n => {
-      if (n.competencia) set.add(n.competencia);
-    });
-    return Array.from(set).sort().reverse();
-  }, [notas]);
-
   // Build enriched rows for Step 1
   const enrichedRows = useMemo(() => {
     return guiasUtilizaveis.map((guia) => {
       const nfeKey = guia.numero_nota.replace(/^0+/, "");
       const nota = notasByNfe.get(nfeKey);
       const quantidade = nota?.quantidade || 0;
-      const competencia = nota?.competencia || guia.data_nota || null;
-      const fornecedor = nota?.fornecedor || null;
-      const ncm = nota?.ncm || null;
-      const chaveNfe = nota?.chave_nfe || null;
       const icmsProprio = parseFloat(String(guia.credito_icms_proprio || "0")) || 0;
       const icmsST = parseFloat(String(guia.credito_icms_st || "0")) || 0;
       const icmsProprioUn = quantidade > 0 ? icmsProprio / quantidade : 0;
       const icmsSTUn = quantidade > 0 ? icmsST / quantidade : 0;
+      const totalIcmsProprio = icmsProprio;
+      const totalIcmsST = icmsST;
 
       return {
         guia,
         quantidade,
-        competencia,
-        fornecedor,
-        ncm,
-        chaveNfe,
         saldoAnterior: 0,
-        saldoAtual: quantidade, // Full stock until movement is tracked
+        saldoAtual: 0,
         icmsProprio,
         icmsST,
         icmsProprioUn,
         icmsSTUn,
-        totalIcmsProprio: icmsProprio,
-        totalIcmsST: icmsST,
+        totalIcmsProprio,
+        totalIcmsST,
       };
     });
   }, [guiasUtilizaveis, notasByNfe]);
-
-  // Filter by competencia
-  const filteredRows = useMemo(() => {
-    if (competenciaFiltro === "todas") return enrichedRows;
-    return enrichedRows.filter(r => r.competencia === competenciaFiltro);
-  }, [enrichedRows, competenciaFiltro]);
 
   if (!empresaId) {
     return (
@@ -150,47 +127,31 @@ export function ControlCredICMSST({ empresaId }: Props) {
         </Button>
       </div>
 
-      {/* Step Navigation + Competencia Filter */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          <StepButton
-            label="1. Notas Utilizáveis"
-            icon={FileText}
-            active={activeStep === "notas-utilizaveis"}
-            count={filteredRows.length}
-            onClick={() => setActiveStep("notas-utilizaveis")}
-          />
-          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-          <StepButton
-            label="2. Movimento Estoque"
-            icon={Package}
-            active={activeStep === "movimento-estoque"}
-            onClick={() => setActiveStep("movimento-estoque")}
-            disabled
-          />
-        </div>
-
-        {activeStep === "notas-utilizaveis" && competenciasDisponiveis.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
-            <Select value={competenciaFiltro} onValueChange={setCompetenciaFiltro}>
-              <SelectTrigger className="h-8 w-[160px] text-xs">
-                <SelectValue placeholder="Competência" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todas">Todas</SelectItem>
-                {competenciasDisponiveis.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+      {/* Step Navigation */}
+      <div className="flex items-center gap-2">
+        <StepButton
+          label="1. Notas Utilizáveis"
+          icon={FileText}
+          active={activeStep === "notas-utilizaveis"}
+          count={guiasUtilizaveis.length}
+          onClick={() => setActiveStep("notas-utilizaveis")}
+        />
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        <StepButton
+          label="2. Movimento Estoque"
+          icon={Package}
+          active={activeStep === "movimento-estoque"}
+          onClick={() => setActiveStep("movimento-estoque")}
+          disabled
+        />
       </div>
 
       {/* Step Content */}
       {activeStep === "notas-utilizaveis" && (
-        <NotasUtilizaveisStep rows={filteredRows} isLoading={isLoading} />
+        <NotasUtilizaveisStep
+          rows={enrichedRows}
+          isLoading={isLoading}
+        />
       )}
 
       {activeStep === "movimento-estoque" && (
@@ -237,10 +198,6 @@ function StepButton({
 interface EnrichedRow {
   guia: GuiaPagamento;
   quantidade: number;
-  competencia: string | null;
-  fornecedor: string | null;
-  ncm: string | null;
-  chaveNfe: string | null;
   saldoAnterior: number;
   saldoAtual: number;
   icmsProprio: number;
@@ -274,22 +231,12 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
     );
   }
 
-  // Totals
-  const totalIcmsProprio = rows.reduce((s, r) => s + r.totalIcmsProprio, 0);
-  const totalIcmsST = rows.reduce((s, r) => s + r.totalIcmsST, 0);
-
   return (
     <div className="space-y-3">
       {/* Summary badges */}
       <div className="flex items-center gap-3 flex-wrap">
         <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
           {rows.length} nota(s) utilizável(is)
-        </Badge>
-        <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/30">
-          ICMS Próp.: {formatCurrency(totalIcmsProprio)}
-        </Badge>
-        <Badge variant="outline" className="text-[10px] bg-purple-500/10 text-purple-400 border-purple-500/30">
-          ICMS-ST: {formatCurrency(totalIcmsST)}
         </Badge>
       </div>
 
@@ -299,9 +246,7 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-[9px] px-2 whitespace-nowrap">Competência</TableHead>
                 <TableHead className="text-[9px] px-2 whitespace-nowrap">Nº Nota</TableHead>
-                <TableHead className="text-[9px] px-2 whitespace-nowrap">Fornecedor</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Qtd Nota</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Saldo Anterior</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Saldo Atual</TableHead>
@@ -310,6 +255,7 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">ICMS Próp. UN</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">ICMS-ST UN</TableHead>
                 <TableHead className="text-[9px] px-2 whitespace-nowrap">Nº Doc Pagto</TableHead>
+                <TableHead className="text-[9px] px-2 whitespace-nowrap">Cód. Barras</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Total ICMS Próp.</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Total ICMS-ST</TableHead>
               </TableRow>
@@ -317,11 +263,7 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
             <TableBody>
               {rows.map((row, idx) => (
                 <TableRow key={row.guia.id} className={idx % 2 === 0 ? "bg-muted/20" : ""}>
-                  <TableCell className="text-[11px] px-2 font-mono">{row.competencia || "-"}</TableCell>
                   <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_nota}</TableCell>
-                  <TableCell className="text-[11px] px-2 max-w-[120px] truncate" title={row.fornecedor || ""}>
-                    {row.fornecedor || "-"}
-                  </TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{row.quantidade || "-"}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{row.saldoAnterior}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{row.saldoAtual}</TableCell>
@@ -330,19 +272,11 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsProprioUn)}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsSTUn)}</TableCell>
                   <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_doc_pagamento || "-"}</TableCell>
+                  <TableCell className="text-[11px] px-2 font-mono text-[10px]">{row.guia.codigo_barras || "-"}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsProprio)}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsST)}</TableCell>
                 </TableRow>
               ))}
-              {/* Totals row */}
-              <TableRow className="bg-muted/40 font-semibold border-t-2 border-border">
-                <TableCell colSpan={6} className="text-[10px] px-2 text-right">TOTAIS</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totalIcmsProprio)}</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totalIcmsST)}</TableCell>
-                <TableCell colSpan={3} />
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totalIcmsProprio)}</TableCell>
-                <TableCell className="text-[10px] px-2 text-right font-mono">{formatCurrency(totalIcmsST)}</TableCell>
-              </TableRow>
             </TableBody>
           </Table>
         </div>
