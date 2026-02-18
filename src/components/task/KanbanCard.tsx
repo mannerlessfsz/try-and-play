@@ -62,7 +62,7 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
           <div className="opacity-0 group-hover:opacity-30 transition-opacity mt-0.5">
             <GripVertical className="w-3 h-3 text-muted-foreground" />
           </div>
-          <h4 className={`font-semibold text-[13px] text-foreground flex-1 leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
+          <h4 className={`font-semibold text-sm text-foreground flex-1 leading-snug ${tarefa.status === "concluida" ? "line-through text-muted-foreground" : ""}`}>
             {tarefa.titulo}
           </h4>
           <button
@@ -75,18 +75,18 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
 
         {/* Meta chips */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground">
+          <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground">
             <Building2 className="w-2.5 h-2.5" />
             {empresaNome}
           </span>
           {tarefa.prazoEntrega && (
-            <span className={`inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md ${isOverdue ? "bg-yellow-500/15 text-yellow-400" : "bg-foreground/5 text-muted-foreground"}`}>
+            <span className={`inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md ${isOverdue ? "bg-yellow-500/15 text-yellow-400" : "bg-foreground/5 text-muted-foreground"}`}>
               <Clock className="w-2.5 h-2.5" />
               {new Date(tarefa.prazoEntrega + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}
             </span>
           )}
           {tarefa.arquivos && tarefa.arquivos.length > 0 && (
-            <span className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-md bg-foreground/5 text-muted-foreground">
               <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
             </span>
           )}
@@ -105,7 +105,7 @@ export function KanbanCard({ tarefa, empresaNome, onDelete, onStatusChange, inde
               }}
             />
           </div>
-          <span className="text-[9px] text-muted-foreground tabular-nums">{progresso}%</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">{progresso}%</span>
 
           {/* Status dots - always visible but subtle */}
           <div className="flex items-center gap-1 ml-1">
