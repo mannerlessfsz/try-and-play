@@ -15,6 +15,7 @@ import { useSaldosNotas } from "@/hooks/useSaldosNotas";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MovimentoEstoqueStep } from "./MovimentoEstoqueStep";
+import { NotasForaEstadoStep } from "./NotasForaEstadoStep";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -223,6 +224,11 @@ export function ControlCredICMSST({ empresaId }: Props) {
     toast.success("Avançando para Notas Fora Estado");
   }, []);
 
+  const handleAvancarStep4 = useCallback(() => {
+    setActiveStep("processamento");
+    toast.success("Avançando para Processamento");
+  }, []);
+
   if (!empresaId) {
     return (
       <div className="glass rounded-2xl p-8 text-center space-y-4">
@@ -375,7 +381,6 @@ export function ControlCredICMSST({ empresaId }: Props) {
               icon={Globe}
               active={activeStep === "notas-fora-estado"}
               onClick={() => setActiveStep("notas-fora-estado")}
-              disabled
             />
             <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             <StepButton
@@ -421,10 +426,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
           )}
 
           {activeStep === "notas-fora-estado" && (
-            <div className="glass rounded-xl p-8 text-center space-y-3">
-              <Globe className="w-10 h-10 mx-auto text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Notas Fora Estado — em breve.</p>
-            </div>
+            <NotasForaEstadoStep onAvancar={handleAvancarStep4} />
           )}
 
           {activeStep === "processamento" && (
