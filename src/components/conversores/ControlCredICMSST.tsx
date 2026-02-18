@@ -81,6 +81,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
         icmsSTUn,
         totalIcmsProprio,
         totalIcmsST,
+        chaveNfe: nota?.chave_nfe || null,
       };
     });
   }, [guiasUtilizaveis, notasByNfe]);
@@ -206,6 +207,7 @@ interface EnrichedRow {
   icmsSTUn: number;
   totalIcmsProprio: number;
   totalIcmsST: number;
+  chaveNfe: string | null;
 }
 
 function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoading: boolean }) {
@@ -258,6 +260,7 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                 <TableHead className="text-[9px] px-2 whitespace-nowrap">Cód. Barras</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Total ICMS Próp.</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Total ICMS-ST</TableHead>
+                <TableHead className="text-[9px] px-2 whitespace-nowrap min-w-[320px]">Chave NFE</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -275,6 +278,7 @@ function NotasUtilizaveisStep({ rows, isLoading }: { rows: EnrichedRow[]; isLoad
                   <TableCell className="text-[11px] px-2 font-mono text-[10px]">{row.guia.codigo_barras || "-"}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsProprio)}</TableCell>
                   <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsST)}</TableCell>
+                  <TableCell className="text-[10px] px-2 font-mono tracking-tight">{row.chaveNfe || "-"}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
