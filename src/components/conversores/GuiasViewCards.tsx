@@ -110,7 +110,17 @@ export function GuiasCompactCards({ guias, onUpdate, onDelete }: GuiasViewCardsP
                   />
                 </span>
               ) : (
-                g.produto && <span>Prod.: {g.produto}</span>
+              g.produto && <span>Prod.: {g.produto}</span>
+              )}
+              {isEditing ? (
+                <span className="flex items-center gap-1">Cód. Barras:
+                  <Input className="h-5 text-[11px] px-1 w-44 border-dashed bg-transparent" defaultValue={g.codigo_barras ?? ""} placeholder="—"
+                    onBlur={(e) => { const v = e.target.value || null; if (v !== (g.codigo_barras ?? null)) onUpdate({ id: g.id, codigo_barras: v }); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  />
+                </span>
+              ) : (
+                g.codigo_barras && <span>Cód. Barras: {g.codigo_barras}</span>
               )}
               <span>ICMS Próprio: {g.credito_icms_proprio ? formatCurrency(Number(g.credito_icms_proprio)) : "—"}</span>
               <span>ICMS-ST: {g.credito_icms_st ? formatCurrency(Number(g.credito_icms_st)) : "—"}</span>
@@ -285,6 +295,17 @@ export function GuiasGridCards({ guias, onUpdate, onDelete }: GuiasViewCardsProp
                   />
                 ) : (
                   <p className="font-medium">{g.numero_doc_pagamento || "—"}</p>
+                )}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Cód. Barras</span>
+                {isEditing ? (
+                  <Input className="h-5 text-[11px] px-1 border-dashed bg-transparent" defaultValue={g.codigo_barras ?? ""}
+                    onBlur={(e) => { const v = e.target.value || null; if (v !== (g.codigo_barras ?? null)) onUpdate({ id: g.id, codigo_barras: v }); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  />
+                ) : (
+                  <p className="font-medium truncate">{g.codigo_barras || "—"}</p>
                 )}
               </div>
               <div>
