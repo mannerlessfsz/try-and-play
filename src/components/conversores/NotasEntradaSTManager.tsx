@@ -831,7 +831,13 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
             const renderField = (label: string, colKey: string, colType?: string, colSpan?: boolean) => {
               const col = columns.find(c => c.key === colKey);
               const value = (nota as any)[colKey];
-              const formatted = col ? formatCell(nota, col) : String(value ?? "");
+              const formatted = col
+                ? formatCell(nota, col)
+                : colType === "currency" ? formatCurrency(Number(value) || 0)
+                : colType === "pct" ? formatPct(Number(value) || 0)
+                : colType === "number" ? new Intl.NumberFormat("pt-BR").format(Number(value) || 0)
+                : colType === "date" ? formatDateBR(value)
+                : String(value ?? "");
 
               return (
                 <div key={colKey} className={colSpan ? "col-span-2 sm:col-span-3 lg:col-span-4" : ""}>
