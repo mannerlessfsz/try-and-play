@@ -68,7 +68,6 @@ const columns = [
   { key: "credito_icms_proprio", label: "Crédito ICMS Próprio", width: "w-36", type: "currency" as const, editable: true },
   { key: "credito_icms_st", label: "Crédito ICMS-ST", width: "w-36", type: "currency" as const, editable: true },
   { key: "status", label: "Status", width: "w-36", type: "status" as const, editable: true },
-  { key: "observacoes", label: "Observações", width: "w-48", editable: true },
 ];
 
 interface GuiasPagamentosManagerProps {
