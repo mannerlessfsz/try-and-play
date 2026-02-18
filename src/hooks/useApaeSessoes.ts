@@ -16,6 +16,7 @@ export interface ApaeSessao {
   plano_contas_arquivo: string | null;
   relatorio_arquivo: string | null;
   metadados: Record<string, unknown>;
+  codigo_vinculo: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -95,7 +96,7 @@ export function useApaeSessoes() {
 
   // Criar nova sessão
   const criarSessao = useMutation({
-    mutationFn: async (params?: { nome?: string; tipo?: ApaeSessaoTipo }) => {
+    mutationFn: async (params?: { nome?: string; tipo?: ApaeSessaoTipo; codigo_vinculo?: string }) => {
       if (!empresaId) throw new Error("Nenhuma empresa ativa");
       const tipo = params?.tipo || "contas_a_pagar";
       const nome = params?.nome || `Sessão ${new Date().toLocaleDateString("pt-BR")}`;
@@ -105,6 +106,7 @@ export function useApaeSessoes() {
           empresa_id: empresaId,
           nome_sessao: nome,
           tipo,
+          codigo_vinculo: params?.codigo_vinculo || null,
           created_by: user?.id,
         })
         .select()

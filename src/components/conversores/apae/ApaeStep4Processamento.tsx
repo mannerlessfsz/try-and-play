@@ -229,6 +229,7 @@ interface Props {
   sessaoTipo: ApaeSessaoTipo;
   empresaId?: string;
   sessaoId?: string;
+  codigoVinculo?: string | null;
   onDuplicadosFound?: (duplicados: DuplicadoCP[]) => void;
 }
 
@@ -238,15 +239,19 @@ export interface DuplicadoCP {
   contas_pagar_sessao_nome: string | null;
 }
 
-/** Busca resultados de sessões Contas a Pagar concluídas/em andamento da mesma empresa */
-async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: string): Promise<{ resultados: ApaeResultado[]; sessoes: Record<string, string | null> }> {
-  // 1. Buscar sessões contas_a_pagar da mesma empresa (exceto a atual)
-  const { data: sessoes, error: errSessoes } = await supabaseClient
+/** Busca resultados de sessões Contas a Pagar com mesmo codigo_vinculo */
+async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: string, codigoVinculo: string | null): Promise<{ resultados: ApaeResultado[]; sessoes: Record<string, string | null> }> {
+  if (!codigoVinculo) return { resultados: [], sessoes: {} };
+  
+  // 1. Buscar sessões contas_a_pagar da mesma empresa com mesmo codigo_vinculo
+  let query = supabaseClient
     .from("apae_sessoes")
     .select("id, nome_sessao")
     .eq("empresa_id", empresaId)
     .eq("tipo", "contas_a_pagar")
+    .eq("codigo_vinculo", codigoVinculo)
     .neq("id", sessaoIdAtual);
+  const { data: sessoes, error: errSessoes } = await query;
   if (errSessoes || !sessoes || sessoes.length === 0) return { resultados: [], sessoes: {} };
 
   const sessaoMap: Record<string, string | null> = {};
@@ -266,7 +271,7 @@ async function buscarResultadosContasAPagar(empresaId: string, sessaoIdAtual: st
   return { resultados: allResultados, sessoes: sessaoMap };
 }
 
-export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados, sessaoTipo, empresaId, sessaoId, onDuplicadosFound }: Props) {
+export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codigoEmpresa, resultados, onProcessar, onNext, onBack, saving, mapeamentosLoading, refreshMapeamentos, onSaveResultadoConta, onSaveResultadosLote, onSaveStatusResultados, onRefreshResultados, sessaoTipo, empresaId, sessaoId, codigoVinculo, onDuplicadosFound }: Props) {
   const [processing, setProcessing] = useState(false);
   const [busca, setBusca] = useState("");
   const buscaDebounced = useDebouncedValue(busca, 250);
@@ -415,7 +420,7 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
         // --- Deduplicação cruzada com Contas a Pagar ---
         if (empresaId && sessaoId) {
           try {
-            const { resultados: cpResultados, sessoes: cpSessoes } = await buscarResultadosContasAPagar(empresaId, sessaoId);
+            const { resultados: cpResultados, sessoes: cpSessoes } = await buscarResultadosContasAPagar(empresaId, sessaoId, codigoVinculo || null);
             
             if (cpResultados.length > 0) {
               // Criar chave de lookup: "data_pagto|conta_credito_codigo" para contas a pagar

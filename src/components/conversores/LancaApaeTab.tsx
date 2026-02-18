@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -48,6 +49,7 @@ export function LancaApaeTab() {
   const [wantUpdatePlano, setWantUpdatePlano] = useState(false);
   const [wantUpdateBancos, setWantUpdateBancos] = useState(false);
   const [tipoSessao, setTipoSessao] = useState<ApaeSessaoTipo>("contas_a_pagar");
+  const [codigoVinculo, setCodigoVinculo] = useState("");
 
   const { mapeamentos, loading: loadingMapeamentos, buscar: buscarMapeamentos } = useApaeBancoAplicacoes(sessaoAtiva);
 
@@ -99,6 +101,7 @@ export function LancaApaeTab() {
     setWantUpdatePlano(false);
     setWantUpdateBancos(false);
     setTipoSessao("contas_a_pagar");
+    setCodigoVinculo("");
     setShowNovaDialog(true);
   };
 
@@ -106,7 +109,7 @@ export function LancaApaeTab() {
     setShowNovaDialog(false);
     setLoadingData(true);
     try {
-      const sessao = await criarSessao.mutateAsync({ tipo: tipoSessao });
+      const sessao = await criarSessao.mutateAsync({ tipo: tipoSessao, codigo_vinculo: codigoVinculo.trim() || undefined });
 
       if (wantUpdatePlano) {
         await deletarSessao.mutateAsync(sessao.id);
@@ -312,6 +315,12 @@ export function LancaApaeTab() {
                               <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5" style={{ borderColor: `hsl(${accent} / 0.4)`, color: `hsl(${accent})`, background: `hsl(${accent} / 0.08)` }}>
                                 {isMovCaixa ? "Mov. Caixa" : "Contas Pagar"}
                               </Badge>
+                              {s.codigo_vinculo && (
+                                <>
+                                  <span className="text-[10px] text-muted-foreground">•</span>
+                                  <span className="text-[9px] font-mono text-muted-foreground bg-muted/50 px-1 rounded">🔗 {s.codigo_vinculo}</span>
+                                </>
+                              )}
                               <span className="text-[10px] text-muted-foreground">•</span>
                               <span className="text-[10px] font-mono" style={{ color: `hsl(${accent})` }}>{s.passo_atual}/5</span>
                             </div>
@@ -366,6 +375,17 @@ export function LancaApaeTab() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">Relatório de movimento de caixa</p>
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Código de vínculo</p>
+                <p className="text-[10px] text-muted-foreground">Sessões com o mesmo código são pareadas para deduplicação cruzada entre Contas a Pagar e Movimento Caixa.</p>
+                <Input
+                  placeholder="Ex: JAN-2026, LOTE-01..."
+                  value={codigoVinculo}
+                  onChange={(e) => setCodigoVinculo(e.target.value)}
+                  className="h-8 text-xs"
+                />
               </div>
 
               <div className="space-y-2">
@@ -586,6 +606,9 @@ export function LancaApaeTab() {
           <Badge variant="outline" className="text-[9px] px-1.5 py-0">
             {sessaoInfo?.tipo === "movimento_caixa" ? "Mov. Caixa" : "Contas Pagar"}
           </Badge>
+          {sessaoInfo?.codigo_vinculo && (
+            <span className="text-[9px] font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">🔗 {sessaoInfo.codigo_vinculo}</span>
+          )}
         </div>
       </div>
 
@@ -631,6 +654,7 @@ export function LancaApaeTab() {
               sessaoTipo={sessaoInfo?.tipo || "contas_a_pagar"}
               empresaId={empresaAtiva?.id}
               sessaoId={sessaoAtiva || undefined}
+              codigoVinculo={sessaoInfo?.codigo_vinculo}
               onDuplicadosFound={setDuplicadosCP}
             />
           )}
