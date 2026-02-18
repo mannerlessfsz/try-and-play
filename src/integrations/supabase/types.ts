@@ -2415,9 +2415,12 @@ export type Database = {
         Row: {
           bc_icms_st: number | null
           chave_nfe: string | null
+          codigo_barras: string | null
           competencia: string | null
           created_at: string
           created_by: string | null
+          credito_icms_proprio: string | null
+          credito_icms_st: string | null
           data_pagamento: string | null
           desconto: number | null
           empresa_id: string
@@ -2427,12 +2430,15 @@ export type Database = {
           ipi: number | null
           ncm: string | null
           nfe: string
+          numero_doc_pagamento: string | null
           observacoes: string | null
           pct_fecp: number | null
           pct_icms_interestadual: number | null
           pct_icms_interno: number | null
           pct_mva: number | null
+          produto: string | null
           quantidade: number | null
+          status: string | null
           total_st: number | null
           updated_at: string
           valor_fecp: number | null
@@ -2445,9 +2451,12 @@ export type Database = {
         Insert: {
           bc_icms_st?: number | null
           chave_nfe?: string | null
+          codigo_barras?: string | null
           competencia?: string | null
           created_at?: string
           created_by?: string | null
+          credito_icms_proprio?: string | null
+          credito_icms_st?: string | null
           data_pagamento?: string | null
           desconto?: number | null
           empresa_id: string
@@ -2457,12 +2466,15 @@ export type Database = {
           ipi?: number | null
           ncm?: string | null
           nfe: string
+          numero_doc_pagamento?: string | null
           observacoes?: string | null
           pct_fecp?: number | null
           pct_icms_interestadual?: number | null
           pct_icms_interno?: number | null
           pct_mva?: number | null
+          produto?: string | null
           quantidade?: number | null
+          status?: string | null
           total_st?: number | null
           updated_at?: string
           valor_fecp?: number | null
@@ -2475,9 +2487,12 @@ export type Database = {
         Update: {
           bc_icms_st?: number | null
           chave_nfe?: string | null
+          codigo_barras?: string | null
           competencia?: string | null
           created_at?: string
           created_by?: string | null
+          credito_icms_proprio?: string | null
+          credito_icms_st?: string | null
           data_pagamento?: string | null
           desconto?: number | null
           empresa_id?: string
@@ -2487,12 +2502,15 @@ export type Database = {
           ipi?: number | null
           ncm?: string | null
           nfe?: string
+          numero_doc_pagamento?: string | null
           observacoes?: string | null
           pct_fecp?: number | null
           pct_icms_interestadual?: number | null
           pct_icms_interno?: number | null
           pct_mva?: number | null
+          produto?: string | null
           quantidade?: number | null
+          status?: string | null
           total_st?: number | null
           updated_at?: string
           valor_fecp?: number | null
