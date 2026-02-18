@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  BarChart3, FileText, Package, ChevronRight, RefreshCw, Pencil, Check, X
+  BarChart3, FileText, Package, ChevronRight, RefreshCw, Check, Pencil, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import { toast } from "sonner";
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-// Paleta de cores por linha (bordas laterais)
 const ROW_COLORS = [
   "border-l-4 border-l-blue-500/60",
   "border-l-4 border-l-emerald-500/60",
@@ -38,8 +37,8 @@ type Step = "notas-utilizaveis" | "movimento-estoque";
 export function ControlCredICMSST({ empresaId }: Props) {
   const [activeStep, setActiveStep] = useState<Step>("notas-utilizaveis");
   const [syncing, setSyncing] = useState(false);
-  const [saldosAnteriores, setSaldosAnteriores] = useState<Record<string, number>>({});
   const [confirmados, setConfirmados] = useState<Set<string>>(new Set());
+  const [saldosAnteriores, setSaldosAnteriores] = useState<Record<string, number>>({});
 
   const queryClient = useQueryClient();
   const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
@@ -98,23 +97,27 @@ export function ControlCredICMSST({ empresaId }: Props) {
     });
   }, [guiasUtilizaveis, notasByNfe, saldosAnteriores]);
 
+  const handleToggleConfirm = useCallback((guiaId: string) => {
+    setConfirmados(prev => {
+      const s = new Set(prev);
+      if (s.has(guiaId)) s.delete(guiaId); else s.add(guiaId);
+      return s;
+    });
+  }, []);
+
+  const handleConfirmAll = useCallback(() => {
+    setConfirmados(new Set(enrichedRows.map(r => r.guia.id)));
+  }, [enrichedRows]);
+
   const handleSaldoChange = useCallback((guiaId: string, value: number) => {
     setSaldosAnteriores(prev => ({ ...prev, [guiaId]: value }));
   }, []);
 
-  const handleConfirm = useCallback((guiaId: string) => {
-    setConfirmados(prev => { const s = new Set(prev); s.add(guiaId); return s; });
-  }, []);
-
-  const handleUnconfirm = useCallback((guiaId: string) => {
-    setConfirmados(prev => { const s = new Set(prev); s.delete(guiaId); return s; });
-  }, []);
-
   const allConfirmed = enrichedRows.length > 0 && enrichedRows.every(r => confirmados.has(r.guia.id));
 
-  const handleAvancarPasso2 = useCallback(() => {
+  const handleAvancar = useCallback(() => {
     setActiveStep("movimento-estoque");
-    toast.success("Todas as notas confirmadas — avançando para Movimento Estoque");
+    toast.success("Avançando para Movimento Estoque");
   }, []);
 
   if (!empresaId) {
@@ -185,11 +188,11 @@ export function ControlCredICMSST({ empresaId }: Props) {
           rows={enrichedRows}
           isLoading={isLoading}
           confirmados={confirmados}
+          onToggleConfirm={handleToggleConfirm}
+          onConfirmAll={handleConfirmAll}
           onSaldoChange={handleSaldoChange}
-          onConfirm={handleConfirm}
-          onUnconfirm={handleUnconfirm}
           allConfirmed={allConfirmed}
-          onAvancar={handleAvancarPasso2}
+          onAvancar={handleAvancar}
         />
       )}
 
@@ -252,36 +255,18 @@ interface NotasStepProps {
   rows: EnrichedRow[];
   isLoading: boolean;
   confirmados: Set<string>;
+  onToggleConfirm: (guiaId: string) => void;
+  onConfirmAll: () => void;
   onSaldoChange: (guiaId: string, value: number) => void;
-  onConfirm: (guiaId: string) => void;
-  onUnconfirm: (guiaId: string) => void;
   allConfirmed: boolean;
   onAvancar: () => void;
 }
 
 function NotasUtilizaveisStep({
-  rows, isLoading, confirmados, onSaldoChange, onConfirm, onUnconfirm, allConfirmed, onAvancar,
+  rows, isLoading, confirmados, onToggleConfirm, onConfirmAll, onSaldoChange, allConfirmed, onAvancar,
 }: NotasStepProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
-
-  const startEdit = (guiaId: string, currentVal: number) => {
-    setEditingId(guiaId);
-    setEditValue(String(currentVal));
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditValue("");
-  };
-
-  const saveEdit = (guiaId: string) => {
-    const parsed = parseFloat(editValue.replace(",", "."));
-    onSaldoChange(guiaId, isNaN(parsed) ? 0 : parsed);
-    onConfirm(guiaId);
-    setEditingId(null);
-    setEditValue("");
-  };
 
   if (isLoading) {
     return (
@@ -307,16 +292,41 @@ function NotasUtilizaveisStep({
 
   const confirmedCount = rows.filter(r => confirmados.has(r.guia.id)).length;
 
+  const startEdit = (guiaId: string, currentVal: number) => {
+    setEditingId(guiaId);
+    setEditValue(String(currentVal));
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValue("");
+  };
+
+  const saveEdit = (guiaId: string) => {
+    const parsed = parseFloat(editValue.replace(",", "."));
+    onSaldoChange(guiaId, isNaN(parsed) ? 0 : parsed);
+    setEditingId(null);
+    setEditValue("");
+  };
+
   return (
     <div className="space-y-3">
-      {/* Summary badges */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-          {rows.length} nota(s) utilizável(is)
-        </Badge>
-        <Badge variant="outline" className={`text-[10px] ${confirmedCount === rows.length ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
-          {confirmedCount}/{rows.length} confirmada(s)
-        </Badge>
+      {/* Summary + Confirm All */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+            {rows.length} nota(s) utilizável(is)
+          </Badge>
+          <Badge variant="outline" className={`text-[10px] ${confirmedCount === rows.length ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-amber-500/10 text-amber-400 border-amber-500/30"}`}>
+            {confirmedCount}/{rows.length} confirmada(s)
+          </Badge>
+        </div>
+        {!allConfirmed && (
+          <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1.5" onClick={onConfirmAll}>
+            <Check className="w-3 h-3" />
+            Confirmar todas
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -325,10 +335,11 @@ function NotasUtilizaveisStep({
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-[9px] px-2 whitespace-nowrap w-8"></TableHead>
+                <TableHead className="text-[9px] px-1 w-8">✓</TableHead>
                 <TableHead className="text-[9px] px-2 whitespace-nowrap">Nº Nota</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Qtd Nota</TableHead>
-                <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Saldo Anterior</TableHead>
+                <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Saldo Ant.</TableHead>
+                <TableHead className="text-[9px] px-2 w-8"></TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">Saldo Atual</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">ICMS Próprio</TableHead>
                 <TableHead className="text-[9px] px-2 text-right whitespace-nowrap">ICMS-ST</TableHead>
@@ -352,45 +363,18 @@ function NotasUtilizaveisStep({
                     key={row.guia.id}
                     className={`${colorClass} ${isConfirmed ? "bg-emerald-500/5" : ""}`}
                   >
-                    {/* Action column */}
+                    {/* Confirm toggle */}
                     <TableCell className="px-1">
-                      {isEditing ? (
-                        <div className="flex gap-0.5">
-                          <button
-                            onClick={() => saveEdit(row.guia.id)}
-                            className="p-1 rounded hover:bg-emerald-500/20 text-emerald-500"
-                            title="Confirmar"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="p-1 rounded hover:bg-destructive/20 text-destructive"
-                            title="Cancelar"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : isConfirmed ? (
-                        <button
-                          onClick={() => {
-                            onUnconfirm(row.guia.id);
-                            startEdit(row.guia.id, row.saldoAnterior);
-                          }}
-                          className="p-1 rounded hover:bg-muted text-emerald-500"
-                          title="Editar novamente"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => startEdit(row.guia.id, row.saldoAnterior)}
-                          className="p-1 rounded hover:bg-muted text-muted-foreground"
-                          title="Editar Saldo Anterior"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => onToggleConfirm(row.guia.id)}
+                        className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
+                          isConfirmed
+                            ? "bg-emerald-500 border-emerald-500 text-white"
+                            : "border-muted-foreground/40 hover:border-foreground"
+                        }`}
+                      >
+                        {isConfirmed && <Check className="w-3 h-3" />}
+                      </button>
                     </TableCell>
                     <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_nota}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{row.quantidade || "-"}</TableCell>
@@ -408,6 +392,27 @@ function NotasUtilizaveisStep({
                         />
                       ) : (
                         row.saldoAnterior
+                      )}
+                    </TableCell>
+                    {/* Edit saldo anterior button */}
+                    <TableCell className="px-0">
+                      {isEditing ? (
+                        <div className="flex gap-0.5">
+                          <button onClick={() => saveEdit(row.guia.id)} className="p-0.5 rounded hover:bg-emerald-500/20 text-emerald-500" title="Salvar">
+                            <Check className="w-3 h-3" />
+                          </button>
+                          <button onClick={cancelEdit} className="p-0.5 rounded hover:bg-destructive/20 text-destructive" title="Cancelar">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startEdit(row.guia.id, row.saldoAnterior)}
+                          className="p-0.5 rounded hover:bg-muted text-muted-foreground"
+                          title="Editar Saldo Anterior"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
                       )}
                     </TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{row.saldoAtual}</TableCell>
@@ -428,7 +433,7 @@ function NotasUtilizaveisStep({
         </div>
       </div>
 
-      {/* Avançar button */}
+      {/* Avançar */}
       {allConfirmed && (
         <motion.div
           initial={{ opacity: 0, y: 8 }}
