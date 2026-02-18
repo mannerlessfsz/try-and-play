@@ -90,13 +90,13 @@ export function AjustaSpedHome() {
               const isLast = index === subModules.length - 1;
 
               return (
-                <div key={mod.id} className="relative" style={{ paddingLeft: `${index * 24}px` }}>
+                <div key={mod.id} className="relative" style={{ paddingLeft: `${index * 16}px` }}>
                   {/* Connector line from previous */}
                   {index > 0 && (
                     <div
                       className="absolute top-0 h-4 w-[2px] rounded-full"
                       style={{
-                        left: `${index * 24 + 22}px`,
+                        left: `${index * 16 + 18}px`,
                         background: `linear-gradient(180deg, ${subModules[index - 1].color}50, ${mod.color}50)`,
                       }}
                     />
@@ -106,7 +106,7 @@ export function AjustaSpedHome() {
                   {index > 0 && (
                     <div
                       className="absolute top-0 flex items-center justify-center"
-                      style={{ left: `${index * 24 + 16}px` }}
+                      style={{ left: `${index * 16 + 12}px` }}
                     >
                       <ArrowRight
                         className="w-3 h-3 rotate-90 opacity-30"
@@ -192,7 +192,7 @@ export function AjustaSpedHome() {
                           {stCfg.label}
                         </Badge>
                       </div>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
                         {mod.description}
                       </p>
                     </div>
