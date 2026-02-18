@@ -795,7 +795,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
         </div>
         <div ref={filteredScrollProps.ref} onMouseDown={filteredScrollProps.onMouseDown} onMouseMove={filteredScrollProps.onMouseMove} onMouseUp={filteredScrollProps.onMouseUp} onMouseLeave={filteredScrollProps.onMouseLeave} className="overflow-x-auto cursor-grab scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent">
           <div className="min-w-[1800px]">
-            <Table>
+            <Table wrapperClassName="overflow-visible">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="w-8 text-[10px] px-2">#</TableHead>
