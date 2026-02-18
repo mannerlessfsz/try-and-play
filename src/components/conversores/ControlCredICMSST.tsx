@@ -45,6 +45,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
   const [syncing, setSyncing] = useState(false);
   const [confirmados, setConfirmados] = useState<Set<string>>(new Set());
   const [saldosAnteriores, setSaldosAnteriores] = useState<Record<string, number>>({});
+  const [saldosEditadosManualmente, setSaldosEditadosManualmente] = useState<Set<string>>(new Set());
   const [competenciaMes, setCompetenciaMes] = useState(now.getMonth() + 1);
   const [competenciaAno, setCompetenciaAno] = useState(now.getFullYear());
   const [dadosRestaurados, setDadosRestaurados] = useState(false);
@@ -90,6 +91,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
     setDadosRestaurados(false);
     setSugestoesAplicadas(false);
     setSaldosAnteriores({});
+    setSaldosEditadosManualmente(new Set());
     setConfirmados(new Set());
     setCompetenciaConfirmada(false);
     setActiveStep("notas-utilizaveis");
@@ -140,7 +142,9 @@ export function ControlCredICMSST({ empresaId }: Props) {
       const icmsSTUn = quantidade > 0 ? icmsST / quantidade : 0;
       const saldoAnterior = saldosAnteriores[guia.id] ?? 0;
 
-      const saldoAtual = saldoAnterior > 0 ? saldoAnterior : quantidade;
+      const saldoAtual = saldosEditadosManualmente.has(guia.id)
+        ? quantidade - saldoAnterior
+        : (saldoAnterior > 0 ? saldoAnterior : quantidade);
 
       return {
         guia,
@@ -156,7 +160,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
         chaveNfe: nota?.chave_nfe || null,
       };
     });
-  }, [guiasUtilizaveis, notasByNfe, saldosAnteriores]);
+  }, [guiasUtilizaveis, notasByNfe, saldosAnteriores, saldosEditadosManualmente]);
 
   const handleToggleConfirm = useCallback((guiaId: string) => {
     const row = enrichedRows.find(r => r.guia.id === guiaId);
@@ -197,6 +201,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
 
   const handleSaldoChange = useCallback((guiaId: string, value: number) => {
     setSaldosAnteriores(prev => ({ ...prev, [guiaId]: value }));
+    setSaldosEditadosManualmente(prev => new Set(prev).add(guiaId));
     // Se já está confirmado, atualizar no banco também
     if (confirmados.has(guiaId)) {
       const row = enrichedRows.find(r => r.guia.id === guiaId);
