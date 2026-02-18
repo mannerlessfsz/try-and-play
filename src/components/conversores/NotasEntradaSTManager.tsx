@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2 } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +18,21 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useNotasEntradaST, NotaEntradaSTInsert } from "@/hooks/useNotasEntradaST";
-import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 
 const formatCurrency = (v: number) =>
@@ -78,7 +87,68 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
 ];
 
 export function NotasEntradaSTManager() {
-  const { empresaAtiva } = useEmpresaAtiva();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Local empresa selector state
+  const [selectedEmpresaId, setSelectedEmpresaId] = useState<string | null>(() => {
+    return localStorage.getItem("notasST_empresaId") || null;
+  });
+  const [showNewEmpresaDialog, setShowNewEmpresaDialog] = useState(false);
+  const [newEmpresaForm, setNewEmpresaForm] = useState({ nome: "", cnpj: "" });
+
+  // Fetch empresas directly
+  const { data: empresas = [] } = useQuery({
+    queryKey: ["empresas-conversores"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("empresas")
+        .select("id, nome, cnpj")
+        .eq("ativo", true)
+        .order("nome");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  // Auto-select first empresa or restore from localStorage
+  const empresaAtiva = useMemo(() => {
+    if (selectedEmpresaId) {
+      const found = empresas.find((e) => e.id === selectedEmpresaId);
+      if (found) return found;
+    }
+    if (empresas.length > 0) return empresas[0];
+    return null;
+  }, [empresas, selectedEmpresaId]);
+
+  const handleSelectEmpresa = (id: string) => {
+    setSelectedEmpresaId(id);
+    localStorage.setItem("notasST_empresaId", id);
+  };
+
+  const createEmpresa = useMutation({
+    mutationFn: async (data: { nome: string; cnpj: string }) => {
+      const { data: result, error } = await supabase
+        .from("empresas")
+        .insert({ nome: data.nome, cnpj: data.cnpj || null })
+        .select()
+        .single();
+      if (error) throw error;
+      return result;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["empresas-conversores"] });
+      handleSelectEmpresa(data.id);
+      setShowNewEmpresaDialog(false);
+      setNewEmpresaForm({ nome: "", cnpj: "" });
+      toast.success("Empresa cadastrada com sucesso");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao cadastrar empresa: " + err.message);
+    },
+  });
+
   const { notas, isLoading, addNota, deleteNota, addMany } = useNotasEntradaST(empresaAtiva?.id);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
@@ -439,10 +509,54 @@ export function NotasEntradaSTManager() {
     return String(v ?? "");
   };
 
+  const renderNewEmpresaDialog = () => (
+    <Dialog open={showNewEmpresaDialog} onOpenChange={setShowNewEmpresaDialog}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Building2 className="w-5 h-5" /> Nova Empresa
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Nome da Empresa *</Label>
+            <Input
+              value={newEmpresaForm.nome}
+              onChange={(e) => setNewEmpresaForm((p) => ({ ...p, nome: e.target.value }))}
+              placeholder="Nome da empresa"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>CNPJ</Label>
+            <Input
+              value={newEmpresaForm.cnpj}
+              onChange={(e) => setNewEmpresaForm((p) => ({ ...p, cnpj: e.target.value }))}
+              placeholder="00.000.000/0001-00"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setShowNewEmpresaDialog(false)}>Cancelar</Button>
+          <Button
+            onClick={() => createEmpresa.mutate(newEmpresaForm)}
+            disabled={!newEmpresaForm.nome || createEmpresa.isPending}
+          >
+            Cadastrar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (!empresaAtiva) {
     return (
-      <div className="glass rounded-2xl p-8 text-center text-muted-foreground">
-        Selecione uma empresa para gerenciar as notas de entrada ST.
+      <div className="glass rounded-2xl p-8 text-center space-y-4">
+        <Building2 className="w-12 h-12 mx-auto text-muted-foreground" />
+        <p className="text-muted-foreground">Nenhuma empresa cadastrada.</p>
+        <Button onClick={() => setShowNewEmpresaDialog(true)} className="gap-2">
+          <Plus className="w-4 h-4" /> Cadastrar Empresa
+        </Button>
+        {renderNewEmpresaDialog()}
       </div>
     );
   }
@@ -453,6 +567,28 @@ export function NotasEntradaSTManager() {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-4"
     >
+      {renderNewEmpresaDialog()}
+
+      {/* Empresa Selector */}
+      <div className="flex items-center gap-2">
+        <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+        <Select value={empresaAtiva.id} onValueChange={handleSelectEmpresa}>
+          <SelectTrigger className="w-60 h-8 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {empresas.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.nome} {e.cnpj ? `(${e.cnpj})` : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" className="h-8 text-xs gap-1" onClick={() => setShowNewEmpresaDialog(true)}>
+          <Plus className="w-3.5 h-3.5" /> Nova
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
