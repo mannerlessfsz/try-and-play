@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef } from "react";
-import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2, SearchCheck } from "lucide-react";
+import { FileText, Plus, Trash2, Upload, Download, Search, ChevronLeft, ChevronRight, FileUp, Loader2, Building2, SearchCheck, ChevronDown, ChevronUp, List } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,7 +61,7 @@ const parsePct = (s: string): number => {
   return isNaN(n) ? 0 : n;
 };
 
-const ROWS_PER_PAGE = 25;
+const ROWS_PER_PAGE = 100;
 
 const columns: { key: string; label: string; width: string; type?: "number" | "currency" | "pct" }[] = [
   { key: "nfe", label: "NF-e", width: "w-20" },
@@ -158,20 +158,66 @@ export function NotasEntradaSTManager() {
   const [newNota, setNewNota] = useState<Record<string, string>>({});
   const [importingNfe, setImportingNfe] = useState(false);
   const nfeInputRef = useRef<HTMLInputElement>(null);
+  const [selectedCompetencia, setSelectedCompetencia] = useState<string>("todas");
+  const [showAllRecords, setShowAllRecords] = useState(false);
+  const [allRecordsPage, setAllRecordsPage] = useState(0);
+
+  // Extract unique competências
+  const competencias = useMemo(() => {
+    const set = new Set<string>();
+    notas.forEach((n) => {
+      if (n.competencia) {
+        // Extract YYYY-MM from date
+        const d = new Date(n.competencia);
+        if (!isNaN(d.getTime())) {
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+          set.add(key);
+        }
+      }
+    });
+    return Array.from(set).sort().reverse();
+  }, [notas]);
 
   const filtered = useMemo(() => {
-    if (!search) return notas;
-    const s = search.toLowerCase();
-    return notas.filter(
-      (n) =>
-        n.nfe.toLowerCase().includes(s) ||
-        n.fornecedor.toLowerCase().includes(s) ||
-        (n.ncm && n.ncm.toLowerCase().includes(s))
-    );
-  }, [notas, search]);
+    let result = notas;
+    
+    // Filter by competência
+    if (selectedCompetencia && selectedCompetencia !== "todas") {
+      result = result.filter((n) => {
+        if (!n.competencia) return false;
+        const d = new Date(n.competencia);
+        if (isNaN(d.getTime())) return false;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return key === selectedCompetencia;
+      });
+    }
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / ROWS_PER_PAGE));
-  const paged = filtered.slice(page * ROWS_PER_PAGE, (page + 1) * ROWS_PER_PAGE);
+    // Filter by search
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(
+        (n) =>
+          n.nfe.toLowerCase().includes(s) ||
+          n.fornecedor.toLowerCase().includes(s) ||
+          (n.ncm && n.ncm.toLowerCase().includes(s))
+      );
+    }
+    
+    return result;
+  }, [notas, search, selectedCompetencia]);
+
+  // Reversed display: last records first, but keep original numbering
+  const filteredReversed = useMemo(() => {
+    return [...filtered].reverse();
+  }, [filtered]);
+
+  // All records (unfiltered) reversed for the collapsible card
+  const allNotasReversed = useMemo(() => {
+    return [...notas].reverse();
+  }, [notas]);
+
+  const allRecordsTotalPages = Math.max(1, Math.ceil(allNotasReversed.length / ROWS_PER_PAGE));
+  const allRecordsPaged = allNotasReversed.slice(allRecordsPage * ROWS_PER_PAGE, (allRecordsPage + 1) * ROWS_PER_PAGE);
 
   // Totals
   const totals = useMemo(() => {
@@ -666,7 +712,25 @@ export function NotasEntradaSTManager() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+          {/* Competência filter */}
+          <Select value={selectedCompetencia} onValueChange={(v) => { setSelectedCompetencia(v); setPage(0); }}>
+            <SelectTrigger className="w-40 h-8 text-xs">
+              <SelectValue placeholder="Competência" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas competências</SelectItem>
+              {competencias.map((c) => {
+                const [y, m] = c.split("-");
+                return (
+                  <SelectItem key={c} value={c}>
+                    {m}/{y}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
@@ -788,8 +852,20 @@ export function NotasEntradaSTManager() {
         ))}
       </div>
 
-      {/* Spreadsheet table */}
+      {/* Filtered table (by competência) */}
       <div className="glass rounded-xl overflow-hidden">
+        <div className="px-4 py-2 border-b border-border/30 flex items-center justify-between">
+          <p className="text-[10px] text-muted-foreground">
+            {selectedCompetencia !== "todas"
+              ? `${filteredReversed.length} registro${filteredReversed.length !== 1 ? "s" : ""} na competência ${selectedCompetencia.split("-").reverse().join("/")}`
+              : `${filteredReversed.length} registro${filteredReversed.length !== 1 ? "s" : ""}`}
+          </p>
+          {selectedCompetencia !== "todas" && (
+            <Badge variant="outline" className="text-[10px]">
+              Filtrado: {selectedCompetencia.split("-").reverse().join("/")}
+            </Badge>
+          )}
+        </div>
         <div className="overflow-x-auto">
           <div className="min-w-[1800px]">
             <Table>
@@ -811,82 +887,147 @@ export function NotasEntradaSTManager() {
                       Carregando...
                     </TableCell>
                   </TableRow>
-                ) : paged.length === 0 ? (
+                ) : filteredReversed.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={columns.length + 2} className="text-center text-xs text-muted-foreground py-8">
-                      {search ? "Nenhuma nota encontrada" : "Nenhuma nota cadastrada. Importe uma planilha ou adicione manualmente."}
+                      {search || selectedCompetencia !== "todas" ? "Nenhuma nota encontrada para o filtro selecionado" : "Nenhuma nota cadastrada. Importe uma planilha ou adicione manualmente."}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paged.map((nota, idx) => (
-                    <TableRow key={nota.id} className="hover:bg-muted/30 transition-colors">
-                      <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
-                        {page * ROWS_PER_PAGE + idx + 1}
-                      </TableCell>
-                      {columns.map((col) => (
-                        <TableCell
-                          key={col.key}
-                          className={`text-[11px] px-2 whitespace-nowrap ${
-                            col.type === "currency" || col.type === "number"
-                              ? "text-right font-mono"
-                              : col.type === "pct"
-                              ? "text-center font-mono"
-                              : ""
-                          }`}
-                        >
-                          {formatCell(nota, col)}
+                  filteredReversed.map((nota) => {
+                    // Original index (1-based) from the full notas array
+                    const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
+                    return (
+                      <TableRow key={nota.id} className="hover:bg-muted/30 transition-colors">
+                        <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
+                          {originalIdx}
                         </TableCell>
-                      ))}
-                      <TableCell className="px-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteNota.mutate(nota.id)}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        {columns.map((col) => (
+                          <TableCell
+                            key={col.key}
+                            className={`text-[11px] px-2 whitespace-nowrap ${
+                              col.type === "currency" || col.type === "number"
+                                ? "text-right font-mono"
+                                : col.type === "pct"
+                                ? "text-center font-mono"
+                                : ""
+                            }`}
+                          >
+                            {formatCell(nota, col)}
+                          </TableCell>
+                        ))}
+                        <TableCell className="px-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                            onClick={() => deleteNota.mutate(nota.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
           </div>
         </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
-            <p className="text-[10px] text-muted-foreground">
-              {filtered.length} registro{filtered.length !== 1 ? "s" : ""}
-            </p>
-            <div className="flex items-center gap-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                disabled={page === 0}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </Button>
-              <span className="text-[10px] text-muted-foreground px-2">
-                {page + 1} / {totalPages}
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                disabled={page >= totalPages - 1}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Collapsible card: all records */}
+      {selectedCompetencia !== "todas" && notas.length > 0 && (
+        <div className="glass rounded-xl overflow-hidden">
+          <button
+            onClick={() => { setShowAllRecords((v) => !v); setAllRecordsPage(0); }}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <List className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium">Todos os registros</span>
+              <Badge variant="secondary" className="text-[10px]">{notas.length}</Badge>
+            </div>
+            {showAllRecords ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+          </button>
+
+          {showAllRecords && (
+            <>
+              <div className="overflow-x-auto border-t border-border/30">
+                <div className="min-w-[1800px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="w-8 text-[10px] px-2">#</TableHead>
+                        {columns.map((col) => (
+                          <TableHead key={col.key} className={`text-[10px] px-2 whitespace-nowrap ${col.width}`}>
+                            {col.label}
+                          </TableHead>
+                        ))}
+                        <TableHead className="w-8 px-2" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {allRecordsPaged.map((nota) => {
+                        const originalIdx = notas.findIndex((n) => n.id === nota.id) + 1;
+                        return (
+                          <TableRow key={nota.id} className="hover:bg-muted/30 transition-colors">
+                            <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
+                              {originalIdx}
+                            </TableCell>
+                            {columns.map((col) => (
+                              <TableCell
+                                key={col.key}
+                                className={`text-[11px] px-2 whitespace-nowrap ${
+                                  col.type === "currency" || col.type === "number"
+                                    ? "text-right font-mono"
+                                    : col.type === "pct"
+                                    ? "text-center font-mono"
+                                    : ""
+                                }`}
+                              >
+                                {formatCell(nota, col)}
+                              </TableCell>
+                            ))}
+                            <TableCell className="px-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                onClick={() => deleteNota.mutate(nota.id)}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+              {allRecordsTotalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-2 border-t border-border/30">
+                  <p className="text-[10px] text-muted-foreground">
+                    {notas.length} registro{notas.length !== 1 ? "s" : ""}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={allRecordsPage === 0} onClick={() => setAllRecordsPage((p) => p - 1)}>
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </Button>
+                    <span className="text-[10px] text-muted-foreground px-2">
+                      {allRecordsPage + 1} / {allRecordsTotalPages}
+                    </span>
+                    <Button variant="ghost" size="sm" className="h-6 w-6 p-0" disabled={allRecordsPage >= allRecordsTotalPages - 1} onClick={() => setAllRecordsPage((p) => p + 1)}>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
