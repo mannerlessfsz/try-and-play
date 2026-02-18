@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { 
-  Zap, FileText, CreditCard, BarChart3, ArrowLeft, ArrowRight, Sparkles,
+  Zap, FileText, BarChart3, ArrowLeft, ArrowRight, Sparkles,
   FileSpreadsheet, Receipt, Calculator, Building2, Plus, SearchCheck, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { AjustaSpedTab } from "./AjustaSpedTab";
 import { NotasEntradaSTManager } from "./NotasEntradaSTManager";
-import { GuiasPagamentosManager } from "./GuiasPagamentosManager";
+
 import { ControlCredICMSST } from "./ControlCredICMSST";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { formatCnpj, cleanCnpj, isValidCnpj, fetchCnpjData } from "@/utils/cnpjUtils";
 
-type AjustaSpedView = "home" | "notas_entrada" | "guias_pagamentos" | "control_cred" | "ajusta_sped";
+type AjustaSpedView = "home" | "notas_entrada" | "control_cred" | "ajusta_sped";
 
 const subModules = [
   {
@@ -37,21 +37,12 @@ const subModules = [
     status: "ativo" as const,
   },
   {
-    id: "guias_pagamentos" as const,
-    icon: CreditCard,
-    title: "Guias Pagamentos",
-    description: "Registro das guias de pagamento (DARJ/GNRE) vinculadas às notas de entrada ST — autenticações e valores pagos",
-    color: "hsl(var(--blue))",
-    step: 2,
-    status: "ativo" as const,
-  },
-  {
     id: "control_cred" as const,
     icon: BarChart3,
     title: "ControlCredICMSST",
     description: "Controle e cálculo dos créditos de ICMS-ST — valores de ICMS Próprio e ST proporcionais por nota fiscal",
     color: "hsl(270 80% 60%)",
-    step: 3,
+    step: 2,
     status: "ativo" as const,
   },
   {
@@ -60,7 +51,7 @@ const subModules = [
     title: "Ajusta SPED",
     description: "Processamento final — aplica ajustes C110, C112, C113, C195 e C197 no arquivo SPED com base nos dados consolidados",
     color: "hsl(var(--cyan))",
-    step: 4,
+    step: 3,
     status: "ativo" as const,
   },
 ];
@@ -426,7 +417,7 @@ export function AjustaSpedHome() {
           {activeView === "ajusta_sped" && <AjustaSpedTab />}
           
           {activeView === "notas_entrada" && <NotasEntradaSTManager empresaId={empresaAtiva?.id} />}
-          {activeView === "guias_pagamentos" && <GuiasPagamentosManager empresaId={empresaAtiva?.id} />}
+          
           {activeView === "control_cred" && <ControlCredICMSST empresaId={empresaAtiva?.id} />}
         </motion.div>
       )}

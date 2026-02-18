@@ -9,8 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useGuiasPagamentos, type GuiaPagamento } from "@/hooks/useGuiasPagamentos";
-import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
+import { useNotasEntradaST, type NotaEntradaST } from "@/hooks/useNotasEntradaST";
 import { useSaldosNotas } from "@/hooks/useSaldosNotas";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -53,7 +52,6 @@ export function ControlCredICMSST({ empresaId }: Props) {
   const [competenciaConfirmada, setCompetenciaConfirmada] = useState(false);
 
   const queryClient = useQueryClient();
-  const { guias, isLoading: isLoadingGuias } = useGuiasPagamentos(empresaId);
   const { notas, isLoading: isLoadingNotas } = useNotasEntradaST(empresaId);
   const { saldos, isLoading: isLoadingSaldosAtuais, sugestoesSaldoAnterior, isLoadingSugestoes, salvarSaldos, salvarConfirmacao } = useSaldosNotas(empresaId, competenciaAno, competenciaMes);
 
@@ -108,45 +106,30 @@ export function ControlCredICMSST({ empresaId }: Props) {
 
   const handleSync = useCallback(async () => {
     setSyncing(true);
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["guias_pagamentos", empresaId] }),
-      queryClient.invalidateQueries({ queryKey: ["notas_entrada_st", empresaId] }),
-    ]);
+    await queryClient.invalidateQueries({ queryKey: ["notas_entrada_st", empresaId] });
     setTimeout(() => {
       setSyncing(false);
-      toast.success("Dados sincronizados com Guias e Notas Entrada ST");
+      toast.success("Dados sincronizados com Notas Entrada ST");
     }, 600);
   }, [queryClient, empresaId]);
 
-  const guiasUtilizaveis = useMemo(
-    () => guias.filter(g => g.status === "UTILIZAVEL"),
-    [guias]
+  const notasUtilizaveis = useMemo(
+    () => notas.filter(n => (n as any).status === "UTILIZAVEL"),
+    [notas]
   );
 
-  const notasByNfe = useMemo(() => {
-    const map = new Map<string, typeof notas[0]>();
-    notas.forEach(n => {
-      const key = n.nfe.replace(/^0+/, "");
-      map.set(key, n);
-    });
-    return map;
-  }, [notas]);
-
   const enrichedRows = useMemo(() => {
-    return guiasUtilizaveis.map((guia) => {
-      const nfeKey = guia.numero_nota.replace(/^0+/, "");
-      const nota = notasByNfe.get(nfeKey);
-      const quantidade = nota?.quantidade || 0;
-      const icmsProprio = parseFloat(String(guia.credito_icms_proprio || "0")) || 0;
-      const icmsST = parseFloat(String(guia.credito_icms_st || "0")) || 0;
+    return notasUtilizaveis.map((nota) => {
+      const quantidade = nota.quantidade || 0;
+      const icmsProprio = parseFloat(String((nota as any).credito_icms_proprio || "0")) || 0;
+      const icmsST = parseFloat(String((nota as any).credito_icms_st || "0")) || 0;
       const icmsProprioUn = quantidade > 0 ? icmsProprio / quantidade : 0;
       const icmsSTUn = quantidade > 0 ? icmsST / quantidade : 0;
-      const saldoAnterior = saldosAnteriores[guia.id] ?? 0;
-
+      const saldoAnterior = saldosAnteriores[nota.id] ?? 0;
       const saldoAtual = saldoAnterior > 0 ? quantidade - saldoAnterior : quantidade;
 
       return {
-        guia,
+        nota,
         quantidade,
         saldoAnterior,
         saldoAtual,
@@ -156,25 +139,25 @@ export function ControlCredICMSST({ empresaId }: Props) {
         icmsSTUn,
         totalIcmsProprio: icmsProprio,
         totalIcmsST: icmsST,
-        chaveNfe: nota?.chave_nfe || null,
+        chaveNfe: nota.chave_nfe || null,
       };
     });
-  }, [guiasUtilizaveis, notasByNfe, saldosAnteriores]);
+  }, [notasUtilizaveis, saldosAnteriores]);
 
-  const handleToggleConfirm = useCallback((guiaId: string) => {
-    const row = enrichedRows.find(r => r.guia.id === guiaId);
+  const handleToggleConfirm = useCallback((notaId: string) => {
+    const row = enrichedRows.find(r => r.nota.id === notaId);
     if (!row) return;
-    const isConfirmed = confirmados.has(guiaId);
+    const isConfirmed = confirmados.has(notaId);
     
     setConfirmados(prev => {
       const s = new Set(prev);
-      if (s.has(guiaId)) s.delete(guiaId); else s.add(guiaId);
+      if (s.has(notaId)) s.delete(notaId); else s.add(notaId);
       return s;
     });
 
     salvarConfirmacao.mutate({
-      guiaId,
-      numeroNota: row.guia.numero_nota,
+      guiaId: notaId,
+      numeroNota: row.nota.nfe,
       saldoAnterior: row.saldoAnterior,
       quantidade: row.quantidade,
       confirmar: !isConfirmed,
@@ -182,13 +165,12 @@ export function ControlCredICMSST({ empresaId }: Props) {
   }, [enrichedRows, confirmados, salvarConfirmacao]);
 
   const handleConfirmAll = useCallback(() => {
-    setConfirmados(new Set(enrichedRows.map(r => r.guia.id)));
-    // Salvar todas de uma vez
+    setConfirmados(new Set(enrichedRows.map(r => r.nota.id)));
     if (!empresaId) return;
     const items = enrichedRows.map(r => ({
       empresa_id: empresaId,
-      guia_id: r.guia.id,
-      numero_nota: r.guia.numero_nota,
+      guia_id: r.nota.id,
+      numero_nota: r.nota.nfe,
       competencia_ano: competenciaAno,
       competencia_mes: competenciaMes,
       saldo_remanescente: r.saldoAtual,
@@ -198,16 +180,15 @@ export function ControlCredICMSST({ empresaId }: Props) {
     salvarSaldos.mutate(items as any);
   }, [enrichedRows, empresaId, competenciaAno, competenciaMes, salvarSaldos]);
 
-  const handleSaldoChange = useCallback((guiaId: string, value: number) => {
-    setSaldosAnteriores(prev => ({ ...prev, [guiaId]: value }));
+  const handleSaldoChange = useCallback((notaId: string, value: number) => {
+    setSaldosAnteriores(prev => ({ ...prev, [notaId]: value }));
     
-    // Se já está confirmado, atualizar no banco também
-    if (confirmados.has(guiaId)) {
-      const row = enrichedRows.find(r => r.guia.id === guiaId);
+    if (confirmados.has(notaId)) {
+      const row = enrichedRows.find(r => r.nota.id === notaId);
       if (row) {
         salvarConfirmacao.mutate({
-          guiaId,
-          numeroNota: row.guia.numero_nota,
+          guiaId: notaId,
+          numeroNota: row.nota.nfe,
           saldoAnterior: value,
           quantidade: row.quantidade,
           confirmar: true,
@@ -216,7 +197,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
     }
   }, [confirmados, enrichedRows, salvarConfirmacao]);
 
-  const allConfirmed = enrichedRows.length > 0 && enrichedRows.every(r => confirmados.has(r.guia.id));
+  const allConfirmed = enrichedRows.length > 0 && enrichedRows.every(r => confirmados.has(r.nota.id));
 
   const handleAvancarStep2 = useCallback(() => {
     setActiveStep("movimento-estoque");
@@ -242,7 +223,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
     );
   }
 
-  const isLoading = isLoadingGuias || isLoadingNotas;
+  const isLoading = isLoadingNotas;
 
   return (
     <motion.div
@@ -368,7 +349,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
               label="1. Notas Utilizáveis"
               icon={FileText}
               active={activeStep === "notas-utilizaveis"}
-              count={guiasUtilizaveis.length}
+              count={notasUtilizaveis.length}
               onClick={() => setActiveStep("notas-utilizaveis")}
             />
             <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -484,7 +465,7 @@ function StepButton({
 
 /* ── Step 1: Notas Utilizáveis ── */
 interface EnrichedRow {
-  guia: GuiaPagamento;
+  nota: NotaEntradaST;
   quantidade: number;
   saldoAnterior: number;
   saldoAtual: number;
@@ -527,16 +508,16 @@ function NotasUtilizaveisStep({
       <div className="glass rounded-xl p-8 text-center space-y-3">
         <FileText className="w-10 h-10 mx-auto text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          Nenhuma guia com status <strong>UTILIZÁVEL</strong> encontrada.
+          Nenhuma nota com status <strong>UTILIZÁVEL</strong> encontrada.
         </p>
         <p className="text-[11px] text-muted-foreground">
-          Verifique o módulo <em>Guias Pagamentos</em> e altere o status das guias desejadas.
+          Verifique o módulo <em>Notas Entrada ST</em> e altere o status das notas desejadas.
         </p>
       </div>
     );
   }
 
-  const confirmedCount = rows.filter(r => confirmados.has(r.guia.id)).length;
+  const confirmedCount = rows.filter(r => confirmados.has(r.nota.id)).length;
 
   const startEdit = (guiaId: string, currentVal: number) => {
     setEditingId(guiaId);
@@ -601,18 +582,18 @@ function NotasUtilizaveisStep({
             <TableBody>
               {rows.map((row, idx) => {
                 const colorClass = ROW_COLORS[idx % ROW_COLORS.length];
-                const isConfirmed = confirmados.has(row.guia.id);
-                const isEditing = editingId === row.guia.id;
+                const isConfirmed = confirmados.has(row.nota.id);
+                const isEditing = editingId === row.nota.id;
 
                 return (
                   <TableRow
-                    key={row.guia.id}
+                    key={row.nota.id}
                     className={`${colorClass} ${isConfirmed ? "bg-emerald-500/5" : ""}`}
                   >
                     {/* Confirm toggle */}
                     <TableCell className="px-1">
                       <button
-                        onClick={() => onToggleConfirm(row.guia.id)}
+                        onClick={() => onToggleConfirm(row.nota.id)}
                         className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${
                           isConfirmed
                             ? "bg-emerald-500 border-emerald-500 text-white"
@@ -622,7 +603,7 @@ function NotasUtilizaveisStep({
                         {isConfirmed && <Check className="w-3 h-3" />}
                       </button>
                     </TableCell>
-                    <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_nota}</TableCell>
+                    <TableCell className="text-[11px] px-2 font-mono">{row.nota.nfe}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{row.quantidade || "-"}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">
                       {isEditing ? (
@@ -631,7 +612,7 @@ function NotasUtilizaveisStep({
                           value={editValue}
                           onChange={e => setEditValue(e.target.value)}
                           onKeyDown={e => {
-                            if (e.key === "Enter") saveEdit(row.guia.id);
+                            if (e.key === "Enter") saveEdit(row.nota.id);
                             if (e.key === "Escape") cancelEdit();
                           }}
                           className="h-6 w-20 text-[11px] text-right font-mono px-1"
@@ -644,7 +625,7 @@ function NotasUtilizaveisStep({
                     <TableCell className="px-0">
                       {isEditing ? (
                         <div className="flex gap-0.5">
-                          <button onClick={() => saveEdit(row.guia.id)} className="p-0.5 rounded hover:bg-emerald-500/20 text-emerald-500" title="Salvar">
+                          <button onClick={() => saveEdit(row.nota.id)} className="p-0.5 rounded hover:bg-emerald-500/20 text-emerald-500" title="Salvar">
                             <Check className="w-3 h-3" />
                           </button>
                           <button onClick={cancelEdit} className="p-0.5 rounded hover:bg-destructive/20 text-destructive" title="Cancelar">
@@ -653,7 +634,7 @@ function NotasUtilizaveisStep({
                         </div>
                       ) : (
                         <button
-                          onClick={() => startEdit(row.guia.id, row.saldoAnterior)}
+                          onClick={() => startEdit(row.nota.id, row.saldoAnterior)}
                           className="p-0.5 rounded hover:bg-muted text-muted-foreground"
                           title="Editar Saldo Anterior"
                         >
@@ -666,8 +647,8 @@ function NotasUtilizaveisStep({
                     <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsST)}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsProprioUn)}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.icmsSTUn)}</TableCell>
-                    <TableCell className="text-[11px] px-2 font-mono">{row.guia.numero_doc_pagamento || "-"}</TableCell>
-                    <TableCell className="text-[11px] px-2 font-mono text-[10px]">{row.guia.codigo_barras || "-"}</TableCell>
+                    <TableCell className="text-[11px] px-2 font-mono">{(row.nota as any).numero_doc_pagamento || "-"}</TableCell>
+                    <TableCell className="text-[11px] px-2 font-mono text-[10px]">{(row.nota as any).codigo_barras || "-"}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsProprio)}</TableCell>
                     <TableCell className="text-[11px] px-2 text-right font-mono">{formatCurrency(row.totalIcmsST)}</TableCell>
                     <TableCell className="text-[10px] px-2 font-mono tracking-tight">{row.chaveNfe || "-"}</TableCell>
