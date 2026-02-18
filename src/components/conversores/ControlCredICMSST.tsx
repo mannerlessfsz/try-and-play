@@ -191,9 +191,9 @@ export function ControlCredICMSST({ empresaId }: Props) {
       numero_nota: r.guia.numero_nota,
       competencia_ano: competenciaAno,
       competencia_mes: competenciaMes,
-      saldo_remanescente: r.saldoAnterior,
+      saldo_remanescente: r.saldoAtual,
       quantidade_original: r.quantidade,
-      quantidade_consumida: 0,
+      quantidade_consumida: r.saldoAnterior,
     }));
     salvarSaldos.mutate(items as any);
   }, [enrichedRows, empresaId, competenciaAno, competenciaMes, salvarSaldos]);
