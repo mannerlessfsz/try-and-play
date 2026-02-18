@@ -13,6 +13,32 @@ import { useToast } from "@/hooks/use-toast";
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+/** Format ISO/DB date string to dd/mm/yyyy */
+const formatDateBR = (val: any): string => {
+  if (!val) return "";
+  const s = String(val);
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const [y, m, d] = s.substring(0, 10).split("-");
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const dt = new Date(s + (s.length === 10 ? "T12:00:00" : ""));
+    if (!isNaN(dt.getTime())) return dt.toLocaleDateString("pt-BR");
+  } catch {}
+  return s;
+};
+
+/** Parse dd/mm/yyyy to yyyy-mm-dd for DB storage */
+const parseDateBR = (s: string): string | null => {
+  if (!s) return null;
+  const trimmed = s.trim();
+  const match = trimmed.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  if (match) return `${match[3]}-${match[2]}-${match[1]}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.substring(0, 10);
+  return trimmed || null;
+};
+
 const columns = [
   { key: "numero_nota", label: "Número Nota", width: "w-28" },
   { key: "valor_guia", label: "Valor Guia", width: "w-32", type: "currency" as const },
@@ -140,13 +166,7 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
     const val = guia[col.key];
     if (val == null || val === "") return "-";
     if (col.type === "currency") return formatCurrency(Number(val));
-    if (col.type === "date") {
-      try {
-        const d = new Date(val);
-        if (!isNaN(d.getTime())) return d.toLocaleDateString("pt-BR");
-      } catch {}
-      return String(val);
-    }
+    if (col.type === "date") return formatDateBR(val);
     return String(val);
   };
 

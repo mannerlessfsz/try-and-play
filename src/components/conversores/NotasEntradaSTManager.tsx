@@ -69,12 +69,46 @@ const parsePct = (s: string): number => {
   return isNaN(n) ? 0 : n;
 };
 
+/** Format ISO/DB date string to dd/mm/yyyy */
+const formatDateBR = (val: any): string => {
+  if (!val) return "";
+  const s = String(val);
+  // Already dd/mm/yyyy?
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+  // ISO yyyy-mm-dd
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const [y, m, d] = s.substring(0, 10).split("-");
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const dt = new Date(s + (s.length === 10 ? "T12:00:00" : ""));
+    if (!isNaN(dt.getTime())) {
+      return dt.toLocaleDateString("pt-BR");
+    }
+  } catch {}
+  return s;
+};
+
+/** Parse dd/mm/yyyy to yyyy-mm-dd for DB storage */
+const parseDateBR = (s: string): string | null => {
+  if (!s) return null;
+  const trimmed = s.trim();
+  // dd/mm/yyyy or dd-mm-yyyy
+  const match = trimmed.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})$/);
+  if (match) {
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }
+  // Already ISO?
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.substring(0, 10);
+  return trimmed || null;
+};
+
 const ROWS_PER_PAGE = 100;
 
-const columns: { key: string; label: string; width: string; type?: "number" | "currency" | "pct" }[] = [
+const columns: { key: string; label: string; width: string; type?: "number" | "currency" | "pct" | "date" }[] = [
   { key: "nfe", label: "NF-e", width: "w-20" },
   { key: "fornecedor", label: "Fornecedor", width: "w-48" },
-  { key: "competencia", label: "Comp.", width: "w-24" },
+  { key: "competencia", label: "Comp.", width: "w-24", type: "date" },
   { key: "ncm", label: "NCM", width: "w-28" },
   { key: "quantidade", label: "QTD.", width: "w-16", type: "number" },
   { key: "valor_produto", label: "Valor Produto", width: "w-28", type: "currency" },
@@ -92,7 +126,7 @@ const columns: { key: string; label: string; width: string; type?: "number" | "c
   { key: "valor_fecp", label: "Valor FECP", width: "w-28", type: "currency" },
   { key: "valor_st_un", label: "Valor ST UN", width: "w-24", type: "currency" },
   { key: "total_st", label: "TOTAL ST", width: "w-28", type: "currency" },
-  { key: "data_pagamento", label: "Pagamento", width: "w-24" },
+  { key: "data_pagamento", label: "Pagamento", width: "w-24", type: "date" },
 ];
 
 interface NotasEntradaSTManagerProps {
@@ -591,22 +625,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
     if (col.type === "currency") return formatCurrency(Number(v) || 0);
     if (col.type === "pct") return formatPct(Number(v) || 0);
     if (col.type === "number") return new Intl.NumberFormat("pt-BR").format(Number(v) || 0);
-    if (col.key === "competencia" && v) {
-      try {
-        const d = new Date(v);
-        return d.toLocaleDateString("pt-BR");
-      } catch {
-        return String(v);
-      }
-    }
-    if (col.key === "data_pagamento" && v) {
-      try {
-        const d = new Date(v);
-        return d.toLocaleDateString("pt-BR");
-      } catch {
-        return String(v);
-      }
-    }
+    if (col.type === "date" && v) return formatDateBR(v);
     return String(v ?? "");
   };
 
@@ -848,16 +867,18 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                                     ? col.type === "currency" ? formatCurrencyRaw(Number(nota[col.key]))
                                     : col.type === "pct" ? formatPctRaw(Number(nota[col.key]))
                                     : col.type === "number" ? formatNumberRaw(Number(nota[col.key]))
+                                    : col.type === "date" ? formatDateBR(nota[col.key])
                                     : String(nota[col.key])
                                     : ""
                                 }
-                                placeholder="—"
+                                placeholder={col.type === "date" ? "dd/mm/aaaa" : "—"}
                                 onBlur={(e) => {
                                   const raw = e.target.value;
                                   let newVal: any = raw || null;
                                   if (raw && col.type === "currency") newVal = parseBRLNumber(raw);
                                   else if (raw && col.type === "pct") newVal = parseFloat(raw.replace(",", ".")) / 100;
                                   else if (raw && col.type === "number") newVal = parseFloat(raw.replace(",", "."));
+                                  else if (raw && col.type === "date") newVal = parseDateBR(raw);
 
                                   const oldVal = nota[col.key];
                                   if (newVal !== oldVal && !(newVal == null && oldVal == null)) {
