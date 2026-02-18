@@ -12,6 +12,7 @@ import { useGuiasPagamentos, type GuiaPagamento } from "@/hooks/useGuiasPagament
 import { useNotasEntradaST } from "@/hooks/useNotasEntradaST";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { MovimentoEstoqueStep } from "./MovimentoEstoqueStep";
 
 const formatCurrency = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -118,9 +119,14 @@ export function ControlCredICMSST({ empresaId }: Props) {
 
   const allConfirmed = enrichedRows.length > 0 && enrichedRows.every(r => confirmados.has(r.guia.id));
 
-  const handleAvancar = useCallback(() => {
+  const handleAvancarStep2 = useCallback(() => {
     setActiveStep("movimento-estoque");
     toast.success("Avançando para Movimento Estoque");
+  }, []);
+
+  const handleAvancarStep3 = useCallback(() => {
+    setActiveStep("notas-fora-estado");
+    toast.success("Avançando para Notas Fora Estado");
   }, []);
 
   if (!empresaId) {
@@ -218,15 +224,15 @@ export function ControlCredICMSST({ empresaId }: Props) {
           onConfirmAll={handleConfirmAll}
           onSaldoChange={handleSaldoChange}
           allConfirmed={allConfirmed}
-          onAvancar={handleAvancar}
+          onAvancar={handleAvancarStep2}
         />
       )}
 
       {activeStep === "movimento-estoque" && (
-        <div className="glass rounded-xl p-8 text-center space-y-3">
-          <Package className="w-10 h-10 mx-auto text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Movimento Estoque — em breve.</p>
-        </div>
+        <MovimentoEstoqueStep
+          notasUtilizaveis={enrichedRows}
+          onAvancar={handleAvancarStep3}
+        />
       )}
 
       {activeStep === "notas-fora-estado" && (
