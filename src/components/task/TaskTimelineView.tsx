@@ -112,67 +112,54 @@ function exportICS(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
 }
 
 // ── SVG Arc for completion ──
-function CompletionRing({ rate, size = 36, stroke = 3 }: { rate: number; size?: number; stroke?: number }) {
+function CompletionRing({ rate, size = 40, stroke = 2.5, urgencyHue }: { rate: number; size?: number; stroke?: number; urgencyHue?: string }) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - rate);
+  const gradId = `ring-${Math.random().toString(36).slice(2, 8)}`;
   return (
     <svg width={size} height={size} className="absolute inset-0">
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-foreground/5" />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="currentColor" strokeWidth={stroke} className="text-foreground/[0.04]" />
       <motion.circle
         cx={size / 2} cy={size / 2} r={r} fill="none"
-        stroke="url(#ringGrad)" strokeWidth={stroke}
+        stroke={`url(#${gradId})`} strokeWidth={stroke}
         strokeLinecap="round"
         strokeDasharray={circ}
         initial={{ strokeDashoffset: circ }}
         animate={{ strokeDashoffset: offset }}
-        transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
+        transition={{ duration: 1, delay: 0.15, ease: "easeOut" }}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
       />
       <defs>
-        <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" />
-          <stop offset="100%" stopColor="hsl(var(--primary) / 0.4)" />
+        <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={urgencyHue || "hsl(var(--primary))"} />
+          <stop offset="100%" stopColor={urgencyHue ? `${urgencyHue}66` : "hsl(var(--primary) / 0.4)"} />
         </linearGradient>
       </defs>
     </svg>
   );
 }
 
-// Urgency color for a date based on closest incomplete task deadline
-// Returns the rail segment color for a given day
-function getUrgencyColor(dateStr: string, tasksByDate: Record<string, Tarefa[]>): string {
-  const tasks = tasksByDate[dateStr] || [];
-  // Only consider incomplete tasks
-  const incomplete = tasks.filter(t => t.status !== "concluida");
-  if (incomplete.length === 0) return "bg-foreground/8"; // neutral — no tasks or all done
-
+// Urgency helpers
+function getDaysUntilDeadline(dateStr: string): number {
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const targetDate = new Date(dateStr + "T12:00:00");
-  const diffMs = targetDate.getTime() - today.getTime();
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays < 0) return "bg-red-500/70";       // overdue → red
-  if (diffDays <= 2) return "bg-amber-500/60";     // 0-2 days → yellow/amber
-  if (diffDays <= 4) return "bg-green-500/50";     // 3-4 days → green
-  if (diffDays <= 7) return "bg-blue-500/40";      // 5-7 days → blue
-  return "bg-foreground/8";                         // >7 days → neutral
+  const target = new Date(dateStr + "T12:00:00");
+  return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function getUrgencyGlow(dateStr: string, tasksByDate: Record<string, Tarefa[]>): string {
+function getUrgencyData(dateStr: string, tasksByDate: Record<string, Tarefa[]>) {
   const tasks = tasksByDate[dateStr] || [];
   const incomplete = tasks.filter(t => t.status !== "concluida");
-  if (incomplete.length === 0) return "";
+  if (incomplete.length === 0) return { level: "none" as const, color: "rgba(255,255,255,0.04)", hue: "", label: "" };
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const targetDate = new Date(dateStr + "T12:00:00");
-  const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const diffDays = getDaysUntilDeadline(dateStr);
 
-  if (diffDays < 0) return "shadow-[0_0_6px_rgba(239,68,68,0.4)]";
-  if (diffDays <= 2) return "shadow-[0_0_4px_rgba(245,158,11,0.3)]";
-  return "";
+  if (diffDays < 0) return { level: "overdue" as const, color: "rgba(239,68,68,0.7)", hue: "#ef4444", label: "Atrasado" };
+  if (diffDays <= 2) return { level: "critical" as const, color: "rgba(245,158,11,0.6)", hue: "#f59e0b", label: `${diffDays}d` };
+  if (diffDays <= 4) return { level: "warning" as const, color: "rgba(34,197,94,0.5)", hue: "#22c55e", label: `${diffDays}d` };
+  if (diffDays <= 7) return { level: "safe" as const, color: "rgba(59,130,246,0.4)", hue: "#3b82f6", label: `${diffDays}d` };
+  return { level: "none" as const, color: "rgba(255,255,255,0.04)", hue: "", label: "" };
 }
-
 // ── Main Component ──
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const now = new Date();
@@ -378,85 +365,165 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
       {/* ─── Horizontal Timeline Strip — ALL days visible ─── */}
       <ScrollArea className="w-full">
-        <div className="relative px-2 pb-5 min-w-max">
-          {/* Segmented urgency rail — color changes per day based on deadline proximity */}
-          <div className="absolute left-0 right-0 top-[54px] h-[2px] flex">
-            {days.map((dateStr, i) => {
-              const segColor = getUrgencyColor(dateStr, tasksByDate);
-              const segGlow = getUrgencyGlow(dateStr, tasksByDate);
-              const colWidth = viewMode === "week" ? "calc(100% / 7)" : 56;
-              return (
-                <div
-                  key={dateStr}
-                  className={`h-full ${segColor} ${segGlow} transition-colors duration-500`}
-                  style={{ width: colWidth, minWidth: viewMode === "week" ? 100 : 56, flexShrink: 0 }}
-                />
-              );
-            })}
-          </div>
+        <div className="relative px-2 pb-6 pt-1 min-w-max">
+          {/* ── SVG Gradient Rail — smooth urgency color blending ── */}
+          <svg className="absolute left-0 right-0 top-[58px] h-[6px] w-full overflow-visible" style={{ minWidth: days.length * (viewMode === "week" ? 100 : 56) }}>
+            <defs>
+              <linearGradient id="urgencyRailGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                {days.map((dateStr, i) => {
+                  const urgency = getUrgencyData(dateStr, tasksByDate);
+                  const pct = (i / Math.max(days.length - 1, 1)) * 100;
+                  return <stop key={dateStr} offset={`${pct}%`} stopColor={urgency.color} />;
+                })}
+              </linearGradient>
+              <filter id="railGlow">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            {/* Background track */}
+            <rect x="0" y="1" width="100%" height="4" rx="2" fill="currentColor" className="text-foreground/[0.04]" />
+            {/* Gradient rail */}
+            <rect x="0" y="0.5" width="100%" height="5" rx="2.5" fill="url(#urgencyRailGrad)" filter="url(#railGlow)" opacity="0.9" />
+            {/* Shimmer overlay */}
+            <motion.rect
+              x="-120" y="0" width="120" height="6" rx="3"
+              fill="url(#shimmerGrad)" opacity="0.5"
+              animate={{ x: ["-120", `${days.length * (viewMode === "week" ? 100 : 56) + 120}`] }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            />
+            <defs>
+              <linearGradient id="shimmerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="white" stopOpacity="0" />
+                <stop offset="50%" stopColor="white" stopOpacity="0.15" />
+                <stop offset="100%" stopColor="white" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+          </svg>
 
-          <div className="flex items-start">
-            {days.map((dateStr) => {
+          <div className="flex items-start relative">
+            {days.map((dateStr, dayIdx) => {
               const style = getNodeStyle(dateStr);
+              const urgency = getUrgencyData(dateStr, tasksByDate);
               const hasIncomplete = style.count > 0 && !style.allDone;
+              const isWeekStart = new Date(dateStr + "T12:00:00").getDay() === 0;
+              const colW = viewMode === "week" ? "calc(100% / 7)" : 56;
+              const minW = viewMode === "week" ? 100 : 56;
 
               return (
-                <div
-                  key={dateStr}
-                  className="flex flex-col items-center"
-                  style={{ width: viewMode === "week" ? "calc(100% / 7)" : 56, minWidth: viewMode === "week" ? 100 : 56, flexShrink: 0 }}
-                >
+                <div key={dateStr} className="relative flex flex-col items-center group/day" style={{ width: colW, minWidth: minW, flexShrink: 0 }}>
+                  {/* Week separator */}
+                  {isWeekStart && dayIdx > 0 && viewMode === "month" && (
+                    <div className="absolute left-0 top-0 bottom-0 w-px bg-foreground/[0.06]" />
+                  )}
+
                   {/* Weekday label */}
-                  <span className={`text-[10px] leading-none mb-1.5 font-medium ${style.textColor} transition-colors`}>
+                  <span className={`text-[9px] leading-none mb-1 font-semibold uppercase tracking-wider ${style.textColor} transition-colors`}>
                     {formatWeekday(dateStr)}
                   </span>
 
                   {/* Day number */}
-                  <span className={`text-sm font-black leading-none mb-2.5 tabular-nums ${style.numColor} transition-colors`}>
+                  <motion.span
+                    className={`text-sm font-black leading-none mb-3 tabular-nums transition-colors ${style.numColor}`}
+                    whileHover={{ scale: 1.15 }}
+                  >
                     {formatDay(dateStr)}
-                  </span>
+                  </motion.span>
 
-                  {/* Node with optional completion ring */}
-                  <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
-                    {/* Completion ring SVG */}
+                  {/* ── Node ── */}
+                  <div className="relative flex items-center justify-center" style={{ width: 40, height: 40 }}>
+                    {/* Completion ring */}
                     {style.count > 0 && (
-                      <CompletionRing rate={style.completionRate} size={36} stroke={2} />
+                      <CompletionRing rate={style.completionRate} size={40} stroke={2.5} urgencyHue={urgency.hue || undefined} />
                     )}
 
-                    <button
+                    {/* Glow backdrop for active nodes */}
+                    {style.count > 0 && urgency.hue && (
+                      <div
+                        className="absolute inset-[-6px] rounded-full blur-md opacity-20 transition-opacity duration-500"
+                        style={{ backgroundColor: urgency.hue }}
+                      />
+                    )}
+
+                    <motion.button
                       ref={style.today ? todayRef : undefined}
                       onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === dateStr ? null : dateStr); }}
+                      whileHover={{ scale: 1.2 }}
+                      whileTap={{ scale: 0.95 }}
                       className={`
-                        relative z-10 rounded-full ring-2 transition-all duration-200 cursor-pointer
-                        hover:scale-110
+                        relative z-10 rounded-full ring-2 transition-all duration-300 cursor-pointer
                         ${style.ring} ${style.glow}
-                        ${selectedDate === dateStr ? "scale-[1.2]" : ""}
-                        ${style.count > 0 ? "w-5 h-5" : "w-2.5 h-2.5"}
+                        ${selectedDate === dateStr ? "scale-[1.25]" : ""}
+                        ${style.count > 0 ? "w-[18px] h-[18px]" : "w-2 h-2"}
                       `}
                     >
-                      <div className={`w-full h-full rounded-full ${style.bg} transition-colors`} />
-                      {/* Ping for incomplete tasks */}
+                      <div className={`w-full h-full rounded-full ${style.bg} transition-colors duration-300`} />
+                      {/* Ping for incomplete */}
                       {hasIncomplete && selectedDate !== dateStr && (
-                        <span className={`absolute inset-[-3px] rounded-full ${style.bg} animate-ping opacity-20`} />
+                        <span className={`absolute inset-[-4px] rounded-full ${style.bg} animate-ping opacity-15`} />
                       )}
-                      {/* Today indicator */}
+                      {/* Today beacon */}
                       {style.today && selectedDate !== dateStr && (
-                        <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse border border-background" />
+                        <>
+                          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-primary animate-pulse border-2 border-background" />
+                          <span className="absolute inset-[-6px] rounded-full border border-primary/30 animate-pulse" />
+                        </>
                       )}
-                    </button>
+                    </motion.button>
                   </div>
 
-                  {/* Task count + priority dots */}
+                  {/* ── Below-node info ── */}
+                  <div className="flex flex-col items-center mt-1.5 min-h-[24px]">
+                    {style.count > 0 ? (
+                      <>
+                        {/* Urgency countdown badge */}
+                        {urgency.level !== "none" && (
+                          <motion.span
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className={`
+                              text-[8px] font-bold px-1.5 py-0.5 rounded-full mb-0.5 leading-none
+                              ${urgency.level === "overdue" ? "bg-red-500/20 text-red-400" :
+                                urgency.level === "critical" ? "bg-amber-500/15 text-amber-400" :
+                                urgency.level === "warning" ? "bg-green-500/15 text-green-400" :
+                                "bg-blue-500/15 text-blue-400"}
+                            `}
+                          >
+                            {urgency.label}
+                          </motion.span>
+                        )}
+                        {/* Task count */}
+                        <span className={`text-[9px] font-bold ${style.numColor} tabular-nums`}>
+                          {style.count}
+                        </span>
+                        {/* Priority dots */}
+                        <div className="flex gap-[2px] mt-0.5">
+                          {(tasksByDate[dateStr] || []).slice(0, 5).map((t, ti) => (
+                            <div key={ti} className={`w-1 h-1 rounded-full ${prioridadeDot[t.prioridade]}`} />
+                          ))}
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+
+                  {/* Hover tooltip for quick preview */}
                   {style.count > 0 && (
-                    <div className="flex flex-col items-center mt-1.5 gap-0.5">
-                      <span className={`text-[10px] font-bold ${style.numColor} tabular-nums`}>
-                        {style.count}
-                      </span>
-                      {/* Micro priority dots */}
-                      <div className="flex gap-px">
-                        {(tasksByDate[dateStr] || []).slice(0, 5).map((t, ti) => (
-                          <div key={ti} className={`w-1 h-1 rounded-full ${prioridadeDot[t.prioridade]}`} />
+                    <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 opacity-0 group-hover/day:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                      <div className="bg-card/95 backdrop-blur-xl border border-foreground/10 rounded-lg px-2.5 py-1.5 shadow-xl min-w-[120px] max-w-[180px]">
+                        {(tasksByDate[dateStr] || []).slice(0, 3).map(t => (
+                          <div key={t.id} className="flex items-center gap-1.5 py-0.5">
+                            <div className={`w-1 h-1 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
+                            <span className={`text-[9px] truncate ${t.status === "concluida" ? "line-through text-muted-foreground" : "text-foreground/80"}`}>
+                              {t.titulo}
+                            </span>
+                          </div>
                         ))}
+                        {(tasksByDate[dateStr]?.length || 0) > 3 && (
+                          <p className="text-[8px] text-muted-foreground/40 mt-0.5">+{(tasksByDate[dateStr]?.length || 0) - 3} mais</p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -466,21 +533,23 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
             {/* No-date node */}
             {noDateTasks.length > 0 && (
-              <div className="flex flex-col items-center" style={{ width: 56, minWidth: 56, flexShrink: 0 }}>
-                <span className="text-[9px] leading-none mb-1.5 text-muted-foreground/30 font-medium">s/d</span>
-                <span className="text-sm font-black leading-none mb-2.5 text-muted-foreground/40 tabular-nums">—</span>
-                <div className="relative flex items-center justify-center" style={{ width: 36, height: 36 }}>
-                  <button
+              <div className="flex flex-col items-center group/day" style={{ width: 56, minWidth: 56, flexShrink: 0 }}>
+                <span className="text-[9px] leading-none mb-1 text-muted-foreground/25 font-semibold uppercase tracking-wider">s/d</span>
+                <span className="text-sm font-black leading-none mb-3 text-muted-foreground/30 tabular-nums">—</span>
+                <div className="relative flex items-center justify-center" style={{ width: 40, height: 40 }}>
+                  <motion.button
                     onClick={() => { setUserManuallySelected(true); setSelectedDate(prev => prev === "__no_date__" ? null : "__no_date__"); }}
+                    whileHover={{ scale: 1.15 }}
+                    whileTap={{ scale: 0.95 }}
                     className={`
-                      relative z-10 w-4 h-4 rounded-full ring-2 transition-all duration-200 cursor-pointer hover:scale-110
-                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_12px_hsl(var(--primary)/0.4)] scale-[1.2]" : "ring-foreground/15"}
+                      relative z-10 w-4 h-4 rounded-full ring-2 transition-all duration-300 cursor-pointer
+                      ${selectedDate === "__no_date__" ? "ring-primary/50 shadow-[0_0_14px_hsl(var(--primary)/0.4)] scale-[1.25]" : "ring-foreground/12"}
                     `}
                   >
-                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/25"}`} />
-                  </button>
+                    <div className={`w-full h-full rounded-full ${selectedDate === "__no_date__" ? "bg-primary" : "bg-foreground/20"}`} />
+                  </motion.button>
                 </div>
-                <span className={`mt-1.5 text-[10px] font-bold tabular-nums ${selectedDate === "__no_date__" ? "text-primary" : "text-muted-foreground/40"}`}>
+                <span className={`mt-1.5 text-[9px] font-bold tabular-nums ${selectedDate === "__no_date__" ? "text-primary" : "text-muted-foreground/35"}`}>
                   {noDateTasks.length}
                 </span>
               </div>
