@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  BarChart3, FileText, Package, ChevronRight, RefreshCw, Check, Pencil, X
+  BarChart3, FileText, Package, ChevronRight, RefreshCw, Check, Pencil, X,
+  Globe, Cog, ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ interface Props {
   empresaId?: string;
 }
 
-type Step = "notas-utilizaveis" | "movimento-estoque";
+type Step = "notas-utilizaveis" | "movimento-estoque" | "notas-fora-estado" | "processamento" | "relatorio-final";
 
 export function ControlCredICMSST({ empresaId }: Props) {
   const [activeStep, setActiveStep] = useState<Step>("notas-utilizaveis");
@@ -148,7 +149,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
           <div>
             <h3 className="font-bold text-base">Controle Créditos ICMS-ST</h3>
             <p className="text-[11px] text-muted-foreground">
-              Controle em 2 passos: Notas Utilizáveis → Movimento Estoque
+              Controle em 5 passos: Notas Utilizáveis → Mov. Estoque → Fora Estado → Processamento → Relatório
             </p>
           </div>
         </div>
@@ -165,7 +166,7 @@ export function ControlCredICMSST({ empresaId }: Props) {
       </div>
 
       {/* Step Navigation */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <StepButton
           label="1. Notas Utilizáveis"
           icon={FileText}
@@ -173,14 +174,37 @@ export function ControlCredICMSST({ empresaId }: Props) {
           count={guiasUtilizaveis.length}
           onClick={() => setActiveStep("notas-utilizaveis")}
         />
-        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
         <StepButton
-          label="2. Movimento Estoque"
+          label="2. Mov. Estoque"
           icon={Package}
           active={activeStep === "movimento-estoque"}
-          count={undefined}
           onClick={() => allConfirmed && setActiveStep("movimento-estoque")}
           disabled={!allConfirmed}
+        />
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <StepButton
+          label="3. Notas Fora Estado"
+          icon={Globe}
+          active={activeStep === "notas-fora-estado"}
+          onClick={() => setActiveStep("notas-fora-estado")}
+          disabled
+        />
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <StepButton
+          label="4. Processamento"
+          icon={Cog}
+          active={activeStep === "processamento"}
+          onClick={() => setActiveStep("processamento")}
+          disabled
+        />
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+        <StepButton
+          label="5. Relatório Final"
+          icon={ClipboardList}
+          active={activeStep === "relatorio-final"}
+          onClick={() => setActiveStep("relatorio-final")}
+          disabled
         />
       </div>
 
@@ -202,6 +226,27 @@ export function ControlCredICMSST({ empresaId }: Props) {
         <div className="glass rounded-xl p-8 text-center space-y-3">
           <Package className="w-10 h-10 mx-auto text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Movimento Estoque — em breve.</p>
+        </div>
+      )}
+
+      {activeStep === "notas-fora-estado" && (
+        <div className="glass rounded-xl p-8 text-center space-y-3">
+          <Globe className="w-10 h-10 mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Notas Fora Estado — em breve.</p>
+        </div>
+      )}
+
+      {activeStep === "processamento" && (
+        <div className="glass rounded-xl p-8 text-center space-y-3">
+          <Cog className="w-10 h-10 mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Processamento — em breve.</p>
+        </div>
+      )}
+
+      {activeStep === "relatorio-final" && (
+        <div className="glass rounded-xl p-8 text-center space-y-3">
+          <ClipboardList className="w-10 h-10 mx-auto text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Relatório Final — em breve.</p>
         </div>
       )}
     </motion.div>
