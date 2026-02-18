@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check, FileSpreadsheet } from "lucide-react";
+import { CreditCard, Trash2, Upload, Download, Search, RefreshCw, Pencil, Check, FileSpreadsheet, CheckSquare, Square, XCircle } from "lucide-react";
 import { readExcelFile, normalizeKey } from "@/utils/fileParserUtils";
 import { ViewModeSelector, type ViewMode } from "./ViewModeSelector";
 import { GuiasCompactCards, GuiasAccordionCards, GuiasGridCards } from "./GuiasViewCards";
@@ -82,6 +82,42 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filtered.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map((g) => g.id)));
+    }
+  };
+
+  const handleBatchStatusChange = async (newStatus: GuiaStatus) => {
+    if (selectedIds.size === 0) return;
+    setIsBatchUpdating(true);
+    try {
+      let count = 0;
+      for (const id of selectedIds) {
+        await updateGuia.mutateAsync({ id, status: newStatus } as any);
+        count++;
+      }
+      toast({ title: "Status atualizado em lote", description: `${count} guia(s) alterada(s) para "${STATUS_OPTIONS.find(s => s.value === newStatus)?.label}".` });
+      setSelectedIds(new Set());
+    } catch (err: any) {
+      toast({ title: "Erro na edição em lote", description: err.message, variant: "destructive" });
+    } finally {
+      setIsBatchUpdating(false);
+    }
+  };
 
   // Auto-sync from Notas ST when component mounts and there are notas but no guias
   useEffect(() => {
@@ -540,6 +576,41 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
         </div>
       </div>
 
+      {/* Batch action bar */}
+      {selectedIds.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="glass rounded-xl px-4 py-2.5 flex items-center gap-3 border border-primary/30"
+        >
+          <div className="flex items-center gap-2">
+            <CheckSquare className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium">{selectedIds.size} selecionada{selectedIds.size !== 1 ? "s" : ""}</span>
+          </div>
+          <div className="h-4 w-px bg-border" />
+          <span className="text-[11px] text-muted-foreground">Alterar status para:</span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {STATUS_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                variant="outline"
+                size="sm"
+                className={`h-7 text-[10px] px-2.5 border ${opt.color} hover:opacity-80`}
+                disabled={isBatchUpdating}
+                onClick={() => handleBatchStatusChange(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
+          <div className="ml-auto">
+            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={() => setSelectedIds(new Set())}>
+              <XCircle className="w-3.5 h-3.5" /> Limpar
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {viewMode === "cards" ? (
         <GuiasCompactCards guias={filtered} onUpdate={(data: any) => updateGuia.mutate(data)} onDelete={(id: string) => deleteGuia.mutate(id)} />
       ) : viewMode === "accordion" ? (
@@ -564,7 +635,12 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
           <div className="min-w-[1600px]">
             <Table wrapperClassName="overflow-visible">
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
+                 <TableRow className="hover:bg-transparent">
+                  <TableHead className="w-8 px-2">
+                    <button onClick={toggleSelectAll} className="text-muted-foreground hover:text-primary transition-colors">
+                      {selectedIds.size === filtered.length && filtered.length > 0 ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                    </button>
+                  </TableHead>
                   <TableHead className="w-8 text-[10px] px-2">#</TableHead>
                   {columns.map((col) => (
                     <TableHead key={col.key} className={`text-[10px] px-2 whitespace-nowrap ${col.width}`}>
@@ -577,21 +653,27 @@ export function GuiasPagamentosManager({ empresaId }: GuiasPagamentosManagerProp
               <TableBody>
                 {isLoading ? (
                   <TableRow>
-                    <TableCell colSpan={columns.length + 2} className="text-center text-xs text-muted-foreground py-8">
+                     <TableCell colSpan={columns.length + 3} className="text-center text-xs text-muted-foreground py-8">
                       Carregando...
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={columns.length + 2} className="text-center text-xs text-muted-foreground py-8">
+                    <TableCell colSpan={columns.length + 3} className="text-center text-xs text-muted-foreground py-8">
                       {search ? "Nenhuma guia encontrada para o filtro" : "Nenhuma guia cadastrada. Importe uma planilha ou adicione manualmente."}
                     </TableCell>
                   </TableRow>
                 ) : (
                   filtered.map((guia, idx) => {
                     const isEditing = editingRowId === guia.id;
+                    const isSelected = selectedIds.has(guia.id);
                     return (
-                    <TableRow key={guia.id} className={`transition-all duration-150 ${idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
+                    <TableRow key={guia.id} className={`transition-all duration-150 ${isSelected ? "bg-primary/15" : idx % 2 === 0 ? "bg-muted/20" : ""} hover:bg-primary/10 hover:shadow-[inset_3px_0_0_hsl(var(--primary))] hover:scale-[1.002]`}>
+                      <TableCell className="px-2">
+                        <button onClick={() => toggleSelect(guia.id)} className="text-muted-foreground hover:text-primary transition-colors">
+                          {isSelected ? <CheckSquare className="w-3.5 h-3.5 text-primary" /> : <Square className="w-3.5 h-3.5" />}
+                        </button>
+                      </TableCell>
                       <TableCell className="text-[10px] text-muted-foreground px-2 font-mono">
                         {idx + 1}
                       </TableCell>
