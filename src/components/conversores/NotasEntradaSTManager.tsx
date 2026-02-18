@@ -1014,7 +1014,7 @@ export function NotasEntradaSTManager({ empresaId }: NotasEntradaSTManagerProps)
                   {renderField("Créd. ICMS Próprio", "credito_icms_proprio", "currency")}
                   {renderField("Créd. ICMS ST", "credito_icms_st", "currency")}
                   {renderField("Status", "status")}
-                  {renderField("Observações", "observacoes")}
+                  
                   {renderField("Chave NFE", "chave_nfe", undefined, true)}
                 </div>
               </motion.div>
