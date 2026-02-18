@@ -423,13 +423,22 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
             const { resultados: cpResultados, sessoes: cpSessoes } = await buscarResultadosContasAPagar(empresaId, sessaoId, codigoVinculo || null);
             
             if (cpResultados.length > 0) {
-              // Criar chave de lookup: "data_pagto|conta_credito_codigo" para contas a pagar
+              // Normaliza valor para comparação: "1.118,88" → "1118.88"
+              const normalizeValorKey = (v: string): string => {
+                if (!v) return "";
+                const cleaned = v.replace(/\./g, "").replace(",", ".");
+                const num = parseFloat(cleaned);
+                return isNaN(num) ? v.trim() : num.toFixed(2);
+              };
+
+              // Criar chave de lookup: "data_pagto|conta_credito_codigo|valor" para contas a pagar
               const cpLookup = new Map<string, { sessaoId: string; resultado: ApaeResultado }[]>();
               for (const r of cpResultados) {
                 const data = (r.data_pagto || "").trim();
                 const banco = (r.conta_credito_codigo || "").trim();
-                if (!data || !banco) continue;
-                const key = `${data}|${banco}`;
+                const valor = normalizeValorKey(r.valor_pago || r.valor || "");
+                if (!data || !banco || !valor) continue;
+                const key = `${data}|${banco}|${valor}`;
                 if (!cpLookup.has(key)) cpLookup.set(key, []);
                 cpLookup.get(key)!.push({ sessaoId: r.sessao_id, resultado: r });
               }
@@ -438,15 +447,19 @@ export function ApaeStep4Processamento({ linhas, planoContas, mapeamentos, codig
               const duplicados: DuplicadoCP[] = [];
               const unicos: typeof resultadosProcessados = [];
 
+              // Coletar códigos de banco para distinguir saída vs entrada
+              const bancoCodigosSet = new Set(mapeamentosAtual.map(m => String(m.banco_codigo).trim()));
+
               for (const r of resultadosProcessados) {
-                // Saídas no movimento caixa: crédito = banco
-                const isSaida = (r.conta_credito_codigo || "").trim() !== "";
+                const creditoCodigo = (r.conta_credito_codigo || "").trim();
+                // Saída: crédito = conta banco (código de banco mapeado)
+                const isSaida = creditoCodigo !== "" && bancoCodigosSet.has(creditoCodigo);
                 const data = (r.data_pagto || "").trim();
-                const banco = (r.conta_credito_codigo || "").trim();
+                const valor = normalizeValorKey(r.valor_pago || r.valor || "");
                 
-                // Verificar se é saída e se tem match em contas a pagar
-                const key = `${data}|${banco}`;
-                const matches = isSaida && data && banco ? cpLookup.get(key) : undefined;
+                // Verificar se é saída e se tem match em contas a pagar (data + banco + valor)
+                const key = `${data}|${creditoCodigo}|${valor}`;
+                const matches = isSaida && data && creditoCodigo && valor ? cpLookup.get(key) : undefined;
                 
                 if (matches && matches.length > 0) {
                   // Encontrou duplicata — usar o primeiro match e remover para evitar duplicidade dupla
