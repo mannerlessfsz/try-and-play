@@ -110,9 +110,20 @@ export function NotasCompactCards({ notas, onUpdate, onDelete }: NotasViewCardsP
             <div className="flex items-center gap-4 mt-1.5 text-[11px] text-muted-foreground flex-wrap">
               <span>Comp.: {formatDateBR(n.competencia) || "—"}</span>
               <span>NCM: {n.ncm || "—"}</span>
+              <span>QTD: {Number(n.quantidade).toLocaleString("pt-BR")}</span>
+              <span>Val. Prod.: {formatCurrency(n.valor_produto)}</span>
+              <span>IPI: {formatCurrency(n.ipi)}</span>
+              <span>Frete: {formatCurrency(n.frete)}</span>
+              <span>Desc.: {formatCurrency(n.desconto)}</span>
+              <span>MVA: {formatPct(n.pct_mva)}</span>
+              <span>ICMS Int.: {formatPct(n.pct_icms_interno)}</span>
+              <span>FECP%: {formatPct(n.pct_fecp)}</span>
+              <span>ICMS Inter.: {formatPct(n.pct_icms_interestadual)}</span>
+              <span>BC ST: {formatCurrency(n.bc_icms_st)}</span>
               <span>ICMS NF: {formatCurrency(n.valor_icms_nf)}</span>
               <span>ICMS ST: {formatCurrency(n.valor_icms_st)}</span>
               <span>FECP: {formatCurrency(n.valor_fecp)}</span>
+              <span>ST UN: {formatCurrency(n.valor_st_un)}</span>
               <span>Pag.: {formatDateBR(n.data_pagamento) || "—"}</span>
             </div>
           </div>
@@ -235,9 +246,18 @@ export function NotasGridCards({ notas, onUpdate, onDelete }: NotasViewCardsProp
                 { label: "NCM", key: "ncm" },
                 { label: "QTD", key: "quantidade", type: "number" },
                 { label: "Valor Prod.", key: "valor_produto", type: "currency" },
+                { label: "IPI", key: "ipi", type: "currency" },
+                { label: "Frete", key: "frete", type: "currency" },
+                { label: "Desconto", key: "desconto", type: "currency" },
+                { label: "% MVA", key: "pct_mva", type: "pct" },
+                { label: "% ICMS Int.", key: "pct_icms_interno", type: "pct" },
+                { label: "% FECP", key: "pct_fecp", type: "pct" },
+                { label: "% ICMS Inter.", key: "pct_icms_interestadual", type: "pct" },
+                { label: "BC ICMS ST", key: "bc_icms_st", type: "currency" },
                 { label: "ICMS NF", key: "valor_icms_nf", type: "currency" },
                 { label: "ICMS ST", key: "valor_icms_st", type: "currency" },
                 { label: "FECP", key: "valor_fecp", type: "currency" },
+                { label: "ST UN", key: "valor_st_un", type: "currency" },
                 { label: "Pagamento", key: "data_pagamento", type: "date" },
               ].map((field) => (
                 <div key={field.key}>
