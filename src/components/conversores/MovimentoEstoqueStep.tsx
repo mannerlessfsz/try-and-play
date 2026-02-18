@@ -24,7 +24,7 @@ const formatQtd = (v: number) =>
 /* ── Types ── */
 
 export interface EnrichedNotaRow {
-  guia: { id: string; numero_nota: string; [key: string]: any };
+  nota: { id: string; nfe: string; [key: string]: any };
   quantidade: number;
   saldoAnterior: number;
   saldoAtual: number;
@@ -84,33 +84,33 @@ export function MovimentoEstoqueStep({ notasUtilizaveis, onAvancar, empresaId, c
 
     // Sort notas by numero_nota ascending (oldest first = FIFO)
     const sorted = [...notasUtilizaveis].sort(
-      (a, b) => parseInt(a.guia.numero_nota) - parseInt(b.guia.numero_nota)
+      (a, b) => parseInt(a.nota.nfe) - parseInt(b.nota.nfe)
     );
 
     let remaining = totalSaidas;
     const result: ConsumoNota[] = [];
 
-    for (const nota of sorted) {
+    for (const item of sorted) {
       if (remaining <= 0) {
         result.push({
-          guiaId: nota.guia.id,
-          numeroNota: nota.guia.numero_nota,
-          saldoInicial: nota.saldoAtual,
+          guiaId: item.nota.id,
+          numeroNota: item.nota.nfe,
+          saldoInicial: item.saldoAtual,
           consumido: 0,
-          saldoFinal: nota.saldoAtual,
+          saldoFinal: item.saldoAtual,
           zerou: false,
         });
         continue;
       }
 
-      const consumido = Math.min(remaining, nota.saldoAtual);
-      const saldoFinal = nota.saldoAtual - consumido;
+      const consumido = Math.min(remaining, item.saldoAtual);
+      const saldoFinal = item.saldoAtual - consumido;
       remaining -= consumido;
 
       result.push({
-        guiaId: nota.guia.id,
-        numeroNota: nota.guia.numero_nota,
-        saldoInicial: nota.saldoAtual,
+        guiaId: item.nota.id,
+        numeroNota: item.nota.nfe,
+        saldoInicial: item.saldoAtual,
         consumido,
         saldoFinal,
         zerou: saldoFinal <= 0,
