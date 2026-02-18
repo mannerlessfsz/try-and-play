@@ -322,9 +322,9 @@ export function NotasEntradaSTManager() {
     try {
       const XLSX = await import("xlsx");
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
+      const wb = XLSX.read(buffer, { type: "array", cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: false });
 
       // Find header row
       let headerIdx = -1;
@@ -341,6 +341,8 @@ export function NotasEntradaSTManager() {
       }
 
       const headers = rows[headerIdx].map((c: any) => String(c).toLowerCase().trim());
+      console.log("[XLSX Import] Headers found:", headers);
+      console.log("[XLSX Import] First data row sample:", rows[headerIdx + 1]);
       const dataRows = rows.slice(headerIdx + 1);
 
       const getCol = (keywords: string[]) =>
@@ -366,7 +368,8 @@ export function NotasEntradaSTManager() {
       const colVFecp = getCol(["valor fecp"]);
       const colStUn = getCol(["st un", "valor st un"]);
       const colTotalSt = getCol(["total st"]);
-      const colPagto = getCol(["pagamento", "pagto"]);
+      // coluna "pagamento" removida intencionalmente
+      console.log("[XLSX Import] Column indices:", { colNfe, colForn, colComp, colNcm, colQtd, colValProd, colValTotal, colMva, colIcmsInt, colFecp, colIcmsInter, colBcSt, colIcmsNf, colIcmsSt, colVFecp, colStUn, colTotalSt });
 
       const parseNum = (v: any): number => {
         if (typeof v === "number") return v;
@@ -380,12 +383,12 @@ export function NotasEntradaSTManager() {
       const parseDate = (v: any): string | null => {
         if (!v) return null;
 
-        // Handle Date objects directly (Excel cellDates:true returns these)
-        if (v instanceof Date) {
+        // Handle Date objects directly (cellDates:true)
+        if (v instanceof Date && !isNaN(v.getTime())) {
           const y = v.getFullYear();
           const m = v.getMonth() + 1;
           const d = v.getDate();
-          if (y > 1000) return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+          if (y > 1900) return `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
           return null;
         }
 
@@ -398,19 +401,28 @@ export function NotasEntradaSTManager() {
 
         const s = String(v).trim();
         if (!s) return null;
-        // Try various date formats
-        const parts = s.split(/[\/\-]/);
-        if (parts.length === 3) {
-          let [a, b, c] = parts.map(Number);
-          // If year is 2-digit
-          if (c < 100) c += 2000;
-          if (a > 12) {
-            // dd/mm/yyyy
-            return `${c}-${String(b).padStart(2, "0")}-${String(a).padStart(2, "0")}`;
-          }
-          // m/d/yyyy
-          return `${c}-${String(a).padStart(2, "0")}-${String(b).padStart(2, "0")}`;
+
+        // Try dd/mm/yyyy or dd/mm/yy
+        const brMatch = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+        if (brMatch) {
+          let [, dd, mm, yyyy] = brMatch;
+          let y = Number(yyyy);
+          if (y < 100) y += 2000;
+          return `${y}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
         }
+
+        // Try yyyy-mm-dd (ISO)
+        const isoMatch = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+        if (isoMatch) {
+          return `${isoMatch[1]}-${isoMatch[2].padStart(2, "0")}-${isoMatch[3].padStart(2, "0")}`;
+        }
+
+        // Try mm/yyyy (competência sem dia)
+        const compMatch = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
+        if (compMatch) {
+          return `${compMatch[2]}-${compMatch[1].padStart(2, "0")}-01`;
+        }
+
         return null;
       };
 
@@ -460,7 +472,7 @@ export function NotasEntradaSTManager() {
           valor_fecp: colVFecp >= 0 ? parseNum(row[colVFecp]) : 0,
           valor_st_un: colStUn >= 0 ? parseNum(row[colStUn]) : 0,
           total_st: colTotalSt >= 0 ? parseNum(row[colTotalSt]) : 0,
-          data_pagamento: colPagto >= 0 ? parseDate(row[colPagto]) : null,
+          data_pagamento: null,
           observacoes: null,
         });
       }
