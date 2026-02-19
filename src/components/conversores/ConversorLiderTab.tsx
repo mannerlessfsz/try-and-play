@@ -1935,8 +1935,8 @@ export function ConversorLiderTab() {
                       </div>
                     )}
 
-                    {/* Dados fixos (não editáveis) */}
-                    <div className="grid grid-cols-3 gap-3 mb-4">
+                    {/* Dados do lançamento */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-3">
                       <div>
                         <label className="text-[10px] uppercase text-muted-foreground font-medium">Data</label>
                         <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.data || "-"}</p>
@@ -1945,13 +1945,13 @@ export function ConversorLiderTab() {
                         <label className="text-[10px] uppercase text-muted-foreground font-medium">Valor</label>
                         <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.valor || "-"}</p>
                       </div>
-                      <div className="col-span-1">
+                      <div className="col-span-2 md:col-span-1">
                         <label className="text-[10px] uppercase text-muted-foreground font-medium">Histórico</label>
                         <p className="text-sm bg-muted/50 px-2 py-1.5 rounded border truncate" title={erro.historico || ""}>{erro.historico || "-"}</p>
                       </div>
                     </div>
 
-                    {/* Campos editáveis: Conta Débito e Conta Crédito */}
+                    {/* Contas: locked by default, editable when editing */}
                     {editingRowId === erro.id ? (
                       <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
                         <div>
@@ -1984,15 +1984,18 @@ export function ConversorLiderTab() {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3">
-                        <div className="text-xs text-muted-foreground">
-                          <span className="font-mono">D: {erro.contaDebito || "—"}</span>
-                          <span className="mx-2">|</span>
-                          <span className="font-mono">C: {erro.contaCredito || "—"}</span>
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                        <div>
+                          <label className="text-[10px] uppercase text-muted-foreground font-medium">Conta Débito</label>
+                          <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.contaDebito || "—"}</p>
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase text-muted-foreground font-medium">Conta Crédito</label>
+                          <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.contaCredito || "—"}</p>
                         </div>
                         <Button variant="outline" size="sm" onClick={() => startEdit(erro)}>
                           <Edit3 className="w-4 h-4 mr-1" />
-                          Corrigir Contas
+                          Corrigir
                         </Button>
                       </div>
                     )}
