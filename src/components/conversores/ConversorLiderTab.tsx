@@ -176,6 +176,7 @@ export function ConversorLiderTab() {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Partial<OutputRow>>({});
   const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
+  const [paginaRevisar, setPaginaRevisar] = useState(1);
 
   // Auto-popular código da empresa quando empresa externa for selecionada
   useEffect(() => {
@@ -1671,65 +1672,94 @@ export function ConversorLiderTab() {
                 </div>
               </div>
 
-              <ScrollArea className="h-[500px] border rounded-lg">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr>
-                      <th className="text-center p-2 w-12">
-                        <Checkbox 
-                          checked={todosConfirmados}
-                          onCheckedChange={() => confirmarTodos()}
-                        />
-                      </th>
-                      <th className="text-left p-2">Data</th>
-                      <th className="text-left p-2">Débito</th>
-                      <th className="text-left p-2">Crédito</th>
-                      <th className="text-right p-2">Valor</th>
-                      <th className="text-left p-2">Histórico</th>
-                      <th className="text-center p-2">Lote</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {lancamentosSemErro.map((row) => (
-                      <tr 
-                        key={row.id} 
-                        className={`
-                          ${row.alteradoPorRegra ? "bg-blue-500/10 border-l-2 border-l-blue-500" : ""}
-                          ${row.loteFlag && !row.alteradoPorRegra ? "bg-violet-500/5" : ""} 
-                          ${row.confirmado && !row.alteradoPorRegra ? "bg-green-500/5" : ""}
-                          ${row.confirmado && row.alteradoPorRegra ? "bg-blue-500/15" : ""}
-                        `}
-                      >
-                        <td className="p-2 text-center">
-                          <Checkbox 
-                            checked={row.confirmado}
-                            onCheckedChange={() => toggleConfirmacao(row.id)}
-                          />
-                        </td>
-                        <td className="p-2">{row.data}</td>
-                        <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-blue-700 dark:text-blue-400 font-semibold" : ""}`}>
-                          {row.contaDebito || '-'}
-                        </td>
-                        <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-blue-700 dark:text-blue-400 font-semibold" : ""}`}>
-                          {row.contaCredito || '-'}
-                        </td>
-                        <td className="p-2 text-right font-mono">{row.valor}</td>
-                        <td className="p-2 truncate max-w-[250px]" title={row.historico}>
-                          {row.historico}
-                        </td>
-                        <td className="p-2 text-center">
-                          {row.alteradoPorRegra && (
-                            <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs" title={row.regraAlteracaoDescricao}>
-                              Alterado
-                            </Badge>
-                          )}
-                          {row.loteFlag && !row.alteradoPorRegra && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </ScrollArea>
+              {(() => {
+                const REVISAR_PAGE_SIZE = 100;
+                const totalPaginasRevisar = Math.ceil(lancamentosSemErro.length / REVISAR_PAGE_SIZE);
+                const paginaAtual = Math.min(paginaRevisar, Math.max(1, totalPaginasRevisar));
+                const inicio = (paginaAtual - 1) * REVISAR_PAGE_SIZE;
+                const lancamentosPagina = lancamentosSemErro.slice(inicio, inicio + REVISAR_PAGE_SIZE);
+
+                return (
+                  <>
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-center p-2 w-12">
+                              <Checkbox 
+                                checked={todosConfirmados}
+                                onCheckedChange={() => confirmarTodos()}
+                              />
+                            </th>
+                            <th className="text-left p-2">Data</th>
+                            <th className="text-left p-2">Débito</th>
+                            <th className="text-left p-2">Crédito</th>
+                            <th className="text-right p-2">Valor</th>
+                            <th className="text-left p-2">Histórico</th>
+                            <th className="text-center p-2">Lote</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {lancamentosPagina.map((row) => (
+                            <tr 
+                              key={row.id} 
+                              className={`
+                                ${row.alteradoPorRegra ? "bg-amber-500/10 border-l-2 border-l-amber-500" : ""}
+                                ${row.loteFlag && !row.alteradoPorRegra ? "bg-violet-500/5" : ""} 
+                                ${row.confirmado && !row.alteradoPorRegra ? "bg-green-500/5" : ""}
+                                ${row.confirmado && row.alteradoPorRegra ? "bg-amber-500/15" : ""}
+                              `}
+                            >
+                              <td className="p-2 text-center">
+                                <Checkbox 
+                                  checked={row.confirmado}
+                                  onCheckedChange={() => toggleConfirmacao(row.id)}
+                                />
+                              </td>
+                              <td className="p-2">{row.data}</td>
+                              <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-amber-700 dark:text-amber-400 font-semibold" : ""}`}>
+                                {row.contaDebito || '-'}
+                              </td>
+                              <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-amber-700 dark:text-amber-400 font-semibold" : ""}`}>
+                                {row.contaCredito || '-'}
+                              </td>
+                              <td className="p-2 text-right font-mono">{row.valor}</td>
+                              <td className="p-2 truncate max-w-[250px]" title={row.historico}>
+                                {row.historico}
+                              </td>
+                              <td className="p-2 text-center">
+                                {row.alteradoPorRegra && (
+                                  <Badge className="bg-amber-500/20 text-amber-700 dark:text-amber-400 text-xs" title={row.regraAlteracaoDescricao}>
+                                    Alterado
+                                  </Badge>
+                                )}
+                                {row.loteFlag && !row.alteradoPorRegra && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {totalPaginasRevisar > 1 && (
+                      <div className="flex items-center justify-between pt-2">
+                        <p className="text-xs text-muted-foreground">
+                          {inicio + 1} - {Math.min(inicio + REVISAR_PAGE_SIZE, lancamentosSemErro.length)} de {lancamentosSemErro.length}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPaginaRevisar(Math.max(1, paginaAtual - 1))} disabled={paginaAtual === 1}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="px-2 text-sm">{paginaAtual}/{totalPaginasRevisar}</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPaginaRevisar(Math.min(totalPaginasRevisar, paginaAtual + 1))} disabled={paginaAtual === totalPaginasRevisar}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {lancamentosComErro.length > 0 && (
                 <div className="p-4 border border-red-500/30 rounded-lg bg-red-500/5">
