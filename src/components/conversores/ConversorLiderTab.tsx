@@ -2035,6 +2035,22 @@ export function ConversorLiderTab() {
                 </p>
               </div>
 
+              {/* Legenda de cores */}
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground px-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-red-500/20 border border-red-500/40 inline-block" />
+                  <span>Marcado p/ exclusão (regra)</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-amber-500/20 border border-amber-500/40 inline-block" />
+                  <span>Inconsistência fornecedor × conta débito</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-sm bg-green-500/10 border border-green-500/30 inline-block" />
+                  <span>Mantido (não será excluído)</span>
+                </div>
+              </div>
+
               <ScrollArea className="h-[400px] border rounded-lg">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/50 sticky top-0">
@@ -2055,7 +2071,13 @@ export function ConversorLiderTab() {
                       return (
                         <tr 
                           key={row.id} 
-                          className={row.marcadoExclusao ? "bg-red-500/10" : "bg-green-500/5"}
+                          className={
+                            row.inconsistenciaFornecedor
+                              ? "bg-amber-500/15 border-l-4 border-l-amber-500"
+                              : row.marcadoExclusao
+                                ? "bg-red-500/10"
+                                : "bg-green-500/5"
+                          }
                         >
                           <td className="p-2 text-center">
                             <Checkbox 
