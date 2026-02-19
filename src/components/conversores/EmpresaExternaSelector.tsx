@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Building2, Plus, Search, Edit2, Check, X } from 'lucide-react';
+import { Building2, Plus, Search, Edit2, Check, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { formatCnpj, isValidCnpj, fetchCnpjData, cleanCnpj } from '@/utils/cnpjUtils';
+import { toast } from '@/hooks/use-toast';
 import {
   Select,
   SelectContent,
@@ -37,6 +39,8 @@ export function EmpresaExternaSelector({
   const [showModal, setShowModal] = useState(false);
   const [editingEmpresa, setEditingEmpresa] = useState<EmpresaExterna | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [buscandoCnpj, setBuscandoCnpj] = useState(false);
+  const [cnpjValidado, setCnpjValidado] = useState<boolean | null>(null);
   
   const [formData, setFormData] = useState({
     nome: '',
@@ -57,14 +61,49 @@ export function EmpresaExternaSelector({
       setEditingEmpresa(empresa);
       setFormData({
         nome: empresa.nome,
-        cnpj: empresa.cnpj || '',
+        cnpj: empresa.cnpj ? formatCnpj(empresa.cnpj) : '',
         codigo_empresa: empresa.codigo_empresa
       });
+      setCnpjValidado(empresa.cnpj ? isValidCnpj(empresa.cnpj) : null);
     } else {
       setEditingEmpresa(null);
       setFormData({ nome: '', cnpj: '', codigo_empresa: '' });
+      setCnpjValidado(null);
     }
     setShowModal(true);
+  };
+
+  const handleCnpjChange = async (rawValue: string) => {
+    const formatted = formatCnpj(rawValue);
+    setFormData(prev => ({ ...prev, cnpj: formatted }));
+
+    const digits = cleanCnpj(formatted);
+    if (digits.length < 14) {
+      setCnpjValidado(null);
+      return;
+    }
+
+    if (!isValidCnpj(digits)) {
+      setCnpjValidado(false);
+      toast({ title: 'CNPJ inválido', description: 'Dígitos verificadores não conferem.', variant: 'destructive' });
+      return;
+    }
+
+    setCnpjValidado(true);
+    setBuscandoCnpj(true);
+    try {
+      const data = await fetchCnpjData(digits);
+      setFormData(prev => ({
+        ...prev,
+        nome: prev.nome || data.razao_social,
+        codigo_empresa: prev.codigo_empresa || digits.slice(0, 8),
+      }));
+      toast({ title: 'CNPJ encontrado', description: data.razao_social });
+    } catch (err: any) {
+      toast({ title: 'Erro na consulta', description: err.message, variant: 'destructive' });
+    } finally {
+      setBuscandoCnpj(false);
+    }
   };
 
   const handleSave = async () => {
@@ -72,18 +111,19 @@ export function EmpresaExternaSelector({
       return;
     }
 
+    const cnpjLimpo = cleanCnpj(formData.cnpj);
     try {
       if (editingEmpresa) {
         await updateEmpresa.mutateAsync({
           id: editingEmpresa.id,
           nome: formData.nome,
-          cnpj: formData.cnpj || null,
+          cnpj: cnpjLimpo || null,
           codigo_empresa: formData.codigo_empresa
         });
       } else {
         const result = await createEmpresa.mutateAsync({
           nome: formData.nome,
-          cnpj: formData.cnpj || null,
+          cnpj: cnpjLimpo || null,
           codigo_empresa: formData.codigo_empresa
         });
         // Auto-select newly created empresa
@@ -225,12 +265,28 @@ export function EmpresaExternaSelector({
             
             <div className="space-y-2">
               <Label htmlFor="cnpj">CNPJ</Label>
-              <Input
-                id="cnpj"
-                value={formData.cnpj}
-                onChange={(e) => setFormData(prev => ({ ...prev, cnpj: e.target.value }))}
-                placeholder="00.000.000/0001-00"
-              />
+              <div className="relative">
+                <Input
+                  id="cnpj"
+                  value={formData.cnpj}
+                  onChange={(e) => handleCnpjChange(e.target.value)}
+                  placeholder="00.000.000/0001-00"
+                  maxLength={18}
+                  className={cn(
+                    cnpjValidado === true && 'border-green-500 focus-visible:ring-green-500',
+                    cnpjValidado === false && 'border-destructive focus-visible:ring-destructive'
+                  )}
+                />
+                {buscandoCnpj && (
+                  <Loader2 className="absolute right-3 top-2.5 h-5 w-5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+              {cnpjValidado === false && (
+                <p className="text-xs text-destructive">CNPJ inválido</p>
+              )}
+              {cnpjValidado === true && (
+                <p className="text-xs text-green-600">CNPJ válido ✓</p>
+              )}
             </div>
           </div>
           
