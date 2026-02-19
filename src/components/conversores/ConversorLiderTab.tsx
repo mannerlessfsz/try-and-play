@@ -1208,17 +1208,17 @@ export function ConversorLiderTab() {
                 <div className="space-y-4">
                   {/* Regras de Revisão */}
                   {regrasRevisao.length > 0 && (
-                    <div className="border rounded-lg">
-                      <div className="p-3 border-b bg-amber-500/10">
-                        <h4 className="font-medium flex items-center gap-2">
-                          <Eye className="w-4 h-4 text-amber-600" />
+                    <div className="border-2 border-amber-400/50 rounded-lg overflow-hidden">
+                      <div className="p-3 border-b border-amber-400/30 bg-amber-500/15">
+                        <h4 className="font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                          <Eye className="w-4 h-4" />
                           Regras de Revisão ({regrasRevisao.length})
                         </h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Lançamentos correspondentes serão enviados para revisão</p>
+                        <p className="text-xs text-amber-600/70 dark:text-amber-400/60 mt-0.5">Lançamentos correspondentes serão enviados para revisão manual</p>
                       </div>
-                      <div className="divide-y">
+                      <div className="divide-y divide-amber-200/30">
                         {regrasRevisao.map((regra) => (
-                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-amber-50/50 dark:hover:bg-amber-500/5">
                             {editandoRegraId === regra.id ? (
                               <RegraEditForm
                                 values={editRegraValues}
@@ -1262,17 +1262,17 @@ export function ConversorLiderTab() {
 
                   {/* Regras de Alteração */}
                   {regrasAlteracao.length > 0 && (
-                    <div className="border rounded-lg">
-                      <div className="p-3 border-b bg-blue-500/10">
-                        <h4 className="font-medium flex items-center gap-2">
-                          <Edit3 className="w-4 h-4 text-blue-600" />
+                    <div className="border-2 border-blue-400/50 rounded-lg overflow-hidden">
+                      <div className="p-3 border-b border-blue-400/30 bg-blue-500/15">
+                        <h4 className="font-semibold flex items-center gap-2 text-blue-700 dark:text-blue-400">
+                          <Edit3 className="w-4 h-4" />
                           Regras de Alteração ({regrasAlteracao.length})
                         </h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Lançamentos correspondentes serão alterados automaticamente</p>
+                        <p className="text-xs text-blue-600/70 dark:text-blue-400/60 mt-0.5">Lançamentos correspondentes serão alterados automaticamente</p>
                       </div>
-                      <div className="divide-y">
+                      <div className="divide-y divide-blue-200/30">
                         {regrasAlteracao.map((regra) => (
-                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-blue-50/50 dark:hover:bg-blue-500/5">
                             {editandoRegraId === regra.id ? (
                               <RegraEditForm
                                 values={editRegraValues}
