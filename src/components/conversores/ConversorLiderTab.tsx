@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { cn } from "@/lib/utils";
 import { 
   Crown, FileText, Upload, Download, 
   CheckCircle, AlertTriangle, Eye, Trash2,
@@ -526,11 +527,15 @@ export function ConversorLiderTab() {
           contaCredito: contaCreditoFinal,
           id: `${arquivoId}-${idx}`,
           confirmado: false,
-          temErro,
-          erroOriginal: temErro ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." : undefined,
-          casaComRegra: regraMatch.casa || inconsistenciaFornecedor,
+          temErro: temErro || inconsistenciaFornecedor,
+          erroOriginal: temErro 
+            ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." 
+            : inconsistenciaFornecedor 
+              ? `Inconsistência: Fornecedor "${fornecedorNome}" esperava conta ${contaEsperadaPlano}${descricaoEsperadaPlano ? ` (${descricaoEsperadaPlano})` : ""}, mas encontrou ${contaDebitoFinal || debParaRegra || "vazio"}.`
+              : undefined,
+          casaComRegra: regraMatch.casa && !inconsistenciaFornecedor,
           regraMatchId: regraMatch.regraId,
-          marcadoExclusao: regraMatch.casa, // Pré-marca para exclusão APENAS se casa com regra (inconsistências NÃO são pré-marcadas)
+          marcadoExclusao: regraMatch.casa && !inconsistenciaFornecedor,
           alteradoPorRegra,
           regraAlteracaoDescricao,
           inconsistenciaFornecedor,
@@ -682,7 +687,9 @@ export function ConversorLiderTab() {
     setEditingRowId(lancamento.id);
     setEditValues({
       data: lancamento.data,
-      contaDebito: lancamento.contaDebito,
+      contaDebito: lancamento.inconsistenciaFornecedor && lancamento.contaEsperadaPlano 
+        ? lancamento.contaEsperadaPlano 
+        : lancamento.contaDebito,
       contaCredito: lancamento.contaCredito,
       valor: lancamento.valor,
       historico: lancamento.historico,
@@ -696,7 +703,8 @@ export function ConversorLiderTab() {
           const updated = {
             ...l,
             ...editValues,
-            temErro: false, // Remove o erro após edição
+            temErro: false,
+            inconsistenciaFornecedor: false,
           };
           return updated;
         }
@@ -1886,11 +1894,18 @@ export function ConversorLiderTab() {
 
               <div className="space-y-4">
                 {lancamentosComErro.map((erro) => (
-                  <div key={erro.id} className="p-4 border border-red-500/30 rounded-lg bg-red-500/5">
+                  <div key={erro.id} className={cn(
+                    "p-4 border rounded-lg",
+                    erro.inconsistenciaFornecedor 
+                      ? "border-amber-500/30 bg-amber-500/5" 
+                      : "border-red-500/30 bg-red-500/5"
+                  )}>
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-red-500" />
-                        <span className="font-medium text-red-600">Erro no processamento</span>
+                        <AlertTriangle className={cn("w-5 h-5", erro.inconsistenciaFornecedor ? "text-amber-500" : "text-red-500")} />
+                        <span className={cn("font-medium", erro.inconsistenciaFornecedor ? "text-amber-600" : "text-red-600")}>
+                          {erro.inconsistenciaFornecedor ? "Inconsistência de fornecedor" : "Erro no processamento"}
+                        </span>
                       </div>
                       <Button 
                         variant="ghost" 
@@ -1903,37 +1918,64 @@ export function ConversorLiderTab() {
                       </Button>
                     </div>
                     
-                    <p className="text-sm text-red-600 mb-4 font-mono bg-red-500/10 p-2 rounded">
+                    <p className={cn(
+                      "text-sm mb-4 font-mono p-2 rounded",
+                      erro.inconsistenciaFornecedor ? "text-amber-600 bg-amber-500/10" : "text-red-600 bg-red-500/10"
+                    )}>
                       {erro.erroOriginal}
                     </p>
 
+                    {/* Sugestão do plano de contas para inconsistências */}
+                    {erro.inconsistenciaFornecedor && erro.contaEsperadaPlano && (
+                      <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg flex items-center gap-2">
+                        <Search className="w-4 h-4 text-blue-500 shrink-0" />
+                        <span className="text-sm">
+                          <strong>Sugestão:</strong> Fornecedor <span className="font-semibold text-foreground">{erro.fornecedorNome}</span> → 
+                          Conta <span className="font-mono font-semibold text-blue-600">{erro.contaEsperadaPlano}</span>
+                          {erro.descricaoEsperadaPlano && <span className="text-muted-foreground"> ({erro.descricaoEsperadaPlano})</span>}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Dados fixos (não editáveis) */}
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground font-medium">Data</label>
+                        <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.data || "-"}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] uppercase text-muted-foreground font-medium">Valor</label>
+                        <p className="text-sm font-mono bg-muted/50 px-2 py-1.5 rounded border">{erro.valor || "-"}</p>
+                      </div>
+                      <div className="col-span-1">
+                        <label className="text-[10px] uppercase text-muted-foreground font-medium">Histórico</label>
+                        <p className="text-sm bg-muted/50 px-2 py-1.5 rounded border truncate" title={erro.historico || ""}>{erro.historico || "-"}</p>
+                      </div>
+                    </div>
+
+                    {/* Campos editáveis: Conta Débito e Conta Crédito */}
                     {editingRowId === erro.id ? (
-                      <div className="grid grid-cols-6 gap-2">
-                        <Input 
-                          placeholder="Data (dd/mm/aaaa)"
-                          value={editValues.data || ""}
-                          onChange={(e) => setEditValues(prev => ({ ...prev, data: e.target.value }))}
-                        />
-                        <Input 
-                          placeholder="Conta Débito"
-                          value={editValues.contaDebito || ""}
-                          onChange={(e) => setEditValues(prev => ({ ...prev, contaDebito: e.target.value }))}
-                        />
-                        <Input 
-                          placeholder="Conta Crédito"
-                          value={editValues.contaCredito || ""}
-                          onChange={(e) => setEditValues(prev => ({ ...prev, contaCredito: e.target.value }))}
-                        />
-                        <Input 
-                          placeholder="Valor"
-                          value={editValues.valor || ""}
-                          onChange={(e) => setEditValues(prev => ({ ...prev, valor: e.target.value }))}
-                        />
-                        <Input 
-                          placeholder="Histórico"
-                          value={editValues.historico || ""}
-                          onChange={(e) => setEditValues(prev => ({ ...prev, historico: e.target.value }))}
-                        />
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-3 items-end">
+                        <div>
+                          <label className="text-[10px] uppercase text-muted-foreground font-medium mb-1 block">Conta Débito</label>
+                          <ContaSearchInput
+                            value={editValues.contaDebito || ""}
+                            onChange={(v) => setEditValues(prev => ({ ...prev, contaDebito: v }))}
+                            planoContas={planoContas}
+                            placeholder="Buscar conta débito..."
+                            className="w-full"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[10px] uppercase text-muted-foreground font-medium mb-1 block">Conta Crédito</label>
+                          <ContaSearchInput
+                            value={editValues.contaCredito || ""}
+                            onChange={(v) => setEditValues(prev => ({ ...prev, contaCredito: v }))}
+                            planoContas={planoContas}
+                            placeholder="Buscar conta crédito..."
+                            className="w-full"
+                          />
+                        </div>
                         <div className="flex gap-1">
                           <Button size="sm" onClick={() => saveEdit(erro.id)}>
                             <Save className="w-4 h-4" />
@@ -1944,10 +1986,17 @@ export function ConversorLiderTab() {
                         </div>
                       </div>
                     ) : (
-                      <Button variant="outline" size="sm" onClick={() => startEdit(erro)}>
-                        <Edit3 className="w-4 h-4 mr-1" />
-                        Preencher Manualmente
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-mono">D: {erro.contaDebito || "—"}</span>
+                          <span className="mx-2">|</span>
+                          <span className="font-mono">C: {erro.contaCredito || "—"}</span>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => startEdit(erro)}>
+                          <Edit3 className="w-4 h-4 mr-1" />
+                          Corrigir Contas
+                        </Button>
+                      </div>
                     )}
                   </div>
                 ))}
