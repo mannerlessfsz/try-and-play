@@ -66,6 +66,8 @@ interface LancamentoEditavel extends OutputRow {
   casaComRegra: boolean; // true = vai para etapa exclusões
   regraMatchId?: string; // id da regra que casou
   marcadoExclusao?: boolean; // true = será excluído do arquivo final
+  alteradoPorRegra?: boolean; // true = sofreu alteração por regra de alteração
+  regraAlteracaoDescricao?: string; // descrição da regra que alterou
 }
 
 type FluxoStep = "empresa" | "plano" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
@@ -403,6 +405,50 @@ export function ConversorLiderTab() {
         return { casa: false };
       };
       
+      // Função auxiliar para aplicar regras de alteração
+      const aplicarRegraAlteracao = (
+        contaDebito: string,
+        contaCredito: string,
+        historico: string
+      ): { alterado: boolean; novoDebito?: string; novoCredito?: string; descricaoRegra?: string } => {
+        const deb = normalizarConta7(contaDebito);
+        const cred = normalizarConta7(contaCredito);
+        const hist = (historico || "").toUpperCase();
+
+        for (const regra of regrasAlteracao) {
+          const regraDeb7 = normalizarRegra7(regra.conta_debito || "");
+          const regraCred7 = normalizarRegra7(regra.conta_credito || "");
+          const regraHist = (regra.historico_busca || "").toUpperCase().trim();
+
+          const matchDebito = !regraDeb7 || deb.startsWith(regraDeb7);
+          const matchCredito = !regraCred7 || cred.startsWith(regraCred7);
+          const matchHistorico = !regraHist || hist.includes(regraHist);
+
+          // Regra de alteração exige todos os critérios preenchidos
+          let match = false;
+          if (regraDeb7 && regraCred7 && regraHist) {
+            match = matchDebito && matchCredito && matchHistorico;
+          } else if (regraDeb7 && regraCred7) {
+            match = matchDebito && matchCredito;
+          } else if (regraHist) {
+            const hasContaMatch = (regraDeb7 && matchDebito) || (regraCred7 && matchCredito);
+            match = matchHistorico && (hasContaMatch || (!regraDeb7 && !regraCred7));
+          } else {
+            match = (regraDeb7 && matchDebito) || (regraCred7 && matchCredito);
+          }
+
+          if (match) {
+            return {
+              alterado: true,
+              novoDebito: regra.novo_debito || undefined,
+              novoCredito: regra.novo_credito || undefined,
+              descricaoRegra: regra.descricao || "Regra de alteração",
+            };
+          }
+        }
+        return { alterado: false };
+      };
+
       // Criar lançamentos editáveis - separando por tipo
       const lancamentos: LancamentoEditavel[] = resultado.outputRows.map((row, idx) => {
         const temErro = row.requerRevisao === true;
@@ -415,8 +461,30 @@ export function ConversorLiderTab() {
 
         const regraMatch = !temErro ? verificarRegraMatch(debParaRegra, credParaRegra) : { casa: false };
 
+        // Aplicar regras de alteração (só em lançamentos sem erro e que não casam com regra de revisão)
+        let contaDebitoFinal = row.contaDebito;
+        let contaCreditoFinal = row.contaCredito;
+        let alteradoPorRegra = false;
+        let regraAlteracaoDescricao: string | undefined;
+
+        if (!temErro && !regraMatch.casa) {
+          const alteracao = aplicarRegraAlteracao(debParaRegra, credParaRegra, row.historico || "");
+          if (alteracao.alterado) {
+            alteradoPorRegra = true;
+            regraAlteracaoDescricao = alteracao.descricaoRegra;
+            if (alteracao.novoDebito) {
+              contaDebitoFinal = normalizarRegra7(alteracao.novoDebito);
+            }
+            if (alteracao.novoCredito) {
+              contaCreditoFinal = normalizarRegra7(alteracao.novoCredito);
+            }
+          }
+        }
+
         return {
           ...row,
+          contaDebito: contaDebitoFinal,
+          contaCredito: contaCreditoFinal,
           id: `${arquivoId}-${idx}`,
           confirmado: false,
           temErro,
@@ -424,6 +492,8 @@ export function ConversorLiderTab() {
           casaComRegra: regraMatch.casa,
           regraMatchId: regraMatch.regraId,
           marcadoExclusao: regraMatch.casa, // Pré-marca para exclusão se casa com regra
+          alteradoPorRegra,
+          regraAlteracaoDescricao,
         };
       });
 
@@ -1623,7 +1693,12 @@ export function ConversorLiderTab() {
                     {lancamentosSemErro.map((row) => (
                       <tr 
                         key={row.id} 
-                        className={`${row.loteFlag ? "bg-violet-500/5" : ""} ${row.confirmado ? "bg-green-500/5" : ""}`}
+                        className={`
+                          ${row.alteradoPorRegra ? "bg-blue-500/10 border-l-2 border-l-blue-500" : ""}
+                          ${row.loteFlag && !row.alteradoPorRegra ? "bg-violet-500/5" : ""} 
+                          ${row.confirmado && !row.alteradoPorRegra ? "bg-green-500/5" : ""}
+                          ${row.confirmado && row.alteradoPorRegra ? "bg-blue-500/15" : ""}
+                        `}
                       >
                         <td className="p-2 text-center">
                           <Checkbox 
@@ -1632,14 +1707,23 @@ export function ConversorLiderTab() {
                           />
                         </td>
                         <td className="p-2">{row.data}</td>
-                        <td className="p-2 font-mono">{row.contaDebito || '-'}</td>
-                        <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
+                        <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-blue-700 dark:text-blue-400 font-semibold" : ""}`}>
+                          {row.contaDebito || '-'}
+                        </td>
+                        <td className={`p-2 font-mono ${row.alteradoPorRegra ? "text-blue-700 dark:text-blue-400 font-semibold" : ""}`}>
+                          {row.contaCredito || '-'}
+                        </td>
                         <td className="p-2 text-right font-mono">{row.valor}</td>
                         <td className="p-2 truncate max-w-[250px]" title={row.historico}>
                           {row.historico}
                         </td>
                         <td className="p-2 text-center">
-                          {row.loteFlag && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
+                          {row.alteradoPorRegra && (
+                            <Badge className="bg-blue-500/20 text-blue-700 dark:text-blue-400 text-xs" title={row.regraAlteracaoDescricao}>
+                              Alterado
+                            </Badge>
+                          )}
+                          {row.loteFlag && !row.alteradoPorRegra && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
                         </td>
                       </tr>
                     ))}
