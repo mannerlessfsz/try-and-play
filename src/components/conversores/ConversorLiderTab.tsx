@@ -178,6 +178,7 @@ export function ConversorLiderTab() {
   const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
   const [paginaRevisar, setPaginaRevisar] = useState(1);
   const [filtroRevisar, setFiltroRevisar] = useState<"todos" | "alterados" | "normais">("todos");
+  const [paginaExportar, setPaginaExportar] = useState(1);
 
   // Auto-popular código da empresa quando empresa externa for selecionada
   useEffect(() => {
@@ -2113,43 +2114,69 @@ export function ConversorLiderTab() {
               </div>
 
               {/* Preview */}
-              <div className="border rounded-lg">
-                <div className="p-3 border-b bg-muted/50">
-                  <h4 className="font-medium">Preview do Arquivo Final</h4>
-                </div>
-                <ScrollArea className="h-[300px]">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50 sticky top-0">
-                      <tr>
-                        <th className="text-left p-2">Data</th>
-                        <th className="text-left p-2">Débito</th>
-                        <th className="text-left p-2">Crédito</th>
-                        <th className="text-right p-2">Valor</th>
-                        <th className="text-left p-2">Histórico</th>
-                        <th className="text-center p-2">Lote</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {lancamentosEditaveis
-                        .filter(l => (!l.temErro || (l.data && l.valor)) && !l.marcadoExclusao)
-                        .map((row) => (
-                          <tr key={row.id} className={row.loteFlag ? "bg-violet-500/5" : ""}>
-                            <td className="p-2">{row.data}</td>
-                            <td className="p-2 font-mono">{row.contaDebito || '-'}</td>
-                            <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
-                            <td className="p-2 text-right font-mono">{row.valor}</td>
-                            <td className="p-2 truncate max-w-[200px]" title={row.historico}>
-                              {row.historico}
-                            </td>
-                            <td className="p-2 text-center">
-                              {row.loteFlag && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
-                            </td>
+              {(() => {
+                const EXPORT_PAGE_SIZE = 100;
+                const lancamentosFinais = lancamentosEditaveis
+                  .filter(l => (!l.temErro || (l.data && l.valor)) && !l.marcadoExclusao);
+                const totalPaginasExport = Math.ceil(lancamentosFinais.length / EXPORT_PAGE_SIZE);
+                const paginaAtualExport = Math.min(paginaExportar, Math.max(1, totalPaginasExport));
+                const inicioExport = (paginaAtualExport - 1) * EXPORT_PAGE_SIZE;
+                const lancamentosPaginaExport = lancamentosFinais.slice(inicioExport, inicioExport + EXPORT_PAGE_SIZE);
+
+                return (
+                  <div className="border rounded-lg">
+                    <div className="p-3 border-b bg-muted/50">
+                      <h4 className="font-medium">Preview do Arquivo Final ({lancamentosFinais.length} lançamentos)</h4>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-2">Data</th>
+                            <th className="text-left p-2">Débito</th>
+                            <th className="text-left p-2">Crédito</th>
+                            <th className="text-right p-2">Valor</th>
+                            <th className="text-left p-2">Histórico</th>
+                            <th className="text-center p-2">Lote</th>
                           </tr>
-                        ))}
-                    </tbody>
-                  </table>
-                </ScrollArea>
-              </div>
+                        </thead>
+                        <tbody className="divide-y">
+                          {lancamentosPaginaExport.map((row) => (
+                            <tr key={row.id} className={row.loteFlag ? "bg-violet-500/5" : ""}>
+                              <td className="p-2">{row.data}</td>
+                              <td className="p-2 font-mono">{row.contaDebito || '-'}</td>
+                              <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
+                              <td className="p-2 text-right font-mono">{row.valor}</td>
+                              <td className="p-2 truncate max-w-[200px]" title={row.historico}>
+                                {row.historico}
+                              </td>
+                              <td className="p-2 text-center">
+                                {row.loteFlag && <Badge variant="secondary" className="bg-violet-500/20 text-violet-600">S</Badge>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {totalPaginasExport > 1 && (
+                      <div className="flex items-center justify-between p-3 border-t">
+                        <p className="text-xs text-muted-foreground">
+                          {inicioExport + 1} - {Math.min(inicioExport + EXPORT_PAGE_SIZE, lancamentosFinais.length)} de {lancamentosFinais.length}
+                        </p>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPaginaExportar(Math.max(1, paginaAtualExport - 1))} disabled={paginaAtualExport === 1}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="px-2 text-sm">{paginaAtualExport}/{totalPaginasExport}</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPaginaExportar(Math.min(totalPaginasExport, paginaAtualExport + 1))} disabled={paginaAtualExport === totalPaginasExport}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Botões finais */}
               <div className="flex justify-center gap-4">
