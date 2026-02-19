@@ -532,12 +532,20 @@ export function ConversorLiderTab() {
       toast({ title: "Informe ao menos uma conta", description: "Preencha a conta débito, crédito ou ambas.", variant: "destructive" });
       return;
     }
-    await criarRegra.mutateAsync({
-      conta_debito: novaRegra.contaDebito.trim(),
-      conta_credito: novaRegra.contaCredito.trim(),
-      descricao: novaRegra.descricao.trim() || `Regra ${regrasExclusao.length + 1}`,
-    });
-    setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "" });
+    if (!empresaAtiva?.id) {
+      toast({ title: "Nenhuma empresa ativa", description: "Selecione uma empresa no menu superior.", variant: "destructive" });
+      return;
+    }
+    try {
+      await criarRegra.mutateAsync({
+        conta_debito: novaRegra.contaDebito.trim(),
+        conta_credito: novaRegra.contaCredito.trim(),
+        descricao: novaRegra.descricao.trim() || `Regra ${regrasExclusao.length + 1}`,
+      });
+      setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "" });
+    } catch (error) {
+      console.error("Erro ao criar regra:", error);
+    }
   };
 
   const removerRegra = async (id: string) => {
@@ -785,9 +793,17 @@ export function ConversorLiderTab() {
                     />
                   </div>
                   <div className="flex items-end">
-                    <Button onClick={adicionarRegra} className="w-full">
-                      <Plus className="w-4 h-4 mr-1" />
-                      Adicionar
+                    <Button 
+                      onClick={adicionarRegra} 
+                      className="w-full"
+                      disabled={criarRegra.isPending || (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim())}
+                    >
+                      {criarRegra.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4 mr-1" />
+                      )}
+                      {criarRegra.isPending ? "Adicionando..." : "Adicionar"}
                     </Button>
                   </div>
                 </div>
