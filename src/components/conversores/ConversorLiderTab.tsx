@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   Crown, FileText, Upload, Download, 
   CheckCircle, AlertTriangle, Eye, Trash2,
   FileSpreadsheet, Loader2, History, RefreshCw,
-  Check, Edit3, Save, X, ChevronRight, Filter, Plus, Ban, Building2
+  Check, Edit3, Save, X, ChevronRight, ChevronLeft, Filter, Plus, Ban, Building2, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,9 +37,15 @@ import { useConversoes, type ConversaoArquivo } from "@/hooks/useConversoes";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useRegrasExclusaoLider, type RegraExclusaoLider } from "@/hooks/useRegrasExclusaoLider";
 import { EmpresaExternaSelector } from "./EmpresaExternaSelector";
-import { EmpresaExterna } from "@/hooks/useEmpresasExternas";
+import { EmpresaExterna, usePlanosContasExternos } from "@/hooks/useEmpresasExternas";
+import {
+  parsePlanoContasFromCsvFile,
+  parsePlanoContasFromExcelFile,
+  type PlanoContasItem,
+} from "@/utils/planoContasParser";
 
 interface ArquivoProcessadoLocal {
   id: string;
@@ -61,7 +67,7 @@ interface LancamentoEditavel extends OutputRow {
   marcadoExclusao?: boolean; // true = será excluído do arquivo final
 }
 
-type FluxoStep = "empresa" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
+type FluxoStep = "empresa" | "plano" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
 
 export function ConversorLiderTab() {
   const { toast } = useToast();
@@ -79,6 +85,16 @@ export function ConversorLiderTab() {
   // Estado da empresa externa selecionada
   const [empresaExternaId, setEmpresaExternaId] = useState<string | undefined>();
   const [empresaExternaSelecionada, setEmpresaExternaSelecionada] = useState<EmpresaExterna | undefined>();
+
+  // Plano de contas persistente por empresa externa
+  const { planosContas: planosContasExternos, uploadPlanoContas, getLatestPlano, downloadPlanoFile } = usePlanosContasExternos(empresaExternaId);
+  const [planoContas, setPlanoContas] = useState<PlanoContasItem[]>([]);
+  const [planoContasArquivo, setPlanoContasArquivo] = useState<string | null>(null);
+  const [loadingPlano, setLoadingPlano] = useState(false);
+  const [buscaPlano, setBuscaPlano] = useState("");
+  const [paginaPlano, setPaginaPlano] = useState(1);
+  const planoInputRef = useRef<HTMLInputElement>(null);
+  const PLANO_PAGE_SIZE = 100;
 
   // Hook de regras de exclusão persistentes
   const { 
@@ -123,7 +139,99 @@ export function ConversorLiderTab() {
   const handleEmpresaExternaChange = (empresaId: string | undefined, empresa?: EmpresaExterna) => {
     setEmpresaExternaId(empresaId);
     setEmpresaExternaSelecionada(empresa);
+    // Reset plano when empresa changes
+    setPlanoContas([]);
+    setPlanoContasArquivo(null);
+    setBuscaPlano("");
+    setPaginaPlano(1);
   };
+
+  // Carregar plano de contas persistente quando empresa é selecionada
+  useEffect(() => {
+    if (!empresaExternaId) return;
+    let cancelled = false;
+    const loadPlano = async () => {
+      setLoadingPlano(true);
+      try {
+        const latest = await getLatestPlano(empresaExternaId);
+        if (cancelled) return;
+        if (latest && latest.storage_path) {
+          setPlanoContasArquivo(latest.nome_arquivo);
+          // Download and parse the file
+          const blob = await downloadPlanoFile(latest.storage_path);
+          if (cancelled || !blob) return;
+          const file = new File([blob], latest.nome_arquivo);
+          const ext = latest.nome_arquivo.split(".").pop()?.toLowerCase();
+          let items: PlanoContasItem[];
+          if (ext === "xls" || ext === "xlsx") {
+            items = await parsePlanoContasFromExcelFile(file);
+          } else {
+            items = await parsePlanoContasFromCsvFile(file);
+          }
+          if (!cancelled) setPlanoContas(items);
+        }
+      } catch (err) {
+        console.error("Erro ao carregar plano:", err);
+      } finally {
+        if (!cancelled) setLoadingPlano(false);
+      }
+    };
+    loadPlano();
+    return () => { cancelled = true; };
+  }, [empresaExternaId]);
+
+  // Upload de novo plano de contas
+  const handlePlanoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !empresaExternaId) return;
+    setLoadingPlano(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      let items: PlanoContasItem[];
+      if (ext === "xls" || ext === "xlsx") {
+        items = await parsePlanoContasFromExcelFile(file);
+      } else if (ext === "csv") {
+        items = await parsePlanoContasFromCsvFile(file);
+      } else {
+        throw new Error("Formato não suportado. Use XLS, XLSX ou CSV.");
+      }
+      if (!items || items.length === 0) throw new Error("Nenhuma conta encontrada no arquivo.");
+
+      await uploadPlanoContas.mutateAsync({
+        empresaExternaId,
+        file,
+        metadados: { totalContas: items.length },
+      });
+
+      setPlanoContas(items);
+      setPlanoContasArquivo(file.name);
+      setPaginaPlano(1);
+      setBuscaPlano("");
+      toast({ title: "Plano de contas carregado", description: `${items.length} contas importadas.` });
+    } catch (err) {
+      toast({ title: "Erro ao processar plano", description: err instanceof Error ? err.message : "Erro desconhecido", variant: "destructive" });
+    } finally {
+      setLoadingPlano(false);
+      if (planoInputRef.current) planoInputRef.current.value = "";
+    }
+  };
+
+  // Memo para filtro e paginação do plano
+  const planoFiltrado = useMemo(() => {
+    if (!buscaPlano.trim()) return planoContas;
+    const termo = buscaPlano.toLowerCase();
+    return planoContas.filter(c =>
+      c.descricao.toLowerCase().includes(termo) ||
+      c.codigo.toLowerCase().includes(termo) ||
+      c.classificacao.toLowerCase().includes(termo)
+    );
+  }, [planoContas, buscaPlano]);
+
+  const planoTotalPaginas = Math.ceil(planoFiltrado.length / PLANO_PAGE_SIZE);
+  const planoPaginado = useMemo(() => {
+    const inicio = (paginaPlano - 1) * PLANO_PAGE_SIZE;
+    return planoFiltrado.slice(inicio, inicio + PLANO_PAGE_SIZE);
+  }, [planoFiltrado, paginaPlano]);
 
   // Calcula se todos foram confirmados e erros corrigidos
   // Considera apenas lançamentos que não casam com regra (esses vão para exclusões)
@@ -523,7 +631,10 @@ export function ConversorLiderTab() {
     setCodigoEmpresa("");
     setEmpresaExternaId(undefined);
     setEmpresaExternaSelecionada(undefined);
-    // Mantém regrasExclusao para reutilização
+    setPlanoContas([]);
+    setPlanoContasArquivo(null);
+    setBuscaPlano("");
+    setPaginaPlano(1);
   };
 
   // Funções para gerenciar regras de exclusão
@@ -626,6 +737,7 @@ export function ConversorLiderTab() {
 
   const steps = [
     { id: "empresa", label: "Empresa", icon: Building2 },
+    { id: "plano", label: "Plano", icon: FileSpreadsheet },
     { id: "regras", label: "Regras", icon: Filter },
     { id: "importar", label: "Importar", icon: Upload },
     { id: "revisar", label: "Revisar", icon: Eye },
@@ -700,7 +812,7 @@ export function ConversorLiderTab() {
                 </div>
                 <Button 
                   className="bg-violet-500 hover:bg-violet-600"
-                  onClick={() => setCurrentStep("regras")}
+                  onClick={() => setCurrentStep("plano")}
                   disabled={!empresaExternaId}
                 >
                   Próximo
@@ -734,6 +846,117 @@ export function ConversorLiderTab() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {currentStep === "plano" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-lg flex items-center gap-2">
+                    <FileSpreadsheet className="w-5 h-5 text-violet-500" />
+                    Plano de Contas
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Carregue ou confira o plano de contas da empresa. Ele é persistente entre sessões.
+                  </p>
+                </div>
+                <Button 
+                  className="bg-violet-500 hover:bg-violet-600"
+                  onClick={() => setCurrentStep("regras")}
+                >
+                  Próximo
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+
+              <input ref={planoInputRef} type="file" accept=".xls,.xlsx,.csv" className="hidden" onChange={handlePlanoUpload} />
+
+              {loadingPlano ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground mt-2">Carregando plano de contas...</p>
+                </div>
+              ) : planoContas.length === 0 ? (
+                <div className="border-2 border-dashed border-muted rounded-lg p-10 text-center">
+                  <FileSpreadsheet className="w-12 h-12 mx-auto text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground mb-1">
+                    Nenhum plano de contas carregado para esta empresa.
+                  </p>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Formatos aceitos: XLS, XLSX ou CSV
+                  </p>
+                  <Button onClick={() => planoInputRef.current?.click()}>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Carregar Plano de Contas
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/30">
+                    <div className="flex items-center gap-3">
+                      <FileSpreadsheet className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-medium text-sm">{planoContasArquivo}</p>
+                        <p className="text-xs text-muted-foreground">{planoContas.length} contas carregadas</p>
+                      </div>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => planoInputRef.current?.click()}>
+                      <Upload className="w-3.5 h-3.5 mr-1.5" />
+                      Trocar Plano
+                    </Button>
+                  </div>
+
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar conta por código ou descrição..."
+                      value={buscaPlano}
+                      onChange={(e) => { setBuscaPlano(e.target.value); setPaginaPlano(1); }}
+                      className="pl-9"
+                    />
+                  </div>
+
+                  <ScrollArea className="max-h-[55vh]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Descrição</TableHead>
+                          <TableHead className="w-28 text-xs">Código</TableHead>
+                          <TableHead className="w-28 text-xs">Classif.</TableHead>
+                          <TableHead className="w-36 text-xs">CNPJ</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {planoPaginado.map((conta, idx) => (
+                          <TableRow key={`${conta.codigo}-${idx}`}>
+                            <TableCell className="text-xs py-1.5">{conta.descricao}</TableCell>
+                            <TableCell className="font-mono text-[11px] py-1.5">{conta.codigo}</TableCell>
+                            <TableCell className="text-[11px] text-muted-foreground py-1.5">{conta.classificacao}</TableCell>
+                            <TableCell className="font-mono text-[11px] text-muted-foreground py-1.5">{conta.cnpj || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+
+                  {planoTotalPaginas > 1 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">
+                        {planoFiltrado.length} resultado(s) — Pág. {paginaPlano}/{planoTotalPaginas}
+                      </span>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={paginaPlano <= 1} onClick={() => setPaginaPlano(p => p - 1)}>
+                          <ChevronLeft className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" disabled={paginaPlano >= planoTotalPaginas} onClick={() => setPaginaPlano(p => p + 1)}>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
