@@ -35,13 +35,24 @@ export function LancaApaeTab() {
   const { mapeamentos: mapeamentosEmpresa, buscar: buscarMapeamentosEmpresa, copiarParaSessao: copiarMapeamentosParaSessao, temMapeamentos } = useApaeBancoAplicacoesEmpresa();
 
   const [sessaoAtiva, setSessaoAtiva] = useState<string | null>(null);
-  const [step, setStep] = useState<ApaeStep>(3);
+  const [step, setStepRaw] = useState<ApaeStep>(3);
   const [subView, setSubView] = useState<"home" | "plano" | "contas" | "sessoes">("home");
   const [planoContas, setPlanoContas] = useState<ApaePlanoContas[]>([]);
   const [relatorioLinhas, setRelatorioLinhas] = useState<ApaeRelatorioLinha[]>([]);
   const [resultados, setResultados] = useState<ApaeResultado[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+
+  // Wrapper: ao mudar de passo, recarrega resultados do banco para garantir que edições persistidas não se percam
+  const setStep = useCallback((newStep: ApaeStep) => {
+    setStepRaw((prevStep) => {
+      // Se saindo do step 4 (processamento) para outro, recarregar resultados do DB
+      if (prevStep === 4 && newStep !== 4 && sessaoAtiva) {
+        buscarResultados(sessaoAtiva).then((res) => setResultados(res)).catch(() => {});
+      }
+      return newStep;
+    });
+  }, [sessaoAtiva, buscarResultados]);
   const [duplicadosCP, setDuplicadosCP] = useState<DuplicadoCP[]>([]);
 
   // Dialog de nova sessão
@@ -78,9 +89,9 @@ export function LancaApaeTab() {
       setResultados(res);
 
       // Sessão agora começa no step 3
-      if (res.length > 0) setStep(5);
-      else if (linhas.length > 0) setStep(4);
-      else setStep(3);
+      if (res.length > 0) setStepRaw(5);
+      else if (linhas.length > 0) setStepRaw(4);
+      else setStepRaw(3);
     } catch (err) {
       toast.error("Erro ao carregar dados da sessão");
     } finally {
