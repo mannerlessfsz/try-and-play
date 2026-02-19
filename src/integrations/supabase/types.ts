@@ -3100,7 +3100,7 @@ export type Database = {
             foreignKeyName: "regras_exclusao_lider_empresa_id_fkey"
             columns: ["empresa_id"]
             isOneToOne: false
-            referencedRelation: "empresas"
+            referencedRelation: "empresas_externas_conversores"
             referencedColumns: ["id"]
           },
         ]
