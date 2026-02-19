@@ -185,6 +185,8 @@ export function ConversorLiderTab() {
   const [paginaRevisar, setPaginaRevisar] = useState(1);
   const [filtroRevisar, setFiltroRevisar] = useState<"todos" | "alterados" | "normais">("todos");
   const [paginaExportar, setPaginaExportar] = useState(1);
+  const [paginaExclusao, setPaginaExclusao] = useState(1);
+  const EXCLUSAO_PAGE_SIZE = 100;
 
   // Auto-popular código da empresa quando empresa externa for selecionada
   useEffect(() => {
@@ -2051,81 +2053,127 @@ export function ConversorLiderTab() {
                 </div>
               </div>
 
-              <ScrollArea className="h-[400px] border rounded-lg">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 sticky top-0">
-                    <tr>
-                      <th className="text-center p-2 w-12">Excluir?</th>
-                      <th className="text-left p-2">Regra</th>
-                      <th className="text-left p-2">Data</th>
-                      <th className="text-left p-2">Débito</th>
-                      <th className="text-left p-2">Crédito</th>
-                      <th className="text-right p-2">Valor</th>
-                      <th className="text-left p-2">Histórico</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y">
-                    {lancamentosParaExclusao.map((row) => {
-                      // Busca a regra pelo id armazenado no lançamento
-                      const regraMatch = regrasExclusao.find(r => r.id === row.regraMatchId);
-                      return (
-                        <tr 
-                          key={row.id} 
-                          className={
-                            row.inconsistenciaFornecedor
-                              ? "bg-amber-500/15 border-l-4 border-l-amber-500"
-                              : row.marcadoExclusao
-                                ? "bg-red-500/10"
-                                : "bg-green-500/5"
-                          }
-                        >
-                          <td className="p-2 text-center">
-                            <Checkbox 
-                              checked={row.marcadoExclusao || false}
-                              onCheckedChange={() => toggleExclusao(row.id)}
-                            />
-                          </td>
-                          <td className="p-2">
-                            {row.inconsistenciaFornecedor ? (
-                              <div className="space-y-1">
-                                <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400">
-                                  Inconsistência
-                                </Badge>
-                                <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">{row.fornecedorNome}</span>
-                                  <br />
-                                  Esperado: <span className="font-mono text-amber-600 dark:text-amber-400">{row.contaEsperadaPlano}</span>
-                                  <br />
-                                  <span className="text-xs opacity-70">{row.descricaoEsperadaPlano}</span>
-                                </div>
-                              </div>
-                            ) : (
-                              <Badge variant="outline" className="text-xs">
-                                {regraMatch?.descricao || "Regra"}
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="p-2">{row.data}</td>
-                          <td className="p-2 font-mono">
-                            {row.inconsistenciaFornecedor ? (
-                              <span className="text-amber-600 dark:text-amber-400 font-bold" title={`Esperado: ${row.contaEsperadaPlano}`}>
-                                {row.contaDebito || '-'}
-                              </span>
-                            ) : (
-                              row.contaDebito || '-'
-                            )}
-                          </td>
-                          <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
-                          <td className="p-2 text-right font-mono">{row.valor}</td>
-                          <td className="p-2 truncate max-w-[200px]" title={row.historico}>
-                            {row.historico}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </ScrollArea>
+              {/* Paginação superior */}
+              {(() => {
+                const totalExclusao = lancamentosParaExclusao.length;
+                const totalPaginasExclusao = Math.ceil(totalExclusao / EXCLUSAO_PAGE_SIZE);
+                const inicioExclusao = (paginaExclusao - 1) * EXCLUSAO_PAGE_SIZE;
+                const fimExclusao = Math.min(inicioExclusao + EXCLUSAO_PAGE_SIZE, totalExclusao);
+                const lancamentosPaginados = lancamentosParaExclusao.slice(inicioExclusao, fimExclusao);
+
+                return (
+                  <>
+                    {totalPaginasExclusao > 1 && (
+                      <div className="flex items-center justify-between text-sm px-1">
+                        <span className="text-muted-foreground">
+                          {inicioExclusao + 1}–{fimExclusao} de {totalExclusao}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" disabled={paginaExclusao === 1} onClick={() => setPaginaExclusao(p => p - 1)}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="px-2 text-muted-foreground">{paginaExclusao}/{totalPaginasExclusao}</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8" disabled={paginaExclusao === totalPaginasExclusao} onClick={() => setPaginaExclusao(p => p + 1)}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="border rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-center p-2 w-12">Excluir?</th>
+                            <th className="text-left p-2">Regra</th>
+                            <th className="text-left p-2">Data</th>
+                            <th className="text-left p-2">Débito</th>
+                            <th className="text-left p-2">Crédito</th>
+                            <th className="text-right p-2">Valor</th>
+                            <th className="text-left p-2">Histórico</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                          {lancamentosPaginados.map((row) => {
+                            const regraMatch = regrasExclusao.find(r => r.id === row.regraMatchId);
+                            return (
+                              <tr 
+                                key={row.id} 
+                                className={
+                                  row.inconsistenciaFornecedor
+                                    ? "bg-amber-500/15 border-l-4 border-l-amber-500"
+                                    : row.marcadoExclusao
+                                      ? "bg-red-500/10"
+                                      : "bg-green-500/5"
+                                }
+                              >
+                                <td className="p-2 text-center">
+                                  <Checkbox 
+                                    checked={row.marcadoExclusao || false}
+                                    onCheckedChange={() => toggleExclusao(row.id)}
+                                  />
+                                </td>
+                                <td className="p-2">
+                                  {row.inconsistenciaFornecedor ? (
+                                    <div className="space-y-1">
+                                      <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400">
+                                        Inconsistência
+                                      </Badge>
+                                      <div className="text-xs text-muted-foreground">
+                                        <span className="font-medium">{row.fornecedorNome}</span>
+                                        <br />
+                                        Esperado: <span className="font-mono text-amber-600 dark:text-amber-400">{row.contaEsperadaPlano}</span>
+                                        <br />
+                                        <span className="text-xs opacity-70">{row.descricaoEsperadaPlano}</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs">
+                                      {regraMatch?.descricao || "Regra"}
+                                    </Badge>
+                                  )}
+                                </td>
+                                <td className="p-2">{row.data}</td>
+                                <td className="p-2 font-mono">
+                                  {row.inconsistenciaFornecedor ? (
+                                    <span className="text-amber-600 dark:text-amber-400 font-bold" title={`Esperado: ${row.contaEsperadaPlano}`}>
+                                      {row.contaDebito || '-'}
+                                    </span>
+                                  ) : (
+                                    row.contaDebito || '-'
+                                  )}
+                                </td>
+                                <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
+                                <td className="p-2 text-right font-mono">{row.valor}</td>
+                                <td className="p-2 truncate max-w-[200px]" title={row.historico}>
+                                  {row.historico}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {totalPaginasExclusao > 1 && (
+                      <div className="flex items-center justify-between text-sm px-1">
+                        <span className="text-muted-foreground">
+                          {inicioExclusao + 1}–{fimExclusao} de {totalExclusao}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <Button variant="outline" size="icon" className="h-8 w-8" disabled={paginaExclusao === 1} onClick={() => setPaginaExclusao(p => p - 1)}>
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+                          <span className="px-2 text-muted-foreground">{paginaExclusao}/{totalPaginasExclusao}</span>
+                          <Button variant="outline" size="icon" className="h-8 w-8" disabled={paginaExclusao === totalPaginasExclusao} onClick={() => setPaginaExclusao(p => p + 1)}>
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               <div className="flex items-center gap-4 p-4 border rounded-lg bg-muted/30">
                 <div className="flex-1">
