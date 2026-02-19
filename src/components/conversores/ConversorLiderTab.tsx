@@ -177,6 +177,7 @@ export function ConversorLiderTab() {
   const [editValues, setEditValues] = useState<Partial<OutputRow>>({});
   const [codigoEmpresa, setCodigoEmpresa] = useState<string>("");
   const [paginaRevisar, setPaginaRevisar] = useState(1);
+  const [filtroRevisar, setFiltroRevisar] = useState<"todos" | "alterados" | "normais">("todos");
 
   // Auto-popular código da empresa quando empresa externa for selecionada
   useEffect(() => {
@@ -386,7 +387,7 @@ export function ConversorLiderTab() {
         const deb = normalizarConta7(contaDebito);
         const cred = normalizarConta7(contaCredito);
 
-        for (const regra of regrasExclusao) {
+        for (const regra of regrasRevisao) {
           const regraDeb7 = normalizarRegra7(regra.conta_debito || "");
           const regraCred7 = normalizarRegra7(regra.conta_credito || "");
 
@@ -1672,12 +1673,43 @@ export function ConversorLiderTab() {
                 </div>
               </div>
 
+              {/* Filter buttons */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Filtrar:</span>
+                <Button 
+                  variant={filtroRevisar === "todos" ? "default" : "outline"} 
+                  size="sm" className="h-7 text-xs"
+                  onClick={() => { setFiltroRevisar("todos"); setPaginaRevisar(1); }}
+                >
+                  Todos ({lancamentosSemErro.length})
+                </Button>
+                <Button 
+                  variant={filtroRevisar === "alterados" ? "default" : "outline"} 
+                  size="sm" className="h-7 text-xs"
+                  onClick={() => { setFiltroRevisar("alterados"); setPaginaRevisar(1); }}
+                >
+                  Alterados ({lancamentosSemErro.filter(l => l.alteradoPorRegra).length})
+                </Button>
+                <Button 
+                  variant={filtroRevisar === "normais" ? "default" : "outline"} 
+                  size="sm" className="h-7 text-xs"
+                  onClick={() => { setFiltroRevisar("normais"); setPaginaRevisar(1); }}
+                >
+                  Normais ({lancamentosSemErro.filter(l => !l.alteradoPorRegra).length})
+                </Button>
+              </div>
+
               {(() => {
                 const REVISAR_PAGE_SIZE = 100;
-                const totalPaginasRevisar = Math.ceil(lancamentosSemErro.length / REVISAR_PAGE_SIZE);
+                const lancamentosFiltrados = filtroRevisar === "alterados" 
+                  ? lancamentosSemErro.filter(l => l.alteradoPorRegra)
+                  : filtroRevisar === "normais"
+                  ? lancamentosSemErro.filter(l => !l.alteradoPorRegra)
+                  : lancamentosSemErro;
+                const totalPaginasRevisar = Math.ceil(lancamentosFiltrados.length / REVISAR_PAGE_SIZE);
                 const paginaAtual = Math.min(paginaRevisar, Math.max(1, totalPaginasRevisar));
                 const inicio = (paginaAtual - 1) * REVISAR_PAGE_SIZE;
-                const lancamentosPagina = lancamentosSemErro.slice(inicio, inicio + REVISAR_PAGE_SIZE);
+                const lancamentosPagina = lancamentosFiltrados.slice(inicio, inicio + REVISAR_PAGE_SIZE);
 
                 return (
                   <>
@@ -1744,7 +1776,7 @@ export function ConversorLiderTab() {
                     {totalPaginasRevisar > 1 && (
                       <div className="flex items-center justify-between pt-2">
                         <p className="text-xs text-muted-foreground">
-                          {inicio + 1} - {Math.min(inicio + REVISAR_PAGE_SIZE, lancamentosSemErro.length)} de {lancamentosSemErro.length}
+                          {inicio + 1} - {Math.min(inicio + REVISAR_PAGE_SIZE, lancamentosFiltrados.length)} de {lancamentosFiltrados.length}
                         </p>
                         <div className="flex items-center gap-1">
                           <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setPaginaRevisar(Math.max(1, paginaAtual - 1))} disabled={paginaAtual === 1}>
