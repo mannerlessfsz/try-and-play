@@ -95,7 +95,16 @@ export function buscarFornecedorNoPlano(
     // Conta quantas palavras do fornecedor aparecem na descrição da conta
     let hits = 0;
     for (const pf of palavrasFornecedor) {
-      if (palavrasDesc.some((pd) => pd === pf || pd.includes(pf) || pf.includes(pd))) {
+      if (palavrasDesc.some((pd) => {
+        if (pd === pf) return true;
+        // Substring match: only allow if shorter word is ≥4 chars
+        // AND represents ≥60% of the longer word's length
+        const shorter = pf.length <= pd.length ? pf : pd;
+        const longer = pf.length > pd.length ? pf : pd;
+        if (shorter.length < 4) return false;
+        if (shorter.length / longer.length < 0.6) return false;
+        return longer.includes(shorter);
+      })) {
         hits++;
       }
     }
