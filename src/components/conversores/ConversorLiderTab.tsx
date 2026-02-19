@@ -16,6 +16,7 @@ import {
   gerarCSV, 
   gerarTXT, 
   readFileAsText,
+  extrairFornecedor,
   type OutputRow,
   type TransformResult 
 } from "@/utils/liderLancamentosParser";
@@ -47,6 +48,7 @@ import {
   type PlanoContasItem,
 } from "@/utils/planoContasParser";
 import { ContaSearchInput } from "./ContaSearchInput";
+import { verificarInconsistenciaFornecedor } from "@/utils/fornecedorMatcher";
 
 interface ArquivoProcessadoLocal {
   id: string;
@@ -68,6 +70,10 @@ interface LancamentoEditavel extends OutputRow {
   marcadoExclusao?: boolean; // true = será excluído do arquivo final
   alteradoPorRegra?: boolean; // true = sofreu alteração por regra de alteração
   regraAlteracaoDescricao?: string; // descrição da regra que alterou
+  inconsistenciaFornecedor?: boolean; // true = conta débito diverge do fornecedor no plano
+  fornecedorNome?: string; // nome do fornecedor extraído do histórico
+  contaEsperadaPlano?: string; // código da conta esperada (do plano)
+  descricaoEsperadaPlano?: string; // descrição da conta no plano
 }
 
 type FluxoStep = "empresa" | "plano" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
@@ -484,6 +490,29 @@ export function ConversorLiderTab() {
           }
         }
 
+        // Validação de fornecedor × conta débito (só se tem plano e não tem erro/regra)
+        let inconsistenciaFornecedor = false;
+        let fornecedorNome: string | undefined;
+        let contaEsperadaPlano: string | undefined;
+        let descricaoEsperadaPlano: string | undefined;
+
+        if (!temErro && !regraMatch.casa && !alteradoPorRegra && planoContas.length > 0) {
+          const fornecedor = extrairFornecedor(row.historico || "");
+          if (fornecedor) {
+            const inconsistencia = verificarInconsistenciaFornecedor(
+              contaDebitoFinal || debParaRegra,
+              fornecedor,
+              planoContas
+            );
+            if (inconsistencia?.inconsistente) {
+              inconsistenciaFornecedor = true;
+              fornecedorNome = fornecedor;
+              contaEsperadaPlano = inconsistencia.contaEsperada;
+              descricaoEsperadaPlano = inconsistencia.descricaoEsperada;
+            }
+          }
+        }
+
         return {
           ...row,
           contaDebito: contaDebitoFinal,
@@ -492,11 +521,15 @@ export function ConversorLiderTab() {
           confirmado: false,
           temErro,
           erroOriginal: temErro ? "Registro com prefixo de 44 caracteres (trailer reduzido). Requer revisão manual." : undefined,
-          casaComRegra: regraMatch.casa,
+          casaComRegra: regraMatch.casa || inconsistenciaFornecedor,
           regraMatchId: regraMatch.regraId,
-          marcadoExclusao: regraMatch.casa, // Pré-marca para exclusão se casa com regra
+          marcadoExclusao: regraMatch.casa, // Pré-marca para exclusão APENAS se casa com regra (inconsistências NÃO são pré-marcadas)
           alteradoPorRegra,
           regraAlteracaoDescricao,
+          inconsistenciaFornecedor,
+          fornecedorNome,
+          contaEsperadaPlano,
+          descricaoEsperadaPlano,
         };
       });
 
@@ -559,14 +592,21 @@ export function ConversorLiderTab() {
 
       // Conta lançamentos por categoria
       const totalErros = lancamentos.filter(l => l.temErro).length;
-      const totalParaExclusao = lancamentos.filter(l => l.casaComRegra && !l.temErro).length;
+      const totalParaExclusao = lancamentos.filter(l => l.casaComRegra && !l.temErro && !l.inconsistenciaFornecedor).length;
+      const totalInconsistencias = lancamentos.filter(l => l.inconsistenciaFornecedor && !l.temErro).length;
       const totalParaRevisar = lancamentos.filter(l => !l.temErro && !l.casaComRegra).length;
 
       // Avança para o próximo passo e mostra resumo
-      if (totalErros > 0 || totalParaExclusao > 0) {
+      const partes: string[] = [];
+      if (totalParaRevisar > 0) partes.push(`${totalParaRevisar} para revisar`);
+      if (totalErros > 0) partes.push(`${totalErros} erros`);
+      if (totalParaExclusao > 0) partes.push(`${totalParaExclusao} para exclusão`);
+      if (totalInconsistencias > 0) partes.push(`${totalInconsistencias} inconsistência(s) fornecedor`);
+
+      if (totalErros > 0 || totalParaExclusao > 0 || totalInconsistencias > 0) {
         toast({ 
           title: "Processamento concluído", 
-          description: `${totalParaRevisar} para revisar, ${totalErros} erros, ${totalParaExclusao} para exclusão.`,
+          description: partes.join(", ") + ".",
         });
       } else {
         toast({ 
@@ -1922,10 +1962,17 @@ export function ConversorLiderTab() {
                 <div>
                   <h3 className="font-semibold text-lg flex items-center gap-2">
                     <Ban className="w-5 h-5 text-orange-500" />
-                    Confirmar Exclusões
+                    Confirmar Exclusões e Inconsistências
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {lancamentosParaExclusao.length} lançamento(s) casam com suas regras de exclusão
+                    {lancamentosParaExclusao.filter(l => !l.inconsistenciaFornecedor).length > 0 && (
+                      <span>{lancamentosParaExclusao.filter(l => !l.inconsistenciaFornecedor).length} lançamento(s) casam com regras de exclusão. </span>
+                    )}
+                    {lancamentosParaExclusao.filter(l => l.inconsistenciaFornecedor).length > 0 && (
+                      <span className="text-amber-600 dark:text-amber-400">
+                        {lancamentosParaExclusao.filter(l => l.inconsistenciaFornecedor).length} inconsistência(s) de fornecedor detectadas.
+                      </span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2017,12 +2064,35 @@ export function ConversorLiderTab() {
                             />
                           </td>
                           <td className="p-2">
-                            <Badge variant="outline" className="text-xs">
-                              {regraMatch?.descricao || "Regra"}
-                            </Badge>
+                            {row.inconsistenciaFornecedor ? (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className="text-xs border-amber-500 text-amber-600 dark:text-amber-400">
+                                  Inconsistência
+                                </Badge>
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">{row.fornecedorNome}</span>
+                                  <br />
+                                  Esperado: <span className="font-mono text-amber-600 dark:text-amber-400">{row.contaEsperadaPlano}</span>
+                                  <br />
+                                  <span className="text-xs opacity-70">{row.descricaoEsperadaPlano}</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">
+                                {regraMatch?.descricao || "Regra"}
+                              </Badge>
+                            )}
                           </td>
                           <td className="p-2">{row.data}</td>
-                          <td className="p-2 font-mono">{row.contaDebito || '-'}</td>
+                          <td className="p-2 font-mono">
+                            {row.inconsistenciaFornecedor ? (
+                              <span className="text-amber-600 dark:text-amber-400 font-bold" title={`Esperado: ${row.contaEsperadaPlano}`}>
+                                {row.contaDebito || '-'}
+                              </span>
+                            ) : (
+                              row.contaDebito || '-'
+                            )}
+                          </td>
                           <td className="p-2 font-mono">{row.contaCredito || '-'}</td>
                           <td className="p-2 text-right font-mono">{row.valor}</td>
                           <td className="p-2 truncate max-w-[200px]" title={row.historico}>
