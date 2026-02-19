@@ -149,7 +149,7 @@ export function ConversorLiderTab() {
     criarRegra, 
     atualizarRegra, 
     deletarRegra 
-  } = useRegrasExclusaoLider(empresaAtiva?.id);
+  } = useRegrasExclusaoLider(empresaExternaId);
 
   // Estado do fluxo
   const [currentStep, setCurrentStep] = useState<FluxoStep>("empresa");
@@ -701,8 +701,8 @@ export function ConversorLiderTab() {
         return;
       }
     }
-    if (!empresaAtiva?.id) {
-      toast({ title: "Nenhuma empresa ativa", description: "Selecione uma empresa no menu superior.", variant: "destructive" });
+    if (!empresaExternaId) {
+      toast({ title: "Nenhuma empresa selecionada", description: "Selecione uma empresa externa no primeiro passo.", variant: "destructive" });
       return;
     }
     try {
