@@ -46,6 +46,7 @@ import {
   parsePlanoContasFromExcelFile,
   type PlanoContasItem,
 } from "@/utils/planoContasParser";
+import { ContaSearchInput } from "./ContaSearchInput";
 
 interface ArquivoProcessadoLocal {
   id: string;
@@ -76,26 +77,28 @@ function RegraEditForm({
   tipo,
   onSave,
   onCancel,
+  planoContas,
 }: {
   values: { contaDebito: string; contaCredito: string; descricao: string; historicoBusca: string; novoDebito: string; novoCredito: string };
   onChange: (v: typeof values) => void;
   tipo: TipoRegra;
   onSave: () => void;
   onCancel: () => void;
+  planoContas: PlanoContasItem[];
 }) {
   return (
     <div className="flex flex-col gap-2 flex-1">
       <div className="flex items-center gap-2">
-        <Input value={values.contaDebito} onChange={(e) => onChange({ ...values, contaDebito: e.target.value })} placeholder="Débito" className="w-24" />
-        <Input value={values.contaCredito} onChange={(e) => onChange({ ...values, contaCredito: e.target.value })} placeholder="Crédito" className="w-24" />
+        <ContaSearchInput value={values.contaDebito} onChange={(v) => onChange({ ...values, contaDebito: v })} planoContas={planoContas} placeholder="Débito" className="w-24" />
+        <ContaSearchInput value={values.contaCredito} onChange={(v) => onChange({ ...values, contaCredito: v })} planoContas={planoContas} placeholder="Crédito" className="w-24" />
         <Input value={values.historicoBusca} onChange={(e) => onChange({ ...values, historicoBusca: e.target.value })} placeholder="Histórico" className="w-36" />
         <Input value={values.descricao} onChange={(e) => onChange({ ...values, descricao: e.target.value })} placeholder="Descrição" className="flex-1" />
       </div>
       {tipo === "alteracao" && (
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">Altera para →</span>
-          <Input value={values.novoDebito} onChange={(e) => onChange({ ...values, novoDebito: e.target.value })} placeholder="Novo Débito" className="w-28" />
-          <Input value={values.novoCredito} onChange={(e) => onChange({ ...values, novoCredito: e.target.value })} placeholder="Novo Crédito" className="w-28" />
+          <ContaSearchInput value={values.novoDebito} onChange={(v) => onChange({ ...values, novoDebito: v })} planoContas={planoContas} placeholder="Novo Débito" className="w-28" />
+          <ContaSearchInput value={values.novoCredito} onChange={(v) => onChange({ ...values, novoCredito: v })} planoContas={planoContas} placeholder="Novo Crédito" className="w-28" />
         </div>
       )}
       <div className="flex items-center gap-1 justify-end">
@@ -1080,20 +1083,24 @@ export function ConversorLiderTab() {
                 <div className="grid grid-cols-4 gap-4 mb-3">
                   <div>
                     <Label htmlFor="regra-debito" className="text-sm text-muted-foreground">Conta Débito</Label>
-                    <Input 
+                    <ContaSearchInput
                       id="regra-debito"
                       placeholder="Ex: 1"
                       value={novaRegra.contaDebito}
-                      onChange={(e) => setNovaRegra(prev => ({ ...prev, contaDebito: e.target.value }))}
+                      onChange={(v) => setNovaRegra(prev => ({ ...prev, contaDebito: v }))}
+                      planoContas={planoContas}
+                      className="w-full"
                     />
                   </div>
                   <div>
                     <Label htmlFor="regra-credito" className="text-sm text-muted-foreground">Conta Crédito</Label>
-                    <Input 
+                    <ContaSearchInput
                       id="regra-credito"
                       placeholder="Ex: 30"
                       value={novaRegra.contaCredito}
-                      onChange={(e) => setNovaRegra(prev => ({ ...prev, contaCredito: e.target.value }))}
+                      onChange={(v) => setNovaRegra(prev => ({ ...prev, contaCredito: v }))}
+                      planoContas={planoContas}
+                      className="w-full"
                     />
                   </div>
                   <div>
@@ -1127,20 +1134,24 @@ export function ConversorLiderTab() {
                     <div className="grid grid-cols-3 gap-4 mb-3">
                       <div>
                         <Label htmlFor="regra-novo-debito" className="text-sm text-muted-foreground">Novo Débito</Label>
-                        <Input 
+                        <ContaSearchInput
                           id="regra-novo-debito"
                           placeholder="Ex: 3319"
                           value={novaRegra.novoDebito}
-                          onChange={(e) => setNovaRegra(prev => ({ ...prev, novoDebito: e.target.value }))}
+                          onChange={(v) => setNovaRegra(prev => ({ ...prev, novoDebito: v }))}
+                          planoContas={planoContas}
+                          className="w-full"
                         />
                       </div>
                       <div>
                         <Label htmlFor="regra-novo-credito" className="text-sm text-muted-foreground">Novo Crédito</Label>
-                        <Input 
+                        <ContaSearchInput
                           id="regra-novo-credito"
                           placeholder="Ex: 30"
                           value={novaRegra.novoCredito}
-                          onChange={(e) => setNovaRegra(prev => ({ ...prev, novoCredito: e.target.value }))}
+                          onChange={(v) => setNovaRegra(prev => ({ ...prev, novoCredito: v }))}
+                          planoContas={planoContas}
+                          className="w-full"
                         />
                       </div>
                       <div className="flex items-end">
@@ -1215,6 +1226,7 @@ export function ConversorLiderTab() {
                                 tipo={regra.tipo}
                                 onSave={salvarEdicaoRegra}
                                 onCancel={cancelarEdicaoRegra}
+                                planoContas={planoContas}
                               />
                             ) : (
                               <>
@@ -1268,6 +1280,7 @@ export function ConversorLiderTab() {
                                 tipo={regra.tipo}
                                 onSave={salvarEdicaoRegra}
                                 onCancel={cancelarEdicaoRegra}
+                                planoContas={planoContas}
                               />
                             ) : (
                               <>
