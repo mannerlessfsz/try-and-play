@@ -499,7 +499,12 @@ export function ConversorLiderTab() {
         let descricaoEsperadaPlano: string | undefined;
 
         if (!temErro && !regraMatch.casa && !alteradoPorRegra && planoContas.length > 0) {
-          const fornecedor = extrairFornecedor(row.historico || "");
+          // Só verifica inconsistência para PAGTO, nunca para TARIFA/DESCONTO
+          const histUp = (row.historico || "").toUpperCase();
+          const isTarifa = histUp.includes("VLR TARIFAS") || histUp.includes("VLR TARIFA") || histUp.includes(" TARIFA ") || histUp.includes(" TARIFAS ");
+          const isDesconto = histUp.includes("VLR DESCONTO") || histUp.includes("VALOR DESCONTO") || histUp.includes(" DESCONTO ");
+          
+          const fornecedor = !isTarifa && !isDesconto ? extrairFornecedor(row.historico || "") : null;
           if (fornecedor) {
             const inconsistencia = verificarInconsistenciaFornecedor(
               contaDebitoFinal || debParaRegra,
