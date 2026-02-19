@@ -687,9 +687,7 @@ export function ConversorLiderTab() {
     setEditingRowId(lancamento.id);
     setEditValues({
       data: lancamento.data,
-      contaDebito: lancamento.inconsistenciaFornecedor && lancamento.contaEsperadaPlano 
-        ? lancamento.contaEsperadaPlano 
-        : lancamento.contaDebito,
+      contaDebito: lancamento.contaDebito,
       contaCredito: lancamento.contaCredito,
       valor: lancamento.valor,
       historico: lancamento.historico,
