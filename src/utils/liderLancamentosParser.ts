@@ -367,7 +367,7 @@ function extrairTitulo(historico: string): string | null {
   return null;
 }
 
-function extrairFornecedor(historico: string): string | null {
+export function extrairFornecedor(historico: string): string | null {
   if (!historico) return null;
   if (!historico.includes(" | ")) return null;
 
