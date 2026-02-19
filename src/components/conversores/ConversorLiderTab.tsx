@@ -38,7 +38,7 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useRegrasExclusaoLider, type RegraExclusaoLider } from "@/hooks/useRegrasExclusaoLider";
+import { useRegrasExclusaoLider, type RegraExclusaoLider, type TipoRegra } from "@/hooks/useRegrasExclusaoLider";
 import { EmpresaExternaSelector } from "./EmpresaExternaSelector";
 import { EmpresaExterna, usePlanosContasExternos } from "@/hooks/useEmpresasExternas";
 import {
@@ -69,6 +69,47 @@ interface LancamentoEditavel extends OutputRow {
 
 type FluxoStep = "empresa" | "plano" | "regras" | "importar" | "revisar" | "corrigir" | "exclusoes" | "exportar";
 
+// Sub-component for inline rule editing
+function RegraEditForm({
+  values,
+  onChange,
+  tipo,
+  onSave,
+  onCancel,
+}: {
+  values: { contaDebito: string; contaCredito: string; descricao: string; historicoBusca: string; novoDebito: string; novoCredito: string };
+  onChange: (v: typeof values) => void;
+  tipo: TipoRegra;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-2 flex-1">
+      <div className="flex items-center gap-2">
+        <Input value={values.contaDebito} onChange={(e) => onChange({ ...values, contaDebito: e.target.value })} placeholder="Débito" className="w-24" />
+        <Input value={values.contaCredito} onChange={(e) => onChange({ ...values, contaCredito: e.target.value })} placeholder="Crédito" className="w-24" />
+        <Input value={values.historicoBusca} onChange={(e) => onChange({ ...values, historicoBusca: e.target.value })} placeholder="Histórico" className="w-36" />
+        <Input value={values.descricao} onChange={(e) => onChange({ ...values, descricao: e.target.value })} placeholder="Descrição" className="flex-1" />
+      </div>
+      {tipo === "alteracao" && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Altera para →</span>
+          <Input value={values.novoDebito} onChange={(e) => onChange({ ...values, novoDebito: e.target.value })} placeholder="Novo Débito" className="w-28" />
+          <Input value={values.novoCredito} onChange={(e) => onChange({ ...values, novoCredito: e.target.value })} placeholder="Novo Crédito" className="w-28" />
+        </div>
+      )}
+      <div className="flex items-center gap-1 justify-end">
+        <Button variant="ghost" size="sm" className="text-green-500" onClick={onSave}>
+          <Save className="w-4 h-4 mr-1" /> Salvar
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onCancel}>
+          <X className="w-4 h-4 mr-1" /> Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ConversorLiderTab() {
   const { toast } = useToast();
   const { empresaAtiva } = useEmpresaAtiva();
@@ -96,9 +137,11 @@ export function ConversorLiderTab() {
   const planoInputRef = useRef<HTMLInputElement>(null);
   const PLANO_PAGE_SIZE = 100;
 
-  // Hook de regras de exclusão persistentes
+  // Hook de regras persistentes
   const { 
     regras: regrasExclusao, 
+    regrasRevisao,
+    regrasAlteracao,
     isLoading: isLoadingRegras,
     criarRegra, 
     atualizarRegra, 
@@ -113,9 +156,10 @@ export function ConversorLiderTab() {
   const [errosCorrigidos, setErrosCorrigidos] = useState(false);
 
   // Estado para nova regra e edição
-  const [novaRegra, setNovaRegra] = useState({ contaDebito: "", contaCredito: "", descricao: "" });
+  const [novaRegraTipo, setNovaRegraTipo] = useState<TipoRegra>("revisao");
+  const [novaRegra, setNovaRegra] = useState({ contaDebito: "", contaCredito: "", descricao: "", historicoBusca: "", novoDebito: "", novoCredito: "" });
   const [editandoRegraId, setEditandoRegraId] = useState<string | null>(null);
-  const [editRegraValues, setEditRegraValues] = useState({ contaDebito: "", contaCredito: "", descricao: "" });
+  const [editRegraValues, setEditRegraValues] = useState({ contaDebito: "", contaCredito: "", descricao: "", historicoBusca: "", novoDebito: "", novoCredito: "" });
 
   // Estados existentes
   const [arquivosLocais, setArquivosLocais] = useState<ArquivoProcessadoLocal[]>([]);
@@ -639,9 +683,20 @@ export function ConversorLiderTab() {
 
   // Funções para gerenciar regras de exclusão
   const adicionarRegra = async () => {
-    if (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim()) {
-      toast({ title: "Informe ao menos uma conta", description: "Preencha a conta débito, crédito ou ambas.", variant: "destructive" });
-      return;
+    if (novaRegraTipo === "revisao") {
+      if (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim() && !novaRegra.historicoBusca.trim()) {
+        toast({ title: "Informe ao menos um critério", description: "Preencha conta débito, crédito ou descrição.", variant: "destructive" });
+        return;
+      }
+    } else {
+      // alteracao: precisa de critérios de busca E o que alterar
+      const temCriterioBusca = novaRegra.contaDebito.trim() || novaRegra.contaCredito.trim();
+      const temHistorico = novaRegra.historicoBusca.trim();
+      const temAlteracao = novaRegra.novoDebito.trim() || novaRegra.novoCredito.trim();
+      if ((!temCriterioBusca || !temHistorico) && !temAlteracao) {
+        toast({ title: "Dados insuficientes", description: "Para alteração, informe débito e/ou crédito + histórico, e o que será alterado.", variant: "destructive" });
+        return;
+      }
     }
     if (!empresaAtiva?.id) {
       toast({ title: "Nenhuma empresa ativa", description: "Selecione uma empresa no menu superior.", variant: "destructive" });
@@ -649,11 +704,15 @@ export function ConversorLiderTab() {
     }
     try {
       await criarRegra.mutateAsync({
+        tipo: novaRegraTipo,
         conta_debito: novaRegra.contaDebito.trim(),
         conta_credito: novaRegra.contaCredito.trim(),
         descricao: novaRegra.descricao.trim() || `Regra ${regrasExclusao.length + 1}`,
+        historico_busca: novaRegra.historicoBusca.trim(),
+        novo_debito: novaRegra.novoDebito.trim(),
+        novo_credito: novaRegra.novoCredito.trim(),
       });
-      setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "" });
+      setNovaRegra({ contaDebito: "", contaCredito: "", descricao: "", historicoBusca: "", novoDebito: "", novoCredito: "" });
     } catch (error) {
       console.error("Erro ao criar regra:", error);
     }
@@ -669,6 +728,9 @@ export function ConversorLiderTab() {
       contaDebito: regra.conta_debito,
       contaCredito: regra.conta_credito,
       descricao: regra.descricao,
+      historicoBusca: regra.historico_busca || "",
+      novoDebito: regra.novo_debito || "",
+      novoCredito: regra.novo_credito || "",
     });
   };
 
@@ -679,14 +741,17 @@ export function ConversorLiderTab() {
       conta_debito: editRegraValues.contaDebito,
       conta_credito: editRegraValues.contaCredito,
       descricao: editRegraValues.descricao,
+      historico_busca: editRegraValues.historicoBusca,
+      novo_debito: editRegraValues.novoDebito,
+      novo_credito: editRegraValues.novoCredito,
     });
     setEditandoRegraId(null);
-    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "" });
+    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "", historicoBusca: "", novoDebito: "", novoCredito: "" });
   };
 
   const cancelarEdicaoRegra = () => {
     setEditandoRegraId(null);
-    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "" });
+    setEditRegraValues({ contaDebito: "", contaCredito: "", descricao: "", historicoBusca: "", novoDebito: "", novoCredito: "" });
   };
 
   // Lançamentos que casam com regras (para a etapa de exclusões) - usa a flag casaComRegra
@@ -966,10 +1031,10 @@ export function ConversorLiderTab() {
                 <div>
                   <h3 className="font-semibold text-lg flex items-center gap-2">
                     <Filter className="w-5 h-5 text-violet-500" />
-                    Regras de Exclusão
+                    Regras de Processamento
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    Defina regras para filtrar lançamentos que serão mostrados para exclusão antes de exportar
+                    Configure regras para revisão manual ou alteração automática de lançamentos
                   </p>
                 </div>
                 <Button 
@@ -987,12 +1052,37 @@ export function ConversorLiderTab() {
                   <Plus className="w-4 h-4" />
                   Adicionar Nova Regra
                 </h4>
-                <div className="grid grid-cols-4 gap-4">
+
+                {/* Tipo da regra */}
+                <div className="flex gap-2 mb-4">
+                  <Button
+                    variant={novaRegraTipo === "revisao" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNovaRegraTipo("revisao")}
+                  >
+                    <Eye className="w-4 h-4 mr-1.5" />
+                    Para Revisão
+                  </Button>
+                  <Button
+                    variant={novaRegraTipo === "alteracao" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setNovaRegraTipo("alteracao")}
+                  >
+                    <Edit3 className="w-4 h-4 mr-1.5" />
+                    Para Alteração
+                  </Button>
+                </div>
+
+                {/* Critérios de busca */}
+                <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">
+                  Critérios de Busca
+                </p>
+                <div className="grid grid-cols-4 gap-4 mb-3">
                   <div>
                     <Label htmlFor="regra-debito" className="text-sm text-muted-foreground">Conta Débito</Label>
                     <Input 
                       id="regra-debito"
-                      placeholder="Ex: 1234"
+                      placeholder="Ex: 1"
                       value={novaRegra.contaDebito}
                       onChange={(e) => setNovaRegra(prev => ({ ...prev, contaDebito: e.target.value }))}
                     />
@@ -1001,38 +1091,100 @@ export function ConversorLiderTab() {
                     <Label htmlFor="regra-credito" className="text-sm text-muted-foreground">Conta Crédito</Label>
                     <Input 
                       id="regra-credito"
-                      placeholder="Ex: 5678"
+                      placeholder="Ex: 30"
                       value={novaRegra.contaCredito}
                       onChange={(e) => setNovaRegra(prev => ({ ...prev, contaCredito: e.target.value }))}
                     />
                   </div>
                   <div>
-                    <Label htmlFor="regra-desc" className="text-sm text-muted-foreground">Descrição (opcional)</Label>
+                    <Label htmlFor="regra-historico" className="text-sm text-muted-foreground">
+                      Histórico {novaRegraTipo === "alteracao" ? "*" : "(opcional)"}
+                    </Label>
+                    <Input 
+                      id="regra-historico"
+                      placeholder="Ex: titulo extra"
+                      value={novaRegra.historicoBusca}
+                      onChange={(e) => setNovaRegra(prev => ({ ...prev, historicoBusca: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="regra-desc" className="text-sm text-muted-foreground">Descrição</Label>
                     <Input 
                       id="regra-desc"
-                      placeholder="Ex: Excluir tarifas bancárias"
+                      placeholder="Nome da regra"
                       value={novaRegra.descricao}
                       onChange={(e) => setNovaRegra(prev => ({ ...prev, descricao: e.target.value }))}
                     />
                   </div>
-                  <div className="flex items-end">
+                </div>
+
+                {/* Campos de alteração (só aparece no tipo alteração) */}
+                {novaRegraTipo === "alteracao" && (
+                  <>
+                    <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide mt-4">
+                      Alterações a Aplicar
+                    </p>
+                    <div className="grid grid-cols-3 gap-4 mb-3">
+                      <div>
+                        <Label htmlFor="regra-novo-debito" className="text-sm text-muted-foreground">Novo Débito</Label>
+                        <Input 
+                          id="regra-novo-debito"
+                          placeholder="Ex: 3319"
+                          value={novaRegra.novoDebito}
+                          onChange={(e) => setNovaRegra(prev => ({ ...prev, novoDebito: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="regra-novo-credito" className="text-sm text-muted-foreground">Novo Crédito</Label>
+                        <Input 
+                          id="regra-novo-credito"
+                          placeholder="Ex: 30"
+                          value={novaRegra.novoCredito}
+                          onChange={(e) => setNovaRegra(prev => ({ ...prev, novoCredito: e.target.value }))}
+                        />
+                      </div>
+                      <div className="flex items-end">
+                        <Button 
+                          onClick={adicionarRegra} 
+                          className="w-full"
+                          disabled={criarRegra.isPending}
+                        >
+                          {criarRegra.isPending ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4 mr-1" />
+                          )}
+                          Adicionar
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Informe débito e/ou crédito + histórico (parcial) para busca. Depois informe o novo débito e/ou crédito que será aplicado automaticamente.
+                    </p>
+                  </>
+                )}
+
+                {novaRegraTipo === "revisao" && (
+                  <div className="flex justify-end mt-2">
                     <Button 
                       onClick={adicionarRegra} 
-                      className="w-full"
-                      disabled={criarRegra.isPending || (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim())}
+                      disabled={criarRegra.isPending || (!novaRegra.contaDebito.trim() && !novaRegra.contaCredito.trim() && !novaRegra.historicoBusca.trim())}
                     >
                       {criarRegra.isPending ? (
                         <Loader2 className="w-4 h-4 mr-1 animate-spin" />
                       ) : (
                         <Plus className="w-4 h-4 mr-1" />
                       )}
-                      {criarRegra.isPending ? "Adicionando..." : "Adicionar"}
+                      Adicionar Regra
                     </Button>
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Preencha conta débito, crédito, ou ambas. Lançamentos que casarem com a regra serão listados para possível exclusão.
-                </p>
+                )}
+
+                {novaRegraTipo === "revisao" && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Lançamentos que casarem serão enviados para revisão manual no passo 5.
+                  </p>
+                )}
               </div>
 
               {/* Lista de regras */}
@@ -1042,85 +1194,134 @@ export function ConversorLiderTab() {
                   <p className="text-sm text-muted-foreground mt-2">Carregando regras...</p>
                 </div>
               ) : regrasExclusao.length > 0 ? (
-                <div className="border rounded-lg">
-                  <div className="p-3 border-b bg-muted/50">
-                    <h4 className="font-medium">Regras Configuradas ({regrasExclusao.length})</h4>
-                  </div>
-                  <div className="divide-y">
-                    {regrasExclusao.map((regra) => (
-                      <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
-                        {editandoRegraId === regra.id ? (
-                          <>
-                            <div className="flex items-center gap-2 flex-1">
-                              <Input
-                                value={editRegraValues.contaDebito}
-                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, contaDebito: e.target.value }))}
-                                placeholder="Débito"
-                                className="w-24"
-                              />
-                              <Input
-                                value={editRegraValues.contaCredito}
-                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, contaCredito: e.target.value }))}
-                                placeholder="Crédito"
-                                className="w-24"
-                              />
-                              <Input
-                                value={editRegraValues.descricao}
-                                onChange={(e) => setEditRegraValues(prev => ({ ...prev, descricao: e.target.value }))}
-                                placeholder="Descrição"
-                                className="flex-1"
-                              />
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500" onClick={salvarEdicaoRegra}>
-                                <Save className="w-4 h-4" />
-                              </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={cancelarEdicaoRegra}>
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="flex items-center gap-4">
-                              <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="font-mono">
-                                  D: {regra.conta_debito || "*"}
-                                </Badge>
-                                <Badge variant="outline" className="font-mono">
-                                  C: {regra.conta_credito || "*"}
-                                </Badge>
-                              </div>
-                              <span className="text-sm text-muted-foreground">{regra.descricao}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => iniciarEdicaoRegra(regra)}
-                              >
-                                <Edit3 className="w-4 h-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="h-8 w-8 text-red-500"
-                                onClick={() => removerRegra(regra.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </>
-                        )}
+                <div className="space-y-4">
+                  {/* Regras de Revisão */}
+                  {regrasRevisao.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="p-3 border-b bg-amber-500/10">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <Eye className="w-4 h-4 text-amber-600" />
+                          Regras de Revisão ({regrasRevisao.length})
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">Lançamentos correspondentes serão enviados para revisão</p>
                       </div>
-                    ))}
-                  </div>
+                      <div className="divide-y">
+                        {regrasRevisao.map((regra) => (
+                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                            {editandoRegraId === regra.id ? (
+                              <RegraEditForm
+                                values={editRegraValues}
+                                onChange={setEditRegraValues}
+                                tipo={regra.tipo}
+                                onSave={salvarEdicaoRegra}
+                                onCancel={cancelarEdicaoRegra}
+                              />
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-3 flex-1">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {regra.conta_debito && (
+                                      <Badge variant="outline" className="font-mono text-xs">D: {regra.conta_debito}</Badge>
+                                    )}
+                                    {regra.conta_credito && (
+                                      <Badge variant="outline" className="font-mono text-xs">C: {regra.conta_credito}</Badge>
+                                    )}
+                                    {regra.historico_busca && (
+                                      <Badge variant="secondary" className="text-xs">Hist: "{regra.historico_busca}"</Badge>
+                                    )}
+                                  </div>
+                                  <span className="text-sm text-muted-foreground">{regra.descricao}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => iniciarEdicaoRegra(regra)}>
+                                    <Edit3 className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removerRegra(regra.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Regras de Alteração */}
+                  {regrasAlteracao.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="p-3 border-b bg-blue-500/10">
+                        <h4 className="font-medium flex items-center gap-2">
+                          <Edit3 className="w-4 h-4 text-blue-600" />
+                          Regras de Alteração ({regrasAlteracao.length})
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">Lançamentos correspondentes serão alterados automaticamente</p>
+                      </div>
+                      <div className="divide-y">
+                        {regrasAlteracao.map((regra) => (
+                          <div key={regra.id} className="p-3 flex items-center justify-between hover:bg-muted/30">
+                            {editandoRegraId === regra.id ? (
+                              <RegraEditForm
+                                values={editRegraValues}
+                                onChange={setEditRegraValues}
+                                tipo={regra.tipo}
+                                onSave={salvarEdicaoRegra}
+                                onCancel={cancelarEdicaoRegra}
+                              />
+                            ) : (
+                              <>
+                                <div className="flex flex-col gap-1.5 flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-muted-foreground">BUSCA:</span>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      {regra.conta_debito && (
+                                        <Badge variant="outline" className="font-mono text-xs">D: {regra.conta_debito}</Badge>
+                                      )}
+                                      {regra.conta_credito && (
+                                        <Badge variant="outline" className="font-mono text-xs">C: {regra.conta_credito}</Badge>
+                                      )}
+                                      {regra.historico_busca && (
+                                        <Badge variant="secondary" className="text-xs">Hist: "{regra.historico_busca}"</Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-sm text-muted-foreground">— {regra.descricao}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-muted-foreground">ALTERA:</span>
+                                    <div className="flex items-center gap-1.5">
+                                      {regra.novo_debito && (
+                                        <Badge className="font-mono text-xs bg-blue-500/20 text-blue-700 hover:bg-blue-500/30">D → {regra.novo_debito}</Badge>
+                                      )}
+                                      {regra.novo_credito && (
+                                        <Badge className="font-mono text-xs bg-blue-500/20 text-blue-700 hover:bg-blue-500/30">C → {regra.novo_credito}</Badge>
+                                      )}
+                                      {!regra.novo_debito && !regra.novo_credito && (
+                                        <span className="text-xs text-muted-foreground italic">Nenhuma alteração definida</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => iniciarEdicaoRegra(regra)}>
+                                    <Edit3 className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removerRegra(regra.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
                   <Filter className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                  <p>Nenhuma regra de exclusão configurada.</p>
+                  <p>Nenhuma regra configurada.</p>
                   <p className="text-sm">Você pode continuar sem regras ou adicionar regras acima.</p>
                 </div>
               )}

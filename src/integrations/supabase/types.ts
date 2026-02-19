@@ -3058,7 +3058,11 @@ export type Database = {
           created_by: string | null
           descricao: string
           empresa_id: string
+          historico_busca: string | null
           id: string
+          novo_credito: string | null
+          novo_debito: string | null
+          tipo: string
           updated_at: string
         }
         Insert: {
@@ -3069,7 +3073,11 @@ export type Database = {
           created_by?: string | null
           descricao: string
           empresa_id: string
+          historico_busca?: string | null
           id?: string
+          novo_credito?: string | null
+          novo_debito?: string | null
+          tipo?: string
           updated_at?: string
         }
         Update: {
@@ -3080,7 +3088,11 @@ export type Database = {
           created_by?: string | null
           descricao?: string
           empresa_id?: string
+          historico_busca?: string | null
           id?: string
+          novo_credito?: string | null
+          novo_debito?: string | null
+          tipo?: string
           updated_at?: string
         }
         Relationships: [
