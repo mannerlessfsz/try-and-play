@@ -15,6 +15,7 @@ import Messenger from "./pages/Messenger";
 import FinancialACE from "./pages/FinancialACE";
 import Conversores from "./pages/Conversores";
 import UsuariosAdmin from "./pages/UsuariosAdmin";
+import InstallApp from "./pages/InstallApp";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 import FloatingMessengerOrbs from "./components/messenger/FloatingMessengerOrbs";
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />
               <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
               <Route path="/conversores" element={<ProtectedRoute module="conversores"><Conversores /></ProtectedRoute>} />
+              <Route path="/install" element={<InstallApp />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
