@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useProdutos } from "@/hooks/useProdutos";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Package, AlertTriangle } from "lucide-react";
+import { GlassCard, GlassSectionHeader } from "@/components/gestao/GlassCard";
 
 interface ProdutosManagerProps {
   empresaId: string;
@@ -36,70 +36,77 @@ export function ProdutosManager({ empresaId }: ProdutosManagerProps) {
             placeholder="Buscar produto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 glass border-border/30"
           />
         </div>
-        <Button className="bg-blue-500 hover:bg-blue-600">
+        <Button className="bg-[hsl(var(--blue))] hover:bg-[hsl(var(--blue))]/80 rounded-xl">
           <Plus className="w-4 h-4 mr-2" />
           Novo Produto
         </Button>
       </div>
 
-      <Card className="border-blue-500/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Package className="w-5 h-5 text-blue-500" />
-            Produtos Cadastrados ({filteredProdutos.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredProdutos.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum produto cadastrado
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="text-right">Preço Custo</TableHead>
-                  <TableHead className="text-right">Preço Venda</TableHead>
-                  <TableHead className="text-center">Estoque</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProdutos.map((p) => {
-                  const estoqueAtual = p.estoque_atual ?? 0;
-                  const estoqueMinimo = p.estoque_minimo ?? 0;
-                  const abaixoMinimo = estoqueAtual < estoqueMinimo;
-                  
-                  return (
-                    <TableRow key={p.id} className="hover:bg-muted/50">
-                      <TableCell className="font-mono text-sm">{p.codigo || "-"}</TableCell>
-                      <TableCell className="font-medium">{p.nome}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(p.preco_custo || 0)}</TableCell>
-                      <TableCell className="text-right font-semibold">{formatCurrency(p.preco_venda || 0)}</TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-1">
-                          {abaixoMinimo && <AlertTriangle className="w-3 h-3 text-yellow-500" />}
-                          <span className={abaixoMinimo ? "text-yellow-500" : ""}>{estoqueAtual}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={p.ativo ? "default" : "secondary"}>
-                          {p.ativo ? "Ativo" : "Inativo"}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <GlassCard accentColor="hsl(var(--blue))">
+        <div className="p-5">
+          <GlassSectionHeader
+            icon={<Package className="w-4 h-4" style={{ color: "hsl(var(--blue))" }} />}
+            title="Produtos Cadastrados"
+            count={filteredProdutos.length}
+            accentColor="hsl(var(--blue))"
+          />
+          <div className="mt-4">
+            {filteredProdutos.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum produto cadastrado
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Código</TableHead>
+                    <TableHead className="text-muted-foreground">Nome</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Preço Custo</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Preço Venda</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Estoque</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProdutos.map((p) => {
+                    const estoqueAtual = p.estoque_atual ?? 0;
+                    const estoqueMinimo = p.estoque_minimo ?? 0;
+                    const abaixoMinimo = estoqueAtual < estoqueMinimo;
+                    
+                    return (
+                      <TableRow key={p.id} className="border-border/20 hover:bg-foreground/[0.02]">
+                        <TableCell className="font-mono text-sm text-muted-foreground">{p.codigo || "-"}</TableCell>
+                        <TableCell className="font-medium">{p.nome}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatCurrency(p.preco_custo || 0)}</TableCell>
+                        <TableCell className="text-right font-semibold">{formatCurrency(p.preco_venda || 0)}</TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {abaixoMinimo && <AlertTriangle className="w-3 h-3 text-[hsl(var(--yellow))]" />}
+                            <span className={abaixoMinimo ? "text-[hsl(var(--yellow))]" : ""}>{estoqueAtual}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            className={p.ativo 
+                              ? "bg-[hsl(var(--cyan))]/15 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/30" 
+                              : "bg-muted text-muted-foreground border-border/30"
+                            }
+                          >
+                            {p.ativo ? "Ativo" : "Inativo"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
+      </GlassCard>
     </div>
   );
 }
