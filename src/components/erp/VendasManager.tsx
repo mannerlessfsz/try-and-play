@@ -1,6 +1,5 @@
 import { useState, useMemo } from "react";
 import { useVendas } from "@/hooks/useVendas";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Search, ShoppingCart } from "lucide-react";
 import { VendaFormModal } from "./VendaFormModal";
 import { formatCurrency } from "@/lib/formatters";
+import { GlassCard, GlassSectionHeader } from "@/components/gestao/GlassCard";
 
 interface VendasManagerProps {
   empresaId: string;
@@ -15,11 +15,11 @@ interface VendasManagerProps {
 
 const statusColors: Record<string, string> = {
   rascunho: "bg-gray-500/20 text-gray-400 border-gray-500/30",
-  pendente: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
-  aprovado: "bg-blue-500/20 text-blue-400 border-blue-500/30",
+  pendente: "bg-[hsl(var(--yellow))]/20 text-[hsl(var(--yellow))] border-[hsl(var(--yellow))]/30",
+  aprovado: "bg-[hsl(var(--blue))]/20 text-[hsl(var(--blue))] border-[hsl(var(--blue))]/30",
   em_andamento: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  concluido: "bg-green-500/20 text-green-400 border-green-500/30",
-  cancelado: "bg-red-500/20 text-red-400 border-red-500/30",
+  concluido: "bg-[hsl(var(--cyan))]/20 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/30",
+  cancelado: "bg-destructive/20 text-destructive border-destructive/30",
 };
 
 export function VendasManager({ empresaId }: VendasManagerProps) {
@@ -46,59 +46,61 @@ export function VendasManager({ empresaId }: VendasManagerProps) {
             placeholder="Buscar venda..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 glass border-border/30"
           />
         </div>
-        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setShowModal(true)}>
+        <Button className="bg-[hsl(var(--cyan))] hover:bg-[hsl(var(--cyan))]/80 text-background rounded-xl" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Nova Venda
         </Button>
       </div>
 
-      <Card className="border-green-500/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ShoppingCart className="w-5 h-5 text-green-500" />
-            Vendas ({filteredVendas.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredVendas.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhuma venda registrada
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nº</TableHead>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredVendas.map((v) => (
-                  <TableRow key={v.id} className="hover:bg-muted/50">
-                    <TableCell className="font-mono">#{v.numero || "-"}</TableCell>
-                    <TableCell>{new Date(v.data_venda + 'T12:00:00').toLocaleDateString("pt-BR")}</TableCell>
-                    <TableCell className="font-medium">{v.cliente?.nome || "-"}</TableCell>
-                    <TableCell className="text-right font-semibold text-green-500">
-                      {formatCurrency(v.total || 0)}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge className={statusColors[v.status || "rascunho"]}>
-                        {v.status?.replace("_", " ") || "rascunho"}
-                      </Badge>
-                    </TableCell>
+      <GlassCard accentColor="hsl(var(--cyan))">
+        <div className="p-5">
+          <GlassSectionHeader
+            icon={<ShoppingCart className="w-4 h-4" style={{ color: "hsl(var(--cyan))" }} />}
+            title="Vendas"
+            count={filteredVendas.length}
+            accentColor="hsl(var(--cyan))"
+          />
+          <div className="mt-4">
+            {filteredVendas.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhuma venda registrada
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Nº</TableHead>
+                    <TableHead className="text-muted-foreground">Data</TableHead>
+                    <TableHead className="text-muted-foreground">Cliente</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Total</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredVendas.map((v) => (
+                    <TableRow key={v.id} className="border-border/20 hover:bg-foreground/[0.02]">
+                      <TableCell className="font-mono text-muted-foreground">#{v.numero || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{new Date(v.data_venda + 'T12:00:00').toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell className="font-medium">{v.cliente?.nome || "-"}</TableCell>
+                      <TableCell className="text-right font-semibold text-[hsl(var(--cyan))]">
+                        {formatCurrency(v.total || 0)}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={statusColors[v.status || "rascunho"]}>
+                          {v.status?.replace("_", " ") || "rascunho"}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
+      </GlassCard>
 
       <VendaFormModal 
         open={showModal} 

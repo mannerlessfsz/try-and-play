@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTransacoes } from "@/hooks/useTransacoes";
 import { useParcelasAlerta } from "@/hooks/useParcelasAlerta";
-import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency as formatCurrencyUtil } from "@/lib/formatters";
 import { ContasBancariasManager } from "@/components/financial/ContasBancariasManager";
 import { CategoriasManager } from "@/components/financial/CategoriasManager";
@@ -75,13 +74,15 @@ export default function FinancialACE() {
   if (!empresaLoading && !empresaAtiva) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-500/20 flex items-center justify-center mb-4">
-              <Building2 className="w-8 h-8 text-blue-500" />
+        <div className="glass rounded-2xl max-w-md w-full p-8 text-center relative overflow-hidden">
+          {/* Ambient glow */}
+          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-[hsl(var(--blue))] opacity-10 blur-3xl pointer-events-none" />
+          <div className="relative z-10">
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-[hsl(var(--blue))]/15 border border-[hsl(var(--blue))]/25 flex items-center justify-center mb-4">
+              <Building2 className="w-8 h-8" style={{ color: "hsl(var(--blue))" }} />
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">Nenhuma empresa selecionada</h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-6 text-sm">
               Para usar o GESTÃO, você precisa estar vinculado a uma empresa.
             </p>
             {empresasDisponiveis.length > 0 && (
@@ -91,7 +92,7 @@ export default function FinancialACE() {
                   <Button
                     key={empresa.id}
                     variant="outline"
-                    className="w-full justify-start"
+                    className="w-full justify-start glass border-border/30 hover:border-[hsl(var(--blue))]/40 rounded-xl"
                     onClick={() => setEmpresaAtiva(empresa)}
                   >
                     <Building2 className="w-4 h-4 mr-2" />
@@ -101,15 +102,15 @@ export default function FinancialACE() {
                 ))}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Command Bar - horizontal top navigation */}
+      {/* Command Bar */}
       <GestaoCommandBar
         activeTab={activeTab}
         activeSection={activeSection}
@@ -117,18 +118,18 @@ export default function FinancialACE() {
         onSectionChange={setActiveSection}
       />
 
-      {/* Full-width content */}
-      <div className="px-6 py-5 max-w-[1400px] mx-auto">
+      {/* Full-width content — widened to match Conversores */}
+      <div className="px-4 md:px-8 lg:px-12 py-5 max-w-[1600px] mx-auto">
         {/* Filter indicator */}
         {activeFilter !== "all" && activeSection === "financeiro" && activeTab !== "dashboard" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[hsl(var(--blue))]/20 text-[hsl(var(--blue))] border border-[hsl(var(--blue))]/30">
               {activeFilter === "receitas" ? "Receitas" : activeFilter === "despesas" ? "Despesas" : "Pendentes"}
             </span>
             <button
               onClick={() => setActiveFilter("all")}
-              className="text-xs text-blue-400 hover:text-blue-300 underline"
+              className="text-xs text-[hsl(var(--blue))] hover:text-[hsl(var(--blue))]/80 underline"
             >
               Limpar filtro
             </button>
@@ -136,7 +137,6 @@ export default function FinancialACE() {
         )}
 
         <AnimatedTabContent tabKey={activeTab}>
-          {/* Bento Dashboard */}
           {activeTab === "dashboard" && empresaAtiva && (
             <BentoDashboard
               transacoes={transacoes}

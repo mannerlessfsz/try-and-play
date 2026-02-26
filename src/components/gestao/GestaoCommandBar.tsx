@@ -71,7 +71,7 @@ export function GestaoCommandBar({
   return (
     <div className="sticky top-0 z-40">
       {/* Top Bar */}
-      <div className="relative bg-card/60 backdrop-blur-2xl border-b border-foreground/5">
+      <div className="relative bg-card/90 backdrop-blur-xl border-b border-[hsl(var(--cyan)/0.15)]">
         {/* Ambient gradient */}
         <div
           className={cn(

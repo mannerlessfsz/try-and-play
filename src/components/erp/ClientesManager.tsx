@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from "react";
 import { useClientes } from "@/hooks/useClientes";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Users, Edit, Trash2 } from "lucide-react";
 import { ClienteFormModal } from "./ClienteFormModal";
+import { GlassCard, GlassSectionHeader } from "@/components/gestao/GlassCard";
 
 interface ClientesManagerProps {
   empresaId: string;
@@ -54,87 +54,81 @@ export function ClientesManager({ empresaId }: ClientesManagerProps) {
             placeholder="Buscar cliente..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 glass border-border/30"
           />
         </div>
-        <Button className="bg-green-500 hover:bg-green-600" onClick={() => setShowModal(true)}>
+        <Button className="bg-[hsl(var(--cyan))] hover:bg-[hsl(var(--cyan))]/80 text-background rounded-xl" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Cliente
         </Button>
       </div>
 
-      <Card className="border-green-500/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Users className="w-5 h-5 text-green-500" />
-            Clientes Cadastrados ({filteredClientes.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredClientes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum cliente cadastrado
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>CPF/CNPJ</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Cidade/UF</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredClientes.map((c) => (
-                  <TableRow key={c.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{c.nome}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {c.tipo_pessoa === "juridica" ? "PJ" : "PF"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-mono text-sm">{c.cpf_cnpj || "-"}</TableCell>
-                    <TableCell>{c.telefone || c.celular || "-"}</TableCell>
-                    <TableCell>
-                      {c.cidade && c.estado ? `${c.cidade}/${c.estado}` : "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={c.ativo ? "default" : "secondary"}>
-                        {c.ativo ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(c)}
-                        >
-                          <Edit className="w-4 h-4 text-blue-500" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleDelete(c.id, c.nome)}
-                          disabled={deleteCliente.isPending}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      <GlassCard accentColor="hsl(var(--cyan))">
+        <div className="p-5">
+          <GlassSectionHeader
+            icon={<Users className="w-4 h-4" style={{ color: "hsl(var(--cyan))" }} />}
+            title="Clientes Cadastrados"
+            count={filteredClientes.length}
+            accentColor="hsl(var(--cyan))"
+          />
+          <div className="mt-4">
+            {filteredClientes.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum cliente cadastrado
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Nome</TableHead>
+                    <TableHead className="text-muted-foreground">Tipo</TableHead>
+                    <TableHead className="text-muted-foreground">CPF/CNPJ</TableHead>
+                    <TableHead className="text-muted-foreground">Telefone</TableHead>
+                    <TableHead className="text-muted-foreground">Cidade/UF</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredClientes.map((c) => (
+                    <TableRow key={c.id} className="border-border/20 hover:bg-foreground/[0.02]">
+                      <TableCell className="font-medium">{c.nome}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="border-border/30 text-muted-foreground">
+                          {c.tipo_pessoa === "juridica" ? "PJ" : "PF"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{c.cpf_cnpj || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{c.telefone || c.celular || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {c.cidade && c.estado ? `${c.cidade}/${c.estado}` : "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={c.ativo 
+                          ? "bg-[hsl(var(--cyan))]/15 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/30" 
+                          : "bg-muted text-muted-foreground border-border/30"
+                        }>
+                          {c.ativo ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-foreground/5" onClick={() => handleEdit(c)}>
+                            <Edit className="w-4 h-4 text-[hsl(var(--blue))]" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-foreground/5" onClick={() => handleDelete(c.id, c.nome)} disabled={deleteCliente.isPending}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
+      </GlassCard>
 
       <ClienteFormModal 
         open={showModal} 

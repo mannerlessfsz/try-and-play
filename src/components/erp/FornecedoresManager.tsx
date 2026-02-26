@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useFornecedores } from "@/hooks/useFornecedores";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Truck, Edit, Trash2 } from "lucide-react";
 import { FornecedorFormModal } from "./FornecedorFormModal";
+import { GlassCard, GlassSectionHeader } from "@/components/gestao/GlassCard";
 
 interface FornecedoresManagerProps {
   empresaId: string;
@@ -52,83 +52,77 @@ export function FornecedoresManager({ empresaId }: FornecedoresManagerProps) {
             placeholder="Buscar fornecedor..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className="pl-10 glass border-border/30"
           />
         </div>
-        <Button className="bg-orange-500 hover:bg-orange-600" onClick={() => setShowModal(true)}>
+        <Button className="bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange))]/80 rounded-xl" onClick={() => setShowModal(true)}>
           <Plus className="w-4 h-4 mr-2" />
           Novo Fornecedor
         </Button>
       </div>
 
-      <Card className="border-orange-500/20">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Truck className="w-5 h-5 text-orange-500" />
-            Fornecedores Cadastrados ({filteredFornecedores.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredFornecedores.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              Nenhum fornecedor cadastrado
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>CNPJ/CPF</TableHead>
-                  <TableHead>Contato</TableHead>
-                  <TableHead>Telefone</TableHead>
-                  <TableHead>Prazo Entrega</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredFornecedores.map((f) => (
-                  <TableRow key={f.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium">{f.nome}</TableCell>
-                    <TableCell className="font-mono text-sm">{f.cpf_cnpj || "-"}</TableCell>
-                    <TableCell>{f.contato_nome || "-"}</TableCell>
-                    <TableCell>{f.telefone || f.celular || "-"}</TableCell>
-                    <TableCell>
-                      {f.prazo_entrega_dias ? `${f.prazo_entrega_dias} dias` : "-"}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      <Badge variant={f.ativo ? "default" : "secondary"}>
-                        {f.ativo ? "Ativo" : "Inativo"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleEdit(f)}
-                        >
-                          <Edit className="w-4 h-4 text-blue-500" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          className="h-8 w-8"
-                          onClick={() => handleDelete(f.id, f.nome)}
-                          disabled={deleteFornecedor.isPending}
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
-                    </TableCell>
+      <GlassCard accentColor="hsl(var(--orange))">
+        <div className="p-5">
+          <GlassSectionHeader
+            icon={<Truck className="w-4 h-4" style={{ color: "hsl(var(--orange))" }} />}
+            title="Fornecedores Cadastrados"
+            count={filteredFornecedores.length}
+            accentColor="hsl(var(--orange))"
+          />
+          <div className="mt-4">
+            {filteredFornecedores.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                Nenhum fornecedor cadastrado
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-border/30 hover:bg-transparent">
+                    <TableHead className="text-muted-foreground">Nome</TableHead>
+                    <TableHead className="text-muted-foreground">CNPJ/CPF</TableHead>
+                    <TableHead className="text-muted-foreground">Contato</TableHead>
+                    <TableHead className="text-muted-foreground">Telefone</TableHead>
+                    <TableHead className="text-muted-foreground">Prazo Entrega</TableHead>
+                    <TableHead className="text-center text-muted-foreground">Status</TableHead>
+                    <TableHead className="text-right text-muted-foreground">Ações</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {filteredFornecedores.map((f) => (
+                    <TableRow key={f.id} className="border-border/20 hover:bg-foreground/[0.02]">
+                      <TableCell className="font-medium">{f.nome}</TableCell>
+                      <TableCell className="font-mono text-sm text-muted-foreground">{f.cpf_cnpj || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{f.contato_nome || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">{f.telefone || f.celular || "-"}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {f.prazo_entrega_dias ? `${f.prazo_entrega_dias} dias` : "-"}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className={f.ativo 
+                          ? "bg-[hsl(var(--cyan))]/15 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/30" 
+                          : "bg-muted text-muted-foreground border-border/30"
+                        }>
+                          {f.ativo ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-foreground/5" onClick={() => handleEdit(f)}>
+                            <Edit className="w-4 h-4 text-[hsl(var(--blue))]" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-foreground/5" onClick={() => handleDelete(f.id, f.nome)} disabled={deleteFornecedor.isPending}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
+      </GlassCard>
 
       <FornecedorFormModal 
         open={showModal} 
