@@ -3,11 +3,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard, Receipt, PieChart, Landmark, Target, Clock, BarChart3,
   Package, Users, Truck, ShoppingCart, ShoppingBag, FileText, Building2,
-  Wallet, ChevronDown, LogOut, Home, LucideIcon, Layers
+  Wallet, ChevronDown, LogOut, Home, LucideIcon, Layers, Check
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -58,6 +59,7 @@ export function GestaoCommandBar({
 }: GestaoCommandBarProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { empresaAtiva, empresasDisponiveis, setEmpresaAtiva } = useEmpresaAtiva();
   const tabs = activeSection === "financeiro" ? financeiroTabs : gestaoTabs;
 
   const displayName = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Usuário";
@@ -92,6 +94,55 @@ export function GestaoCommandBar({
           >
             <Home className="w-4.5 h-4.5" />
           </motion.button>
+
+          {/* Empresa Selector */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <motion.button
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-foreground/5 border border-foreground/10 hover:border-primary/30 hover:bg-foreground/8 transition-colors max-w-[200px]"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Building2 className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-sm font-medium truncate">
+                  {empresaAtiva?.nome || "Selecionar empresa"}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground shrink-0" />
+              </motion.button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-64">
+              <div className="px-2 py-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Empresa ativa</p>
+              </div>
+              <DropdownMenuSeparator />
+              {empresasDisponiveis.map(empresa => (
+                <DropdownMenuItem
+                  key={empresa.id}
+                  onClick={() => setEmpresaAtiva(empresa)}
+                  className="flex items-center gap-2"
+                >
+                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{empresa.nome}</p>
+                    {empresa.cnpj && (
+                      <p className="text-xs text-muted-foreground">{empresa.cnpj}</p>
+                    )}
+                  </div>
+                  {empresaAtiva?.id === empresa.id && (
+                    <Check className="w-4 h-4 text-primary shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+              {empresasDisponiveis.length === 0 && (
+                <div className="px-2 py-3 text-center text-sm text-muted-foreground">
+                  Nenhuma empresa disponível
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Vertical Separator */}
+          <div className="w-px h-6 bg-foreground/10" />
 
           {/* Section Segmented Control */}
           <div className="relative flex items-center p-1 rounded-xl bg-foreground/5 border border-foreground/5">
