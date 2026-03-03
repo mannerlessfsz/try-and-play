@@ -2299,6 +2299,41 @@ export type Database = {
           },
         ]
       }
+      grupo_investidas_socios: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string
+          id: string
+          investida_id: string
+          nome: string
+          qualificacao: string | null
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          id?: string
+          investida_id: string
+          nome: string
+          qualificacao?: string | null
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          id?: string
+          investida_id?: string
+          nome?: string
+          qualificacao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_investidas_socios_investida_id_fkey"
+            columns: ["investida_id"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grupos_economicos: {
         Row: {
           cnpj_holding: string | null
