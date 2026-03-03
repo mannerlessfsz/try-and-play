@@ -144,7 +144,7 @@ export function EquivalenciaPatrimonial() {
   });
   const [showNovoGrupo, setShowNovoGrupo] = useState(false);
   const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "", cnpj: "" });
-  const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+  const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", tipo: "operacional" });
   const [buscandoCnpjInvestida, setBuscandoCnpjInvestida] = useState(false);
   const [cnpjInvestidaValido, setCnpjInvestidaValido] = useState<boolean | null>(null);
   const [buscandoCnpjGrupo, setBuscandoCnpjGrupo] = useState(false);
@@ -272,15 +272,13 @@ export function EquivalenciaPatrimonial() {
   };
 
   const adicionarInvestida = async () => {
-    if (!grupoAtivo || !novaInvestida.nome || !novaInvestida.percentual) { toast.error("Preencha nome e percentual"); return; }
-    const perc = parseFloat(novaInvestida.percentual);
-    if (isNaN(perc) || perc <= 0 || perc > 100) { toast.error("Percentual entre 0 e 100"); return; }
+    if (!grupoAtivo || !novaInvestida.nome) { toast.error("Preencha o nome da empresa"); return; }
     const cnpjLimpo = cleanCnpj(novaInvestida.cnpj);
 
     // 1. Insert investida
     const { data: inserted, error } = await supabase.from("grupo_investidas").insert({
       grupo_id: grupoAtivo.id, nome: novaInvestida.nome,
-      cnpj: cnpjLimpo || null, percentual_participacao: perc,
+      cnpj: cnpjLimpo || null, percentual_participacao: 0,
       tipo_empresa: novaInvestida.tipo,
     }).select("id").single();
     if (error || !inserted) { toast.error(error?.message || "Erro ao adicionar"); return; }
@@ -313,7 +311,7 @@ export function EquivalenciaPatrimonial() {
               grupo_id: grupoAtivo.id,
               id_investidora: match.id,
               id_investida: inserted.id,
-              percentual: perc,
+              percentual: 0, // Será ajustado no passo Participações
             });
             toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome}`);
           }
@@ -347,7 +345,7 @@ export function EquivalenciaPatrimonial() {
     }
 
     toast.success("Empresa adicionada");
-    setNovaInvestida({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+    setNovaInvestida({ nome: "", cnpj: "", tipo: "operacional" });
     setCnpjInvestidaValido(null);
     setCnpjSociosCache([]);
     fetchAll(grupoAtivo.id);
@@ -722,15 +720,14 @@ export function EquivalenciaPatrimonial() {
           <motion.div key="empresas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             <div className="glass rounded-xl p-4 space-y-3">
               <p className="text-sm font-semibold">Cadastrar Empresa do Grupo</p>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="relative">
                   <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => handleCnpjInvestidaChange(e.target.value)} maxLength={18}
                     className={cn("text-sm", cnpjInvestidaValido === true && "border-green-500", cnpjInvestidaValido === false && "border-destructive")} />
                   {buscandoCnpjInvestida && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
                   {cnpjInvestidaValido === true && !buscandoCnpjInvestida && <CheckCircle className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />}
                 </div>
-                <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm" />
-                <Input placeholder="% Capital Social" type="number" value={novaInvestida.percentual} onChange={e => setNovaInvestida(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
+                <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm col-span-1 md:col-span-2" />
                 <Select value={novaInvestida.tipo} onValueChange={v => setNovaInvestida(p => ({ ...p, tipo: v }))}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -788,7 +785,6 @@ export function EquivalenciaPatrimonial() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] capitalize">{inv.tipo_empresa}</Badge>
-                      <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[10px]">{fmtPct(inv.percentual_participacao)}</Badge>
                       <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerInvestida(inv.id)}>
                         <Trash2 className="w-3 h-3 text-destructive" />
                       </Button>
