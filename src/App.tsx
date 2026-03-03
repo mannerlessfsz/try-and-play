@@ -15,15 +15,33 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import FloatingMessengerOrbs from "./components/messenger/FloatingMessengerOrbs";
 import { Loader2 } from "lucide-react";
 
-// Lazy load heavy pages
-const Dashboard = lazy(() => import("./pages/Index"));
-const Admin = lazy(() => import("./pages/Admin"));
-const TaskVault = lazy(() => import("./pages/TaskVault"));
-const Messenger = lazy(() => import("./pages/Messenger"));
-const FinancialACE = lazy(() => import("./pages/FinancialACE"));
-const Conversores = lazy(() => import("./pages/Conversores"));
-const UsuariosAdmin = lazy(() => import("./pages/UsuariosAdmin"));
-const InstallApp = lazy(() => import("./pages/InstallApp"));
+// Retry wrapper for lazy imports (handles Vite HMR cache issues)
+function lazyRetry(importFn: () => Promise<any>, retries = 3): Promise<any> {
+  return new Promise((resolve, reject) => {
+    importFn()
+      .then(resolve)
+      .catch((error: any) => {
+        if (retries > 0) {
+          // Add cache-busting query param
+          setTimeout(() => {
+            lazyRetry(importFn, retries - 1).then(resolve, reject);
+          }, 500);
+        } else {
+          reject(error);
+        }
+      });
+  });
+}
+
+// Lazy load heavy pages with retry
+const Dashboard = lazy(() => lazyRetry(() => import("./pages/Index")));
+const Admin = lazy(() => lazyRetry(() => import("./pages/Admin")));
+const TaskVault = lazy(() => lazyRetry(() => import("./pages/TaskVault")));
+const Messenger = lazy(() => lazyRetry(() => import("./pages/Messenger")));
+const FinancialACE = lazy(() => lazyRetry(() => import("./pages/FinancialACE")));
+const Conversores = lazy(() => lazyRetry(() => import("./pages/Conversores")));
+const UsuariosAdmin = lazy(() => lazyRetry(() => import("./pages/UsuariosAdmin")));
+const InstallApp = lazy(() => lazyRetry(() => import("./pages/InstallApp")));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
