@@ -234,7 +234,7 @@ Retorne APENAS um JSON válido no seguinte formato (sem explicações):
   "condicao_pagamento": "string ou null"
 }`;
 
-  const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${LOVABLE_API_KEY}`,
