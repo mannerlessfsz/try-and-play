@@ -1915,6 +1915,124 @@ export type Database = {
           },
         ]
       }
+      grupo_balancos: {
+        Row: {
+          arquivo_nome: string | null
+          ativo_total: number | null
+          capital_social: number | null
+          created_at: string
+          id: string
+          investida_id: string
+          lucros_prejuizos: number | null
+          passivo_total: number | null
+          patrimonio_liquido: number
+          periodo: string
+          reservas: number | null
+        }
+        Insert: {
+          arquivo_nome?: string | null
+          ativo_total?: number | null
+          capital_social?: number | null
+          created_at?: string
+          id?: string
+          investida_id: string
+          lucros_prejuizos?: number | null
+          passivo_total?: number | null
+          patrimonio_liquido?: number
+          periodo: string
+          reservas?: number | null
+        }
+        Update: {
+          arquivo_nome?: string | null
+          ativo_total?: number | null
+          capital_social?: number | null
+          created_at?: string
+          id?: string
+          investida_id?: string
+          lucros_prejuizos?: number | null
+          passivo_total?: number | null
+          patrimonio_liquido?: number
+          periodo?: string
+          reservas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_balancos_investida_id_fkey"
+            columns: ["investida_id"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupo_investidas: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          grupo_id: string
+          id: string
+          nome: string
+          percentual_participacao: number
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          grupo_id: string
+          id?: string
+          nome: string
+          percentual_participacao: number
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          grupo_id?: string
+          id?: string
+          nome?: string
+          percentual_participacao?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupo_investidas_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupos_economicos: {
+        Row: {
+          cnpj_holding: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj_holding?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj_holding?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guias_pagamentos: {
         Row: {
           codigo_barras: string | null
