@@ -264,7 +264,7 @@ export function EquivalenciaPatrimonial() {
       const data = await fetchCnpjData(digits);
       setNovaInvestida(p => ({ ...p, nome: p.nome || data.razao_social }));
       if (data.socios && data.socios.length > 0) {
-        setCnpjSociosCache(data.socios.map(s => ({ nome: s.nome, qualificacao: s.qualificacao })));
+        setCnpjSociosCache(data.socios.map(s => ({ nome: s.nome, qualificacao: s.qualificacao, cpf_cnpj: s.cpf_cnpj || undefined })));
       }
       toast.success(`CNPJ encontrado: ${data.razao_social}`);
     } catch (err: any) { toast.error(err.message); }
