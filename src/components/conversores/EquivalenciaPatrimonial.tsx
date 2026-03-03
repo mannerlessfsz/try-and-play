@@ -149,6 +149,7 @@ export function EquivalenciaPatrimonial() {
   const [cnpjInvestidaValido, setCnpjInvestidaValido] = useState<boolean | null>(null);
   const [buscandoCnpjGrupo, setBuscandoCnpjGrupo] = useState(false);
   const [cnpjGrupoValido, setCnpjGrupoValido] = useState<boolean | null>(null);
+  const [cnpjSociosCache, setCnpjSociosCache] = useState<{ nome: string; qualificacao: string; cpf_cnpj?: string }[]>([]);
   const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
   const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
@@ -253,6 +254,7 @@ export function EquivalenciaPatrimonial() {
   const handleCnpjInvestidaChange = async (rawValue: string) => {
     const formatted = formatCnpj(rawValue);
     setNovaInvestida(p => ({ ...p, cnpj: formatted }));
+    setCnpjSociosCache([]);
     const digits = cleanCnpj(formatted);
     if (digits.length < 14) { setCnpjInvestidaValido(null); return; }
     if (!isValidCnpj(digits)) { setCnpjInvestidaValido(false); toast.error("CNPJ inválido"); return; }
@@ -261,6 +263,9 @@ export function EquivalenciaPatrimonial() {
     try {
       const data = await fetchCnpjData(digits);
       setNovaInvestida(p => ({ ...p, nome: p.nome || data.razao_social }));
+      if (data.socios && data.socios.length > 0) {
+        setCnpjSociosCache(data.socios.map(s => ({ nome: s.nome, qualificacao: s.qualificacao })));
+      }
       toast.success(`CNPJ encontrado: ${data.razao_social}`);
     } catch (err: any) { toast.error(err.message); }
     finally { setBuscandoCnpjInvestida(false); }
@@ -271,15 +276,80 @@ export function EquivalenciaPatrimonial() {
     const perc = parseFloat(novaInvestida.percentual);
     if (isNaN(perc) || perc <= 0 || perc > 100) { toast.error("Percentual entre 0 e 100"); return; }
     const cnpjLimpo = cleanCnpj(novaInvestida.cnpj);
-    const { error } = await supabase.from("grupo_investidas").insert({
+
+    // 1. Insert investida
+    const { data: inserted, error } = await supabase.from("grupo_investidas").insert({
       grupo_id: grupoAtivo.id, nome: novaInvestida.nome,
       cnpj: cnpjLimpo || null, percentual_participacao: perc,
       tipo_empresa: novaInvestida.tipo,
-    });
-    if (error) { toast.error(error.message); return; }
+    }).select("id").single();
+    if (error || !inserted) { toast.error(error?.message || "Erro ao adicionar"); return; }
+
+    // 2. Persist sócios
+    if (cnpjSociosCache.length > 0) {
+      const sociosRows = cnpjSociosCache.map(s => ({
+        investida_id: inserted.id,
+        nome: s.nome,
+        qualificacao: s.qualificacao,
+        cpf_cnpj: s.cpf_cnpj || null,
+      }));
+      await supabase.from("grupo_investidas_socios").insert(sociosRows as any);
+    }
+
+    // 3. Auto-detect participações cruzadas (sócios PJ que são outras empresas do grupo)
+    if (cnpjSociosCache.length > 0 && investidas.length > 0) {
+      for (const socio of cnpjSociosCache) {
+        if (!socio.cpf_cnpj) continue;
+        const socioCnpjLimpo = socio.cpf_cnpj.replace(/\D/g, "");
+        if (socioCnpjLimpo.length !== 14) continue; // Only CNPJ (PJ)
+        const match = investidas.find(i => i.cnpj?.replace(/\D/g, "") === socioCnpjLimpo);
+        if (match) {
+          // Sócio é outra empresa do grupo → criar participação: match investe na nova empresa
+          const existing = participacoes.find(p =>
+            p.id_investidora === match.id && p.id_investida === inserted.id
+          );
+          if (!existing) {
+            await supabase.from("eq_participacoes").insert({
+              grupo_id: grupoAtivo.id,
+              id_investidora: match.id,
+              id_investida: inserted.id,
+              percentual: perc,
+            });
+            toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome}`);
+          }
+        }
+      }
+      // Check reverse: the new company's CNPJ appears as sócio of existing companies
+      if (cnpjLimpo) {
+        const { data: reverseMatches } = await supabase
+          .from("grupo_investidas_socios")
+          .select("investida_id")
+          .eq("cpf_cnpj", cnpjLimpo);
+        if (reverseMatches) {
+          for (const rm of reverseMatches) {
+            if (rm.investida_id === inserted.id) continue;
+            const existingReverse = participacoes.find(p =>
+              p.id_investidora === inserted.id && p.id_investida === rm.investida_id
+            );
+            if (!existingReverse) {
+              await supabase.from("eq_participacoes").insert({
+                grupo_id: grupoAtivo.id,
+                id_investidora: inserted.id,
+                id_investida: rm.investida_id,
+                percentual: 0, // Will need manual adjustment
+              });
+              const targetName = investidas.find(i => i.id === rm.investida_id)?.nome || "";
+              toast.success(`Participação reversa detectada: ${novaInvestida.nome} → ${targetName}`);
+            }
+          }
+        }
+      }
+    }
+
     toast.success("Empresa adicionada");
     setNovaInvestida({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
     setCnpjInvestidaValido(null);
+    setCnpjSociosCache([]);
     fetchAll(grupoAtivo.id);
   };
 
@@ -673,6 +743,28 @@ export function EquivalenciaPatrimonial() {
                   <Plus className="w-4 h-4" /> Adicionar
                 </Button>
               </div>
+              {/* Quadro societário encontrado */}
+              {cnpjSociosCache.length > 0 && (
+                <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                    <Users className="w-3 h-3" /> Quadro Societário ({cnpjSociosCache.length} sócios)
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {cnpjSociosCache.map((s, i) => {
+                      const isCnpj = s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14;
+                      const isMatch = isCnpj && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""));
+                      return (
+                        <Badge key={i} variant="outline" className={cn("text-[10px]", isMatch && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]")}>
+                          {s.nome}{isMatch && " ⚡"}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  {cnpjSociosCache.some(s => s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14 && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""))) && (
+                    <p className="text-[10px] text-[hsl(var(--orange))] mt-1.5">⚡ Participações cruzadas serão criadas automaticamente</p>
+                  )}
+                </div>
+              )}
             </div>
 
             {investidas.length === 0 ? (
