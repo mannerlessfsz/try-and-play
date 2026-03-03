@@ -58,22 +58,43 @@ serve(async (req) => {
             role: "system",
             content: `Você é um especialista em contabilidade brasileira. Analise o balancete/demonstração financeira enviado e extraia os dados solicitados com precisão.
 
-REGRAS IMPORTANTES:
-- Patrimônio Líquido (PL): Soma das contas do grupo 2.4 ou "Patrimônio Líquido" no balancete. Valor de SALDO FINAL/FECHAMENTO.
-- LUCRO MENSAL (resultado_mensal): Este é o dado MAIS IMPORTANTE. É o resultado (lucro/prejuízo) APENAS do mês de referência do balancete, NÃO o acumulado do exercício. Se o balancete mostrar colunas "Mês" e "Exercício", use o valor da coluna "Mês". Se só tiver o acumulado, tente inferir o mensal pela diferença com o mês anterior, ou use o acumulado como fallback.
-- LUCRO DO EXERCÍCIO (resultado_exercicio): É o resultado acumulado do exercício (desde janeiro até o mês de referência). Valor informativo.
-- Dividendos: Se houver menção a dividendos propostos/declarados, extraia o valor. Caso contrário, informe 0.
-- CNPJ: Extraia o CNPJ da empresa se visível no documento.
-- Razão Social: Extraia o nome/razão social da empresa.
-- Período: Identifique o período de referência (mês/ano).
-- Valores devem ser numéricos (sem formatação). Use ponto como separador decimal. Valores negativos indicam prejuízo.`,
+REGRAS CRÍTICAS — LEIA COM ATENÇÃO:
+
+1. RESULTADO MENSAL vs RESULTADO DO EXERCÍCIO — ESTA É A DISTINÇÃO MAIS IMPORTANTE:
+   - "resultado_mensal" = lucro/prejuízo SOMENTE do mês de referência. É o valor que será usado no cálculo de equivalência patrimonial.
+   - "resultado_exercicio" = lucro/prejuízo ACUMULADO desde janeiro até o mês de referência.
+   - ESTES SÃO VALORES DIFERENTES. O resultado mensal é SEMPRE menor ou igual ao do exercício (em módulo) quando não há prejuízos alternados.
+   - Se o balancete tiver colunas "Mês"/"Movimento do Mês" e "Exercício"/"Acumulado", use:
+     * "Mês"/"Movimento do Mês" → resultado_mensal
+     * "Exercício"/"Acumulado" → resultado_exercicio
+   - Se o balancete SÓ tiver o acumulado do exercício e NÃO tiver o valor mensal separado, coloque o acumulado em "resultado_exercicio" e deixe "resultado_mensal" como 0. NÃO copie o valor do exercício para o campo mensal.
+   - O resultado geralmente está nas contas do grupo 3 (Resultado) ou na diferença entre receitas (grupo 3.1) e despesas (grupo 3.2/4).
+
+2. Patrimônio Líquido (PL): Soma das contas do grupo 2.4 ou "Patrimônio Líquido". Valor de SALDO FINAL.
+
+3. Dividendos: Se houver menção a dividendos propostos/declarados, extraia o valor. Caso contrário, 0.
+
+4. CNPJ: Extraia se visível no documento.
+
+5. Razão Social: Nome/razão social da empresa.
+
+6. Período: Formato YYYY-MM.
+
+7. Valores numéricos com ponto decimal. Negativos = prejuízo.`,
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `Analise este balancete/demonstração e extraia: PL (patrimônio líquido), resultado MENSAL (lucro/prejuízo do mês, NÃO o acumulado do exercício), resultado do EXERCÍCIO (acumulado), dividendos declarados, CNPJ, razão social e período de referência. PRIORIZE o resultado mensal. Arquivo: ${file.filename}`,
+                text: `Analise este balancete/demonstração e extraia SEPARADAMENTE:
+1) PL (patrimônio líquido - saldo final)
+2) resultado_mensal = lucro/prejuízo APENAS do mês (coluna "Mês" ou "Movimento"). Se não existir coluna mensal separada, retorne 0 — NÃO use o acumulado do exercício neste campo.
+3) resultado_exercicio = lucro/prejuízo ACUMULADO do exercício (coluna "Exercício" ou "Acumulado")
+4) dividendos declarados
+5) CNPJ e razão social
+6) período de referência (YYYY-MM)
+ATENÇÃO: resultado_mensal e resultado_exercicio são valores DIFERENTES. Não copie um para o outro. Arquivo: ${file.filename}`,
               },
               {
                 type: "image_url",
@@ -220,6 +241,7 @@ REGRAS IMPORTANTES:
         }
 
         const extracted = JSON.parse(toolCall.function.arguments);
+        console.log(`[parse-balancete] ${file.filename} => resultado_mensal: ${extracted.resultado_mensal}, resultado_exercicio: ${extracted.resultado_exercicio}, PL: ${extracted.patrimonio_liquido}`);
 
         results.push({
           filename: file.filename,

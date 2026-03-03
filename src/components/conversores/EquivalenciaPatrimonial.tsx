@@ -770,7 +770,7 @@ export function EquivalenciaPatrimonial() {
     await supabase.from("eq_resultado_periodo").upsert({
       id_empresa: empresaId,
       periodo,
-      lucro_pre_equivalencia: data.resultado_mensal || data.resultado_periodo || 0,
+      lucro_pre_equivalencia: data.resultado_mensal ?? 0,
       lucro_exercicio: data.resultado_exercicio || 0,
       dividendos_declarados: data.dividendos_declarados || 0,
     }, { onConflict: "id_empresa,periodo" });
