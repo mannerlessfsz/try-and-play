@@ -116,9 +116,41 @@ function formatCep(cep: string | null): string | null {
 /**
  * Consulta dados completos do CNPJ via BrasilAPI (gratuita, sem chave)
  */
+async function fetchWithRetry(url: string, retries = 2, delayMs = 1500): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url);
+      if (response.ok || response.status === 404) return response;
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      return response;
+    } catch (err) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, delayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Falha após múltiplas tentativas');
+}
+
 export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
   const digits = cleanCnpj(cnpj);
-  const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+  
+  let response: Response;
+  try {
+    response = await fetchWithRetry(`https://brasilapi.com.br/api/cnpj/v1/${digits}`);
+  } catch {
+    // Fallback: ReceitaWS (also free, no key)
+    try {
+      response = await fetchWithRetry(`https://receitaws.com.br/v1/cnpj/${digits}`);
+    } catch {
+      throw new Error('Não foi possível consultar o CNPJ. Verifique sua conexão e tente novamente.');
+    }
+  }
 
   if (!response.ok) {
     if (response.status === 404) throw new Error('CNPJ não encontrado na base da Receita Federal');
@@ -127,6 +159,9 @@ export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
   }
 
   const raw = await response.json();
+
+  // Detect if response is from ReceitaWS (has 'status' field) vs BrasilAPI
+  const isReceitaWS = 'status' in raw && !('identificador_matriz_filial' in raw);
 
   const socios = Array.isArray(raw.qsa)
     ? raw.qsa.map((s: any) => ({
@@ -143,24 +178,40 @@ export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
           codigo: String(c.codigo),
           descricao: c.descricao || '',
         }))
+    : isReceitaWS && Array.isArray(raw.atividades_secundarias)
+    ? raw.atividades_secundarias
+        .filter((c: any) => c.code && c.code !== '00.00-0-00')
+        .map((c: any) => ({ codigo: c.code?.replace(/[.\-\/]/g, '') || '', descricao: c.text || '' }))
     : [];
 
-  return {
-    razao_social: raw.razao_social || '',
-    nome_fantasia: raw.nome_fantasia || null,
-    cnpj: digits,
-    situacao_cadastral: raw.descricao_situacao_cadastral || '',
-    data_situacao_cadastral: raw.data_situacao_cadastral || null,
-    data_inicio_atividade: raw.data_inicio_atividade || null,
-    tipo: raw.identificador_matriz_filial === 1 ? 'MATRIZ' : raw.identificador_matriz_filial === 2 ? 'FILIAL' : null,
+  // ReceitaWS uses 'telefone' directly, BrasilAPI uses 'ddd_telefone_1'
+  const telefone1 = isReceitaWS ? raw.telefone : raw.ddd_telefone_1;
+  const telefone2 = isReceitaWS ? null : raw.ddd_telefone_2;
+  const logradouroFull = isReceitaWS
+    ? raw.logradouro
+    : raw.logradouro ? `${raw.descricao_tipo_de_logradouro || ''} ${raw.logradouro}`.trim() : null;
+  const situacao = isReceitaWS ? raw.situacao : raw.descricao_situacao_cadastral;
+  const tipoMatriz = isReceitaWS
+    ? (raw.tipo === 'MATRIZ' ? 'MATRIZ' : raw.tipo === 'FILIAL' ? 'FILIAL' : null)
+    : (raw.identificador_matriz_filial === 1 ? 'MATRIZ' : raw.identificador_matriz_filial === 2 ? 'FILIAL' : null);
+  const cnaePrincipal = isReceitaWS
+    ? (raw.atividade_principal?.[0] ? { codigo: raw.atividade_principal[0].code?.replace(/[.\-\/]/g, '') || '', descricao: raw.atividade_principal[0].text || '' } : null)
+    : (raw.cnae_fiscal ? { codigo: String(raw.cnae_fiscal), descricao: raw.cnae_fiscal_descricao || '' } : null);
 
-    telefone: formatPhone(raw.ddd_telefone_1),
-    telefone2: formatPhone(raw.ddd_telefone_2),
+  return {
+    razao_social: raw.razao_social || raw.nome || '',
+    nome_fantasia: raw.nome_fantasia || raw.fantasia || null,
+    cnpj: digits,
+    situacao_cadastral: situacao || '',
+    data_situacao_cadastral: raw.data_situacao_cadastral || raw.data_situacao || null,
+    data_inicio_atividade: raw.data_inicio_atividade || raw.abertura || null,
+    tipo: tipoMatriz,
+
+    telefone: formatPhone(telefone1),
+    telefone2: formatPhone(telefone2),
     email: raw.email && raw.email.trim() !== '' ? raw.email.toLowerCase().trim() : null,
 
-    logradouro: raw.logradouro
-      ? `${raw.descricao_tipo_de_logradouro || ''} ${raw.logradouro}`.trim()
-      : null,
+    logradouro: logradouroFull,
     numero: raw.numero || null,
     complemento: raw.complemento || null,
     bairro: raw.bairro || null,
@@ -169,14 +220,12 @@ export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
     uf: raw.uf || null,
 
     natureza_juridica: raw.natureza_juridica
-      ? `${raw.codigo_natureza_juridica || ''} - ${raw.natureza_juridica}`.trim()
+      ? `${raw.codigo_natureza_juridica || ''} - ${raw.natureza_juridica}`.replace(/^\s*-\s*/, '').trim()
       : null,
     porte: raw.descricao_porte || raw.porte || null,
-    capital_social: raw.capital_social ?? null,
+    capital_social: raw.capital_social ? Number(raw.capital_social) : null,
 
-    cnae_principal: raw.cnae_fiscal
-      ? { codigo: String(raw.cnae_fiscal), descricao: raw.cnae_fiscal_descricao || '' }
-      : null,
+    cnae_principal: cnaePrincipal,
     cnaes_secundarios: cnaesSecundarios,
 
     socios,
