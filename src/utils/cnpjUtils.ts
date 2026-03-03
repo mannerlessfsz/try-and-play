@@ -91,7 +91,7 @@ export interface CnpjData {
   cnaes_secundarios: CnaeInfo[];
 
   // Sócios
-  socios: { nome: string; qualificacao: string }[];
+  socios: { nome: string; qualificacao: string; cpf_cnpj: string | null }[];
 }
 
 function formatPhone(dddTelefone: string | null): string | null {
@@ -132,6 +132,7 @@ export async function fetchCnpjData(cnpj: string): Promise<CnpjData> {
     ? raw.qsa.map((s: any) => ({
         nome: s.nome_socio || s.nome || '',
         qualificacao: s.qualificacao_socio || s.qual || '',
+        cpf_cnpj: s.cnpj_cpf_do_socio && !s.cnpj_cpf_do_socio.includes('*') ? s.cnpj_cpf_do_socio.replace(/\D/g, '') : null,
       }))
     : [];
 
