@@ -411,14 +411,16 @@ export function EquivalenciaPatrimonial() {
             p.id_investidora === match.id && p.id_investida === inserted.id
           );
           if (!existing) {
-            const pct = socio.percentual_capital_social ?? 0;
-            await supabase.from("eq_participacoes").insert({
+            const pct = socio.percentual_capital_social && socio.percentual_capital_social > 0 ? socio.percentual_capital_social : 0.01;
+            const { error: insErr } = await supabase.from("eq_participacoes").insert({
               grupo_id: grupoAtivo.id,
               id_investidora: match.id,
               id_investida: inserted.id,
               percentual: pct,
+              data_inicio: '2020-01-01',
             });
-            toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome} (${pct}%)`);
+            if (insErr) console.error("Erro ao inserir participação:", insErr);
+            else toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome} (${pct}%)`);
           }
         }
       }
@@ -434,12 +436,14 @@ export function EquivalenciaPatrimonial() {
               p.id_investidora === inserted.id && p.id_investida === rm.investida_id
             );
             if (!existingReverse) {
-              await supabase.from("eq_participacoes").insert({
+              const { error: revErr } = await supabase.from("eq_participacoes").insert({
                 grupo_id: grupoAtivo.id,
                 id_investidora: inserted.id,
                 id_investida: rm.investida_id,
-                percentual: 0,
+                percentual: 0.01,
+                data_inicio: '2020-01-01',
               });
+              if (revErr) console.error("Erro ao inserir participação reversa:", revErr);
               const targetName = investidas.find(i => i.id === rm.investida_id)?.nome || "";
               toast.success(`Participação reversa detectada: ${novaInvestida.nome} → ${targetName}`);
             }
@@ -473,6 +477,7 @@ export function EquivalenciaPatrimonial() {
     const { error } = await supabase.from("eq_participacoes").insert({
       grupo_id: grupoAtivo.id, id_investidora: novaParticipacao.investidora,
       id_investida: novaParticipacao.investida, percentual: perc,
+      data_inicio: '2020-01-01',
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Participação registrada");
@@ -493,13 +498,15 @@ export function EquivalenciaPatrimonial() {
         if (!investidora) continue;
         const exists = participacoes.find(p => p.id_investidora === investidora.id && p.id_investida === inv.id);
         if (!exists) {
-          const pct = socio.percentual_capital_social ?? 0;
-          await supabase.from("eq_participacoes").insert({
+          const pct = socio.percentual_capital_social && socio.percentual_capital_social > 0 ? socio.percentual_capital_social : 0.01;
+          const { error: syncErr } = await supabase.from("eq_participacoes").insert({
             grupo_id: grupoAtivo.id,
             id_investidora: investidora.id,
             id_investida: inv.id,
             percentual: pct,
+            data_inicio: '2020-01-01',
           });
+          if (syncErr) console.error("Erro ao sincronizar participação:", syncErr);
           criadas++;
         }
       }
@@ -569,14 +576,16 @@ export function EquivalenciaPatrimonial() {
             .maybeSingle();
 
           if (!existing) {
-            const pct = socio.percentual_capital_social ?? 0;
-            await supabase.from("eq_participacoes").insert({
+            const pct = socio.percentual_capital_social && socio.percentual_capital_social > 0 ? socio.percentual_capital_social : 0.01;
+            const { error: insErr } = await supabase.from("eq_participacoes").insert({
               grupo_id: grupoAtivo.id,
               id_investidora: investidora.id,
               id_investida: inv.id,
               percentual: pct,
+              data_inicio: '2020-01-01',
             });
-            participacoesCriadas++;
+            if (insErr) console.error("Erro ao inserir participação na reconsulta:", insErr);
+            else participacoesCriadas++;
           } else if (socio.percentual_capital_social != null && socio.percentual_capital_social > 0) {
             // Atualizar percentual se veio da API e é > 0
             await supabase.from("eq_participacoes")
