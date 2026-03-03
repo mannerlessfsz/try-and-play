@@ -11,7 +11,8 @@ import {
   Lock,
   ArrowRight,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  TrendingUp
 } from "lucide-react";
 import { ConversorFiscal } from "@/components/conversores/ConversorFiscal";
 import { ConversorExtrato } from "@/components/conversores/ConversorExtrato";
@@ -21,6 +22,7 @@ import { AjustaSpedHome } from "@/components/conversores/AjustaSpedHome";
 import { LancaApaeTab } from "@/components/conversores/LancaApaeTab";
 import { ConversorCasaTab } from "@/components/conversores/ConversorCasaTab";
 import { ConversorLiderTab } from "@/components/conversores/ConversorLiderTab";
+import { EquivalenciaPatrimonial } from "@/components/conversores/EquivalenciaPatrimonial";
 import { motion, AnimatePresence } from "framer-motion";
 import { useModulePermissions } from "@/hooks/useModulePermissions";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
@@ -38,6 +40,7 @@ const conversores = [
   { id: "lancaapae", icon: FileUp, title: "Lança APAE", description: "Importação de arquivos APAE — Processe relatórios e gere lançamentos", category: "contabil" },
   { id: "casa", icon: Home, title: "Conversor CASA", description: "Arquivos do sistema CASA — Migre dados entre sistemas contábeis", category: "sistemas" },
   { id: "lider", icon: Crown, title: "Conversor LÍDER", description: "Arquivos do sistema LÍDER — Converta lançamentos para importação", category: "sistemas" },
+  { id: "equivalencia", icon: TrendingUp, title: "Equivalência Patrimonial", description: "Importe balanços de investidas e calcule automaticamente o resultado de equivalência patrimonial", category: "contabil" },
 ];
 
 type FilterType = "all" | "fiscal" | "financeiro" | "contabil" | "sistemas" | "geral";
@@ -77,6 +80,7 @@ const bentoSizes = [
   "col-span-2 row-span-1",    // 5: wide
   "col-span-1 row-span-1",    // 6: normal
   "col-span-1 row-span-1",    // 7: normal
+  "col-span-2 row-span-1",    // 8: wide
 ];
 
 const Conversores = () => {
@@ -338,6 +342,7 @@ const Conversores = () => {
               {activeTab === "lancaapae" && <LancaApaeTab />}
               {activeTab === "casa" && <ConversorCasaTab />}
               {activeTab === "lider" && <ConversorLiderTab />}
+              {activeTab === "equivalencia" && <EquivalenciaPatrimonial />}
             </motion.div>
           )}
         </AnimatePresence>
