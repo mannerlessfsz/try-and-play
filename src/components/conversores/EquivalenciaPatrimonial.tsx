@@ -151,6 +151,8 @@ export function EquivalenciaPatrimonial() {
   const [cnpjGrupoValido, setCnpjGrupoValido] = useState<boolean | null>(null);
   const [cnpjSociosCache, setCnpjSociosCache] = useState<{ nome: string; qualificacao: string; cpf_cnpj?: string }[]>([]);
   const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
+  const [allSocios, setAllSocios] = useState<{ id: string; investida_id: string; nome: string; qualificacao: string | null; cpf_cnpj: string | null }[]>([]);
+  const [editingPercentual, setEditingPercentual] = useState<Record<string, string>>({});
   const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
 
@@ -170,8 +172,21 @@ export function EquivalenciaPatrimonial() {
       supabase.from("grupo_investidas").select("*").eq("grupo_id", grupoId).order("nome"),
       supabase.from("eq_participacoes").select("*").eq("grupo_id", grupoId).order("created_at"),
     ]);
-    setInvestidas((inv.data as any[]) || []);
+    const invData = (inv.data as any[]) || [];
+    setInvestidas(invData);
     setParticipacoes((part.data as any[]) || []);
+
+    // Fetch all socios for companies in this group
+    if (invData.length > 0) {
+      const ids = invData.map((i: any) => i.id);
+      const { data: sociosData } = await supabase
+        .from("grupo_investidas_socios")
+        .select("*")
+        .in("investida_id", ids);
+      setAllSocios((sociosData as any[]) || []);
+    } else {
+      setAllSocios([]);
+    }
   };
 
   const fetchPeriodoData = async (grupoId: string, per: string) => {
@@ -374,6 +389,50 @@ export function EquivalenciaPatrimonial() {
     toast.success("Participação registrada");
     setNovaParticipacao({ investidora: "", investida: "", percentual: "" });
     fetchAll(grupoAtivo.id);
+  };
+
+  const sincronizarParticipacoesPorQSA = async () => {
+    if (!grupoAtivo) return;
+    let criadas = 0;
+    // For each company, check its socios
+    for (const inv of investidas) {
+      const socios = allSocios.filter(s => s.investida_id === inv.id);
+      for (const socio of socios) {
+        if (!socio.cpf_cnpj) continue;
+        const socioCnpjLimpo = socio.cpf_cnpj.replace(/\D/g, "");
+        if (socioCnpjLimpo.length !== 14) continue; // Only PJ
+        // Find which company in the group matches this socio CNPJ
+        const investidora = investidas.find(i => i.cnpj?.replace(/\D/g, "") === socioCnpjLimpo && i.id !== inv.id);
+        if (!investidora) continue;
+        // Check if participation already exists
+        const exists = participacoes.find(p => p.id_investidora === investidora.id && p.id_investida === inv.id);
+        if (!exists) {
+          await supabase.from("eq_participacoes").insert({
+            grupo_id: grupoAtivo.id,
+            id_investidora: investidora.id,
+            id_investida: inv.id,
+            percentual: 0,
+          });
+          criadas++;
+        }
+      }
+    }
+    if (criadas > 0) {
+      toast.success(`${criadas} participação(ões) criada(s) automaticamente`);
+      fetchAll(grupoAtivo.id);
+    } else {
+      toast.info("Nenhuma nova participação detectada pelo QSA");
+    }
+  };
+
+  const atualizarPercentual = async (participacaoId: string, novoPercentual: number) => {
+    if (isNaN(novoPercentual) || novoPercentual < 0 || novoPercentual > 100) {
+      toast.error("Percentual entre 0 e 100"); return;
+    }
+    const { error } = await supabase.from("eq_participacoes").update({ percentual: novoPercentual }).eq("id", participacaoId);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Percentual atualizado");
+    if (grupoAtivo) fetchAll(grupoAtivo.id);
   };
 
   const removerParticipacao = async (id: string) => {
@@ -802,13 +861,115 @@ export function EquivalenciaPatrimonial() {
           </motion.div>
         )}
 
-        {/* === STEP: PARTICIPAÇÕES CRUZADAS === */}
+        {/* === STEP: PARTICIPAÇÕES CRUZADAS (QSA-driven) === */}
         {step === "participacoes" && (
           <motion.div key="participacoes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            
+            {/* Auto-sync from QSA */}
             <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">Registrar Participação Cruzada</p>
-              <p className="text-[11px] text-muted-foreground">Defina qual empresa investe em qual, e o percentual de participação.</p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Participações do Grupo</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Cruzamento automático com o Quadro Societário (QSA) de cada empresa.
+                  </p>
+                </div>
+                <Button onClick={sincronizarParticipacoesPorQSA} variant="outline" size="sm" className="gap-1.5 text-xs">
+                  <Network className="w-3.5 h-3.5" /> Sincronizar QSA
+                </Button>
+              </div>
+            </div>
+
+            {/* QSA per company - show shareholders and detected cross-holdings */}
+            {investidas.map(inv => {
+              const socios = allSocios.filter(s => s.investida_id === inv.id);
+              const participacoesComoInvestida = participacoes.filter(p => p.id_investida === inv.id);
+              
+              return (
+                <div key={inv.id} className="glass rounded-xl p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-lg bg-[hsl(var(--orange)/0.1)] flex items-center justify-center">
+                      <Building2 className="w-3.5 h-3.5 text-[hsl(var(--orange))]" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold">{inv.nome}</p>
+                      <p className="text-[10px] text-muted-foreground">{inv.cnpj ? formatCnpj(inv.cnpj) : "Sem CNPJ"}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] capitalize ml-auto">{inv.tipo_empresa}</Badge>
+                  </div>
+
+                  {/* Sócios */}
+                  {socios.length > 0 && (
+                    <div className="pl-10 space-y-1.5">
+                      <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Quadro Societário ({socios.length})
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {socios.map(s => {
+                          const isCnpj = s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14;
+                          const matchEmpresa = isCnpj ? investidas.find(i => i.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, "") && i.id !== inv.id) : null;
+                          return (
+                            <Badge key={s.id} variant="outline" className={cn("text-[10px]",
+                              matchEmpresa && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]"
+                            )}>
+                              {s.nome}{matchEmpresa && ` ⚡ ${matchEmpresa.nome}`}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Participações como investida (quem investe nesta empresa) */}
+                  {participacoesComoInvestida.length > 0 && (
+                    <div className="pl-10 space-y-2">
+                      <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
+                        <GitBranch className="w-3 h-3" /> Investidores nesta empresa
+                      </p>
+                      {participacoesComoInvestida.map(p => (
+                        <div key={p.id} className="flex items-center gap-2 group">
+                          <Badge variant="outline" className="text-[11px]">{getNome(p.id_investidora)}</Badge>
+                          <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                          <div className="flex items-center gap-1">
+                            <Input
+                              type="number"
+                              className="w-20 h-7 text-xs text-center"
+                              defaultValue={p.percentual}
+                              key={`${p.id}-${p.percentual}`}
+                              onBlur={e => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val !== p.percentual) atualizarPercentual(p.id, val);
+                              }}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") {
+                                  const val = parseFloat((e.target as HTMLInputElement).value);
+                                  if (!isNaN(val) && val !== p.percentual) atualizarPercentual(p.id, val);
+                                }
+                              }}
+                            />
+                            <span className="text-[10px] text-muted-foreground">%</span>
+                          </div>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerParticipacao(p.id)}>
+                            <Trash2 className="w-3 h-3 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {socios.length === 0 && participacoesComoInvestida.length === 0 && (
+                    <p className="pl-10 text-[10px] text-muted-foreground italic">Sem sócios cadastrados e sem investidores</p>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Manual add - collapsed by default */}
+            <details className="glass rounded-xl p-4">
+              <summary className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
+                <Plus className="w-3.5 h-3.5" /> Adicionar participação manualmente
+              </summary>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
                 <Select value={novaParticipacao.investidora} onValueChange={v => setNovaParticipacao(p => ({ ...p, investidora: v }))}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Investidora" /></SelectTrigger>
                   <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
@@ -822,31 +983,7 @@ export function EquivalenciaPatrimonial() {
                   <GitBranch className="w-4 h-4" /> Registrar
                 </Button>
               </div>
-            </div>
-
-            {participacoes.length === 0 ? (
-              <div className="glass rounded-xl p-8 text-center">
-                <GitBranch className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-30" />
-                <p className="text-sm text-muted-foreground">Nenhuma participação cruzada registrada</p>
-              </div>
-            ) : (
-              <div className="grid gap-2">
-                {participacoes.map((p, i) => (
-                  <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
-                    className="glass rounded-xl p-3 flex items-center justify-between group">
-                    <div className="flex items-center gap-2 text-sm">
-                      <Badge variant="outline" className="text-[11px]">{getNome(p.id_investidora)}</Badge>
-                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                      <Badge variant="outline" className="text-[11px]">{getNome(p.id_investida)}</Badge>
-                      <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[10px]">{fmtPct(p.percentual)}</Badge>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerParticipacao(p.id)}>
-                      <Trash2 className="w-3 h-3 text-destructive" />
-                    </Button>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+            </details>
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("empresas")} className="text-xs">Voltar</Button>
