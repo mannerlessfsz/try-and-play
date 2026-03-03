@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Trash2, Building2, TrendingUp, TrendingDown,
   FileText, Plus, Calculator, Download, ChevronDown, ChevronUp,
   ArrowLeft, Users, Layers, GitBranch, BarChart3, Wallet,
-  ArrowRight, Loader2, Network
+  ArrowRight, Loader2, Network, FileUp, CheckCircle, AlertCircle,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,6 +130,12 @@ export function EquivalenciaPatrimonial() {
   // UI
   const [loading, setLoading] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResults, setUploadResults] = useState<any[]>([]);
+  const [uploadMode, setUploadMode] = useState<"individual" | "lote">("individual");
+  const [uploadEmpresa, setUploadEmpresa] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
   const [periodo, setPeriodo] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
@@ -290,6 +297,151 @@ export function EquivalenciaPatrimonial() {
     toast.success("PL de abertura salvo (como fechamento do período anterior)");
     setNovoPL({ empresa: "", pl_abertura: "" });
     if (grupoAtivo) fetchPeriodoData(grupoAtivo.id, periodo);
+  };
+
+  // ============================================================================
+  // UPLOAD E PARSING DE BALANCETES
+  // ============================================================================
+
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const processarUploadIndividual = async (files: FileList) => {
+    if (!uploadEmpresa) { toast.error("Selecione a empresa primeiro"); return; }
+    const empresa = investidas.find(i => i.id === uploadEmpresa);
+    if (!empresa) return;
+
+    setUploading(true);
+    try {
+      const fileData = [];
+      for (const file of Array.from(files)) {
+        const base64 = await fileToBase64(file);
+        fileData.push({
+          filename: file.name,
+          content_base64: base64,
+          empresa_id: empresa.id,
+          empresa_nome: empresa.nome,
+        });
+      }
+
+      const { data, error } = await supabase.functions.invoke("parse-balancete", {
+        body: { files: fileData },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      setUploadResults(prev => [...prev, ...(data.results || [])]);
+
+      // Auto-populate results for successful extractions
+      for (const result of data.results || []) {
+        if (result.success && result.data) {
+          await autoSaveExtractedData(result.empresa_id, result.data);
+        }
+      }
+
+      const successCount = (data.results || []).filter((r: any) => r.success).length;
+      const failCount = (data.results || []).filter((r: any) => !r.success).length;
+      if (successCount > 0) toast.success(`${successCount} arquivo(s) processado(s) com sucesso`);
+      if (failCount > 0) toast.error(`${failCount} arquivo(s) com erro`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao processar arquivo");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const processarUploadLote = async (files: FileList) => {
+    setUploading(true);
+    try {
+      const fileData = [];
+      for (const file of Array.from(files)) {
+        const base64 = await fileToBase64(file);
+        fileData.push({
+          filename: file.name,
+          content_base64: base64,
+        });
+      }
+
+      const { data, error } = await supabase.functions.invoke("parse-balancete", {
+        body: { files: fileData },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      // Try to match by CNPJ
+      const results = (data.results || []).map((result: any) => {
+        if (result.success && result.data?.cnpj) {
+          const cnpjLimpo = result.data.cnpj.replace(/\D/g, "");
+          const match = investidas.find(i => i.cnpj?.replace(/\D/g, "") === cnpjLimpo);
+          if (match) {
+            return { ...result, empresa_id: match.id, empresa_nome: match.nome, matched: true };
+          }
+        }
+        return { ...result, matched: false };
+      });
+
+      setUploadResults(prev => [...prev, ...results]);
+
+      // Auto-save matched results
+      for (const result of results) {
+        if (result.success && result.matched && result.empresa_id && result.data) {
+          await autoSaveExtractedData(result.empresa_id, result.data);
+        }
+      }
+
+      const matched = results.filter((r: any) => r.matched && r.success).length;
+      const unmatched = results.filter((r: any) => !r.matched && r.success).length;
+      if (matched > 0) toast.success(`${matched} balancete(s) vinculado(s) automaticamente por CNPJ`);
+      if (unmatched > 0) toast.info(`${unmatched} arquivo(s) sem vínculo automático — vincule manualmente`);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao processar arquivos");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const autoSaveExtractedData = async (empresaId: string, data: any) => {
+    // Save resultado
+    await supabase.from("eq_resultado_periodo").upsert({
+      id_empresa: empresaId,
+      periodo,
+      lucro_pre_equivalencia: data.resultado_periodo || 0,
+      dividendos_declarados: data.dividendos_declarados || 0,
+    }, { onConflict: "id_empresa,periodo" });
+
+    // Save PL as snapshot of previous period (abertura)
+    if (data.patrimonio_liquido) {
+      await supabase.from("eq_pl_snapshot").upsert({
+        id_empresa: empresaId,
+        periodo: periodoAnterior(periodo),
+        pl_abertura: 0,
+        ajuste_equivalencia: 0,
+        pl_fechamento: data.patrimonio_liquido,
+        processado: true,
+      }, { onConflict: "id_empresa,periodo" });
+    }
+
+    if (grupoAtivo) fetchPeriodoData(grupoAtivo.id, periodo);
+  };
+
+  const vincularResultadoManual = async (resultIndex: number, empresaId: string) => {
+    const result = uploadResults[resultIndex];
+    if (!result?.success || !result.data) return;
+
+    await autoSaveExtractedData(empresaId, result.data);
+    const empresa = investidas.find(i => i.id === empresaId);
+    setUploadResults(prev => prev.map((r, i) => i === resultIndex ? { ...r, empresa_id: empresaId, empresa_nome: empresa?.nome, matched: true } : r));
+    toast.success(`Dados vinculados a ${empresa?.nome}`);
   };
 
   // ============================================================================
@@ -568,9 +720,134 @@ export function EquivalenciaPatrimonial() {
         {/* === STEP: RESULTADOS DO PERÍODO === */}
         {step === "resultados" && (
           <motion.div key="resultados" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            {/* Lucro pré-equivalência */}
+            
+            {/* Upload de Balancetes — IA */}
+            <div className="glass rounded-xl p-4 space-y-4 border border-[hsl(var(--orange)/0.15)]">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[hsl(var(--orange))]" />
+                <p className="text-sm font-semibold">Importar Balancetes via IA</p>
+                <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[9px]">Gemini</Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Envie balancetes em PDF ou Excel. A IA extrai automaticamente PL, resultado e dividendos.
+              </p>
+
+              {/* Mode Toggle */}
+              <div className="flex gap-1 bg-foreground/[0.03] rounded-lg p-1">
+                <button
+                  onClick={() => setUploadMode("individual")}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                    uploadMode === "individual" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
+                  }`}
+                >
+                  <FileUp className="w-3 h-3 inline mr-1" /> Por Empresa
+                </button>
+                <button
+                  onClick={() => setUploadMode("lote")}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                    uploadMode === "lote" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
+                  }`}
+                >
+                  <Upload className="w-3 h-3 inline mr-1" /> Em Lote (CNPJ)
+                </button>
+              </div>
+
+              {uploadMode === "individual" ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Select value={uploadEmpresa} onValueChange={setUploadEmpresa}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                    <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.xlsx,.xls,.csv"
+                    multiple
+                    className="hidden"
+                    onChange={e => e.target.files && processarUploadIndividual(e.target.files)}
+                  />
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || !uploadEmpresa}
+                    className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                    {uploading ? "Processando..." : "Enviar Balancete"}
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    Envie múltiplos arquivos. O sistema identifica automaticamente cada empresa pelo CNPJ no documento.
+                  </p>
+                  <input
+                    ref={batchFileInputRef}
+                    type="file"
+                    accept=".pdf,.xlsx,.xls,.csv"
+                    multiple
+                    className="hidden"
+                    onChange={e => e.target.files && processarUploadLote(e.target.files)}
+                  />
+                  <Button
+                    onClick={() => batchFileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
+                  >
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    {uploading ? "Processando..." : "Enviar Balancetes em Lote"}
+                  </Button>
+                </div>
+              )}
+
+              {/* Upload Results */}
+              {uploadResults.length > 0 && (
+                <div className="space-y-2 mt-3 border-t border-border/30 pt-3">
+                  <p className="text-[11px] font-semibold text-muted-foreground">Resultados da Extração</p>
+                  {uploadResults.map((result, i) => (
+                    <div key={i} className={`rounded-lg p-3 flex items-start gap-3 ${result.success ? "bg-[hsl(var(--cyan)/0.05)] border border-[hsl(var(--cyan)/0.15)]" : "bg-destructive/5 border border-destructive/15"}`}>
+                      {result.success ? <CheckCircle className="w-4 h-4 text-[hsl(var(--cyan))] mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium truncate">{result.filename}</p>
+                        {result.success ? (
+                          <div className="space-y-1 mt-1">
+                            {result.data?.razao_social && <p className="text-[10px] text-muted-foreground">Empresa: {result.data.razao_social}</p>}
+                            <div className="flex gap-3 flex-wrap">
+                              <span className="text-[10px]">PL: <span className="font-mono font-bold text-[hsl(var(--cyan))]">{fmt(result.data?.patrimonio_liquido || 0)}</span></span>
+                              <span className="text-[10px]">Resultado: <span className={`font-mono font-bold ${(result.data?.resultado_periodo || 0) >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(result.data?.resultado_periodo || 0)}</span></span>
+                              <span className="text-[10px]">Dividendos: <span className="font-mono">{fmt(result.data?.dividendos_declarados || 0)}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className={`text-[9px] ${result.data?.confianca === "alta" ? "border-[hsl(var(--cyan)/0.3)] text-[hsl(var(--cyan))]" : result.data?.confianca === "media" ? "border-[hsl(var(--orange)/0.3)] text-[hsl(var(--orange))]" : "border-destructive/30 text-destructive"}`}>
+                                Confiança: {result.data?.confianca || "—"}
+                              </Badge>
+                              {result.matched ? (
+                                <Badge className="bg-[hsl(var(--cyan)/0.1)] text-[hsl(var(--cyan))] text-[9px]">
+                                  <CheckCircle className="w-2.5 h-2.5 mr-1" /> {result.empresa_nome}
+                                </Badge>
+                              ) : (
+                                <Select onValueChange={v => vincularResultadoManual(i, v)}>
+                                  <SelectTrigger className="h-5 text-[10px] w-40 border-dashed">
+                                    <SelectValue placeholder="Vincular empresa..." />
+                                  </SelectTrigger>
+                                  <SelectContent>{investidas.map(inv => <SelectItem key={inv.id} value={inv.id} className="text-xs">{inv.nome}</SelectItem>)}</SelectContent>
+                                </Select>
+                              )}
+                            </div>
+                            {result.data?.observacoes && <p className="text-[10px] text-muted-foreground italic">{result.data.observacoes}</p>}
+                          </div>
+                        ) : (
+                          <p className="text-[10px] text-destructive">{result.error}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Entrada manual — Lucro pré-equivalência */}
             <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">Lucro Pré-Equivalência — {periodo}</p>
+              <p className="text-sm font-semibold">Entrada Manual — Lucro Pré-Equivalência — {periodo}</p>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <Select value={novoResultado.empresa} onValueChange={v => setNovoResultado(p => ({ ...p, empresa: v }))}>
                   <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
