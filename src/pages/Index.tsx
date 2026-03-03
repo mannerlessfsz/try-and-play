@@ -1,6 +1,7 @@
 import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+
 import { CompactFeatureCard } from "@/components/CompactFeatureCard";
 import { GradientMesh } from "@/components/GradientMesh";
 import { useAuth } from "@/contexts/AuthContext";
