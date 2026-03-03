@@ -5,7 +5,7 @@ import {
   FileText, Plus, Calculator, Download, ChevronDown, ChevronUp,
   ArrowLeft, Users, Layers, GitBranch, BarChart3, Wallet,
   ArrowRight, Loader2, Network, FileUp, CheckCircle, AlertCircle,
-  Sparkles, Search
+  Sparkles, Search, Calendar, FolderOpen, Lock, Unlock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,19 @@ interface GrupoEconomico {
   descricao: string | null;
   cnpj_holding: string | null;
   created_at: string;
+}
+
+interface CompetenciaSessao {
+  id: string;
+  grupo_id: string;
+  competencia_mes: number;
+  competencia_ano: number;
+  periodo: string;
+  status: string;
+  observacoes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Investida {
@@ -100,6 +113,7 @@ interface CalculoResponse {
 
 const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const fmtPct = (v: number) => `${v.toFixed(2)}%`;
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 
 type StepKey = "empresas" | "participacoes" | "resultados" | "processar" | "relatorio";
 
@@ -117,12 +131,14 @@ const STEPS: { key: StepKey; label: string; icon: any }[] = [
 
 export function EquivalenciaPatrimonial() {
   // Navigation
-  const [view, setView] = useState<"grupos" | "workspace">("grupos");
+  const [view, setView] = useState<"grupos" | "sessoes" | "workspace">("grupos");
   const [grupoAtivo, setGrupoAtivo] = useState<GrupoEconomico | null>(null);
+  const [sessaoAtiva, setSessaoAtiva] = useState<CompetenciaSessao | null>(null);
   const [step, setStep] = useState<StepKey>("empresas");
 
   // Data
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
+  const [sessoes, setSessoes] = useState<CompetenciaSessao[]>([]);
   const [investidas, setInvestidas] = useState<Investida[]>([]);
   const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
   const [resultadosPeriodo, setResultadosPeriodo] = useState<ResultadoPeriodo[]>([]);
@@ -138,10 +154,6 @@ export function EquivalenciaPatrimonial() {
   const [uploadEmpresa, setUploadEmpresa] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const batchFileInputRef = useRef<HTMLInputElement>(null);
-  const [periodo, setPeriodo] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-  });
   const [showNovoGrupo, setShowNovoGrupo] = useState(false);
   const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "", cnpj: "" });
   const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", tipo: "operacional" });
@@ -155,6 +167,12 @@ export function EquivalenciaPatrimonial() {
   const [editingPercentual, setEditingPercentual] = useState<Record<string, string>>({});
   const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
+  const [showNovaSessao, setShowNovaSessao] = useState(false);
+  const [novaSessaoMes, setNovaSessaoMes] = useState(() => new Date().getMonth() + 1);
+  const [novaSessaoAno, setNovaSessaoAno] = useState(() => new Date().getFullYear());
+
+  // Derived periodo from active session
+  const periodo = sessaoAtiva?.periodo || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
 
   // ============================================================================
   // FETCH
@@ -167,6 +185,18 @@ export function EquivalenciaPatrimonial() {
     setLoading(false);
   };
 
+  const fetchSessoes = async (grupoId: string) => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("eq_competencia_sessoes")
+      .select("*")
+      .eq("grupo_id", grupoId)
+      .order("competencia_ano", { ascending: false })
+      .order("competencia_mes", { ascending: false });
+    setSessoes((data as any[]) || []);
+    setLoading(false);
+  };
+
   const fetchAll = async (grupoId: string) => {
     const [inv, part] = await Promise.all([
       supabase.from("grupo_investidas").select("*").eq("grupo_id", grupoId).order("nome"),
@@ -176,7 +206,6 @@ export function EquivalenciaPatrimonial() {
     setInvestidas(invData);
     setParticipacoes((part.data as any[]) || []);
 
-    // Fetch all socios for companies in this group
     if (invData.length > 0) {
       const ids = invData.map((i: any) => i.id);
       const { data: sociosData } = await supabase
@@ -203,20 +232,29 @@ export function EquivalenciaPatrimonial() {
   useEffect(() => { fetchGrupos(); }, []);
 
   useEffect(() => {
-    if (grupoAtivo && investidas.length > 0) fetchPeriodoData(grupoAtivo.id, periodo);
-  }, [periodo, investidas.length]);
+    if (grupoAtivo && investidas.length > 0 && sessaoAtiva) fetchPeriodoData(grupoAtivo.id, periodo);
+  }, [periodo, investidas.length, sessaoAtiva?.id]);
 
   const entrarGrupo = async (grupo: GrupoEconomico) => {
     setGrupoAtivo(grupo);
+    setView("sessoes");
+    await fetchSessoes(grupo.id);
+  };
+
+  const entrarSessao = async (sessao: CompetenciaSessao) => {
+    setSessaoAtiva(sessao);
     setView("workspace");
     setStep("empresas");
     setCalculoResult(null);
-    await fetchAll(grupo.id);
+    setUploadResults([]);
+    if (grupoAtivo) await fetchAll(grupoAtivo.id);
   };
 
   const voltarGrupos = () => {
     setView("grupos");
     setGrupoAtivo(null);
+    setSessaoAtiva(null);
+    setSessoes([]);
     setInvestidas([]);
     setParticipacoes([]);
     setResultadosPeriodo([]);
@@ -224,8 +262,60 @@ export function EquivalenciaPatrimonial() {
     setCalculoResult(null);
   };
 
+  const voltarSessoes = () => {
+    setView("sessoes");
+    setSessaoAtiva(null);
+    setInvestidas([]);
+    setParticipacoes([]);
+    setResultadosPeriodo([]);
+    setPlSnapshots([]);
+    setCalculoResult(null);
+    if (grupoAtivo) fetchSessoes(grupoAtivo.id);
+  };
+
   // ============================================================================
-  // CRUD
+  // SESSÕES CRUD
+  // ============================================================================
+
+  const criarSessao = async () => {
+    if (!grupoAtivo) return;
+    const { data: user } = await supabase.auth.getUser();
+    const { data, error } = await supabase.from("eq_competencia_sessoes").insert({
+      grupo_id: grupoAtivo.id,
+      competencia_mes: novaSessaoMes,
+      competencia_ano: novaSessaoAno,
+      created_by: user?.user?.id || null,
+    }).select().single();
+    if (error) {
+      if (error.code === "23505") {
+        toast.error(`Já existe uma sessão para ${MESES[novaSessaoMes - 1]}/${novaSessaoAno}`);
+      } else {
+        toast.error("Erro ao criar sessão: " + error.message);
+      }
+      return;
+    }
+    toast.success(`Sessão ${MESES[novaSessaoMes - 1]}/${novaSessaoAno} criada`);
+    setShowNovaSessao(false);
+    fetchSessoes(grupoAtivo.id);
+  };
+
+  const excluirSessao = async (id: string) => {
+    await supabase.from("eq_competencia_sessoes").delete().eq("id", id);
+    toast.success("Sessão removida");
+    if (grupoAtivo) fetchSessoes(grupoAtivo.id);
+  };
+
+  const alterarStatusSessao = async (id: string, novoStatus: string) => {
+    await supabase.from("eq_competencia_sessoes").update({ status: novoStatus }).eq("id", id);
+    toast.success(`Sessão ${novoStatus === "fechada" ? "fechada" : "reaberta"}`);
+    if (sessaoAtiva?.id === id) {
+      setSessaoAtiva(prev => prev ? { ...prev, status: novoStatus } : null);
+    }
+    if (grupoAtivo) fetchSessoes(grupoAtivo.id);
+  };
+
+  // ============================================================================
+  // CRUD (existing)
   // ============================================================================
 
   const criarGrupo = async () => {
@@ -290,7 +380,6 @@ export function EquivalenciaPatrimonial() {
     if (!grupoAtivo || !novaInvestida.nome) { toast.error("Preencha o nome da empresa"); return; }
     const cnpjLimpo = cleanCnpj(novaInvestida.cnpj);
 
-    // 1. Insert investida
     const { data: inserted, error } = await supabase.from("grupo_investidas").insert({
       grupo_id: grupoAtivo.id, nome: novaInvestida.nome,
       cnpj: cnpjLimpo || null, percentual_participacao: 0,
@@ -298,7 +387,6 @@ export function EquivalenciaPatrimonial() {
     }).select("id").single();
     if (error || !inserted) { toast.error(error?.message || "Erro ao adicionar"); return; }
 
-    // 2. Persist sócios
     if (cnpjSociosCache.length > 0) {
       const sociosRows = cnpjSociosCache.map(s => ({
         investida_id: inserted.id,
@@ -309,15 +397,13 @@ export function EquivalenciaPatrimonial() {
       await supabase.from("grupo_investidas_socios").insert(sociosRows as any);
     }
 
-    // 3. Auto-detect participações cruzadas (sócios PJ que são outras empresas do grupo)
     if (cnpjSociosCache.length > 0 && investidas.length > 0) {
       for (const socio of cnpjSociosCache) {
         if (!socio.cpf_cnpj) continue;
         const socioCnpjLimpo = socio.cpf_cnpj.replace(/\D/g, "");
-        if (socioCnpjLimpo.length !== 14) continue; // Only CNPJ (PJ)
+        if (socioCnpjLimpo.length !== 14) continue;
         const match = investidas.find(i => i.cnpj?.replace(/\D/g, "") === socioCnpjLimpo);
         if (match) {
-          // Sócio é outra empresa do grupo → criar participação: match investe na nova empresa
           const existing = participacoes.find(p =>
             p.id_investidora === match.id && p.id_investida === inserted.id
           );
@@ -326,13 +412,12 @@ export function EquivalenciaPatrimonial() {
               grupo_id: grupoAtivo.id,
               id_investidora: match.id,
               id_investida: inserted.id,
-              percentual: 0, // Será ajustado no passo Participações
+              percentual: 0,
             });
             toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome}`);
           }
         }
       }
-      // Check reverse: the new company's CNPJ appears as sócio of existing companies
       if (cnpjLimpo) {
         const { data: reverseMatches } = await supabase
           .from("grupo_investidas_socios")
@@ -349,7 +434,7 @@ export function EquivalenciaPatrimonial() {
                 grupo_id: grupoAtivo.id,
                 id_investidora: inserted.id,
                 id_investida: rm.investida_id,
-                percentual: 0, // Will need manual adjustment
+                percentual: 0,
               });
               const targetName = investidas.find(i => i.id === rm.investida_id)?.nome || "";
               toast.success(`Participação reversa detectada: ${novaInvestida.nome} → ${targetName}`);
@@ -394,17 +479,14 @@ export function EquivalenciaPatrimonial() {
   const sincronizarParticipacoesPorQSA = async () => {
     if (!grupoAtivo) return;
     let criadas = 0;
-    // For each company, check its socios
     for (const inv of investidas) {
       const socios = allSocios.filter(s => s.investida_id === inv.id);
       for (const socio of socios) {
         if (!socio.cpf_cnpj) continue;
         const socioCnpjLimpo = socio.cpf_cnpj.replace(/\D/g, "");
-        if (socioCnpjLimpo.length !== 14) continue; // Only PJ
-        // Find which company in the group matches this socio CNPJ
+        if (socioCnpjLimpo.length !== 14) continue;
         const investidora = investidas.find(i => i.cnpj?.replace(/\D/g, "") === socioCnpjLimpo && i.id !== inv.id);
         if (!investidora) continue;
-        // Check if participation already exists
         const exists = participacoes.find(p => p.id_investidora === investidora.id && p.id_investida === inv.id);
         if (!exists) {
           await supabase.from("eq_participacoes").insert({
@@ -511,7 +593,6 @@ export function EquivalenciaPatrimonial() {
 
       setUploadResults(prev => [...prev, ...(data.results || [])]);
 
-      // Auto-populate results for successful extractions
       for (const result of data.results || []) {
         if (result.success && result.data) {
           await autoSaveExtractedData(result.empresa_id, result.data);
@@ -547,7 +628,6 @@ export function EquivalenciaPatrimonial() {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      // Try to match by CNPJ
       const results = (data.results || []).map((result: any) => {
         if (result.success && result.data?.cnpj) {
           const cnpjLimpo = result.data.cnpj.replace(/\D/g, "");
@@ -561,7 +641,6 @@ export function EquivalenciaPatrimonial() {
 
       setUploadResults(prev => [...prev, ...results]);
 
-      // Auto-save matched results
       for (const result of results) {
         if (result.success && result.matched && result.empresa_id && result.data) {
           await autoSaveExtractedData(result.empresa_id, result.data);
@@ -580,7 +659,6 @@ export function EquivalenciaPatrimonial() {
   };
 
   const autoSaveExtractedData = async (empresaId: string, data: any) => {
-    // Save resultado
     await supabase.from("eq_resultado_periodo").upsert({
       id_empresa: empresaId,
       periodo,
@@ -588,7 +666,6 @@ export function EquivalenciaPatrimonial() {
       dividendos_declarados: data.dividendos_declarados || 0,
     }, { onConflict: "id_empresa,periodo" });
 
-    // Save PL as snapshot of previous period (abertura)
     if (data.patrimonio_liquido) {
       await supabase.from("eq_pl_snapshot").upsert({
         id_empresa: empresaId,
@@ -628,6 +705,11 @@ export function EquivalenciaPatrimonial() {
       if (data?.error) throw new Error(data.error);
       setCalculoResult(data);
       setStep("relatorio");
+      // Mark session as processed
+      if (sessaoAtiva) {
+        await supabase.from("eq_competencia_sessoes").update({ status: "processada" }).eq("id", sessaoAtiva.id);
+        setSessaoAtiva(prev => prev ? { ...prev, status: "processada" } : null);
+      }
       toast.success("Equivalência calculada com sucesso!");
       fetchPeriodoData(grupoAtivo.id, periodo);
     } catch (err: any) {
@@ -651,6 +733,8 @@ export function EquivalenciaPatrimonial() {
   };
 
   const getNome = (id: string) => investidas.find(i => i.id === id)?.nome || "—";
+
+  const isSessaoFechada = sessaoAtiva?.status === "fechada";
 
   // ============================================================================
   // RENDER: SELEÇÃO DE GRUPO
@@ -734,6 +818,139 @@ export function EquivalenciaPatrimonial() {
   }
 
   // ============================================================================
+  // RENDER: SELEÇÃO DE SESSÃO / COMPETÊNCIA
+  // ============================================================================
+
+  if (view === "sessoes") {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={voltarGrupos}><ArrowLeft className="w-4 h-4" /></Button>
+          <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.25)] flex items-center justify-center">
+            <Calendar className="w-5 h-5 text-[hsl(var(--orange))]" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-bold">{grupoAtivo?.nome}</h2>
+            <p className="text-xs text-muted-foreground">Selecione ou crie uma competência para trabalhar</p>
+          </div>
+          <Button onClick={() => setShowNovaSessao(!showNovaSessao)} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+            <Plus className="w-4 h-4" /> Nova Competência
+          </Button>
+        </div>
+
+        <AnimatePresence>
+          {showNovaSessao && (
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+              <div className="glass rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold">Criar Sessão de Competência</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Select value={String(novaSessaoMes)} onValueChange={v => setNovaSessaoMes(Number(v))}>
+                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {MESES.map((m, i) => (
+                        <SelectItem key={i + 1} value={String(i + 1)}>{m}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    placeholder="Ano"
+                    value={novaSessaoAno}
+                    onChange={e => setNovaSessaoAno(Number(e.target.value))}
+                    min={2000}
+                    max={2100}
+                    className="text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button onClick={criarSessao} size="sm" className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                      <Plus className="w-3.5 h-3.5" /> Criar
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowNovaSessao(false)} className="text-xs">Cancelar</Button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {loading ? (
+          <div className="glass rounded-xl p-8 text-center"><p className="text-sm text-muted-foreground animate-pulse">Carregando...</p></div>
+        ) : sessoes.length === 0 ? (
+          <div className="glass rounded-xl p-10 text-center">
+            <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
+            <p className="text-sm text-muted-foreground">Nenhuma competência criada</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Crie uma sessão de competência para começar a trabalhar com balancetes</p>
+          </div>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            {sessoes.map((sessao, i) => {
+              const statusColor = sessao.status === "fechada"
+                ? "border-destructive/30 bg-destructive/5"
+                : sessao.status === "processada"
+                ? "border-[hsl(var(--cyan)/0.3)] bg-[hsl(var(--cyan)/0.05)]"
+                : "border-transparent";
+              const StatusIcon = sessao.status === "fechada" ? Lock : sessao.status === "processada" ? CheckCircle : FolderOpen;
+              const statusLabel = sessao.status === "fechada" ? "Fechada" : sessao.status === "processada" ? "Processada" : "Aberta";
+              const statusBadgeClass = sessao.status === "fechada"
+                ? "bg-destructive/10 text-destructive border-destructive/20"
+                : sessao.status === "processada"
+                ? "bg-[hsl(var(--cyan)/0.1)] text-[hsl(var(--cyan))] border-[hsl(var(--cyan)/0.2)]"
+                : "bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)]";
+
+              return (
+                <motion.div key={sessao.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+                  className={cn(
+                    "glass rounded-xl p-5 cursor-pointer group hover:shadow-[0_0_30px_hsl(var(--orange)/0.12)] transition-all duration-300 border",
+                    statusColor,
+                    "hover:border-[hsl(var(--orange)/0.25)]"
+                  )}
+                  onClick={() => entrarSessao(sessao)}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.1)] border border-[hsl(var(--orange)/0.2)] flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Calendar className="w-5 h-5 text-[hsl(var(--orange))]" />
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {sessao.status !== "fechada" && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={e => { e.stopPropagation(); alterarStatusSessao(sessao.id, "fechada"); }}
+                          title="Fechar sessão">
+                          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                        </Button>
+                      )}
+                      {sessao.status === "fechada" && (
+                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={e => { e.stopPropagation(); alterarStatusSessao(sessao.id, "aberta"); }}
+                          title="Reabrir sessão">
+                          <Unlock className="w-3.5 h-3.5 text-muted-foreground" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={e => { e.stopPropagation(); excluirSessao(sessao.id); }}>
+                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="text-lg font-bold mb-1">
+                    {MESES[sessao.competencia_mes - 1]} / {sessao.competencia_ano}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={cn("text-[10px] gap-1", statusBadgeClass)}>
+                      <StatusIcon className="w-3 h-3" /> {statusLabel}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-2">
+                    Criada em {new Date(sessao.created_at).toLocaleDateString("pt-BR")}
+                  </p>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ============================================================================
   // RENDER: WORKSPACE
   // ============================================================================
 
@@ -741,7 +958,7 @@ export function EquivalenciaPatrimonial() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={voltarGrupos}><ArrowLeft className="w-4 h-4" /></Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={voltarSessoes}><ArrowLeft className="w-4 h-4" /></Button>
         <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.25)] flex items-center justify-center">
           <Network className="w-5 h-5 text-[hsl(var(--orange))]" />
         </div>
@@ -750,10 +967,30 @@ export function EquivalenciaPatrimonial() {
           <p className="text-xs text-muted-foreground">{grupoAtivo?.cnpj_holding || "Grupo Econômico"}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Período:</span>
-          <Input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)} className="w-40 h-8 text-xs" />
+          <Badge variant="outline" className="text-xs gap-1.5 px-3 py-1.5">
+            <Calendar className="w-3.5 h-3.5 text-[hsl(var(--orange))]" />
+            {sessaoAtiva ? `${MESES[sessaoAtiva.competencia_mes - 1]}/${sessaoAtiva.competencia_ano}` : periodo}
+          </Badge>
+          {isSessaoFechada && (
+            <Badge className="bg-destructive/10 text-destructive border-destructive/20 text-[10px] gap-1">
+              <Lock className="w-3 h-3" /> Fechada
+            </Badge>
+          )}
         </div>
       </div>
+
+      {isSessaoFechada && (
+        <div className="glass rounded-xl p-3 border border-destructive/20 bg-destructive/5 flex items-center gap-2">
+          <Lock className="w-4 h-4 text-destructive shrink-0" />
+          <p className="text-xs text-destructive">
+            Esta competência está <strong>fechada</strong>. Os dados são somente leitura. Reabra a sessão para fazer alterações.
+          </p>
+          <Button variant="outline" size="sm" className="ml-auto text-xs gap-1 shrink-0"
+            onClick={() => sessaoAtiva && alterarStatusSessao(sessaoAtiva.id, "aberta")}>
+            <Unlock className="w-3 h-3" /> Reabrir
+          </Button>
+        </div>
+      )}
 
       {/* Steps */}
       <div className="flex gap-1 glass rounded-xl p-1 overflow-x-auto">
@@ -777,51 +1014,52 @@ export function EquivalenciaPatrimonial() {
         {/* === STEP: EMPRESAS === */}
         {step === "empresas" && (
           <motion.div key="empresas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
-            <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">Cadastrar Empresa do Grupo</p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="relative">
-                  <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => handleCnpjInvestidaChange(e.target.value)} maxLength={18}
-                    className={cn("text-sm", cnpjInvestidaValido === true && "border-green-500", cnpjInvestidaValido === false && "border-destructive")} />
-                  {buscandoCnpjInvestida && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
-                  {cnpjInvestidaValido === true && !buscandoCnpjInvestida && <CheckCircle className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />}
-                </div>
-                <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm col-span-1 md:col-span-2" />
-                <Select value={novaInvestida.tipo} onValueChange={v => setNovaInvestida(p => ({ ...p, tipo: v }))}>
-                  <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="operacional">Operacional</SelectItem>
-                    <SelectItem value="holding">Holding</SelectItem>
-                    <SelectItem value="mista">Mista</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button onClick={adicionarInvestida} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
-                  <Plus className="w-4 h-4" /> Adicionar
-                </Button>
-              </div>
-              {/* Quadro societário encontrado */}
-              {cnpjSociosCache.length > 0 && (
-                <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
-                    <Users className="w-3 h-3" /> Quadro Societário ({cnpjSociosCache.length} sócios)
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {cnpjSociosCache.map((s, i) => {
-                      const isCnpj = s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14;
-                      const isMatch = isCnpj && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""));
-                      return (
-                        <Badge key={i} variant="outline" className={cn("text-[10px]", isMatch && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]")}>
-                          {s.nome}{isMatch && " ⚡"}
-                        </Badge>
-                      );
-                    })}
+            {!isSessaoFechada && (
+              <div className="glass rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold">Cadastrar Empresa do Grupo</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div className="relative">
+                    <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => handleCnpjInvestidaChange(e.target.value)} maxLength={18}
+                      className={cn("text-sm", cnpjInvestidaValido === true && "border-green-500", cnpjInvestidaValido === false && "border-destructive")} />
+                    {buscandoCnpjInvestida && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    {cnpjInvestidaValido === true && !buscandoCnpjInvestida && <CheckCircle className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />}
                   </div>
-                  {cnpjSociosCache.some(s => s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14 && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""))) && (
-                    <p className="text-[10px] text-[hsl(var(--orange))] mt-1.5">⚡ Participações cruzadas serão criadas automaticamente</p>
-                  )}
+                  <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm col-span-1 md:col-span-2" />
+                  <Select value={novaInvestida.tipo} onValueChange={v => setNovaInvestida(p => ({ ...p, tipo: v }))}>
+                    <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="operacional">Operacional</SelectItem>
+                      <SelectItem value="holding">Holding</SelectItem>
+                      <SelectItem value="mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={adicionarInvestida} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                    <Plus className="w-4 h-4" /> Adicionar
+                  </Button>
                 </div>
-              )}
-            </div>
+                {cnpjSociosCache.length > 0 && (
+                  <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    <p className="text-[11px] font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Quadro Societário ({cnpjSociosCache.length} sócios)
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {cnpjSociosCache.map((s, i) => {
+                        const isCnpj = s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14;
+                        const isMatch = isCnpj && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""));
+                        return (
+                          <Badge key={i} variant="outline" className={cn("text-[10px]", isMatch && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]")}>
+                            {s.nome}{isMatch && " ⚡"}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                    {cnpjSociosCache.some(s => s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14 && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""))) && (
+                      <p className="text-[10px] text-[hsl(var(--orange))] mt-1.5">⚡ Participações cruzadas serão criadas automaticamente</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {investidas.length === 0 ? (
               <div className="glass rounded-xl p-8 text-center">
@@ -844,9 +1082,11 @@ export function EquivalenciaPatrimonial() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-[10px] capitalize">{inv.tipo_empresa}</Badge>
-                      <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerInvestida(inv.id)}>
-                        <Trash2 className="w-3 h-3 text-destructive" />
-                      </Button>
+                      {!isSessaoFechada && (
+                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerInvestida(inv.id)}>
+                          <Trash2 className="w-3 h-3 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -865,7 +1105,6 @@ export function EquivalenciaPatrimonial() {
         {step === "participacoes" && (
           <motion.div key="participacoes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             
-            {/* Auto-sync from QSA */}
             <div className="glass rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -874,13 +1113,14 @@ export function EquivalenciaPatrimonial() {
                     Cruzamento automático com o Quadro Societário (QSA) de cada empresa.
                   </p>
                 </div>
-                <Button onClick={sincronizarParticipacoesPorQSA} variant="outline" size="sm" className="gap-1.5 text-xs">
-                  <Network className="w-3.5 h-3.5" /> Sincronizar QSA
-                </Button>
+                {!isSessaoFechada && (
+                  <Button onClick={sincronizarParticipacoesPorQSA} variant="outline" size="sm" className="gap-1.5 text-xs">
+                    <Network className="w-3.5 h-3.5" /> Sincronizar QSA
+                  </Button>
+                )}
               </div>
             </div>
 
-            {/* QSA per company - show shareholders and detected cross-holdings */}
             {investidas.map(inv => {
               const socios = allSocios.filter(s => s.investida_id === inv.id);
               const participacoesComoInvestida = participacoes.filter(p => p.id_investida === inv.id);
@@ -898,7 +1138,6 @@ export function EquivalenciaPatrimonial() {
                     <Badge variant="outline" className="text-[10px] capitalize ml-auto">{inv.tipo_empresa}</Badge>
                   </div>
 
-                  {/* Sócios */}
                   {socios.length > 0 && (
                     <div className="pl-10 space-y-1.5">
                       <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
@@ -920,7 +1159,6 @@ export function EquivalenciaPatrimonial() {
                     </div>
                   )}
 
-                  {/* Participações como investida (quem investe nesta empresa) */}
                   {participacoesComoInvestida.length > 0 && (
                     <div className="pl-10 space-y-2">
                       <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
@@ -936,6 +1174,7 @@ export function EquivalenciaPatrimonial() {
                               className="w-20 h-7 text-xs text-center"
                               defaultValue={p.percentual}
                               key={`${p.id}-${p.percentual}`}
+                              disabled={isSessaoFechada}
                               onBlur={e => {
                                 const val = parseFloat(e.target.value);
                                 if (!isNaN(val) && val !== p.percentual) atualizarPercentual(p.id, val);
@@ -949,9 +1188,11 @@ export function EquivalenciaPatrimonial() {
                             />
                             <span className="text-[10px] text-muted-foreground">%</span>
                           </div>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerParticipacao(p.id)}>
-                            <Trash2 className="w-3 h-3 text-destructive" />
-                          </Button>
+                          {!isSessaoFechada && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerParticipacao(p.id)}>
+                              <Trash2 className="w-3 h-3 text-destructive" />
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -964,26 +1205,27 @@ export function EquivalenciaPatrimonial() {
               );
             })}
 
-            {/* Manual add - collapsed by default */}
-            <details className="glass rounded-xl p-4">
-              <summary className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Adicionar participação manualmente
-              </summary>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
-                <Select value={novaParticipacao.investidora} onValueChange={v => setNovaParticipacao(p => ({ ...p, investidora: v }))}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Investidora" /></SelectTrigger>
-                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                </Select>
-                <Select value={novaParticipacao.investida} onValueChange={v => setNovaParticipacao(p => ({ ...p, investida: v }))}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Investida" /></SelectTrigger>
-                  <SelectContent>{investidas.filter(i => i.id !== novaParticipacao.investidora).map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input placeholder="% Participação" type="number" value={novaParticipacao.percentual} onChange={e => setNovaParticipacao(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
-                <Button onClick={adicionarParticipacao} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
-                  <GitBranch className="w-4 h-4" /> Registrar
-                </Button>
-              </div>
-            </details>
+            {!isSessaoFechada && (
+              <details className="glass rounded-xl p-4">
+                <summary className="text-sm font-semibold cursor-pointer flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar participação manualmente
+                </summary>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+                  <Select value={novaParticipacao.investidora} onValueChange={v => setNovaParticipacao(p => ({ ...p, investidora: v }))}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Investidora" /></SelectTrigger>
+                    <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Select value={novaParticipacao.investida} onValueChange={v => setNovaParticipacao(p => ({ ...p, investida: v }))}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Investida" /></SelectTrigger>
+                    <SelectContent>{investidas.filter(i => i.id !== novaParticipacao.investidora).map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input placeholder="% Participação" type="number" value={novaParticipacao.percentual} onChange={e => setNovaParticipacao(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
+                  <Button onClick={adicionarParticipacao} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                    <GitBranch className="w-4 h-4" /> Registrar
+                  </Button>
+                </div>
+              </details>
+            )}
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("empresas")} className="text-xs">Voltar</Button>
@@ -999,144 +1241,146 @@ export function EquivalenciaPatrimonial() {
           <motion.div key="resultados" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             
             {/* Upload de Balancetes — IA */}
-            <div className="glass rounded-xl p-4 space-y-4 border border-[hsl(var(--orange)/0.15)]">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-[hsl(var(--orange))]" />
-                <p className="text-sm font-semibold">Importar Balancetes via IA</p>
-                <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[9px]">Gemini</Badge>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Envie balancetes em PDF ou Excel. A IA extrai automaticamente PL, resultado e dividendos.
-              </p>
-
-              {/* Mode Toggle */}
-              <div className="flex gap-1 bg-foreground/[0.03] rounded-lg p-1">
-                <button
-                  onClick={() => setUploadMode("individual")}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
-                    uploadMode === "individual" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
-                  }`}
-                >
-                  <FileUp className="w-3 h-3 inline mr-1" /> Por Empresa
-                </button>
-                <button
-                  onClick={() => setUploadMode("lote")}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
-                    uploadMode === "lote" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
-                  }`}
-                >
-                  <Upload className="w-3 h-3 inline mr-1" /> Em Lote (CNPJ)
-                </button>
-              </div>
-
-              {uploadMode === "individual" ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Select value={uploadEmpresa} onValueChange={setUploadEmpresa}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
-                    <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.xlsx,.xls,.csv"
-                    multiple
-                    className="hidden"
-                    onChange={e => e.target.files && processarUploadIndividual(e.target.files)}
-                  />
-                  <Button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || !uploadEmpresa}
-                    className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
-                  >
-                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-                    {uploading ? "Processando..." : "Enviar Balancete"}
-                  </Button>
+            {!isSessaoFechada && (
+              <div className="glass rounded-xl p-4 space-y-4 border border-[hsl(var(--orange)/0.15)]">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[hsl(var(--orange))]" />
+                  <p className="text-sm font-semibold">Importar Balancetes via IA</p>
+                  <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[9px]">Gemini</Badge>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-[11px] text-muted-foreground">
-                    Envie múltiplos arquivos. O sistema identifica automaticamente cada empresa pelo CNPJ no documento.
-                  </p>
-                  <input
-                    ref={batchFileInputRef}
-                    type="file"
-                    accept=".pdf,.xlsx,.xls,.csv"
-                    multiple
-                    className="hidden"
-                    onChange={e => e.target.files && processarUploadLote(e.target.files)}
-                  />
-                  <Button
-                    onClick={() => batchFileInputRef.current?.click()}
-                    disabled={uploading}
-                    className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
-                  >
-                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {uploading ? "Processando..." : "Enviar Balancetes em Lote"}
-                  </Button>
-                </div>
-              )}
+                <p className="text-[11px] text-muted-foreground">
+                  Envie balancetes em PDF ou Excel. A IA extrai automaticamente PL, resultado e dividendos.
+                </p>
 
-              {/* Upload Results */}
-              {uploadResults.length > 0 && (
-                <div className="space-y-2 mt-3 border-t border-border/30 pt-3">
-                  <p className="text-[11px] font-semibold text-muted-foreground">Resultados da Extração</p>
-                  {uploadResults.map((result, i) => (
-                    <div key={i} className={`rounded-lg p-3 flex items-start gap-3 ${result.success ? "bg-[hsl(var(--cyan)/0.05)] border border-[hsl(var(--cyan)/0.15)]" : "bg-destructive/5 border border-destructive/15"}`}>
-                      {result.success ? <CheckCircle className="w-4 h-4 text-[hsl(var(--cyan))] mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium truncate">{result.filename}</p>
-                        {result.success ? (
-                          <div className="space-y-1 mt-1">
-                            {result.data?.razao_social && <p className="text-[10px] text-muted-foreground">Empresa: {result.data.razao_social}</p>}
-                            <div className="flex gap-3 flex-wrap">
-                              <span className="text-[10px]">PL: <span className="font-mono font-bold text-[hsl(var(--cyan))]">{fmt(result.data?.patrimonio_liquido || 0)}</span></span>
-                              <span className="text-[10px]">Resultado: <span className={`font-mono font-bold ${(result.data?.resultado_periodo || 0) >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(result.data?.resultado_periodo || 0)}</span></span>
-                              <span className="text-[10px]">Dividendos: <span className="font-mono">{fmt(result.data?.dividendos_declarados || 0)}</span></span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline" className={`text-[9px] ${result.data?.confianca === "alta" ? "border-[hsl(var(--cyan)/0.3)] text-[hsl(var(--cyan))]" : result.data?.confianca === "media" ? "border-[hsl(var(--orange)/0.3)] text-[hsl(var(--orange))]" : "border-destructive/30 text-destructive"}`}>
-                                Confiança: {result.data?.confianca || "—"}
-                              </Badge>
-                              {result.matched ? (
-                                <Badge className="bg-[hsl(var(--cyan)/0.1)] text-[hsl(var(--cyan))] text-[9px]">
-                                  <CheckCircle className="w-2.5 h-2.5 mr-1" /> {result.empresa_nome}
+                <div className="flex gap-1 bg-foreground/[0.03] rounded-lg p-1">
+                  <button
+                    onClick={() => setUploadMode("individual")}
+                    className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                      uploadMode === "individual" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
+                    }`}
+                  >
+                    <FileUp className="w-3 h-3 inline mr-1" /> Por Empresa
+                  </button>
+                  <button
+                    onClick={() => setUploadMode("lote")}
+                    className={`flex-1 px-3 py-1.5 rounded-md text-[11px] font-medium transition-all ${
+                      uploadMode === "lote" ? "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]" : "text-muted-foreground"
+                    }`}
+                  >
+                    <Upload className="w-3 h-3 inline mr-1" /> Em Lote (CNPJ)
+                  </button>
+                </div>
+
+                {uploadMode === "individual" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <Select value={uploadEmpresa} onValueChange={setUploadEmpresa}>
+                      <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a empresa" /></SelectTrigger>
+                      <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.csv"
+                      multiple
+                      className="hidden"
+                      onChange={e => e.target.files && processarUploadIndividual(e.target.files)}
+                    />
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading || !uploadEmpresa}
+                      className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
+                    >
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
+                      {uploading ? "Processando..." : "Enviar Balancete"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-[11px] text-muted-foreground">
+                      Envie múltiplos arquivos. O sistema identifica automaticamente cada empresa pelo CNPJ no documento.
+                    </p>
+                    <input
+                      ref={batchFileInputRef}
+                      type="file"
+                      accept=".pdf,.xlsx,.xls,.csv"
+                      multiple
+                      className="hidden"
+                      onChange={e => e.target.files && processarUploadLote(e.target.files)}
+                    />
+                    <Button
+                      onClick={() => batchFileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
+                    >
+                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {uploading ? "Processando..." : "Enviar Balancetes em Lote"}
+                    </Button>
+                  </div>
+                )}
+
+                {uploadResults.length > 0 && (
+                  <div className="space-y-2 mt-3 border-t border-border/30 pt-3">
+                    <p className="text-[11px] font-semibold text-muted-foreground">Resultados da Extração</p>
+                    {uploadResults.map((result, i) => (
+                      <div key={i} className={`rounded-lg p-3 flex items-start gap-3 ${result.success ? "bg-[hsl(var(--cyan)/0.05)] border border-[hsl(var(--cyan)/0.15)]" : "bg-destructive/5 border border-destructive/15"}`}>
+                        {result.success ? <CheckCircle className="w-4 h-4 text-[hsl(var(--cyan))] mt-0.5 shrink-0" /> : <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{result.filename}</p>
+                          {result.success ? (
+                            <div className="space-y-1 mt-1">
+                              {result.data?.razao_social && <p className="text-[10px] text-muted-foreground">Empresa: {result.data.razao_social}</p>}
+                              <div className="flex gap-3 flex-wrap">
+                                <span className="text-[10px]">PL: <span className="font-mono font-bold text-[hsl(var(--cyan))]">{fmt(result.data?.patrimonio_liquido || 0)}</span></span>
+                                <span className="text-[10px]">Resultado: <span className={`font-mono font-bold ${(result.data?.resultado_periodo || 0) >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(result.data?.resultado_periodo || 0)}</span></span>
+                                <span className="text-[10px]">Dividendos: <span className="font-mono">{fmt(result.data?.dividendos_declarados || 0)}</span></span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={`text-[9px] ${result.data?.confianca === "alta" ? "border-[hsl(var(--cyan)/0.3)] text-[hsl(var(--cyan))]" : result.data?.confianca === "media" ? "border-[hsl(var(--orange)/0.3)] text-[hsl(var(--orange))]" : "border-destructive/30 text-destructive"}`}>
+                                  Confiança: {result.data?.confianca || "—"}
                                 </Badge>
-                              ) : (
-                                <Select onValueChange={v => vincularResultadoManual(i, v)}>
-                                  <SelectTrigger className="h-5 text-[10px] w-40 border-dashed">
-                                    <SelectValue placeholder="Vincular empresa..." />
-                                  </SelectTrigger>
-                                  <SelectContent>{investidas.map(inv => <SelectItem key={inv.id} value={inv.id} className="text-xs">{inv.nome}</SelectItem>)}</SelectContent>
-                                </Select>
-                              )}
+                                {result.matched ? (
+                                  <Badge className="bg-[hsl(var(--cyan)/0.1)] text-[hsl(var(--cyan))] text-[9px]">
+                                    <CheckCircle className="w-2.5 h-2.5 mr-1" /> {result.empresa_nome}
+                                  </Badge>
+                                ) : (
+                                  <Select onValueChange={v => vincularResultadoManual(i, v)}>
+                                    <SelectTrigger className="h-5 text-[10px] w-40 border-dashed">
+                                      <SelectValue placeholder="Vincular empresa..." />
+                                    </SelectTrigger>
+                                    <SelectContent>{investidas.map(inv => <SelectItem key={inv.id} value={inv.id} className="text-xs">{inv.nome}</SelectItem>)}</SelectContent>
+                                  </Select>
+                                )}
+                              </div>
+                              {result.data?.observacoes && <p className="text-[10px] text-muted-foreground italic">{result.data.observacoes}</p>}
                             </div>
-                            {result.data?.observacoes && <p className="text-[10px] text-muted-foreground italic">{result.data.observacoes}</p>}
-                          </div>
-                        ) : (
-                          <p className="text-[10px] text-destructive">{result.error}</p>
-                        )}
+                          ) : (
+                            <p className="text-[10px] text-destructive">{result.error}</p>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Entrada manual — Lucro pré-equivalência */}
-            <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">Entrada Manual — Lucro Pré-Equivalência — {periodo}</p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <Select value={novoResultado.empresa} onValueChange={v => setNovoResultado(p => ({ ...p, empresa: v }))}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input placeholder="Lucro (R$)" type="number" value={novoResultado.lucro} onChange={e => setNovoResultado(p => ({ ...p, lucro: e.target.value }))} className="text-sm" />
-                <Input placeholder="Dividendos (R$)" type="number" value={novoResultado.dividendos} onChange={e => setNovoResultado(p => ({ ...p, dividendos: e.target.value }))} className="text-sm" />
-                <Button onClick={salvarResultado} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
-                  <BarChart3 className="w-4 h-4" /> Salvar
-                </Button>
+            {!isSessaoFechada && (
+              <div className="glass rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold">Entrada Manual — Lucro Pré-Equivalência — {sessaoAtiva ? `${MESES[sessaoAtiva.competencia_mes - 1]}/${sessaoAtiva.competencia_ano}` : periodo}</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <Select value={novoResultado.empresa} onValueChange={v => setNovoResultado(p => ({ ...p, empresa: v }))}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                    <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input placeholder="Lucro (R$)" type="number" value={novoResultado.lucro} onChange={e => setNovoResultado(p => ({ ...p, lucro: e.target.value }))} className="text-sm" />
+                  <Input placeholder="Dividendos (R$)" type="number" value={novoResultado.dividendos} onChange={e => setNovoResultado(p => ({ ...p, dividendos: e.target.value }))} className="text-sm" />
+                  <Button onClick={salvarResultado} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                    <BarChart3 className="w-4 h-4" /> Salvar
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Resultados salvos */}
             {resultadosPeriodo.length > 0 && (
@@ -1160,18 +1404,20 @@ export function EquivalenciaPatrimonial() {
             )}
 
             {/* PL Abertura */}
-            <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">PL de Abertura (opcional)</p>
-              <p className="text-[11px] text-muted-foreground">Informe o PL inicial se for o primeiro período. Será registrado como fechamento do período anterior.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <Select value={novoPL.empresa} onValueChange={v => setNovoPL(p => ({ ...p, empresa: v }))}>
-                  <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
-                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
-                </Select>
-                <Input placeholder="PL de Abertura (R$)" type="number" value={novoPL.pl_abertura} onChange={e => setNovoPL(p => ({ ...p, pl_abertura: e.target.value }))} className="text-sm" />
-                <Button onClick={salvarPLAbertura} variant="outline" className="text-xs gap-1"><Wallet className="w-3.5 h-3.5" /> Salvar PL</Button>
+            {!isSessaoFechada && (
+              <div className="glass rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold">PL de Abertura (opcional)</p>
+                <p className="text-[11px] text-muted-foreground">Informe o PL inicial se for o primeiro período. Será registrado como fechamento do período anterior.</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <Select value={novoPL.empresa} onValueChange={v => setNovoPL(p => ({ ...p, empresa: v }))}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                    <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Input placeholder="PL de Abertura (R$)" type="number" value={novoPL.pl_abertura} onChange={e => setNovoPL(p => ({ ...p, pl_abertura: e.target.value }))} className="text-sm" />
+                  <Button onClick={salvarPLAbertura} variant="outline" className="text-xs gap-1"><Wallet className="w-3.5 h-3.5" /> Salvar PL</Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("participacoes")} className="text-xs">Voltar</Button>
@@ -1193,6 +1439,9 @@ export function EquivalenciaPatrimonial() {
               <div>
                 <h3 className="text-base font-bold">Motor Matricial de Equivalência</h3>
                 <p className="text-xs text-muted-foreground mt-1">
+                  Competência: <strong>{sessaoAtiva ? `${MESES[sessaoAtiva.competencia_mes - 1]}/${sessaoAtiva.competencia_ano}` : periodo}</strong>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
                   Cálculo: <code className="bg-foreground/5 px-1.5 py-0.5 rounded text-[10px]">(I - P)⁻¹ × P × L</code>
                 </p>
               </div>
@@ -1210,7 +1459,7 @@ export function EquivalenciaPatrimonial() {
                   <p className="text-lg font-bold text-[hsl(var(--orange))]">{resultadosPeriodo.length}</p>
                 </div>
               </div>
-              <Button onClick={processarEquivalencia} disabled={processing} size="lg"
+              <Button onClick={processarEquivalencia} disabled={processing || isSessaoFechada} size="lg"
                 className="gap-2 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background">
                 {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Calculator className="w-5 h-5" />}
                 {processing ? "Calculando..." : "Processar Equivalência"}
@@ -1323,6 +1572,12 @@ export function EquivalenciaPatrimonial() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setStep("processar")} className="text-xs">Voltar</Button>
               <Button onClick={exportarCSV} variant="outline" className="gap-1.5 text-xs"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
+              {!isSessaoFechada && sessaoAtiva && (
+                <Button variant="outline" size="sm" className="gap-1 text-xs"
+                  onClick={() => alterarStatusSessao(sessaoAtiva.id, "fechada")}>
+                  <Lock className="w-3 h-3" /> Fechar Competência
+                </Button>
+              )}
             </div>
           </motion.div>
         )}

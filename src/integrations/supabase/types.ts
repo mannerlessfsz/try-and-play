@@ -1745,6 +1745,53 @@ export type Database = {
           },
         ]
       }
+      eq_competencia_sessoes: {
+        Row: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at: string
+          created_by: string | null
+          grupo_id: string
+          id: string
+          observacoes: string | null
+          periodo: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          competencia_ano: number
+          competencia_mes: number
+          created_at?: string
+          created_by?: string | null
+          grupo_id: string
+          id?: string
+          observacoes?: string | null
+          periodo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          competencia_ano?: number
+          competencia_mes?: number
+          created_at?: string
+          created_by?: string | null
+          grupo_id?: string
+          id?: string
+          observacoes?: string | null
+          periodo?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_competencia_sessoes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       eq_lancamentos: {
         Row: {
           created_at: string
