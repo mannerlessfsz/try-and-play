@@ -1745,6 +1745,296 @@ export type Database = {
           },
         ]
       }
+      eq_lancamentos: {
+        Row: {
+          created_at: string
+          data_geracao: string
+          id: string
+          id_empresa: string
+          periodo: string
+          tipo: string
+          valor_equivalencia: number
+        }
+        Insert: {
+          created_at?: string
+          data_geracao?: string
+          id?: string
+          id_empresa: string
+          periodo: string
+          tipo: string
+          valor_equivalencia: number
+        }
+        Update: {
+          created_at?: string
+          data_geracao?: string
+          id?: string
+          id_empresa?: string
+          periodo?: string
+          tipo?: string
+          valor_equivalencia?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_lancamentos_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_matriz_cache: {
+        Row: {
+          data_calculo: string
+          grupo_id: string
+          id: string
+          matriz_json: Json
+          periodo: string
+          resultado_json: Json | null
+        }
+        Insert: {
+          data_calculo?: string
+          grupo_id: string
+          id?: string
+          matriz_json: Json
+          periodo: string
+          resultado_json?: Json | null
+        }
+        Update: {
+          data_calculo?: string
+          grupo_id?: string
+          id?: string
+          matriz_json?: Json
+          periodo?: string
+          resultado_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_matriz_cache_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_participacoes: {
+        Row: {
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          grupo_id: string
+          id: string
+          id_investida: string
+          id_investidora: string
+          percentual: number
+        }
+        Insert: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          grupo_id: string
+          id?: string
+          id_investida: string
+          id_investidora: string
+          percentual: number
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          grupo_id?: string
+          id?: string
+          id_investida?: string
+          id_investidora?: string
+          percentual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_participacoes_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eq_participacoes_id_investida_fkey"
+            columns: ["id_investida"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eq_participacoes_id_investidora_fkey"
+            columns: ["id_investidora"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_participacoes_socios: {
+        Row: {
+          created_at: string
+          data_fim: string | null
+          data_inicio: string
+          id: string
+          id_empresa: string
+          id_socio: string
+          percentual: number
+        }
+        Insert: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          id_empresa: string
+          id_socio: string
+          percentual: number
+        }
+        Update: {
+          created_at?: string
+          data_fim?: string | null
+          data_inicio?: string
+          id?: string
+          id_empresa?: string
+          id_socio?: string
+          percentual?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_participacoes_socios_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eq_participacoes_socios_id_socio_fkey"
+            columns: ["id_socio"]
+            isOneToOne: false
+            referencedRelation: "eq_socios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_pl_snapshot: {
+        Row: {
+          ajuste_equivalencia: number
+          created_at: string
+          data_processamento: string | null
+          id: string
+          id_empresa: string
+          periodo: string
+          pl_abertura: number
+          pl_fechamento: number
+          processado: boolean
+        }
+        Insert: {
+          ajuste_equivalencia?: number
+          created_at?: string
+          data_processamento?: string | null
+          id?: string
+          id_empresa: string
+          periodo: string
+          pl_abertura?: number
+          pl_fechamento?: number
+          processado?: boolean
+        }
+        Update: {
+          ajuste_equivalencia?: number
+          created_at?: string
+          data_processamento?: string | null
+          id?: string
+          id_empresa?: string
+          periodo?: string
+          pl_abertura?: number
+          pl_fechamento?: number
+          processado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_pl_snapshot_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_resultado_periodo: {
+        Row: {
+          created_at: string
+          data_fechamento: string | null
+          dividendos_declarados: number
+          id: string
+          id_empresa: string
+          lucro_pre_equivalencia: number
+          periodo: string
+        }
+        Insert: {
+          created_at?: string
+          data_fechamento?: string | null
+          dividendos_declarados?: number
+          id?: string
+          id_empresa: string
+          lucro_pre_equivalencia?: number
+          periodo: string
+        }
+        Update: {
+          created_at?: string
+          data_fechamento?: string | null
+          dividendos_declarados?: number
+          id?: string
+          id_empresa?: string
+          lucro_pre_equivalencia?: number
+          periodo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_resultado_periodo_id_empresa_fkey"
+            columns: ["id_empresa"]
+            isOneToOne: false
+            referencedRelation: "grupo_investidas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      eq_socios: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string
+          grupo_id: string
+          id: string
+          nome: string
+          tipo_socio: string
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          grupo_id: string
+          id?: string
+          nome: string
+          tipo_socio?: string
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string
+          grupo_id?: string
+          id?: string
+          nome?: string
+          tipo_socio?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eq_socios_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_economicos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_movimentos: {
         Row: {
           created_at: string
@@ -1967,30 +2257,36 @@ export type Database = {
       }
       grupo_investidas: {
         Row: {
+          ativa: boolean | null
           cnpj: string | null
           created_at: string
           grupo_id: string
           id: string
           nome: string
           percentual_participacao: number
+          tipo_empresa: string | null
           updated_at: string
         }
         Insert: {
+          ativa?: boolean | null
           cnpj?: string | null
           created_at?: string
           grupo_id: string
           id?: string
           nome: string
           percentual_participacao: number
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Update: {
+          ativa?: boolean | null
           cnpj?: string | null
           created_at?: string
           grupo_id?: string
           id?: string
           nome?: string
           percentual_participacao?: number
+          tipo_empresa?: string | null
           updated_at?: string
         }
         Relationships: [

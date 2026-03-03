@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload, Trash2, Building2, TrendingUp, TrendingDown,
   FileText, Plus, Calculator, Download, ChevronDown, ChevronUp,
-  FolderOpen, ArrowLeft, Edit2, Users, Layers
+  ArrowLeft, Users, Layers, GitBranch, BarChart3, Wallet,
+  ArrowRight, Loader2, Network
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,63 +31,114 @@ interface Investida {
   nome: string;
   cnpj: string | null;
   percentual_participacao: number;
+  tipo_empresa: string;
+  ativa: boolean;
 }
 
-interface Balanco {
+interface Participacao {
   id: string;
-  investida_id: string;
-  periodo: string;
-  patrimonio_liquido: number;
-  ativo_total: number;
-  passivo_total: number;
-  capital_social: number;
-  reservas: number;
-  lucros_prejuizos: number;
-  arquivo_nome: string | null;
-  created_at: string;
+  grupo_id: string;
+  id_investidora: string;
+  id_investida: string;
+  percentual: number;
+  data_inicio: string;
+  data_fim: string | null;
 }
 
-interface ResultadoEquivalencia {
-  investidaId: string;
-  investidaNome: string;
-  percentual: number;
-  plAnterior: number;
-  plAtual: number;
-  variacaoPL: number;
-  resultadoEquivalencia: number;
-  tipo: "ganho" | "perda";
+interface ResultadoPeriodo {
+  id: string;
+  id_empresa: string;
+  periodo: string;
+  lucro_pre_equivalencia: number;
+  dividendos_declarados: number;
+}
+
+interface PlSnapshot {
+  id: string;
+  id_empresa: string;
+  periodo: string;
+  pl_abertura: number;
+  ajuste_equivalencia: number;
+  pl_fechamento: number;
+  processado: boolean;
+}
+
+interface CalculoResponse {
+  periodo: string;
+  empresas: {
+    id: string;
+    nome: string;
+    tipo: string;
+    lucro_pre_equivalencia: number;
+    dividendos: number;
+    equivalencia: number;
+    tipo_resultado: string;
+    pl_abertura: number;
+    pl_fechamento: number;
+  }[];
+  valor_socios: {
+    socio: string;
+    tipo: string;
+    empresa: string;
+    percentual: number;
+    valor_patrimonial: number;
+  }[];
+  totais: {
+    total_equivalencia: number;
+    total_receitas: number;
+    total_despesas: number;
+  };
+  matriz: { P: number[][]; dimensao: number };
 }
 
 // ============================================================================
 // HELPERS
 // ============================================================================
 
-const fmt = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const fmtPct = (v: number) => `${v.toFixed(2)}%`;
+
+type StepKey = "empresas" | "participacoes" | "resultados" | "processar" | "relatorio";
+
+const STEPS: { key: StepKey; label: string; icon: any }[] = [
+  { key: "empresas", label: "Empresas", icon: Building2 },
+  { key: "participacoes", label: "Participações", icon: GitBranch },
+  { key: "resultados", label: "Resultados Período", icon: BarChart3 },
+  { key: "processar", label: "Processar", icon: Calculator },
+  { key: "relatorio", label: "Relatório", icon: Wallet },
+];
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export function EquivalenciaPatrimonial() {
-  // --- state: navigation ---
+  // Navigation
   const [view, setView] = useState<"grupos" | "workspace">("grupos");
   const [grupoAtivo, setGrupoAtivo] = useState<GrupoEconomico | null>(null);
-  const [step, setStep] = useState<"investidas" | "importar" | "resultados">("investidas");
+  const [step, setStep] = useState<StepKey>("empresas");
 
-  // --- state: data ---
+  // Data
   const [grupos, setGrupos] = useState<GrupoEconomico[]>([]);
   const [investidas, setInvestidas] = useState<Investida[]>([]);
-  const [balancos, setBalancos] = useState<Balanco[]>([]);
-  const [resultados, setResultados] = useState<ResultadoEquivalencia[]>([]);
+  const [participacoes, setParticipacoes] = useState<Participacao[]>([]);
+  const [resultadosPeriodo, setResultadosPeriodo] = useState<ResultadoPeriodo[]>([]);
+  const [plSnapshots, setPlSnapshots] = useState<PlSnapshot[]>([]);
+  const [calculoResult, setCalculoResult] = useState<CalculoResponse | null>(null);
 
-  // --- state: ui ---
+  // UI
   const [loading, setLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [expandedBalanco, setExpandedBalanco] = useState<string | null>(null);
-  const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "", cnpj: "" });
+  const [processing, setProcessing] = useState(false);
+  const [periodo, setPeriodo] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [showNovoGrupo, setShowNovoGrupo] = useState(false);
-  const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", percentual: "" });
+  const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "", cnpj: "" });
+  const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+  const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
+  const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
+  const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
 
   // ============================================================================
   // FETCH
@@ -93,68 +146,65 @@ export function EquivalenciaPatrimonial() {
 
   const fetchGrupos = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("grupos_economicos")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setGrupos((data as GrupoEconomico[]) || []);
+    const { data } = await supabase.from("grupos_economicos").select("*").order("created_at", { ascending: false });
+    setGrupos((data as any[]) || []);
     setLoading(false);
   };
 
-  const fetchInvestidas = async (grupoId: string) => {
-    const { data } = await supabase
-      .from("grupo_investidas")
-      .select("*")
-      .eq("grupo_id", grupoId)
-      .order("nome");
-    setInvestidas((data as Investida[]) || []);
+  const fetchAll = async (grupoId: string) => {
+    const [inv, part] = await Promise.all([
+      supabase.from("grupo_investidas").select("*").eq("grupo_id", grupoId).order("nome"),
+      supabase.from("eq_participacoes").select("*").eq("grupo_id", grupoId).order("created_at"),
+    ]);
+    setInvestidas((inv.data as any[]) || []);
+    setParticipacoes((part.data as any[]) || []);
   };
 
-  const fetchBalancos = async (grupoId: string) => {
-    const { data: invs } = await supabase
-      .from("grupo_investidas")
-      .select("id")
-      .eq("grupo_id", grupoId);
-    if (!invs || invs.length === 0) { setBalancos([]); return; }
-    const ids = invs.map((i: any) => i.id);
-    const { data } = await supabase
-      .from("grupo_balancos")
-      .select("*")
-      .in("investida_id", ids)
-      .order("created_at");
-    setBalancos((data as Balanco[]) || []);
+  const fetchPeriodoData = async (grupoId: string, per: string) => {
+    const ids = investidas.map(i => i.id);
+    if (ids.length === 0) return;
+    const [res, snap] = await Promise.all([
+      supabase.from("eq_resultado_periodo").select("*").eq("periodo", per).in("id_empresa", ids),
+      supabase.from("eq_pl_snapshot").select("*").eq("periodo", per).in("id_empresa", ids),
+    ]);
+    setResultadosPeriodo((res.data as any[]) || []);
+    setPlSnapshots((snap.data as any[]) || []);
   };
 
   useEffect(() => { fetchGrupos(); }, []);
 
+  useEffect(() => {
+    if (grupoAtivo && investidas.length > 0) fetchPeriodoData(grupoAtivo.id, periodo);
+  }, [periodo, investidas.length]);
+
   const entrarGrupo = async (grupo: GrupoEconomico) => {
     setGrupoAtivo(grupo);
     setView("workspace");
-    setStep("investidas");
-    setResultados([]);
-    await Promise.all([fetchInvestidas(grupo.id), fetchBalancos(grupo.id)]);
+    setStep("empresas");
+    setCalculoResult(null);
+    await fetchAll(grupo.id);
   };
 
   const voltarGrupos = () => {
     setView("grupos");
     setGrupoAtivo(null);
     setInvestidas([]);
-    setBalancos([]);
-    setResultados([]);
+    setParticipacoes([]);
+    setResultadosPeriodo([]);
+    setPlSnapshots([]);
+    setCalculoResult(null);
   };
 
   // ============================================================================
-  // CRUD: Grupos
+  // CRUD
   // ============================================================================
 
   const criarGrupo = async () => {
     if (!novoGrupo.nome.trim()) { toast.error("Informe o nome do grupo"); return; }
     const { data: user } = await supabase.auth.getUser();
     const { error } = await supabase.from("grupos_economicos").insert({
-      nome: novoGrupo.nome,
-      descricao: novoGrupo.descricao || null,
-      cnpj_holding: novoGrupo.cnpj || null,
-      created_by: user?.user?.id || null,
+      nome: novoGrupo.nome, descricao: novoGrupo.descricao || null,
+      cnpj_holding: novoGrupo.cnpj || null, created_by: user?.user?.id || null,
     });
     if (error) { toast.error("Erro ao criar grupo"); return; }
     toast.success("Grupo criado");
@@ -164,151 +214,122 @@ export function EquivalenciaPatrimonial() {
   };
 
   const excluirGrupo = async (id: string) => {
-    const { error } = await supabase.from("grupos_economicos").delete().eq("id", id);
-    if (error) { toast.error("Erro ao excluir"); return; }
+    await supabase.from("grupos_economicos").delete().eq("id", id);
     toast.success("Grupo excluído");
     fetchGrupos();
   };
 
-  // ============================================================================
-  // CRUD: Investidas
-  // ============================================================================
-
   const adicionarInvestida = async () => {
-    if (!grupoAtivo || !novaInvestida.nome || !novaInvestida.percentual) {
-      toast.error("Preencha nome e percentual"); return;
-    }
+    if (!grupoAtivo || !novaInvestida.nome || !novaInvestida.percentual) { toast.error("Preencha nome e percentual"); return; }
     const perc = parseFloat(novaInvestida.percentual);
     if (isNaN(perc) || perc <= 0 || perc > 100) { toast.error("Percentual entre 0 e 100"); return; }
     const { error } = await supabase.from("grupo_investidas").insert({
-      grupo_id: grupoAtivo.id,
-      nome: novaInvestida.nome,
-      cnpj: novaInvestida.cnpj || null,
-      percentual_participacao: perc,
+      grupo_id: grupoAtivo.id, nome: novaInvestida.nome,
+      cnpj: novaInvestida.cnpj || null, percentual_participacao: perc,
+      tipo_empresa: novaInvestida.tipo,
     });
-    if (error) { toast.error("Erro ao adicionar investida"); return; }
-    toast.success("Investida adicionada");
-    setNovaInvestida({ nome: "", cnpj: "", percentual: "" });
-    fetchInvestidas(grupoAtivo.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Empresa adicionada");
+    setNovaInvestida({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+    fetchAll(grupoAtivo.id);
   };
 
   const removerInvestida = async (id: string) => {
-    const { error } = await supabase.from("grupo_investidas").delete().eq("id", id);
-    if (error) { toast.error("Erro ao remover"); return; }
-    toast.success("Investida removida");
-    if (grupoAtivo) {
-      fetchInvestidas(grupoAtivo.id);
-      fetchBalancos(grupoAtivo.id);
+    await supabase.from("grupo_investidas").delete().eq("id", id);
+    toast.success("Empresa removida");
+    if (grupoAtivo) fetchAll(grupoAtivo.id);
+  };
+
+  const adicionarParticipacao = async () => {
+    if (!grupoAtivo || !novaParticipacao.investidora || !novaParticipacao.investida || !novaParticipacao.percentual) {
+      toast.error("Preencha todos os campos"); return;
     }
+    if (novaParticipacao.investidora === novaParticipacao.investida) {
+      toast.error("Empresa não pode investir nela mesma"); return;
+    }
+    const perc = parseFloat(novaParticipacao.percentual);
+    if (isNaN(perc) || perc <= 0 || perc > 100) { toast.error("Percentual entre 0 e 100"); return; }
+    const { error } = await supabase.from("eq_participacoes").insert({
+      grupo_id: grupoAtivo.id, id_investidora: novaParticipacao.investidora,
+      id_investida: novaParticipacao.investida, percentual: perc,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Participação registrada");
+    setNovaParticipacao({ investidora: "", investida: "", percentual: "" });
+    fetchAll(grupoAtivo.id);
+  };
+
+  const removerParticipacao = async (id: string) => {
+    await supabase.from("eq_participacoes").delete().eq("id", id);
+    toast.success("Participação removida");
+    if (grupoAtivo) fetchAll(grupoAtivo.id);
+  };
+
+  const salvarResultado = async () => {
+    if (!novoResultado.empresa || !novoResultado.lucro) { toast.error("Preencha empresa e lucro"); return; }
+    const { error } = await supabase.from("eq_resultado_periodo").upsert({
+      id_empresa: novoResultado.empresa, periodo,
+      lucro_pre_equivalencia: parseFloat(novoResultado.lucro) || 0,
+      dividendos_declarados: parseFloat(novoResultado.dividendos) || 0,
+    }, { onConflict: "id_empresa,periodo" });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Resultado salvo");
+    setNovoResultado({ empresa: "", lucro: "", dividendos: "" });
+    if (grupoAtivo) fetchPeriodoData(grupoAtivo.id, periodo);
+  };
+
+  const salvarPLAbertura = async () => {
+    if (!novoPL.empresa || !novoPL.pl_abertura) { toast.error("Preencha empresa e PL"); return; }
+    const { error } = await supabase.from("eq_pl_snapshot").upsert({
+      id_empresa: novoPL.empresa, periodo: periodoAnterior(periodo),
+      pl_abertura: 0, ajuste_equivalencia: 0,
+      pl_fechamento: parseFloat(novoPL.pl_abertura) || 0,
+      processado: true,
+    }, { onConflict: "id_empresa,periodo" });
+    if (error) { toast.error(error.message); return; }
+    toast.success("PL de abertura salvo (como fechamento do período anterior)");
+    setNovoPL({ empresa: "", pl_abertura: "" });
+    if (grupoAtivo) fetchPeriodoData(grupoAtivo.id, periodo);
   };
 
   // ============================================================================
-  // IMPORT
+  // PROCESSAR MOTOR MATRICIAL
   // ============================================================================
 
-  const processarArquivo = useCallback(async (file: File, investidaId: string) => {
-    setIsProcessing(true);
+  const processarEquivalencia = async () => {
+    if (!grupoAtivo) return;
+    setProcessing(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      bytes.forEach((b) => (binary += String.fromCharCode(b)));
-      const base64 = btoa(binary);
-
-      const { data, error } = await supabase.functions.invoke("parse-fiscal", {
-        body: {
-          fileBase64: base64,
-          fileName: file.name,
-          tipo: "balanco_patrimonial",
-          promptOverride: `Analise este arquivo de Balanço Patrimonial e extraia os seguintes dados em JSON:
-{
-  "periodo": "MM/AAAA ou descrição do período",
-  "patrimonio_liquido": number,
-  "ativo_total": number,
-  "passivo_total": number,
-  "capital_social": number,
-  "reservas": number,
-  "lucros_prejuizos": number
-}
-Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
-        },
+      const { data, error } = await supabase.functions.invoke("calcular-equivalencia", {
+        body: { grupo_id: grupoAtivo.id, periodo },
       });
       if (error) throw error;
-
-      const parsed = typeof data === "string" ? JSON.parse(data) : data;
-      const info = parsed.notas?.[0] || parsed;
-
-      const { error: insertErr } = await supabase.from("grupo_balancos").insert({
-        investida_id: investidaId,
-        periodo: info.periodo || "Não identificado",
-        patrimonio_liquido: parseFloat(info.patrimonio_liquido) || 0,
-        ativo_total: parseFloat(info.ativo_total) || 0,
-        passivo_total: parseFloat(info.passivo_total) || 0,
-        capital_social: parseFloat(info.capital_social) || 0,
-        reservas: parseFloat(info.reservas) || 0,
-        lucros_prejuizos: parseFloat(info.lucros_prejuizos) || 0,
-        arquivo_nome: file.name,
-      });
-      if (insertErr) throw insertErr;
-
-      toast.success("Balanço importado com sucesso");
-      if (grupoAtivo) fetchBalancos(grupoAtivo.id);
+      if (data?.error) throw new Error(data.error);
+      setCalculoResult(data);
+      setStep("relatorio");
+      toast.success("Equivalência calculada com sucesso!");
+      fetchPeriodoData(grupoAtivo.id, periodo);
     } catch (err: any) {
-      console.error(err);
-      toast.error("Erro ao processar: " + (err.message || "Tente novamente"));
+      toast.error(err.message || "Erro no processamento");
     } finally {
-      setIsProcessing(false);
+      setProcessing(false);
     }
-  }, [grupoAtivo]);
-
-  // ============================================================================
-  // CÁLCULO
-  // ============================================================================
-
-  const calcularEquivalencia = () => {
-    const results: ResultadoEquivalencia[] = [];
-    for (const inv of investidas) {
-      const bals = balancos
-        .filter((b) => b.investida_id === inv.id)
-        .sort((a, b) => a.created_at.localeCompare(b.created_at));
-      if (bals.length < 2) continue;
-      const anterior = bals[bals.length - 2];
-      const atual = bals[bals.length - 1];
-      const variacao = atual.patrimonio_liquido - anterior.patrimonio_liquido;
-      const resultado = variacao * (inv.percentual_participacao / 100);
-      results.push({
-        investidaId: inv.id,
-        investidaNome: inv.nome,
-        percentual: inv.percentual_participacao,
-        plAnterior: anterior.patrimonio_liquido,
-        plAtual: atual.patrimonio_liquido,
-        variacaoPL: variacao,
-        resultadoEquivalencia: resultado,
-        tipo: resultado >= 0 ? "ganho" : "perda",
-      });
-    }
-    if (results.length === 0) {
-      toast.error("Importe pelo menos 2 balanços por investida");
-      return;
-    }
-    setResultados(results);
-    setStep("resultados");
-    toast.success("Cálculo realizado");
   };
 
   const exportarCSV = () => {
-    const headers = ["Investida", "% Participação", "PL Anterior", "PL Atual", "Variação PL", "Resultado Equivalência", "Tipo"];
-    const rows = resultados.map((r) => [r.investidaNome, r.percentual.toFixed(2), r.plAnterior.toFixed(2), r.plAtual.toFixed(2), r.variacaoPL.toFixed(2), r.resultadoEquivalencia.toFixed(2), r.tipo === "ganho" ? "Ganho" : "Perda"]);
-    const csv = [headers.join(";"), ...rows.map((r) => r.join(";"))].join("\n");
+    if (!calculoResult) return;
+    const headers = ["Empresa", "Tipo", "Lucro Pré-Eq", "Dividendos", "Equivalência", "Tipo Resultado", "PL Abertura", "PL Fechamento"];
+    const rows = calculoResult.empresas.map(e => [e.nome, e.tipo, e.lucro_pre_equivalencia, e.dividendos, e.equivalencia, e.tipo_resultado, e.pl_abertura, e.pl_fechamento].join(";"));
+    const csv = [headers.join(";"), ...rows].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `equivalencia_${grupoAtivo?.nome || "grupo"}_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.href = URL.createObjectURL(blob);
+    a.download = `equivalencia_${grupoAtivo?.nome}_${periodo}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
     toast.success("CSV exportado");
   };
+
+  const getNome = (id: string) => investidas.find(i => i.id === id)?.nome || "—";
 
   // ============================================================================
   // RENDER: SELEÇÃO DE GRUPO
@@ -317,7 +338,6 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
   if (view === "grupos") {
     return (
       <div className="space-y-6">
-        {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.25)] flex items-center justify-center">
@@ -325,32 +345,23 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
             </div>
             <div>
               <h2 className="text-lg font-bold">Equivalência Patrimonial</h2>
-              <p className="text-xs text-muted-foreground">Selecione ou crie um grupo econômico para trabalhar</p>
+              <p className="text-xs text-muted-foreground">Selecione ou crie um grupo econômico</p>
             </div>
           </div>
-          <Button
-            onClick={() => setShowNovoGrupo(!showNovoGrupo)}
-            className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
-          >
+          <Button onClick={() => setShowNovoGrupo(!showNovoGrupo)} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
             <Plus className="w-4 h-4" /> Novo Grupo
           </Button>
         </div>
 
-        {/* Form novo grupo */}
         <AnimatePresence>
           {showNovoGrupo && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="overflow-hidden"
-            >
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="glass rounded-xl p-4 space-y-3">
                 <p className="text-sm font-semibold">Criar Grupo Econômico</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <Input placeholder="Nome do grupo *" value={novoGrupo.nome} onChange={(e) => setNovoGrupo((p) => ({ ...p, nome: e.target.value }))} className="text-sm" />
-                  <Input placeholder="CNPJ da holding (opcional)" value={novoGrupo.cnpj} onChange={(e) => setNovoGrupo((p) => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
-                  <Input placeholder="Descrição (opcional)" value={novoGrupo.descricao} onChange={(e) => setNovoGrupo((p) => ({ ...p, descricao: e.target.value }))} className="text-sm" />
+                  <Input placeholder="Nome do grupo *" value={novoGrupo.nome} onChange={e => setNovoGrupo(p => ({ ...p, nome: e.target.value }))} className="text-sm" />
+                  <Input placeholder="CNPJ da holding (opcional)" value={novoGrupo.cnpj} onChange={e => setNovoGrupo(p => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
+                  <Input placeholder="Descrição (opcional)" value={novoGrupo.descricao} onChange={e => setNovoGrupo(p => ({ ...p, descricao: e.target.value }))} className="text-sm" />
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={criarGrupo} size="sm" className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
@@ -363,51 +374,31 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
           )}
         </AnimatePresence>
 
-        {/* Lista de grupos */}
         {loading ? (
-          <div className="glass rounded-xl p-8 text-center">
-            <p className="text-sm text-muted-foreground animate-pulse">Carregando grupos...</p>
-          </div>
+          <div className="glass rounded-xl p-8 text-center"><p className="text-sm text-muted-foreground animate-pulse">Carregando...</p></div>
         ) : grupos.length === 0 ? (
           <div className="glass rounded-xl p-10 text-center">
             <Layers className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
-            <p className="text-sm text-muted-foreground">Nenhum grupo econômico cadastrado</p>
-            <p className="text-xs text-muted-foreground mt-1">Crie um grupo para começar a trabalhar</p>
+            <p className="text-sm text-muted-foreground">Nenhum grupo cadastrado</p>
           </div>
         ) : (
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
             {grupos.map((grupo, i) => (
-              <motion.div
-                key={grupo.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
+              <motion.div key={grupo.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                 className="glass rounded-xl p-5 cursor-pointer group hover:shadow-[0_0_30px_hsl(var(--orange)/0.12)] transition-all duration-300 border border-transparent hover:border-[hsl(var(--orange)/0.25)]"
-                onClick={() => entrarGrupo(grupo)}
-              >
+                onClick={() => entrarGrupo(grupo)}>
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.1)] border border-[hsl(var(--orange)/0.2)] flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Building2 className="w-5 h-5 text-[hsl(var(--orange))]" />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => { e.stopPropagation(); excluirGrupo(grupo.id); }}
-                  >
+                  <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={e => { e.stopPropagation(); excluirGrupo(grupo.id); }}>
                     <Trash2 className="w-3.5 h-3.5 text-destructive" />
                   </Button>
                 </div>
                 <p className="text-sm font-bold mb-1">{grupo.nome}</p>
                 {grupo.descricao && <p className="text-[11px] text-muted-foreground line-clamp-2 mb-2">{grupo.descricao}</p>}
-                <div className="flex items-center gap-2 mt-auto">
-                  {grupo.cnpj_holding && (
-                    <Badge variant="outline" className="text-[10px]">{grupo.cnpj_holding}</Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[10px]">
-                    {new Date(grupo.created_at).toLocaleDateString("pt-BR")}
-                  </Badge>
-                </div>
+                {grupo.cnpj_holding && <Badge variant="outline" className="text-[10px]">{grupo.cnpj_holding}</Badge>}
               </motion.div>
             ))}
           </div>
@@ -417,50 +408,39 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
   }
 
   // ============================================================================
-  // RENDER: WORKSPACE DO GRUPO
+  // RENDER: WORKSPACE
   // ============================================================================
 
   return (
-    <div className="space-y-6">
-      {/* Header com botão voltar */}
+    <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={voltarGrupos}>
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={voltarGrupos}><ArrowLeft className="w-4 h-4" /></Button>
         <div className="w-10 h-10 rounded-xl bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.25)] flex items-center justify-center">
-          <TrendingUp className="w-5 h-5 text-[hsl(var(--orange))]" />
+          <Network className="w-5 h-5 text-[hsl(var(--orange))]" />
         </div>
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-bold">{grupoAtivo?.nome}</h2>
-          <p className="text-xs text-muted-foreground">Equivalência Patrimonial — {grupoAtivo?.cnpj_holding || "Sem CNPJ holding"}</p>
+          <p className="text-xs text-muted-foreground">{grupoAtivo?.cnpj_holding || "Grupo Econômico"}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">Período:</span>
+          <Input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)} className="w-40 h-8 text-xs" />
         </div>
       </div>
 
-      {/* Steps Navigation */}
-      <div className="flex gap-1 glass rounded-xl p-1.5">
-        {([
-          { key: "investidas", label: "Investidas", icon: Users },
-          { key: "importar", label: "Importar Balanços", icon: Upload },
-          { key: "resultados", label: "Resultados", icon: Calculator },
-        ] as const).map((s) => {
+      {/* Steps */}
+      <div className="flex gap-1 glass rounded-xl p-1 overflow-x-auto">
+        {STEPS.map((s, idx) => {
           const Icon = s.icon;
           const isActive = step === s.key;
-          const isDisabled =
-            (s.key === "importar" && investidas.length === 0) ||
-            (s.key === "resultados" && resultados.length === 0);
+          const isDisabled = s.key === "relatorio" && !calculoResult;
           return (
-            <button
-              key={s.key}
-              onClick={() => !isDisabled && setStep(s.key)}
-              disabled={isDisabled}
-              className={`relative flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-300 ${isDisabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}
-            >
-              {isActive && (
-                <motion.div layoutId="eq-step" className="absolute inset-0 rounded-lg bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.3)]" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
-              )}
-              <span className={`relative z-10 flex items-center gap-1.5 ${isActive ? "text-[hsl(var(--orange))]" : "text-muted-foreground"}`}>
-                <Icon className="w-3.5 h-3.5" />
-                {s.label}
+            <button key={s.key} onClick={() => !isDisabled && setStep(s.key)} disabled={isDisabled}
+              className={`relative flex-1 flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap ${isDisabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer"}`}>
+              {isActive && <motion.div layoutId="eq-step-v2" className="absolute inset-0 rounded-lg bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.3)]" transition={{ type: "spring", stiffness: 400, damping: 30 }} />}
+              <span className={`relative z-10 flex items-center gap-1 ${isActive ? "text-[hsl(var(--orange))]" : "text-muted-foreground"}`}>
+                <Icon className="w-3.5 h-3.5" /><span className="hidden md:inline">{s.label}</span>
               </span>
             </button>
           );
@@ -468,16 +448,24 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
       </div>
 
       <AnimatePresence mode="wait">
-        {/* STEP 1: Investidas */}
-        {step === "investidas" && (
-          <motion.div key="investidas" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+        {/* === STEP: EMPRESAS === */}
+        {step === "empresas" && (
+          <motion.div key="empresas" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             <div className="glass rounded-xl p-4 space-y-3">
-              <p className="text-sm font-semibold">Adicionar Empresa Investida</p>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <Input placeholder="Razão Social" value={novaInvestida.nome} onChange={(e) => setNovaInvestida((p) => ({ ...p, nome: e.target.value }))} className="text-sm" />
-                <Input placeholder="CNPJ (opcional)" value={novaInvestida.cnpj} onChange={(e) => setNovaInvestida((p) => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
-                <Input placeholder="% Participação" type="number" min="0.01" max="100" step="0.01" value={novaInvestida.percentual} onChange={(e) => setNovaInvestida((p) => ({ ...p, percentual: e.target.value }))} className="text-sm" />
-                <Button onClick={adicionarInvestida} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background">
+              <p className="text-sm font-semibold">Cadastrar Empresa do Grupo</p>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm" />
+                <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => setNovaInvestida(p => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
+                <Input placeholder="% Capital Social" type="number" value={novaInvestida.percentual} onChange={e => setNovaInvestida(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
+                <Select value={novaInvestida.tipo} onValueChange={v => setNovaInvestida(p => ({ ...p, tipo: v }))}>
+                  <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="operacional">Operacional</SelectItem>
+                    <SelectItem value="holding">Holding</SelectItem>
+                    <SelectItem value="mista">Mista</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button onClick={adicionarInvestida} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
                   <Plus className="w-4 h-4" /> Adicionar
                 </Button>
               </div>
@@ -485,31 +473,28 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
 
             {investidas.length === 0 ? (
               <div className="glass rounded-xl p-8 text-center">
-                <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
-                <p className="text-sm text-muted-foreground">Nenhuma investida cadastrada neste grupo</p>
+                <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-30" />
+                <p className="text-sm text-muted-foreground">Nenhuma empresa cadastrada</p>
               </div>
             ) : (
-              <div className="grid gap-3">
+              <div className="grid gap-2">
                 {investidas.map((inv, i) => (
-                  <motion.div key={inv.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }} className="glass rounded-xl p-4 flex items-center justify-between group">
+                  <motion.div key={inv.id} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
+                    className="glass rounded-xl p-3 flex items-center justify-between group">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-[hsl(var(--orange)/0.1)] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-lg bg-[hsl(var(--orange)/0.1)] flex items-center justify-center">
                         <Building2 className="w-4 h-4 text-[hsl(var(--orange))]" />
                       </div>
                       <div>
                         <p className="text-sm font-semibold">{inv.nome}</p>
-                        <p className="text-xs text-muted-foreground">{inv.cnpj || "CNPJ não informado"}</p>
+                        <p className="text-[11px] text-muted-foreground">{inv.cnpj || "—"}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline" className="text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.3)] bg-[hsl(var(--orange)/0.08)]">
-                        {inv.percentual_participacao}%
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {balancos.filter((b) => b.investida_id === inv.id).length} balanço(s)
-                      </span>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removerInvestida(inv.id)}>
-                        <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] capitalize">{inv.tipo_empresa}</Badge>
+                      <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[10px]">{fmtPct(inv.percentual_participacao)}</Badge>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerInvestida(inv.id)}>
+                        <Trash2 className="w-3 h-3 text-destructive" />
                       </Button>
                     </div>
                   </motion.div>
@@ -517,165 +502,287 @@ Retorne APENAS o JSON, sem markdown. Se não encontrar algum valor, use 0.`,
               </div>
             )}
 
-            {investidas.length > 0 && (
-              <Button onClick={() => setStep("importar")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background">
-                Próximo: Importar Balanços <Upload className="w-4 h-4" />
+            {investidas.length >= 2 && (
+              <Button onClick={() => setStep("participacoes")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                Próximo: Participações <ArrowRight className="w-4 h-4" />
               </Button>
             )}
           </motion.div>
         )}
 
-        {/* STEP 2: Importar Balanços */}
-        {step === "importar" && (
-          <motion.div key="importar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Importe pelo menos <strong>2 balanços</strong> por investida (anterior e atual) para calcular a equivalência.
-            </p>
+        {/* === STEP: PARTICIPAÇÕES CRUZADAS === */}
+        {step === "participacoes" && (
+          <motion.div key="participacoes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="glass rounded-xl p-4 space-y-3">
+              <p className="text-sm font-semibold">Registrar Participação Cruzada</p>
+              <p className="text-[11px] text-muted-foreground">Defina qual empresa investe em qual, e o percentual de participação.</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Select value={novaParticipacao.investidora} onValueChange={v => setNovaParticipacao(p => ({ ...p, investidora: v }))}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Investidora" /></SelectTrigger>
+                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                </Select>
+                <Select value={novaParticipacao.investida} onValueChange={v => setNovaParticipacao(p => ({ ...p, investida: v }))}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Investida" /></SelectTrigger>
+                  <SelectContent>{investidas.filter(i => i.id !== novaParticipacao.investidora).map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                </Select>
+                <Input placeholder="% Participação" type="number" value={novaParticipacao.percentual} onChange={e => setNovaParticipacao(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
+                <Button onClick={adicionarParticipacao} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                  <GitBranch className="w-4 h-4" /> Registrar
+                </Button>
+              </div>
+            </div>
 
-            {investidas.map((inv) => {
-              const bals = balancos.filter((b) => b.investida_id === inv.id);
-              return (
-                <div key={inv.id} className="glass rounded-xl p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[hsl(var(--orange))]" />
-                      <span className="text-sm font-semibold">{inv.nome}</span>
-                      <Badge variant="outline" className="text-[10px]">{inv.percentual_participacao}%</Badge>
+            {participacoes.length === 0 ? (
+              <div className="glass rounded-xl p-8 text-center">
+                <GitBranch className="w-10 h-10 text-muted-foreground mx-auto mb-2 opacity-30" />
+                <p className="text-sm text-muted-foreground">Nenhuma participação cruzada registrada</p>
+              </div>
+            ) : (
+              <div className="grid gap-2">
+                {participacoes.map((p, i) => (
+                  <motion.div key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}
+                    className="glass rounded-xl p-3 flex items-center justify-between group">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="text-[11px]">{getNome(p.id_investidora)}</Badge>
+                      <ArrowRight className="w-3 h-3 text-muted-foreground" />
+                      <Badge variant="outline" className="text-[11px]">{getNome(p.id_investida)}</Badge>
+                      <Badge className="bg-[hsl(var(--orange)/0.1)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.2)] text-[10px]">{fmtPct(p.percentual)}</Badge>
                     </div>
-                    <label className="cursor-pointer">
-                      <input type="file" accept=".pdf,.xlsx,.xls,.csv" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) processarArquivo(f, inv.id); e.target.value = ""; }} disabled={isProcessing} />
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-[hsl(var(--orange)/0.12)] text-[hsl(var(--orange))] border border-[hsl(var(--orange)/0.25)] hover:bg-[hsl(var(--orange)/0.2)] transition-colors">
-                        <Upload className="w-3.5 h-3.5" />
-                        {isProcessing ? "Processando..." : "Importar PDF/Excel"}
-                      </div>
-                    </label>
-                  </div>
-
-                  {bals.length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">Nenhum balanço importado</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {bals.map((b) => (
-                        <div key={b.id} className="rounded-lg bg-foreground/[0.03] border border-border/50 overflow-hidden">
-                          <button onClick={() => setExpandedBalanco(expandedBalanco === b.id ? null : b.id)} className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-foreground/[0.02] transition-colors">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                              <span className="text-xs font-medium">{b.arquivo_nome || "Arquivo"}</span>
-                              <Badge variant="secondary" className="text-[10px]">{b.periodo}</Badge>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono font-semibold">{fmt(b.patrimonio_liquido)}</span>
-                              {expandedBalanco === b.id ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                            </div>
-                          </button>
-                          <AnimatePresence>
-                            {expandedBalanco === b.id && (
-                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                <div className="px-3 pb-3 grid grid-cols-2 md:grid-cols-3 gap-2">
-                                  {[
-                                    { label: "Ativo Total", value: b.ativo_total },
-                                    { label: "Passivo Total", value: b.passivo_total },
-                                    { label: "Capital Social", value: b.capital_social },
-                                    { label: "Reservas", value: b.reservas },
-                                    { label: "Lucros/Prejuízos", value: b.lucros_prejuizos },
-                                    { label: "Patrimônio Líquido", value: b.patrimonio_liquido },
-                                  ].map((item) => (
-                                    <div key={item.label} className="rounded-lg bg-background/50 p-2">
-                                      <p className="text-[10px] text-muted-foreground">{item.label}</p>
-                                      <p className="text-xs font-mono font-semibold">{fmt(item.value)}</p>
-                                    </div>
-                                  ))}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => removerParticipacao(p.id)}>
+                      <Trash2 className="w-3 h-3 text-destructive" />
+                    </Button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
 
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("investidas")} className="text-xs">Voltar</Button>
-              <Button
-                onClick={calcularEquivalencia}
-                disabled={investidas.some((inv) => balancos.filter((b) => b.investida_id === inv.id).length < 2)}
-                className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
-              >
-                <Calculator className="w-4 h-4" /> Calcular Equivalência
+              <Button variant="outline" size="sm" onClick={() => setStep("empresas")} className="text-xs">Voltar</Button>
+              <Button onClick={() => setStep("resultados")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                Próximo: Resultados <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </motion.div>
         )}
 
-        {/* STEP 3: Resultados */}
+        {/* === STEP: RESULTADOS DO PERÍODO === */}
         {step === "resultados" && (
-          <motion.div key="resultados" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="space-y-4">
+          <motion.div key="resultados" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            {/* Lucro pré-equivalência */}
+            <div className="glass rounded-xl p-4 space-y-3">
+              <p className="text-sm font-semibold">Lucro Pré-Equivalência — {periodo}</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <Select value={novoResultado.empresa} onValueChange={v => setNovoResultado(p => ({ ...p, empresa: v }))}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                </Select>
+                <Input placeholder="Lucro (R$)" type="number" value={novoResultado.lucro} onChange={e => setNovoResultado(p => ({ ...p, lucro: e.target.value }))} className="text-sm" />
+                <Input placeholder="Dividendos (R$)" type="number" value={novoResultado.dividendos} onChange={e => setNovoResultado(p => ({ ...p, dividendos: e.target.value }))} className="text-sm" />
+                <Button onClick={salvarResultado} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                  <BarChart3 className="w-4 h-4" /> Salvar
+                </Button>
+              </div>
+            </div>
+
+            {/* Resultados salvos */}
+            {resultadosPeriodo.length > 0 && (
+              <div className="grid gap-2">
+                {resultadosPeriodo.map(r => (
+                  <div key={r.id} className="glass rounded-xl p-3 flex items-center justify-between">
+                    <span className="text-sm font-medium">{getNome(r.id_empresa)}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Lucro</p>
+                        <p className={`text-xs font-mono font-bold ${r.lucro_pre_equivalencia >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(r.lucro_pre_equivalencia)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Dividendos</p>
+                        <p className="text-xs font-mono">{fmt(r.dividendos_declarados)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* PL Abertura */}
+            <div className="glass rounded-xl p-4 space-y-3">
+              <p className="text-sm font-semibold">PL de Abertura (opcional)</p>
+              <p className="text-[11px] text-muted-foreground">Informe o PL inicial se for o primeiro período. Será registrado como fechamento do período anterior.</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Select value={novoPL.empresa} onValueChange={v => setNovoPL(p => ({ ...p, empresa: v }))}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
+                  <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
+                </Select>
+                <Input placeholder="PL de Abertura (R$)" type="number" value={novoPL.pl_abertura} onChange={e => setNovoPL(p => ({ ...p, pl_abertura: e.target.value }))} className="text-sm" />
+                <Button onClick={salvarPLAbertura} variant="outline" className="text-xs gap-1"><Wallet className="w-3.5 h-3.5" /> Salvar PL</Button>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setStep("participacoes")} className="text-xs">Voltar</Button>
+              <Button onClick={() => setStep("processar")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs"
+                disabled={resultadosPeriodo.length === 0}>
+                Próximo: Processar <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* === STEP: PROCESSAR === */}
+        {step === "processar" && (
+          <motion.div key="processar" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="glass rounded-xl p-6 text-center space-y-4">
+              <div className="w-16 h-16 rounded-2xl bg-[hsl(var(--orange)/0.15)] border border-[hsl(var(--orange)/0.25)] flex items-center justify-center mx-auto">
+                <Calculator className="w-8 h-8 text-[hsl(var(--orange))]" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">Motor Matricial de Equivalência</h3>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cálculo: <code className="bg-foreground/5 px-1.5 py-0.5 rounded text-[10px]">(I - P)⁻¹ × P × L</code>
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
+                <div className="rounded-lg bg-foreground/[0.03] p-3">
+                  <p className="text-[10px] text-muted-foreground">Empresas</p>
+                  <p className="text-lg font-bold text-[hsl(var(--orange))]">{investidas.length}</p>
+                </div>
+                <div className="rounded-lg bg-foreground/[0.03] p-3">
+                  <p className="text-[10px] text-muted-foreground">Participações</p>
+                  <p className="text-lg font-bold text-[hsl(var(--orange))]">{participacoes.length}</p>
+                </div>
+                <div className="rounded-lg bg-foreground/[0.03] p-3">
+                  <p className="text-[10px] text-muted-foreground">Resultados</p>
+                  <p className="text-lg font-bold text-[hsl(var(--orange))]">{resultadosPeriodo.length}</p>
+                </div>
+              </div>
+              <Button onClick={processarEquivalencia} disabled={processing} size="lg"
+                className="gap-2 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background">
+                {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Calculator className="w-5 h-5" />}
+                {processing ? "Calculando..." : "Processar Equivalência"}
+              </Button>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={() => setStep("resultados")} className="text-xs">Voltar</Button>
+          </motion.div>
+        )}
+
+        {/* === STEP: RELATÓRIO === */}
+        {step === "relatorio" && calculoResult && (
+          <motion.div key="relatorio" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+            {/* Totais */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {[
-                { label: "Total Ganhos", value: resultados.filter((r) => r.tipo === "ganho").reduce((s, r) => s + r.resultadoEquivalencia, 0), icon: TrendingUp, color: "hsl(var(--cyan))" },
-                { label: "Total Perdas", value: resultados.filter((r) => r.tipo === "perda").reduce((s, r) => s + Math.abs(r.resultadoEquivalencia), 0), icon: TrendingDown, color: "hsl(var(--orange))" },
-                { label: "Resultado Líquido", value: resultados.reduce((s, r) => s + r.resultadoEquivalencia, 0), icon: Calculator, color: resultados.reduce((s, r) => s + r.resultadoEquivalencia, 0) >= 0 ? "hsl(var(--cyan))" : "hsl(var(--orange))" },
-              ].map((card) => {
-                const Icon = card.icon;
+                { label: "Total Receitas", value: calculoResult.totais.total_receitas, icon: TrendingUp, color: "hsl(var(--cyan))" },
+                { label: "Total Despesas", value: Math.abs(calculoResult.totais.total_despesas), icon: TrendingDown, color: "hsl(var(--orange))" },
+                { label: "Resultado Líquido", value: calculoResult.totais.total_equivalencia, icon: Calculator, color: calculoResult.totais.total_equivalencia >= 0 ? "hsl(var(--cyan))" : "hsl(var(--orange))" },
+              ].map(c => {
+                const Icon = c.icon;
                 return (
-                  <div key={card.label} className="glass rounded-xl p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Icon className="w-4 h-4" style={{ color: card.color }} />
-                      <span className="text-xs text-muted-foreground">{card.label}</span>
-                    </div>
-                    <p className="text-lg font-bold font-mono" style={{ color: card.color }}>{fmt(card.value)}</p>
+                  <div key={c.label} className="glass rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2"><Icon className="w-4 h-4" style={{ color: c.color }} /><span className="text-xs text-muted-foreground">{c.label}</span></div>
+                    <p className="text-lg font-bold font-mono" style={{ color: c.color }}>{fmt(c.value)}</p>
                   </div>
                 );
               })}
             </div>
 
+            {/* Por empresa */}
             <div className="space-y-3">
-              {resultados.map((r, i) => (
-                <motion.div key={r.investidaId} initial={{ opacity: 0, x: -15 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="glass rounded-xl p-4">
+              {calculoResult.empresas.map((e, i) => (
+                <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }} className="glass rounded-xl p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-[hsl(var(--orange))]" />
-                      <span className="text-sm font-semibold">{r.investidaNome}</span>
-                      <Badge variant="outline" className="text-[10px]">{r.percentual}%</Badge>
+                      <span className="text-sm font-bold">{e.nome}</span>
+                      <Badge variant="outline" className="text-[10px] capitalize">{e.tipo}</Badge>
                     </div>
-                    <Badge className={r.tipo === "ganho" ? "bg-[hsl(var(--cyan)/0.15)] text-[hsl(var(--cyan))] border-[hsl(var(--cyan)/0.3)]" : "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))] border-[hsl(var(--orange)/0.3)]"}>
-                      {r.tipo === "ganho" ? "Ganho" : "Perda"}
+                    <Badge className={e.tipo_resultado === "receita" ? "bg-[hsl(var(--cyan)/0.15)] text-[hsl(var(--cyan))]" : "bg-[hsl(var(--orange)/0.15)] text-[hsl(var(--orange))]"}>
+                      {e.tipo_resultado === "receita" ? "Ganho" : "Perda"}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                     {[
-                      { label: "PL Anterior", value: r.plAnterior },
-                      { label: "PL Atual", value: r.plAtual },
-                      { label: "Variação PL", value: r.variacaoPL },
-                      { label: "Resultado Equivalência", value: r.resultadoEquivalencia },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-lg bg-foreground/[0.03] p-3">
-                        <p className="text-[10px] text-muted-foreground mb-1">{item.label}</p>
-                        <p className={`text-sm font-mono font-bold ${item.value >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(item.value)}</p>
+                      { label: "Lucro Pré-Eq", value: e.lucro_pre_equivalencia },
+                      { label: "Dividendos", value: e.dividendos },
+                      { label: "Equivalência", value: e.equivalencia },
+                      { label: "PL Abertura", value: e.pl_abertura },
+                      { label: "PL Fechamento", value: e.pl_fechamento },
+                    ].map(item => (
+                      <div key={item.label} className="rounded-lg bg-foreground/[0.03] p-2">
+                        <p className="text-[10px] text-muted-foreground">{item.label}</p>
+                        <p className={`text-xs font-mono font-bold ${item.value >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(item.value)}</p>
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-3 p-2 rounded-lg bg-foreground/[0.02] border border-border/30">
-                    <p className="text-[10px] text-muted-foreground">
-                      Cálculo: ({fmt(r.plAtual)} - {fmt(r.plAnterior)}) × {r.percentual}% = <strong className="text-foreground">{fmt(r.resultadoEquivalencia)}</strong>
-                    </p>
                   </div>
                 </motion.div>
               ))}
             </div>
 
+            {/* Valor por sócio */}
+            {calculoResult.valor_socios.length > 0 && (
+              <div className="glass rounded-xl p-4 space-y-3">
+                <p className="text-sm font-semibold flex items-center gap-2"><Users className="w-4 h-4 text-[hsl(var(--orange))]" /> Valor Patrimonial por Sócio</p>
+                <div className="grid gap-2">
+                  {calculoResult.valor_socios.map((s, i) => (
+                    <div key={i} className="flex items-center justify-between rounded-lg bg-foreground/[0.03] p-3">
+                      <div>
+                        <p className="text-sm font-medium">{s.socio} <Badge variant="outline" className="text-[9px] ml-1">{s.tipo}</Badge></p>
+                        <p className="text-[11px] text-muted-foreground">{s.empresa} — {fmtPct(s.percentual)}</p>
+                      </div>
+                      <p className="text-sm font-mono font-bold text-[hsl(var(--cyan))]">{fmt(s.valor_patrimonial)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Matriz */}
+            {calculoResult.matriz && calculoResult.matriz.dimensao <= 10 && (
+              <div className="glass rounded-xl p-4 space-y-2">
+                <p className="text-sm font-semibold flex items-center gap-2"><Network className="w-4 h-4 text-[hsl(var(--orange))]" /> Matriz P ({calculoResult.matriz.dimensao}×{calculoResult.matriz.dimensao})</p>
+                <div className="overflow-x-auto">
+                  <table className="text-[10px] font-mono">
+                    <thead>
+                      <tr>
+                        <th className="p-1"></th>
+                        {calculoResult.empresas.map(e => <th key={e.id} className="p-1 text-muted-foreground">{e.nome.slice(0, 8)}</th>)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {calculoResult.matriz.P.map((row, i) => (
+                        <tr key={i}>
+                          <td className="p-1 text-muted-foreground font-semibold">{calculoResult.empresas[i]?.nome.slice(0, 8)}</td>
+                          {row.map((v, j) => (
+                            <td key={j} className={`p-1 text-center ${v > 0 ? "text-[hsl(var(--orange))] font-bold" : "text-muted-foreground/40"}`}>
+                              {v > 0 ? (v * 100).toFixed(1) + "%" : "—"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setStep("importar")} className="text-xs">Voltar</Button>
-              <Button onClick={exportarCSV} className="gap-1.5 text-xs" variant="outline">
-                <Download className="w-3.5 h-3.5" /> Exportar CSV
-              </Button>
+              <Button variant="outline" size="sm" onClick={() => setStep("processar")} className="text-xs">Voltar</Button>
+              <Button onClick={exportarCSV} variant="outline" className="gap-1.5 text-xs"><Download className="w-3.5 h-3.5" /> Exportar CSV</Button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
     </div>
   );
+}
+
+// ============================================================================
+// UTILS
+// ============================================================================
+
+function periodoAnterior(periodo: string): string {
+  const [y, m] = periodo.split("-").map(Number);
+  if (m === 1) return `${y - 1}-12`;
+  return `${y}-${String(m - 1).padStart(2, "0")}`;
 }
