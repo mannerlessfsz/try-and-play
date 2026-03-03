@@ -170,6 +170,7 @@ export function EquivalenciaPatrimonial() {
   const [showNovaSessao, setShowNovaSessao] = useState(false);
   const [novaSessaoMes, setNovaSessaoMes] = useState(() => new Date().getMonth() + 1);
   const [novaSessaoAno, setNovaSessaoAno] = useState(() => new Date().getFullYear());
+  const [reconsultando, setReconsultando] = useState(false);
 
   // Derived periodo from active session
   const periodo = sessaoAtiva?.periodo || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
@@ -518,6 +519,81 @@ export function EquivalenciaPatrimonial() {
     if (error) { toast.error(error.message); return; }
     toast.success("Percentual atualizado");
     if (grupoAtivo) fetchAll(grupoAtivo.id);
+  };
+
+  // moved to top-level state but kept here for locality
+
+  const reconsultarCnpjsGrupo = async () => {
+    if (!grupoAtivo) return;
+    setReconsultando(true);
+    let atualizadas = 0;
+    let participacoesCriadas = 0;
+
+    for (const inv of investidas) {
+      if (!inv.cnpj) continue;
+      const digits = inv.cnpj.replace(/\D/g, "");
+      if (digits.length !== 14) continue;
+
+      try {
+        const data = await fetchCnpjData(digits);
+        if (!data.socios || data.socios.length === 0) continue;
+
+        // Remove sócios antigos e insere novos com dados atualizados
+        await supabase.from("grupo_investidas_socios").delete().eq("investida_id", inv.id);
+        const sociosRows = data.socios.map(s => ({
+          investida_id: inv.id,
+          nome: s.nome,
+          qualificacao: s.qualificacao,
+          cpf_cnpj: s.cpf_cnpj || null,
+          percentual_capital_social: s.percentual_capital_social ?? null,
+        }));
+        await supabase.from("grupo_investidas_socios").insert(sociosRows as any);
+        atualizadas++;
+
+        // Auto-criar participações cruzadas com percentual
+        for (const socio of data.socios) {
+          if (!socio.cpf_cnpj) continue;
+          const socioCnpjLimpo = socio.cpf_cnpj.replace(/\D/g, "");
+          if (socioCnpjLimpo.length !== 14) continue;
+          const investidora = investidas.find(i => i.cnpj?.replace(/\D/g, "") === socioCnpjLimpo && i.id !== inv.id);
+          if (!investidora) continue;
+
+          // Verificar se já existe
+          const { data: existing } = await supabase
+            .from("eq_participacoes")
+            .select("id")
+            .eq("grupo_id", grupoAtivo.id)
+            .eq("id_investidora", investidora.id)
+            .eq("id_investida", inv.id)
+            .maybeSingle();
+
+          if (!existing) {
+            const pct = socio.percentual_capital_social ?? 0;
+            await supabase.from("eq_participacoes").insert({
+              grupo_id: grupoAtivo.id,
+              id_investidora: investidora.id,
+              id_investida: inv.id,
+              percentual: pct,
+            });
+            participacoesCriadas++;
+          } else if (socio.percentual_capital_social != null && socio.percentual_capital_social > 0) {
+            // Atualizar percentual se veio da API e é > 0
+            await supabase.from("eq_participacoes")
+              .update({ percentual: socio.percentual_capital_social })
+              .eq("id", existing.id);
+          }
+        }
+      } catch (err: any) {
+        console.warn(`Erro ao reconsultar ${inv.nome}:`, err.message);
+      }
+
+      // Delay entre consultas para evitar rate limit
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    setReconsultando(false);
+    toast.success(`${atualizadas} empresa(s) atualizada(s), ${participacoesCriadas} participação(ões) criada(s)`);
+    fetchAll(grupoAtivo.id);
   };
 
   const removerParticipacao = async (id: string) => {
@@ -1096,10 +1172,20 @@ export function EquivalenciaPatrimonial() {
               </div>
             )}
 
-            {investidas.length >= 2 && (
-              <Button onClick={() => setStep("participacoes")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
-                Próximo: Participações <ArrowRight className="w-4 h-4" />
-              </Button>
+            {investidas.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {!isSessaoFechada && (
+                  <Button onClick={reconsultarCnpjsGrupo} variant="outline" size="sm" className="gap-1.5 text-xs" disabled={reconsultando}>
+                    {reconsultando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                    {reconsultando ? "Reconsultando..." : "Reconsultar CNPJs"}
+                  </Button>
+                )}
+                {investidas.length >= 2 && (
+                  <Button onClick={() => setStep("participacoes")} className="gap-1.5 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
+                    Próximo: Participações <ArrowRight className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
             )}
           </motion.div>
         )}
