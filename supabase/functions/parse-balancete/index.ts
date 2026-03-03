@@ -15,11 +15,23 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY não configurada");
 
-    const { files } = await req.json();
-    // files: Array<{ filename: string, content_base64: string, empresa_id?: string, empresa_nome?: string }>
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: "Body inválido ou vazio" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const files = body?.files;
 
     if (!files || !Array.isArray(files) || files.length === 0) {
-      throw new Error("Nenhum arquivo enviado");
+      return new Response(
+        JSON.stringify({ error: "Nenhum arquivo enviado" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const results = [];
