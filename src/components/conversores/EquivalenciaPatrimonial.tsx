@@ -5,7 +5,7 @@ import {
   FileText, Plus, Calculator, Download, ChevronDown, ChevronUp,
   ArrowLeft, Users, Layers, GitBranch, BarChart3, Wallet,
   ArrowRight, Loader2, Network, FileUp, CheckCircle, AlertCircle,
-  Sparkles
+  Sparkles, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { formatCnpj, isValidCnpj, fetchCnpjData, cleanCnpj } from "@/utils/cnpjUtils";
+import { cn } from "@/lib/utils";
 
 // ============================================================================
 // TYPES
@@ -143,6 +145,10 @@ export function EquivalenciaPatrimonial() {
   const [showNovoGrupo, setShowNovoGrupo] = useState(false);
   const [novoGrupo, setNovoGrupo] = useState({ nome: "", descricao: "", cnpj: "" });
   const [novaInvestida, setNovaInvestida] = useState({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+  const [buscandoCnpjInvestida, setBuscandoCnpjInvestida] = useState(false);
+  const [cnpjInvestidaValido, setCnpjInvestidaValido] = useState<boolean | null>(null);
+  const [buscandoCnpjGrupo, setBuscandoCnpjGrupo] = useState(false);
+  const [cnpjGrupoValido, setCnpjGrupoValido] = useState<boolean | null>(null);
   const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
   const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
@@ -209,13 +215,15 @@ export function EquivalenciaPatrimonial() {
   const criarGrupo = async () => {
     if (!novoGrupo.nome.trim()) { toast.error("Informe o nome do grupo"); return; }
     const { data: user } = await supabase.auth.getUser();
+    const cnpjLimpo = cleanCnpj(novoGrupo.cnpj);
     const { error } = await supabase.from("grupos_economicos").insert({
       nome: novoGrupo.nome, descricao: novoGrupo.descricao || null,
-      cnpj_holding: novoGrupo.cnpj || null, created_by: user?.user?.id || null,
+      cnpj_holding: cnpjLimpo || null, created_by: user?.user?.id || null,
     });
     if (error) { toast.error("Erro ao criar grupo"); return; }
     toast.success("Grupo criado");
     setNovoGrupo({ nome: "", descricao: "", cnpj: "" });
+    setCnpjGrupoValido(null);
     setShowNovoGrupo(false);
     fetchGrupos();
   };
@@ -226,18 +234,52 @@ export function EquivalenciaPatrimonial() {
     fetchGrupos();
   };
 
+  const handleCnpjGrupoChange = async (rawValue: string) => {
+    const formatted = formatCnpj(rawValue);
+    setNovoGrupo(p => ({ ...p, cnpj: formatted }));
+    const digits = cleanCnpj(formatted);
+    if (digits.length < 14) { setCnpjGrupoValido(null); return; }
+    if (!isValidCnpj(digits)) { setCnpjGrupoValido(false); toast.error("CNPJ inválido"); return; }
+    setCnpjGrupoValido(true);
+    setBuscandoCnpjGrupo(true);
+    try {
+      const data = await fetchCnpjData(digits);
+      setNovoGrupo(p => ({ ...p, nome: p.nome || data.razao_social }));
+      toast.success(`CNPJ encontrado: ${data.razao_social}`);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setBuscandoCnpjGrupo(false); }
+  };
+
+  const handleCnpjInvestidaChange = async (rawValue: string) => {
+    const formatted = formatCnpj(rawValue);
+    setNovaInvestida(p => ({ ...p, cnpj: formatted }));
+    const digits = cleanCnpj(formatted);
+    if (digits.length < 14) { setCnpjInvestidaValido(null); return; }
+    if (!isValidCnpj(digits)) { setCnpjInvestidaValido(false); toast.error("CNPJ inválido"); return; }
+    setCnpjInvestidaValido(true);
+    setBuscandoCnpjInvestida(true);
+    try {
+      const data = await fetchCnpjData(digits);
+      setNovaInvestida(p => ({ ...p, nome: p.nome || data.razao_social }));
+      toast.success(`CNPJ encontrado: ${data.razao_social}`);
+    } catch (err: any) { toast.error(err.message); }
+    finally { setBuscandoCnpjInvestida(false); }
+  };
+
   const adicionarInvestida = async () => {
     if (!grupoAtivo || !novaInvestida.nome || !novaInvestida.percentual) { toast.error("Preencha nome e percentual"); return; }
     const perc = parseFloat(novaInvestida.percentual);
     if (isNaN(perc) || perc <= 0 || perc > 100) { toast.error("Percentual entre 0 e 100"); return; }
+    const cnpjLimpo = cleanCnpj(novaInvestida.cnpj);
     const { error } = await supabase.from("grupo_investidas").insert({
       grupo_id: grupoAtivo.id, nome: novaInvestida.nome,
-      cnpj: novaInvestida.cnpj || null, percentual_participacao: perc,
+      cnpj: cnpjLimpo || null, percentual_participacao: perc,
       tipo_empresa: novaInvestida.tipo,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Empresa adicionada");
     setNovaInvestida({ nome: "", cnpj: "", percentual: "", tipo: "operacional" });
+    setCnpjInvestidaValido(null);
     fetchAll(grupoAtivo.id);
   };
 
@@ -512,7 +554,12 @@ export function EquivalenciaPatrimonial() {
                 <p className="text-sm font-semibold">Criar Grupo Econômico</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <Input placeholder="Nome do grupo *" value={novoGrupo.nome} onChange={e => setNovoGrupo(p => ({ ...p, nome: e.target.value }))} className="text-sm" />
-                  <Input placeholder="CNPJ da holding (opcional)" value={novoGrupo.cnpj} onChange={e => setNovoGrupo(p => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
+                  <div className="relative">
+                    <Input placeholder="CNPJ da holding (opcional)" value={novoGrupo.cnpj} onChange={e => handleCnpjGrupoChange(e.target.value)} maxLength={18}
+                      className={cn("text-sm", cnpjGrupoValido === true && "border-green-500", cnpjGrupoValido === false && "border-destructive")} />
+                    {buscandoCnpjGrupo && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                    {cnpjGrupoValido === true && !buscandoCnpjGrupo && <CheckCircle className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />}
+                  </div>
                   <Input placeholder="Descrição (opcional)" value={novoGrupo.descricao} onChange={e => setNovoGrupo(p => ({ ...p, descricao: e.target.value }))} className="text-sm" />
                 </div>
                 <div className="flex gap-2">
@@ -606,8 +653,13 @@ export function EquivalenciaPatrimonial() {
             <div className="glass rounded-xl p-4 space-y-3">
               <p className="text-sm font-semibold">Cadastrar Empresa do Grupo</p>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <div className="relative">
+                  <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => handleCnpjInvestidaChange(e.target.value)} maxLength={18}
+                    className={cn("text-sm", cnpjInvestidaValido === true && "border-green-500", cnpjInvestidaValido === false && "border-destructive")} />
+                  {buscandoCnpjInvestida && <Loader2 className="absolute right-3 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />}
+                  {cnpjInvestidaValido === true && !buscandoCnpjInvestida && <CheckCircle className="absolute right-3 top-2.5 h-4 w-4 text-green-500" />}
+                </div>
                 <Input placeholder="Razão Social *" value={novaInvestida.nome} onChange={e => setNovaInvestida(p => ({ ...p, nome: e.target.value }))} className="text-sm" />
-                <Input placeholder="CNPJ" value={novaInvestida.cnpj} onChange={e => setNovaInvestida(p => ({ ...p, cnpj: e.target.value }))} className="text-sm" />
                 <Input placeholder="% Capital Social" type="number" value={novaInvestida.percentual} onChange={e => setNovaInvestida(p => ({ ...p, percentual: e.target.value }))} className="text-sm" />
                 <Select value={novaInvestida.tipo} onValueChange={v => setNovaInvestida(p => ({ ...p, tipo: v }))}>
                   <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
