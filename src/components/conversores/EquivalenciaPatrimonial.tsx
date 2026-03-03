@@ -529,6 +529,16 @@ export function EquivalenciaPatrimonial() {
     if (grupoAtivo) fetchAll(grupoAtivo.id);
   };
 
+  const atualizarPercentualSocio = async (socioId: string, novoPercentual: number) => {
+    if (isNaN(novoPercentual) || novoPercentual < 0 || novoPercentual > 100) {
+      toast.error("Percentual entre 0 e 100"); return;
+    }
+    const { error } = await supabase.from("grupo_investidas_socios").update({ percentual_capital_social: novoPercentual }).eq("id", socioId);
+    if (error) { toast.error(error.message); return; }
+    setAllSocios(prev => prev.map(s => s.id === socioId ? { ...s, percentual_capital_social: novoPercentual } : s));
+    toast.success("Percentual do sócio atualizado");
+  };
+
   // moved to top-level state but kept here for locality
 
   const reconsultarCnpjsGrupo = async () => {
@@ -1276,22 +1286,59 @@ export function EquivalenciaPatrimonial() {
                   </div>
 
                   {socios.length > 0 && (
-                    <div className="pl-10 space-y-1.5">
+                    <div className="pl-10 space-y-2">
                       <p className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
                         <Users className="w-3 h-3" /> Quadro Societário ({socios.length})
+                        {socios.some(s => s.percentual_capital_social == null || s.percentual_capital_social <= 0) && (
+                          <span className="text-amber-500 ml-1">⚠ Preencha os %</span>
+                        )}
                       </p>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="space-y-1.5">
                         {socios.map(s => {
                           const isCnpj = s.cpf_cnpj && s.cpf_cnpj.replace(/\D/g, "").length === 14;
                           const matchEmpresa = isCnpj ? investidas.find(i => i.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, "") && i.id !== inv.id) : null;
+                          const hasPct = s.percentual_capital_social != null && s.percentual_capital_social > 0;
                           return (
-                            <Badge key={s.id} variant="outline" className={cn("text-[10px]",
-                              matchEmpresa && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]"
-                            )}>
-                              {s.nome}{s.percentual_capital_social != null && s.percentual_capital_social > 0 ? ` (${s.percentual_capital_social}%)` : ""}{matchEmpresa && ` ⚡ ${matchEmpresa.nome}`}
-                            </Badge>
+                            <div key={s.id} className="flex items-center gap-2 group">
+                              <Badge variant="outline" className={cn("text-[10px] shrink-0",
+                                matchEmpresa && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]",
+                                !hasPct && !matchEmpresa && "border-amber-500/50 text-amber-600"
+                              )}>
+                                {s.nome}{matchEmpresa && " ⚡"}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{s.qualificacao || "Sócio"}</span>
+                              <div className="flex items-center gap-1 ml-auto shrink-0">
+                                <Input
+                                  type="number"
+                                  className={cn("w-20 h-6 text-[11px] text-center", !hasPct && "border-amber-500/50")}
+                                  defaultValue={s.percentual_capital_social ?? ""}
+                                  placeholder="0.00"
+                                  key={`socio-${s.id}-${s.percentual_capital_social}`}
+                                  disabled={isSessaoFechada}
+                                  onBlur={e => {
+                                    const val = parseFloat(e.target.value);
+                                    if (!isNaN(val) && val !== s.percentual_capital_social) atualizarPercentualSocio(s.id, val);
+                                  }}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter") {
+                                      const val = parseFloat((e.target as HTMLInputElement).value);
+                                      if (!isNaN(val) && val !== s.percentual_capital_social) atualizarPercentualSocio(s.id, val);
+                                    }
+                                  }}
+                                />
+                                <span className="text-[10px] text-muted-foreground">%</span>
+                              </div>
+                            </div>
                           );
                         })}
+                        {(() => {
+                          const total = socios.reduce((sum, s) => sum + (s.percentual_capital_social || 0), 0);
+                          return (
+                            <div className={cn("text-[10px] font-medium text-right pr-7", Math.abs(total - 100) < 0.1 ? "text-green-600" : total > 0 ? "text-amber-600" : "text-muted-foreground")}>
+                              Total: {total.toFixed(2)}%{Math.abs(total - 100) < 0.1 ? " ✓" : total > 0 ? " (deve somar 100%)" : ""}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   )}
