@@ -2016,6 +2016,7 @@ export type Database = {
           dividendos_declarados: number
           id: string
           id_empresa: string
+          lucro_exercicio: number | null
           lucro_pre_equivalencia: number
           periodo: string
         }
@@ -2025,6 +2026,7 @@ export type Database = {
           dividendos_declarados?: number
           id?: string
           id_empresa: string
+          lucro_exercicio?: number | null
           lucro_pre_equivalencia?: number
           periodo: string
         }
@@ -2034,6 +2036,7 @@ export type Database = {
           dividendos_declarados?: number
           id?: string
           id_empresa?: string
+          lucro_exercicio?: number | null
           lucro_pre_equivalencia?: number
           periodo?: string
         }
