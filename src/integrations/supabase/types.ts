@@ -2353,6 +2353,7 @@ export type Database = {
           id: string
           investida_id: string
           nome: string
+          percentual_capital_social: number | null
           qualificacao: string | null
         }
         Insert: {
@@ -2361,6 +2362,7 @@ export type Database = {
           id?: string
           investida_id: string
           nome: string
+          percentual_capital_social?: number | null
           qualificacao?: string | null
         }
         Update: {
@@ -2369,6 +2371,7 @@ export type Database = {
           id?: string
           investida_id?: string
           nome?: string
+          percentual_capital_social?: number | null
           qualificacao?: string | null
         }
         Relationships: [

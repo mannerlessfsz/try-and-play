@@ -161,9 +161,9 @@ export function EquivalenciaPatrimonial() {
   const [cnpjInvestidaValido, setCnpjInvestidaValido] = useState<boolean | null>(null);
   const [buscandoCnpjGrupo, setBuscandoCnpjGrupo] = useState(false);
   const [cnpjGrupoValido, setCnpjGrupoValido] = useState<boolean | null>(null);
-  const [cnpjSociosCache, setCnpjSociosCache] = useState<{ nome: string; qualificacao: string; cpf_cnpj?: string }[]>([]);
+  const [cnpjSociosCache, setCnpjSociosCache] = useState<{ nome: string; qualificacao: string; cpf_cnpj?: string; percentual_capital_social?: number | null }[]>([]);
   const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
-  const [allSocios, setAllSocios] = useState<{ id: string; investida_id: string; nome: string; qualificacao: string | null; cpf_cnpj: string | null }[]>([]);
+  const [allSocios, setAllSocios] = useState<{ id: string; investida_id: string; nome: string; qualificacao: string | null; cpf_cnpj: string | null; percentual_capital_social: number | null }[]>([]);
   const [editingPercentual, setEditingPercentual] = useState<Record<string, string>>({});
   const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
@@ -369,7 +369,7 @@ export function EquivalenciaPatrimonial() {
       const data = await fetchCnpjData(digits);
       setNovaInvestida(p => ({ ...p, nome: p.nome || data.razao_social }));
       if (data.socios && data.socios.length > 0) {
-        setCnpjSociosCache(data.socios.map(s => ({ nome: s.nome, qualificacao: s.qualificacao, cpf_cnpj: s.cpf_cnpj || undefined })));
+        setCnpjSociosCache(data.socios.map(s => ({ nome: s.nome, qualificacao: s.qualificacao, cpf_cnpj: s.cpf_cnpj || undefined, percentual_capital_social: s.percentual_capital_social })));
       }
       toast.success(`CNPJ encontrado: ${data.razao_social}`);
     } catch (err: any) { toast.error(err.message); }
@@ -393,6 +393,7 @@ export function EquivalenciaPatrimonial() {
         nome: s.nome,
         qualificacao: s.qualificacao,
         cpf_cnpj: s.cpf_cnpj || null,
+        percentual_capital_social: s.percentual_capital_social ?? null,
       }));
       await supabase.from("grupo_investidas_socios").insert(sociosRows as any);
     }
@@ -408,13 +409,14 @@ export function EquivalenciaPatrimonial() {
             p.id_investidora === match.id && p.id_investida === inserted.id
           );
           if (!existing) {
+            const pct = socio.percentual_capital_social ?? 0;
             await supabase.from("eq_participacoes").insert({
               grupo_id: grupoAtivo.id,
               id_investidora: match.id,
               id_investida: inserted.id,
-              percentual: 0,
+              percentual: pct,
             });
-            toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome}`);
+            toast.success(`Participação detectada: ${match.nome} → ${novaInvestida.nome} (${pct}%)`);
           }
         }
       }
@@ -489,11 +491,12 @@ export function EquivalenciaPatrimonial() {
         if (!investidora) continue;
         const exists = participacoes.find(p => p.id_investidora === investidora.id && p.id_investida === inv.id);
         if (!exists) {
+          const pct = socio.percentual_capital_social ?? 0;
           await supabase.from("eq_participacoes").insert({
             grupo_id: grupoAtivo.id,
             id_investidora: investidora.id,
             id_investida: inv.id,
-            percentual: 0,
+            percentual: pct,
           });
           criadas++;
         }
@@ -1048,7 +1051,7 @@ export function EquivalenciaPatrimonial() {
                         const isMatch = isCnpj && investidas.some(inv => inv.cnpj?.replace(/\D/g, "") === s.cpf_cnpj?.replace(/\D/g, ""));
                         return (
                           <Badge key={i} variant="outline" className={cn("text-[10px]", isMatch && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]")}>
-                            {s.nome}{isMatch && " ⚡"}
+                            {s.nome}{s.percentual_capital_social != null && s.percentual_capital_social > 0 ? ` (${s.percentual_capital_social}%)` : ""}{isMatch && " ⚡"}
                           </Badge>
                         );
                       })}
@@ -1151,7 +1154,7 @@ export function EquivalenciaPatrimonial() {
                             <Badge key={s.id} variant="outline" className={cn("text-[10px]",
                               matchEmpresa && "border-[hsl(var(--orange))] text-[hsl(var(--orange))] bg-[hsl(var(--orange)/0.05)]"
                             )}>
-                              {s.nome}{matchEmpresa && ` ⚡ ${matchEmpresa.nome}`}
+                              {s.nome}{s.percentual_capital_social != null && s.percentual_capital_social > 0 ? ` (${s.percentual_capital_social}%)` : ""}{matchEmpresa && ` ⚡ ${matchEmpresa.nome}`}
                             </Badge>
                           );
                         })}

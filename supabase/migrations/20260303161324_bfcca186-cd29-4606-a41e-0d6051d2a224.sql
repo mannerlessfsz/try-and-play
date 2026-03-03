@@ -1,0 +1,1 @@
+ALTER TABLE public.grupo_investidas_socios ADD COLUMN percentual_capital_social numeric(7,4) DEFAULT NULL;
