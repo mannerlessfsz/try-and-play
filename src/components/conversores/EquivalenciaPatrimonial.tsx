@@ -66,6 +66,7 @@ interface ResultadoPeriodo {
   id_empresa: string;
   periodo: string;
   lucro_pre_equivalencia: number;
+  lucro_exercicio: number;
   dividendos_declarados: number;
 }
 
@@ -165,7 +166,7 @@ export function EquivalenciaPatrimonial() {
   const [novaParticipacao, setNovaParticipacao] = useState({ investidora: "", investida: "", percentual: "" });
   const [allSocios, setAllSocios] = useState<{ id: string; investida_id: string; nome: string; qualificacao: string | null; cpf_cnpj: string | null; percentual_capital_social: number | null }[]>([]);
   const [editingPercentual, setEditingPercentual] = useState<Record<string, string>>({});
-  const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", dividendos: "" });
+  const [novoResultado, setNovoResultado] = useState({ empresa: "", lucro: "", lucroExercicio: "", dividendos: "" });
   const [novoPL, setNovoPL] = useState({ empresa: "", pl_abertura: "" });
   const [showNovaSessao, setShowNovaSessao] = useState(false);
   const [novaSessaoMes, setNovaSessaoMes] = useState(() => new Date().getMonth() + 1);
@@ -603,15 +604,16 @@ export function EquivalenciaPatrimonial() {
   };
 
   const salvarResultado = async () => {
-    if (!novoResultado.empresa || !novoResultado.lucro) { toast.error("Preencha empresa e lucro"); return; }
+    if (!novoResultado.empresa || !novoResultado.lucro) { toast.error("Preencha empresa e lucro mensal"); return; }
     const { error } = await supabase.from("eq_resultado_periodo").upsert({
       id_empresa: novoResultado.empresa, periodo,
       lucro_pre_equivalencia: parseFloat(novoResultado.lucro) || 0,
+      lucro_exercicio: parseFloat(novoResultado.lucroExercicio) || 0,
       dividendos_declarados: parseFloat(novoResultado.dividendos) || 0,
     }, { onConflict: "id_empresa,periodo" });
     if (error) { toast.error(error.message); return; }
     toast.success("Resultado salvo");
-    setNovoResultado({ empresa: "", lucro: "", dividendos: "" });
+    setNovoResultado({ empresa: "", lucro: "", lucroExercicio: "", dividendos: "" });
     if (grupoAtivo) fetchPeriodoData(grupoAtivo.id, periodo);
   };
 
@@ -741,7 +743,8 @@ export function EquivalenciaPatrimonial() {
     await supabase.from("eq_resultado_periodo").upsert({
       id_empresa: empresaId,
       periodo,
-      lucro_pre_equivalencia: data.resultado_periodo || 0,
+      lucro_pre_equivalencia: data.resultado_mensal || data.resultado_periodo || 0,
+      lucro_exercicio: data.resultado_exercicio || 0,
       dividendos_declarados: data.dividendos_declarados || 0,
     }, { onConflict: "id_empresa,periodo" });
 
@@ -1420,7 +1423,8 @@ export function EquivalenciaPatrimonial() {
                               {result.data?.razao_social && <p className="text-[10px] text-muted-foreground">Empresa: {result.data.razao_social}</p>}
                               <div className="flex gap-3 flex-wrap">
                                 <span className="text-[10px]">PL: <span className="font-mono font-bold text-[hsl(var(--cyan))]">{fmt(result.data?.patrimonio_liquido || 0)}</span></span>
-                                <span className="text-[10px]">Resultado: <span className={`font-mono font-bold ${(result.data?.resultado_periodo || 0) >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(result.data?.resultado_periodo || 0)}</span></span>
+                                <span className="text-[10px]">Lucro Mensal: <span className={`font-mono font-bold ${(result.data?.resultado_mensal || 0) >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(result.data?.resultado_mensal || 0)}</span></span>
+                                <span className="text-[10px]">Lucro Exercício: <span className="font-mono text-muted-foreground">{fmt(result.data?.resultado_exercicio || 0)}</span></span>
                                 <span className="text-[10px]">Dividendos: <span className="font-mono">{fmt(result.data?.dividendos_declarados || 0)}</span></span>
                               </div>
                               <div className="flex items-center gap-2">
@@ -1456,13 +1460,14 @@ export function EquivalenciaPatrimonial() {
             {/* Entrada manual — Lucro pré-equivalência */}
             {!isSessaoFechada && (
               <div className="glass rounded-xl p-4 space-y-3">
-                <p className="text-sm font-semibold">Entrada Manual — Lucro Pré-Equivalência — {sessaoAtiva ? `${MESES[sessaoAtiva.competencia_mes - 1]}/${sessaoAtiva.competencia_ano}` : periodo}</p>
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <p className="text-sm font-semibold">Entrada Manual — Lucro Mensal — {sessaoAtiva ? `${MESES[sessaoAtiva.competencia_mes - 1]}/${sessaoAtiva.competencia_ano}` : periodo}</p>
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                   <Select value={novoResultado.empresa} onValueChange={v => setNovoResultado(p => ({ ...p, empresa: v }))}>
                     <SelectTrigger className="text-sm"><SelectValue placeholder="Empresa" /></SelectTrigger>
                     <SelectContent>{investidas.map(i => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}</SelectContent>
                   </Select>
-                  <Input placeholder="Lucro (R$)" type="number" value={novoResultado.lucro} onChange={e => setNovoResultado(p => ({ ...p, lucro: e.target.value }))} className="text-sm" />
+                  <Input placeholder="Lucro Mensal (R$)" type="number" value={novoResultado.lucro} onChange={e => setNovoResultado(p => ({ ...p, lucro: e.target.value }))} className="text-sm" />
+                  <Input placeholder="Lucro Exercício (R$)" type="number" value={novoResultado.lucroExercicio} onChange={e => setNovoResultado(p => ({ ...p, lucroExercicio: e.target.value }))} className="text-sm" />
                   <Input placeholder="Dividendos (R$)" type="number" value={novoResultado.dividendos} onChange={e => setNovoResultado(p => ({ ...p, dividendos: e.target.value }))} className="text-sm" />
                   <Button onClick={salvarResultado} className="gap-1 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background text-xs">
                     <BarChart3 className="w-4 h-4" /> Salvar
@@ -1479,8 +1484,12 @@ export function EquivalenciaPatrimonial() {
                     <span className="text-sm font-medium">{getNome(r.id_empresa)}</span>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="text-xs text-muted-foreground">Lucro</p>
+                        <p className="text-xs text-muted-foreground">Lucro Mensal</p>
                         <p className={`text-xs font-mono font-bold ${r.lucro_pre_equivalencia >= 0 ? "text-[hsl(var(--cyan))]" : "text-[hsl(var(--orange))]"}`}>{fmt(r.lucro_pre_equivalencia)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">Exercício</p>
+                        <p className="text-xs font-mono text-muted-foreground">{fmt(r.lucro_exercicio || 0)}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-xs text-muted-foreground">Dividendos</p>

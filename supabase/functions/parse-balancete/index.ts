@@ -58,9 +58,10 @@ serve(async (req) => {
             role: "system",
             content: `Você é um especialista em contabilidade brasileira. Analise o balancete/demonstração financeira enviado e extraia os dados solicitados com precisão.
 
-REGRAS:
+REGRAS IMPORTANTES:
 - Patrimônio Líquido (PL): Soma das contas do grupo 2.4 ou "Patrimônio Líquido" no balancete. Valor de SALDO FINAL/FECHAMENTO.
-- Resultado do Período: Lucro ou Prejuízo líquido do exercício. Pode estar em conta 3.x ou como diferença entre Receitas e Despesas.
+- LUCRO MENSAL (resultado_mensal): Este é o dado MAIS IMPORTANTE. É o resultado (lucro/prejuízo) APENAS do mês de referência do balancete, NÃO o acumulado do exercício. Se o balancete mostrar colunas "Mês" e "Exercício", use o valor da coluna "Mês". Se só tiver o acumulado, tente inferir o mensal pela diferença com o mês anterior, ou use o acumulado como fallback.
+- LUCRO DO EXERCÍCIO (resultado_exercicio): É o resultado acumulado do exercício (desde janeiro até o mês de referência). Valor informativo.
 - Dividendos: Se houver menção a dividendos propostos/declarados, extraia o valor. Caso contrário, informe 0.
 - CNPJ: Extraia o CNPJ da empresa se visível no documento.
 - Razão Social: Extraia o nome/razão social da empresa.
@@ -72,7 +73,7 @@ REGRAS:
             content: [
               {
                 type: "text",
-                text: `Analise este balancete/demonstração e extraia: PL (patrimônio líquido), resultado do período (lucro/prejuízo), dividendos declarados, CNPJ, razão social e período de referência. Arquivo: ${file.filename}`,
+                text: `Analise este balancete/demonstração e extraia: PL (patrimônio líquido), resultado MENSAL (lucro/prejuízo do mês, NÃO o acumulado do exercício), resultado do EXERCÍCIO (acumulado), dividendos declarados, CNPJ, razão social e período de referência. PRIORIZE o resultado mensal. Arquivo: ${file.filename}`,
               },
               {
                 type: "image_url",
@@ -99,10 +100,15 @@ REGRAS:
                     description:
                       "Patrimônio Líquido total (saldo final). Valor numérico sem formatação.",
                   },
-                  resultado_periodo: {
+                  resultado_mensal: {
                     type: "number",
                     description:
-                      "Lucro ou Prejuízo líquido do exercício/período. Negativo se prejuízo.",
+                      "Lucro ou Prejuízo líquido do MÊS de referência (não acumulado). Negativo se prejuízo.",
+                  },
+                  resultado_exercicio: {
+                    type: "number",
+                    description:
+                      "Lucro ou Prejuízo líquido ACUMULADO do exercício (desde janeiro). Negativo se prejuízo. 0 se não identificado.",
                   },
                   dividendos_declarados: {
                     type: "number",
@@ -138,7 +144,7 @@ REGRAS:
                 },
                 required: [
                   "patrimonio_liquido",
-                  "resultado_periodo",
+                  "resultado_mensal",
                   "dividendos_declarados",
                   "confianca",
                 ],
@@ -222,7 +228,8 @@ REGRAS:
           success: true,
           data: {
             patrimonio_liquido: extracted.patrimonio_liquido || 0,
-            resultado_periodo: extracted.resultado_periodo || 0,
+            resultado_mensal: extracted.resultado_mensal || 0,
+            resultado_exercicio: extracted.resultado_exercicio || 0,
             dividendos_declarados: extracted.dividendos_declarados || 0,
             cnpj: extracted.cnpj || null,
             razao_social: extracted.razao_social || null,
