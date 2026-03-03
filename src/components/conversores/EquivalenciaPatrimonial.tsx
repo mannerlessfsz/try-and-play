@@ -4,7 +4,7 @@ import {
   Upload, Trash2, Building2, TrendingUp, TrendingDown,
   FileText, Plus, Calculator, Download, ChevronDown, ChevronUp,
   ArrowLeft, Users, Layers, GitBranch, BarChart3, Wallet,
-  ArrowRight, Loader2, Network, FileUp, CheckCircle, AlertCircle,
+  ArrowRight, Loader2, Network, FileUp, CheckCircle, AlertCircle, AlertTriangle,
   Sparkles, Search, Calendar, FolderOpen, Lock, Unlock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -602,7 +602,15 @@ export function EquivalenciaPatrimonial() {
     }
 
     setReconsultando(false);
-    toast.success(`${atualizadas} empresa(s) atualizada(s), ${participacoesCriadas} participação(ões) criada(s)`);
+    if (participacoesCriadas > 0) {
+      toast.success(`${atualizadas} empresa(s) atualizada(s), ${participacoesCriadas} participação(ões) criada(s)`);
+      toast.warning("A API de CNPJ nem sempre retorna os percentuais. Verifique e ajuste os valores no passo 'Participações'.", { duration: 8000 });
+    } else if (atualizadas > 0) {
+      toast.success(`${atualizadas} empresa(s) atualizada(s)`);
+      toast.info("Nenhuma participação cruzada detectada automaticamente. Cadastre manualmente no passo 'Participações'.", { duration: 8000 });
+    } else {
+      toast.info("Nenhuma empresa atualizada. Verifique se os CNPJs estão corretos.");
+    }
     fetchAll(grupoAtivo.id);
   };
 
@@ -1206,6 +1214,34 @@ export function EquivalenciaPatrimonial() {
         {step === "participacoes" && (
           <motion.div key="participacoes" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
             
+            {/* Alerta se não há participações ou se há percentuais placeholder */}
+            {participacoes.length === 0 && investidas.length >= 2 && (
+              <div className="glass rounded-xl p-4 border border-amber-500/30 bg-amber-500/5 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Nenhuma participação cruzada cadastrada</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    O cálculo de equivalência requer que você informe quem investe em quem e com qual percentual.
+                    Clique em <strong>"Sincronizar QSA"</strong> para detectar automaticamente, ou adicione manualmente abaixo.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {participacoes.length > 0 && participacoes.some(p => p.percentual <= 0.01) && (
+              <div className="glass rounded-xl p-4 border border-amber-500/30 bg-amber-500/5 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Percentuais pendentes de preenchimento</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Algumas participações estão com percentual provisório (0.01%). 
+                    A API de CNPJ nem sempre retorna os percentuais do quadro societário. 
+                    <strong> Preencha os valores corretos abaixo</strong> para que o cálculo seja preciso.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="glass rounded-xl p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -1552,6 +1588,36 @@ export function EquivalenciaPatrimonial() {
                   Cálculo: <code className="bg-foreground/5 px-1.5 py-0.5 rounded text-[10px]">(I - P)⁻¹ × P × L</code>
                 </p>
               </div>
+
+              {/* Validações pré-cálculo */}
+              {participacoes.length === 0 && (
+                <div className="rounded-xl p-3 border border-destructive/30 bg-destructive/5 text-left flex items-start gap-2 max-w-md mx-auto">
+                  <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-destructive">Sem participações cruzadas</p>
+                    <p className="text-[10px] text-muted-foreground">O cálculo resultará em zero. Volte ao passo "Participações" e cadastre as relações societárias.</p>
+                  </div>
+                </div>
+              )}
+              {participacoes.length > 0 && participacoes.some(p => p.percentual <= 0.01) && (
+                <div className="rounded-xl p-3 border border-amber-500/30 bg-amber-500/5 text-left flex items-start gap-2 max-w-md mx-auto">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Percentuais provisórios detectados</p>
+                    <p className="text-[10px] text-muted-foreground">Há participações com percentual de 0.01% (placeholder). Os resultados podem não ser precisos.</p>
+                  </div>
+                </div>
+              )}
+              {resultadosPeriodo.length === 0 && (
+                <div className="rounded-xl p-3 border border-amber-500/30 bg-amber-500/5 text-left flex items-start gap-2 max-w-md mx-auto">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">Sem resultados do período</p>
+                    <p className="text-[10px] text-muted-foreground">Nenhum lucro/prejuízo informado. Volte ao passo "Resultados" e importe os balancetes.</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
                 <div className="rounded-lg bg-foreground/[0.03] p-3">
                   <p className="text-[10px] text-muted-foreground">Empresas</p>
@@ -1559,14 +1625,14 @@ export function EquivalenciaPatrimonial() {
                 </div>
                 <div className="rounded-lg bg-foreground/[0.03] p-3">
                   <p className="text-[10px] text-muted-foreground">Participações</p>
-                  <p className="text-lg font-bold text-[hsl(var(--orange))]">{participacoes.length}</p>
+                  <p className={cn("text-lg font-bold", participacoes.length === 0 ? "text-destructive" : "text-[hsl(var(--orange))]")}>{participacoes.length}</p>
                 </div>
                 <div className="rounded-lg bg-foreground/[0.03] p-3">
                   <p className="text-[10px] text-muted-foreground">Resultados</p>
-                  <p className="text-lg font-bold text-[hsl(var(--orange))]">{resultadosPeriodo.length}</p>
+                  <p className={cn("text-lg font-bold", resultadosPeriodo.length === 0 ? "text-destructive" : "text-[hsl(var(--orange))]")}>{resultadosPeriodo.length}</p>
                 </div>
               </div>
-              <Button onClick={processarEquivalencia} disabled={processing || isSessaoFechada} size="lg"
+              <Button onClick={processarEquivalencia} disabled={processing || isSessaoFechada || participacoes.length === 0} size="lg"
                 className="gap-2 bg-[hsl(var(--orange))] hover:bg-[hsl(var(--orange)/0.9)] text-background">
                 {processing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Calculator className="w-5 h-5" />}
                 {processing ? "Calculando..." : "Processar Equivalência"}
