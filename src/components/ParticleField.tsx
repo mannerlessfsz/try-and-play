@@ -30,7 +30,8 @@ export function ParticleField() {
 
     const createParticles = () => {
       particles.current = [];
-      const numParticles = Math.floor((canvas.width * canvas.height) / 15000);
+      // Reduced particle count for performance
+      const numParticles = Math.min(60, Math.floor((canvas.width * canvas.height) / 25000));
       
       for (let i = 0; i < numParticles; i++) {
         particles.current.push({
@@ -40,63 +41,67 @@ export function ParticleField() {
           speedX: (Math.random() - 0.5) * 0.3,
           speedY: (Math.random() - 0.5) * 0.3,
           opacity: Math.random() * 0.5 + 0.2,
-          hue: Math.random() > 0.5 ? 320 : 210, // magenta or blue
+          hue: Math.random() > 0.5 ? 320 : 210,
         });
       }
     };
 
     const animate = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.shadowBlur = 0;
 
-      particles.current.forEach((particle) => {
+      const pts = particles.current;
+      const len = pts.length;
+
+      for (let i = 0; i < len; i++) {
+        const p = pts[i];
+
         // Mouse interaction
-        const dx = mouseRef.current.x - particle.x;
-        const dy = mouseRef.current.y - particle.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dx = mouseRef.current.x - p.x;
+        const dy = mouseRef.current.y - p.y;
+        const dist = dx * dx + dy * dy;
         
-        if (distance < 150) {
-          const force = (150 - distance) / 150;
-          particle.x -= dx * force * 0.02;
-          particle.y -= dy * force * 0.02;
+        if (dist < 22500) { // 150²
+          const force = (150 - Math.sqrt(dist)) / 150;
+          p.x -= dx * force * 0.02;
+          p.y -= dy * force * 0.02;
         }
 
-        // Update position
-        particle.x += particle.speedX;
-        particle.y += particle.speedY;
+        p.x += p.speedX;
+        p.y += p.speedY;
 
-        // Wrap around edges
-        if (particle.x < 0) particle.x = canvas.width;
-        if (particle.x > canvas.width) particle.x = 0;
-        if (particle.y < 0) particle.y = canvas.height;
-        if (particle.y > canvas.height) particle.y = 0;
+        if (p.x < 0) p.x = canvas.width;
+        if (p.x > canvas.width) p.x = 0;
+        if (p.y < 0) p.y = canvas.height;
+        if (p.y > canvas.height) p.y = 0;
 
-        // Draw particle with glow
         ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = `hsla(${particle.hue}, 100%, 60%, ${particle.opacity})`;
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsla(${particle.hue}, 100%, 60%, 0.5)`;
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `hsla(${p.hue}, 100%, 60%, ${p.opacity})`;
         ctx.fill();
-      });
+      }
 
-      // Draw connections
-      ctx.shadowBlur = 0;
-      particles.current.forEach((p1, i) => {
-        particles.current.slice(i + 1).forEach((p2) => {
-          const dx = p1.x - p2.x;
-          const dy = p1.y - p2.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      // Draw connections — skip if too many particles
+      if (len <= 60) {
+        for (let i = 0; i < len; i++) {
+          const p1 = pts[i];
+          for (let j = i + 1; j < len; j++) {
+            const p2 = pts[j];
+            const ddx = p1.x - p2.x;
+            const ddy = p1.y - p2.y;
+            const d2 = ddx * ddx + ddy * ddy;
 
-          if (distance < 100) {
-            ctx.beginPath();
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `hsla(260, 100%, 60%, ${0.1 * (1 - distance / 100)})`;
-            ctx.lineWidth = 0.5;
-            ctx.stroke();
+            if (d2 < 10000) { // 100²
+              ctx.beginPath();
+              ctx.moveTo(p1.x, p1.y);
+              ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `hsla(260, 100%, 60%, ${0.1 * (1 - Math.sqrt(d2) / 100)})`;
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
           }
-        });
-      });
+        }
+      }
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -109,17 +114,19 @@ export function ParticleField() {
     createParticles();
     animate();
 
-    window.addEventListener("resize", () => {
+    const handleResize = () => {
       resizeCanvas();
       createParticles();
-    });
+    };
+
+    window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", handleMouseMove);
 
     return () => {
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
       }
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", handleMouseMove);
     };
   }, []);
