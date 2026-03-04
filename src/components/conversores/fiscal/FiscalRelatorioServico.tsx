@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Download, DollarSign, FileText, TrendingUp } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, Download, DollarSign, FileText, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,6 +10,11 @@ interface FiscalRelatorioServicoProps {
 }
 
 export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
+  const PAGE_SIZE = 100;
+  const [page, setPage] = useState(0);
+  const totalPages = Math.max(1, Math.ceil(notas.length / PAGE_SIZE));
+  const paginatedNotas = notas.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+
   const fv = (v: number) => {
     if (!v || isNaN(v)) return "R$ 0,00";
     return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -157,7 +162,7 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
                 </tr>
               </thead>
               <tbody>
-                {notas.map((n, i) => {
+                {paginatedNotas.map((n, i) => {
                   const retTotal = (n.retencoes?.ir || 0) + (n.retencoes?.pis || 0) + (n.retencoes?.cofins || 0) + (n.retencoes?.csll || 0) + (n.retencoes?.inss || 0) + (n.retencoes?.iss || 0);
                   return (
                     <tr key={i} className="border-b border-foreground/[0.03] hover:bg-foreground/[0.02] transition-colors">
@@ -194,6 +199,20 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
             </table>
           </div>
         </ScrollArea>
+        {totalPages > 1 && (
+          <div className="p-3 border-t border-foreground/5 flex items-center justify-between text-xs text-muted-foreground">
+            <span>Mostrando {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, notas.length)} de {notas.length}</span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="font-mono">{page + 1}/{totalPages}</span>
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   );
