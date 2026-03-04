@@ -266,23 +266,38 @@ export function parseNFSeXml(xmlContent: string): NotaServico | null {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlContent, "text/xml");
   
-  // Try various NFS-e XML schemas
+  // Check for XML parse errors
+  const parseError = doc.querySelector("parsererror");
+  if (parseError) {
+    console.warn("[parseNFSeXml] XML parse error:", parseError.textContent);
+    return null;
+  }
+
+  // Try various NFS-e XML schemas (different municipalities use different root elements)
   const nfse = doc.querySelector("Nfse") || 
                doc.querySelector("CompNfse") || 
                doc.querySelector("NFSe") ||
                doc.querySelector("InfNfse") ||
                doc.querySelector("tcCompNfse") ||
+               doc.querySelector("ListaNfse") ||
+               doc.querySelector("ConsultarNfseResposta") ||
                doc.documentElement;
 
   if (!nfse) return null;
 
-  // Check if it's actually a NFS-e
+  // Check if it's actually a NFS-e - be more permissive
   const hasNfseElements = doc.querySelector("InfNfse") || 
                           doc.querySelector("Servico") || 
                           doc.querySelector("PrestadorServico") ||
-                          doc.querySelector("Prestador");
+                          doc.querySelector("Prestador") ||
+                          doc.querySelector("DadosPrestador") ||
+                          doc.querySelector("ValorServicos") ||
+                          doc.querySelector("Discriminacao");
   
-  if (!hasNfseElements) return null;
+  if (!hasNfseElements) {
+    console.warn("[parseNFSeXml] No NFS-e elements found in XML. Root element:", doc.documentElement?.tagName);
+    return null;
+  }
 
   const infNfse = doc.querySelector("InfNfse") || nfse;
   const prestador = doc.querySelector("PrestadorServico") || doc.querySelector("Prestador");
