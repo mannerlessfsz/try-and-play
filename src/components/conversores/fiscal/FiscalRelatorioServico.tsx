@@ -273,7 +273,7 @@ export function FiscalRelatorioServico({ notas, empresaRegime }: FiscalRelatorio
             <Download className="w-3 h-3" /> Exportar CSV
           </Button>
         </div>
-        <ScrollArea className="max-h-[500px]">
+        <ScrollArea className="max-h-[70vh]">
           <div className="overflow-x-auto">
             <table className="w-full text-[11px]">
               <thead>
