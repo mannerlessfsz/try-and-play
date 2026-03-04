@@ -8,6 +8,7 @@ export interface EmpresaExterna {
   nome: string;
   cnpj: string | null;
   codigo_empresa: string;
+  regime_tributario: string | null;
   ativo: boolean;
   created_by: string | null;
   created_at: string;

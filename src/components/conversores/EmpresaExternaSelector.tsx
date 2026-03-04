@@ -124,7 +124,8 @@ export function EmpresaExternaSelector({
         const result = await createEmpresa.mutateAsync({
           nome: formData.nome,
           cnpj: cnpjLimpo || null,
-          codigo_empresa: formData.codigo_empresa
+          codigo_empresa: formData.codigo_empresa,
+          regime_tributario: null,
         });
         // Auto-select newly created empresa
         if (result) {
