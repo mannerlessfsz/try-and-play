@@ -63,56 +63,39 @@ export const ConversorFiscal = () => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const processFiles = async () => {
-    if (files.length === 0 || !segmento) return;
-    setIsProcessing(true);
-    setError(null);
-    setProcessProgress(0);
+  const processOneFile = async (file: File, segmentoAtual: string, regimeEmpresa: string | null): Promise<{ servico?: any; comercio?: NotaComercio; error?: boolean }> => {
+    try {
+      const isPdf = file.name.toLowerCase().endsWith('.pdf');
+      const isXml = file.name.toLowerCase().endsWith('.xml');
 
-    const servicos: any[] = [];
-    const comercios: NotaComercio[] = [];
-    let errCount = 0;
+      if (isPdf) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('tipo', segmentoAtual);
 
-    // Get empresa regime for validation context
-    const regimeEmpresa = fiscalCtx ? fiscalCtx.empresa.regime_tributario : null;
+        const { data, error: fnError } = await supabase.functions.invoke('parse-fiscal', {
+          body: formData,
+        });
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      setProcessStatus(`Processando ${file.name} (${i + 1}/${files.length})...`);
-      setProcessProgress(Math.round(((i) / files.length) * 100));
+        if (fnError || !data?.success) {
+          console.error(`Erro ao processar ${file.name}:`, fnError || data?.error);
+          return { error: true };
+        }
 
-      try {
-        const isPdf = file.name.toLowerCase().endsWith('.pdf');
-        const isXml = file.name.toLowerCase().endsWith('.xml');
-
-        if (isPdf) {
-          const formData = new FormData();
-          formData.append('file', file);
-          formData.append('tipo', segmento);
-
-          const { data, error: fnError } = await supabase.functions.invoke('parse-fiscal', {
-            body: formData,
-          });
-
-          if (fnError || !data?.success) {
-            console.error(`Erro ao processar ${file.name}:`, fnError || data?.error);
-            errCount++;
-            continue;
-          }
-
-          if (segmento === 'servico') {
-            servicos.push({ ...data.data, _arquivo: file.name, _regime_tomador: regimeEmpresa });
-          } else {
-            comercios.push(data.data);
-          }
-        } else if (isXml) {
-          const content = await file.text();
-          
-          if (segmento === 'servico') {
-            const { parseNFSeXml } = await import('@/utils/notaFiscalParser');
-            const nota = parseNFSeXml(content);
-            if (nota) {
-              servicos.push({
+        if (segmentoAtual === 'servico') {
+          return { servico: { ...data.data, _arquivo: file.name, _regime_tomador: regimeEmpresa } };
+        } else {
+          return { comercio: data.data };
+        }
+      } else if (isXml) {
+        const content = await file.text();
+        
+        if (segmentoAtual === 'servico') {
+          const { parseNFSeXml } = await import('@/utils/notaFiscalParser');
+          const nota = parseNFSeXml(content);
+          if (nota) {
+            return {
+              servico: {
                 numero: nota.numero,
                 serie: nota.serie,
                 data_emissao: nota.dataEmissao,
@@ -156,23 +139,60 @@ export const ConversorFiscal = () => {
                 natureza_operacao: nota.naturezaOperacao,
                 _arquivo: file.name,
                 _regime_tomador: regimeEmpresa,
-              });
-            } else {
-              errCount++;
-            }
-          } else {
-            const nota = detectAndParseXml(content);
-            if (nota && nota.tipo === 'comercio') {
-              comercios.push(nota);
-            } else {
-              errCount++;
-            }
+              },
+            };
           }
+          return { error: true };
+        } else {
+          const nota = detectAndParseXml(content);
+          if (nota && nota.tipo === 'comercio') {
+            return { comercio: nota };
+          }
+          return { error: true };
         }
-      } catch (err) {
-        errCount++;
-        console.error(`Erro ao processar ${file.name}:`, err);
       }
+      return { error: true };
+    } catch (err) {
+      console.error(`Erro ao processar ${file.name}:`, err);
+      return { error: true };
+    }
+  };
+
+  const processFiles = async () => {
+    if (files.length === 0 || !segmento) return;
+    setIsProcessing(true);
+    setError(null);
+    setProcessProgress(0);
+
+    const servicos: any[] = [];
+    const comercios: NotaComercio[] = [];
+    let errCount = 0;
+    let processed = 0;
+
+    const regimeEmpresa = fiscalCtx ? fiscalCtx.empresa.regime_tributario : null;
+
+    // Process in parallel batches of 5
+    const BATCH_SIZE = 5;
+    for (let batchStart = 0; batchStart < files.length; batchStart += BATCH_SIZE) {
+      const batch = files.slice(batchStart, batchStart + BATCH_SIZE);
+      setProcessStatus(`Processando ${batchStart + 1}–${Math.min(batchStart + batch.length, files.length)} de ${files.length}...`);
+
+      const results = await Promise.all(
+        batch.map(file => processOneFile(file, segmento, regimeEmpresa))
+      );
+
+      for (const result of results) {
+        processed++;
+        if (result.error) {
+          errCount++;
+        } else if (result.servico) {
+          servicos.push(result.servico);
+        } else if (result.comercio) {
+          comercios.push(result.comercio);
+        }
+      }
+
+      setProcessProgress(Math.round((processed / files.length) * 100));
     }
 
     setProcessProgress(100);
@@ -185,14 +205,15 @@ export const ConversorFiscal = () => {
     }
 
     const total = servicos.length + comercios.length;
+    console.log(`[Fiscal] Processamento finalizado: ${total} sucesso, ${errCount} erros, ${files.length} total`);
+    
     if (total > 0) {
       toast.success(`${total} nota(s) processada(s) com sucesso!`);
       setFiles([]);
     }
 
     if (errCount > 0) {
-      toast.error(`${errCount} de ${files.length} arquivo(s) falharam no processamento. Verifique se são PDFs/XMLs válidos.`);
-      console.warn(`[Fiscal] ${errCount} arquivos falharam de ${files.length} total. Sucesso: ${total}`);
+      toast.error(`${errCount} de ${files.length} arquivo(s) falharam no processamento.`);
     }
 
     if (total === 0 && errCount === 0) {
