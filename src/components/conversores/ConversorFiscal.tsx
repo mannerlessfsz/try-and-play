@@ -74,7 +74,7 @@ export const ConversorFiscal = () => {
     let errCount = 0;
 
     // Get empresa regime for validation context
-    const regimeEmpresa = fiscalCtx ? (fiscalCtx.empresa as any).regime_tributario : null;
+    const regimeEmpresa = fiscalCtx ? fiscalCtx.empresa.regime_tributario : null;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -332,8 +332,8 @@ export const ConversorFiscal = () => {
               {isServico && fiscalCtx ? (
                 <>
                   {fiscalCtx.empresa.nome} · {MESES_LABELS[fiscalCtx.competencia.mes]}/{fiscalCtx.competencia.ano}
-                  {(fiscalCtx.empresa as any).regime_tributario && (
-                    <> · <Shield className="w-2.5 h-2.5 inline" /> {(fiscalCtx.empresa as any).regime_tributario}</>
+                  {fiscalCtx.empresa.regime_tributario && (
+                    <> · <Shield className="w-2.5 h-2.5 inline" /> {fiscalCtx.empresa.regime_tributario}</>
                   )}
                 </>
               ) : (
@@ -458,7 +458,7 @@ export const ConversorFiscal = () => {
             transition={{ duration: 0.2 }}
           >
             {isServico && viewMode === "relatorio" ? (
-              <FiscalRelatorioServico notas={notasServico} empresaRegime={(fiscalCtx?.empresa as any)?.regime_tributario} />
+              <FiscalRelatorioServico notas={notasServico} empresaRegime={fiscalCtx?.empresa?.regime_tributario} />
             ) : isServico ? (
               <div className="space-y-4">
                 <p className="text-xs text-muted-foreground">{notasServico.length} nota(s) de serviço</p>
