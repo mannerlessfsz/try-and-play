@@ -3607,6 +3607,75 @@ export type Database = {
           },
         ]
       }
+      regras_retencao_servico: {
+        Row: {
+          aliquota_cofins: number
+          aliquota_csll: number
+          aliquota_inss: number
+          aliquota_ir: number
+          aliquota_iss: number
+          aliquota_pis: number
+          ativo: boolean
+          codigo_servico: string
+          created_at: string
+          descricao_servico: string
+          id: string
+          observacoes: string | null
+          reter_cofins: boolean
+          reter_csll: boolean
+          reter_inss: boolean
+          reter_ir: boolean
+          reter_iss: boolean
+          reter_pis: boolean
+          updated_at: string
+          valor_minimo_retencao: number | null
+        }
+        Insert: {
+          aliquota_cofins?: number
+          aliquota_csll?: number
+          aliquota_inss?: number
+          aliquota_ir?: number
+          aliquota_iss?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          codigo_servico: string
+          created_at?: string
+          descricao_servico: string
+          id?: string
+          observacoes?: string | null
+          reter_cofins?: boolean
+          reter_csll?: boolean
+          reter_inss?: boolean
+          reter_ir?: boolean
+          reter_iss?: boolean
+          reter_pis?: boolean
+          updated_at?: string
+          valor_minimo_retencao?: number | null
+        }
+        Update: {
+          aliquota_cofins?: number
+          aliquota_csll?: number
+          aliquota_inss?: number
+          aliquota_ir?: number
+          aliquota_iss?: number
+          aliquota_pis?: number
+          ativo?: boolean
+          codigo_servico?: string
+          created_at?: string
+          descricao_servico?: string
+          id?: string
+          observacoes?: string | null
+          reter_cofins?: boolean
+          reter_csll?: boolean
+          reter_inss?: boolean
+          reter_ir?: boolean
+          reter_iss?: boolean
+          reter_pis?: boolean
+          updated_at?: string
+          valor_minimo_retencao?: number | null
+        }
+        Relationships: []
+      }
       role_permissions: {
         Row: {
           account_id: string
