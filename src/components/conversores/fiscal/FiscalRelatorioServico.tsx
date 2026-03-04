@@ -273,7 +273,7 @@ export function FiscalRelatorioServico({ notas, empresaRegime }: FiscalRelatorio
             <Download className="w-3 h-3" /> Exportar CSV
           </Button>
         </div>
-        <ScrollArea className="max-h-[70vh]">
+        <div className="max-h-[70vh] overflow-auto">
           <div className="overflow-x-auto">
             <table className="w-full text-[11px]">
               <thead>
@@ -390,7 +390,7 @@ export function FiscalRelatorioServico({ notas, empresaRegime }: FiscalRelatorio
               </tbody>
             </table>
           </div>
-        </ScrollArea>
+        </div>
         {totalPages > 1 && (
           <div className="p-3 border-t border-foreground/5 flex items-center justify-between text-xs text-muted-foreground">
             <span>Mostrando {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, notas.length)} de {notas.length}</span>
