@@ -1635,6 +1635,7 @@ export type Database = {
           created_by: string | null
           id: string
           nome: string
+          regime_tributario: string | null
           updated_at: string
         }
         Insert: {
@@ -1645,6 +1646,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           nome: string
+          regime_tributario?: string | null
           updated_at?: string
         }
         Update: {
@@ -1655,6 +1657,7 @@ export type Database = {
           created_by?: string | null
           id?: string
           nome?: string
+          regime_tributario?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -3619,6 +3622,8 @@ export type Database = {
           codigo_servico: string
           created_at: string
           descricao_servico: string
+          dispensa_mei: boolean | null
+          dispensa_simples_prestador: boolean | null
           id: string
           observacoes: string | null
           reter_cofins: boolean
@@ -3628,6 +3633,8 @@ export type Database = {
           reter_iss: boolean
           reter_pis: boolean
           updated_at: string
+          valor_minimo_ir: number | null
+          valor_minimo_pcc: number | null
           valor_minimo_retencao: number | null
         }
         Insert: {
@@ -3641,6 +3648,8 @@ export type Database = {
           codigo_servico: string
           created_at?: string
           descricao_servico: string
+          dispensa_mei?: boolean | null
+          dispensa_simples_prestador?: boolean | null
           id?: string
           observacoes?: string | null
           reter_cofins?: boolean
@@ -3650,6 +3659,8 @@ export type Database = {
           reter_iss?: boolean
           reter_pis?: boolean
           updated_at?: string
+          valor_minimo_ir?: number | null
+          valor_minimo_pcc?: number | null
           valor_minimo_retencao?: number | null
         }
         Update: {
@@ -3663,6 +3674,8 @@ export type Database = {
           codigo_servico?: string
           created_at?: string
           descricao_servico?: string
+          dispensa_mei?: boolean | null
+          dispensa_simples_prestador?: boolean | null
           id?: string
           observacoes?: string | null
           reter_cofins?: boolean
@@ -3672,6 +3685,8 @@ export type Database = {
           reter_iss?: boolean
           reter_pis?: boolean
           updated_at?: string
+          valor_minimo_ir?: number | null
+          valor_minimo_pcc?: number | null
           valor_minimo_retencao?: number | null
         }
         Relationships: []

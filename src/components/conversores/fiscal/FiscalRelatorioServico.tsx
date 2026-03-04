@@ -1,21 +1,22 @@
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, BarChart3, CheckCircle2, ChevronLeft, ChevronRight, Download, DollarSign, FileText, TrendingUp } from "lucide-react";
+import { AlertTriangle, BarChart3, CheckCircle2, ChevronLeft, ChevronRight, Download, DollarSign, FileText, Info, Shield, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useRegrasRetencao, validarRetencoes, type ValidacaoNota, type DivergenciaRetencao } from "@/hooks/useRegrasRetencao";
+import { useRegrasRetencao, validarRetencoes, detectRegimePrestador, type ValidacaoNota, type DivergenciaRetencao } from "@/hooks/useRegrasRetencao";
 
 interface FiscalRelatorioServicoProps {
   notas: any[];
+  empresaRegime?: string | null;
 }
 
 function DivergenciaTooltip({ divergencias, fv }: { divergencias: DivergenciaRetencao[]; fv: (v: number) => string }) {
   return (
     <div className="space-y-2 text-[11px] max-w-[280px]">
       <p className="font-bold text-destructive flex items-center gap-1">
-        <AlertTriangle className="w-3 h-3" /> {divergencias.length} divergência(s) encontrada(s)
+        <AlertTriangle className="w-3 h-3" /> {divergencias.length} divergência(s)
       </p>
       {divergencias.map((d, i) => (
         <div key={i} className="p-1.5 rounded bg-destructive/10 border border-destructive/20 space-y-0.5">
@@ -30,6 +31,9 @@ function DivergenciaTooltip({ divergencias, fv }: { divergencias: DivergenciaRet
           <div className="text-muted-foreground">
             Alíquota: {(d.aliquota * 100).toFixed(2)}%
           </div>
+          {d.motivo && (
+            <div className="text-[10px] text-yellow-500 mt-0.5 italic">{d.motivo}</div>
+          )}
         </div>
       ))}
     </div>
@@ -55,6 +59,7 @@ function CellRetencao({ valor, divergencia, fv }: { valor: number; divergencia?:
             <p>Lido: {fv(divergencia.valorLido)}</p>
             <p className="text-green-500">Calculado: {fv(divergencia.valorCalculado)} ({(divergencia.aliquota * 100).toFixed(2)}%)</p>
             <p>Diferença: {fv(divergencia.diferenca)}</p>
+            {divergencia.motivo && <p className="text-yellow-500 italic">{divergencia.motivo}</p>}
           </div>
         </TooltipContent>
       </Tooltip>
@@ -62,7 +67,7 @@ function CellRetencao({ valor, divergencia, fv }: { valor: number; divergencia?:
   );
 }
 
-export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
+export function FiscalRelatorioServico({ notas, empresaRegime }: FiscalRelatorioServicoProps) {
   const PAGE_SIZE = 100;
   const [page, setPage] = useState(0);
   const totalPages = Math.max(1, Math.ceil(notas.length / PAGE_SIZE));
@@ -75,12 +80,12 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
     return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   };
 
-  // Validações por nota
   const validacoes = useMemo(() => {
     if (regras.length === 0) return new Map<number, ValidacaoNota>();
     const map = new Map<number, ValidacaoNota>();
     notas.forEach((n, i) => {
-      map.set(i, validarRetencoes(n, regras));
+      const regime = detectRegimePrestador(n);
+      map.set(i, validarRetencoes(n, regras, regime));
     });
     return map;
   }, [notas, regras]);
@@ -90,6 +95,15 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
     validacoes.forEach(v => { count += v.totalDivergencias; });
     return count;
   }, [validacoes]);
+
+  const simplesCount = useMemo(() => {
+    let count = 0;
+    notas.forEach(n => {
+      const r = detectRegimePrestador(n);
+      if (r === "simples_nacional" || r === "mei") count++;
+    });
+    return count;
+  }, [notas]);
 
   const totais = useMemo(() => {
     let valorServicos = 0, valorISS = 0, retIR = 0, retPIS = 0, retCOFINS = 0, retCSLL = 0, retINSS = 0, retISS = 0, valorLiquido = 0;
@@ -112,10 +126,11 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
   }, [notas]);
 
   const exportCSV = () => {
-    const headers = ["Data", "Número", "Série", "Prestador", "CNPJ Prestador", "Tomador", "CNPJ/CPF Tomador", "Valor Serviços", "ISS", "IR", "PIS", "COFINS", "CSLL", "INSS", "ISS Ret.", "Total Retenções", "Valor Líquido", "Status Validação"];
+    const headers = ["Data", "Número", "Série", "Prestador", "CNPJ Prestador", "Regime Prestador", "Tomador", "CNPJ/CPF Tomador", "Valor Serviços", "ISS", "IR", "PIS", "COFINS", "CSLL", "INSS", "ISS Ret.", "Total Retenções", "Valor Líquido", "Status Validação", "Dispensas"];
     const rows = notas.map((n, idx) => {
       const retTotal = (n.retencoes?.ir || 0) + (n.retencoes?.pis || 0) + (n.retencoes?.cofins || 0) + (n.retencoes?.csll || 0) + (n.retencoes?.inss || 0) + (n.retencoes?.iss || 0);
       const val = validacoes.get(idx);
+      const regime = detectRegimePrestador(n);
       const statusVal = !val?.temRegra ? "Sem regra" : val.totalDivergencias > 0 ? `${val.totalDivergencias} divergência(s)` : "OK";
       return [
         n.data_emissao || "",
@@ -123,6 +138,7 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
         n.serie || "",
         n.prestador?.razao_social || "",
         n.prestador?.cnpj || "",
+        regime || "",
         n.tomador?.razao_social || "",
         n.tomador?.cpf_cnpj || "",
         (n.servico?.valor_servicos || 0).toFixed(2),
@@ -136,6 +152,7 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
         retTotal.toFixed(2),
         (n.valor_liquido || n.servico?.valor_servicos || 0).toFixed(2),
         statusVal,
+        val?.dispensas?.join("; ") || "",
       ].map(v => `"${v}"`).join(";");
     });
     const csv = [headers.join(";"), ...rows].join("\n");
@@ -155,7 +172,7 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }} className="glass rounded-xl p-4 text-center">
           <FileText className="w-5 h-5 mx-auto mb-1.5 text-muted-foreground" />
           <p className="text-2xl font-bold">{notas.length}</p>
@@ -175,6 +192,12 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
           <DollarSign className="w-5 h-5 mx-auto mb-1.5 text-green-500" />
           <p className="text-lg font-bold font-mono text-green-500">{fv(totais.valorLiquido)}</p>
           <p className="text-[10px] text-muted-foreground">Valor Líquido</p>
+        </motion.div>
+        {/* Simples Nacional count */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.17 }} className="glass rounded-xl p-4 text-center">
+          <Shield className="w-5 h-5 mx-auto mb-1.5 text-yellow-500" />
+          <p className="text-2xl font-bold text-yellow-500">{simplesCount}</p>
+          <p className="text-[10px] text-muted-foreground">Simples/MEI</p>
         </motion.div>
         {/* Validation card */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className={`glass rounded-xl p-4 text-center ${totalDivergencias > 0 ? "ring-1 ring-destructive/30" : ""}`}>
@@ -240,6 +263,11 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
                 <AlertTriangle className="w-3 h-3" /> {totalDivergencias} divergência(s)
               </Badge>
             )}
+            {simplesCount > 0 && (
+              <Badge variant="outline" className="text-[9px] gap-1 border-yellow-500/40 text-yellow-500">
+                <Shield className="w-3 h-3" /> {simplesCount} Simples/MEI
+              </Badge>
+            )}
           </div>
           <Button variant="outline" size="sm" onClick={exportCSV} className="h-7 text-xs gap-1.5">
             <Download className="w-3 h-3" /> Exportar CSV
@@ -253,8 +281,8 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
                   <th className="text-center p-2.5 font-semibold text-muted-foreground whitespace-nowrap w-8">✓</th>
                   <th className="text-left p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Data</th>
                   <th className="text-left p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Nº</th>
-                  <th className="text-left p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Série</th>
                   <th className="text-left p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Prestador</th>
+                  <th className="text-center p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Regime</th>
                   <th className="text-right p-2.5 font-semibold text-muted-foreground whitespace-nowrap">Valor</th>
                   <th className="text-right p-2.5 font-semibold text-muted-foreground whitespace-nowrap">IR</th>
                   <th className="text-right p-2.5 font-semibold text-muted-foreground whitespace-nowrap">PIS</th>
@@ -271,6 +299,8 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
                   const validacao = validacoes.get(globalIdx);
                   const getDivergencia = (imposto: string) => validacao?.divergencias.find(d => d.imposto === imposto);
                   const temDivergencia = validacao && validacao.totalDivergencias > 0;
+                  const regime = detectRegimePrestador(n);
+                  const isSimplesOrMei = regime === "simples_nacional" || regime === "mei";
 
                   return (
                     <tr key={i} className={`border-b border-foreground/[0.03] hover:bg-foreground/[0.02] transition-colors ${temDivergencia ? "bg-destructive/[0.03]" : ""}`}>
@@ -294,8 +324,31 @@ export function FiscalRelatorioServico({ notas }: FiscalRelatorioServicoProps) {
                       </td>
                       <td className="p-2.5 whitespace-nowrap">{n.data_emissao || "—"}</td>
                       <td className="p-2.5 font-mono font-medium whitespace-nowrap">{n.numero || "—"}</td>
-                      <td className="p-2.5 whitespace-nowrap">{n.serie || "U"}</td>
                       <td className="p-2.5 max-w-[180px] truncate">{n.prestador?.razao_social || "—"}</td>
+                      <td className="p-2.5 text-center whitespace-nowrap">
+                        {isSimplesOrMei ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Badge variant="outline" className="text-[8px] px-1 py-0 border-yellow-500/40 text-yellow-500">
+                                  {regime === "mei" ? "MEI" : "SN"}
+                                </Badge>
+                              </TooltipTrigger>
+                              <TooltipContent className="text-[11px]">
+                                {validacao?.dispensas?.map((d, idx) => <p key={idx}>{d}</p>) || (
+                                  <p>{regime === "mei" ? "MEI — retenções dispensadas" : "Simples Nacional — IR/PIS/COFINS/CSLL dispensados"}</p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        ) : regime && regime !== "normal" ? (
+                          <Badge variant="outline" className="text-[8px] px-1 py-0">
+                            {regime === "lucro_presumido" ? "LP" : regime === "lucro_real" ? "LR" : regime}
+                          </Badge>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="p-2.5 text-right font-mono whitespace-nowrap">{fv(n.servico?.valor_servicos)}</td>
                       <td className="p-2.5 text-right font-mono whitespace-nowrap">
                         <CellRetencao valor={n.retencoes?.ir || 0} divergencia={getDivergencia("IR")} fv={fv} />
