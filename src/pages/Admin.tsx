@@ -23,6 +23,8 @@ import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import SystemArchitectureViewer from '@/components/admin/SystemArchitectureViewer';
 import { CreationEditionManager } from '@/components/admin/CreationEditionManager';
 import { UserPermissionsManager } from '@/components/admin/UserPermissionsManager';
+import { LayoutDocumentosManager } from '@/components/admin/LayoutDocumentosManager';
+import { LayoutLearningWizard } from '@/components/admin/LayoutLearningWizard';
 
 import { 
   ArrowLeft, 
@@ -46,6 +48,8 @@ import {
   Workflow,
   Pencil,
   RotateCcw,
+  FileCode,
+  Wand2,
 } from 'lucide-react';
 
 interface Profile {
@@ -476,6 +480,12 @@ const Admin: React.FC = () => {
             </TabsTrigger>
             <TabsTrigger value="creation" className="gap-2">
               <Pencil className="w-4 h-4" /> Criação/Edição
+            </TabsTrigger>
+            <TabsTrigger value="layouts" className="gap-2">
+              <FileCode className="w-4 h-4" /> Layouts
+            </TabsTrigger>
+            <TabsTrigger value="learning" className="gap-2">
+              <Wand2 className="w-4 h-4" /> Aprendizado
             </TabsTrigger>
           </TabsList>
 
@@ -969,6 +979,16 @@ const Admin: React.FC = () => {
           {/* Creation/Edition Tab */}
           <TabsContent value="creation">
             <CreationEditionManager />
+          </TabsContent>
+
+          {/* Layouts Tab */}
+          <TabsContent value="layouts">
+            <LayoutDocumentosManager />
+          </TabsContent>
+
+          {/* Learning Wizard Tab */}
+          <TabsContent value="learning">
+            <LayoutLearningWizard />
           </TabsContent>
 
         </Tabs>
