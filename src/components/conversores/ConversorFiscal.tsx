@@ -189,8 +189,15 @@ export const ConversorFiscal = () => {
       toast.success(`${total} nota(s) processada(s) com sucesso!`);
       setFiles([]);
     }
-    if (errCount > 0) toast.warning(`${errCount} arquivo(s) não puderam ser processados.`);
-    if (total === 0 && errCount > 0) setError("Nenhum arquivo pôde ser processado. Verifique os arquivos.");
+
+    if (errCount > 0) {
+      toast.error(`${errCount} de ${files.length} arquivo(s) falharam no processamento. Verifique se são PDFs/XMLs válidos.`);
+      console.warn(`[Fiscal] ${errCount} arquivos falharam de ${files.length} total. Sucesso: ${total}`);
+    }
+
+    if (total === 0 && errCount === 0) {
+      toast.warning("Nenhuma nota encontrada nos arquivos enviados.");
+    }
 
     setIsProcessing(false);
   };
