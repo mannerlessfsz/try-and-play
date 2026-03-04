@@ -148,21 +148,21 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
   };
 
   return (
-    <div className="space-y-4 max-w-3xl mx-auto py-2">
+    <div className="space-y-4 max-w-[1200px] mx-auto py-2">
       {/* ── Bento Grid ── */}
-      <div className="grid grid-cols-12 gap-3">
+      <div className="grid grid-cols-12 gap-4">
 
         {/* Stats: Total Empresas */}
         <div className="col-span-4">
           <GlassCard accentColor="hsl(var(--cyan))" index={0}>
-            <div className="p-4 flex items-start justify-between">
+            <div className="p-6 flex items-start justify-between">
               <div>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Empresas</p>
-                <p className="text-2xl font-bold text-[hsl(var(--cyan))] mt-1">{totalEmpresas}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">cadastradas</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Empresas</p>
+                <p className="text-3xl font-bold text-[hsl(var(--cyan))] mt-1">{totalEmpresas}</p>
+                <p className="text-xs text-muted-foreground mt-1">cadastradas</p>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-[hsl(var(--cyan))]/15 border border-[hsl(var(--cyan))]/25 flex items-center justify-center">
-                <Building2 className="w-4 h-4 text-[hsl(var(--cyan))]" />
+              <div className="w-11 h-11 rounded-xl bg-[hsl(var(--cyan))]/15 border border-[hsl(var(--cyan))]/25 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-[hsl(var(--cyan))]" />
               </div>
             </div>
           </GlassCard>
@@ -171,14 +171,14 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
         {/* Stats: Com Regime */}
         <div className="col-span-4">
           <GlassCard accentColor="hsl(var(--blue))" index={1}>
-            <div className="p-4 flex items-start justify-between">
+            <div className="p-6 flex items-start justify-between">
               <div>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Com Regime</p>
-                <p className="text-2xl font-bold text-[hsl(var(--blue))] mt-1">{comRegime}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">validação ativa</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Com Regime</p>
+                <p className="text-3xl font-bold text-[hsl(var(--blue))] mt-1">{comRegime}</p>
+                <p className="text-xs text-muted-foreground mt-1">validação ativa</p>
               </div>
-              <div className="w-9 h-9 rounded-xl bg-[hsl(var(--blue))]/15 border border-[hsl(var(--blue))]/25 flex items-center justify-center">
-                <Shield className="w-4 h-4 text-[hsl(var(--blue))]" />
+              <div className="w-11 h-11 rounded-xl bg-[hsl(var(--blue))]/15 border border-[hsl(var(--blue))]/25 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-[hsl(var(--blue))]" />
               </div>
             </div>
           </GlassCard>
@@ -187,19 +187,19 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
         {/* Stats: Sem Regime */}
         <div className="col-span-4">
           <GlassCard accentColor={semRegime > 0 ? "hsl(var(--orange))" : "hsl(var(--cyan))"} index={2}>
-            <div className="p-4 flex items-start justify-between">
+            <div className="p-6 flex items-start justify-between">
               <div>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Sem Regime</p>
-                <p className={cn("text-2xl font-bold mt-1", semRegime > 0 ? "text-[hsl(var(--orange))]" : "text-[hsl(var(--cyan))]")}>{semRegime}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{semRegime > 0 ? "pendente edição" : "tudo certo ✓"}</p>
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Sem Regime</p>
+                <p className={cn("text-3xl font-bold mt-1", semRegime > 0 ? "text-[hsl(var(--orange))]" : "text-[hsl(var(--cyan))]")}>{semRegime}</p>
+                <p className="text-xs text-muted-foreground mt-1">{semRegime > 0 ? "pendente edição" : "tudo certo ✓"}</p>
               </div>
               <div className={cn(
-                "w-9 h-9 rounded-xl flex items-center justify-center border",
+                "w-11 h-11 rounded-xl flex items-center justify-center border",
                 semRegime > 0
                   ? "bg-[hsl(var(--orange))]/15 border-[hsl(var(--orange))]/25"
                   : "bg-[hsl(var(--cyan))]/15 border-[hsl(var(--cyan))]/25"
               )}>
-                <FileText className={cn("w-4 h-4", semRegime > 0 ? "text-[hsl(var(--orange))]" : "text-[hsl(var(--cyan))]")} />
+                <FileText className={cn("w-5 h-5", semRegime > 0 ? "text-[hsl(var(--orange))]" : "text-[hsl(var(--cyan))]")} />
               </div>
             </div>
           </GlassCard>
@@ -208,40 +208,41 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
         {/* Company List — Main bento card */}
         <div className="col-span-8 row-span-2">
           <GlassCard accentColor="hsl(var(--cyan))" index={3} hoverable={false} className="h-full">
-            <div className="p-5 h-full flex flex-col">
+            <div className="p-6 h-full flex flex-col">
               {/* Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-[hsl(var(--cyan))]/12 flex items-center justify-center">
-                    <Building2 className="w-3.5 h-3.5 text-[hsl(var(--cyan))]" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-[hsl(var(--cyan))]/12 flex items-center justify-center">
+                    <Building2 className="w-4 h-4 text-[hsl(var(--cyan))]" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Empresa Tomadora</p>
+                    <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Empresa Tomadora</p>
+                    <p className="text-[10px] text-muted-foreground">Selecione a empresa para processar as notas fiscais</p>
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => handleOpenModal()}
-                  className="h-7 text-[10px] gap-1 text-[hsl(var(--cyan))] hover:text-[hsl(var(--cyan))] hover:bg-[hsl(var(--cyan))]/8"
+                  className="h-8 text-xs gap-1.5 text-[hsl(var(--cyan))] hover:text-[hsl(var(--cyan))] hover:bg-[hsl(var(--cyan))]/8"
                 >
-                  <Plus className="w-3 h-3" /> Nova
+                  <Plus className="w-3.5 h-3.5" /> Nova Empresa
                 </Button>
               </div>
 
               {/* Search */}
-              <div className="relative mb-3">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Buscar por nome, CNPJ ou código..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-8 text-xs bg-background/30 border-border/30 focus-visible:ring-[hsl(var(--cyan))]/30"
+                  className="pl-10 h-10 text-sm bg-background/30 border-border/30 focus-visible:ring-[hsl(var(--cyan))]/30"
                 />
               </div>
 
               {/* List */}
-              <div className="flex-1 overflow-y-auto space-y-1 min-h-0 pr-1">
+              <div className="flex-1 overflow-y-auto space-y-1.5 min-h-[320px] pr-1">
                 {isLoading ? (
                   <div className="flex items-center justify-center py-10">
                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -250,7 +251,7 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                   <div className="text-center py-10">
                     <Building2 className="w-8 h-8 mx-auto text-muted-foreground/20 mb-2" />
                     <p className="text-xs text-muted-foreground">Nenhuma empresa encontrada</p>
-                    <Button variant="link" size="sm" onClick={() => handleOpenModal()} className="text-[10px] text-[hsl(var(--cyan))] mt-1 h-auto p-0">
+                    <Button variant="link" size="sm" onClick={() => handleOpenModal()} className="text-xs text-[hsl(var(--cyan))] mt-1 h-auto p-0">
                       Cadastrar agora →
                     </Button>
                   </div>
@@ -268,16 +269,16 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                           transition={{ delay: i * 0.015 }}
                           onClick={() => setSelectedId(empresa.id)}
                           className={cn(
-                            "group relative px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-200",
+                            "group relative px-4 py-3.5 rounded-xl cursor-pointer transition-all duration-200",
                             isSelected
                               ? "bg-[hsl(var(--cyan))]/8 ring-1 ring-[hsl(var(--cyan))]/25"
                               : "hover:bg-foreground/[0.03]"
                           )}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-4">
                             {/* Avatar */}
                             <div className={cn(
-                              "w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold shrink-0 transition-all border",
+                              "w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 transition-all border",
                               isSelected
                                 ? "bg-[hsl(var(--cyan))]/15 text-[hsl(var(--cyan))] border-[hsl(var(--cyan))]/25"
                                 : "bg-muted/40 text-muted-foreground border-transparent"
@@ -288,23 +289,23 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                             {/* Info */}
                             <div className="flex-1 min-w-0">
                               <p className={cn(
-                                "text-xs font-semibold truncate transition-colors",
+                                "text-sm font-semibold truncate transition-colors",
                                 isSelected && "text-[hsl(var(--cyan))]"
                               )}>{empresa.nome}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[9px] text-muted-foreground font-mono">
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-[11px] text-muted-foreground font-mono">
                                   {empresa.cnpj ? formatCnpj(empresa.cnpj) : "Sem CNPJ"}
                                 </span>
-                                <span className="text-[9px] text-muted-foreground/30">·</span>
-                                <span className="text-[9px] text-muted-foreground">{empresa.codigo_empresa}</span>
+                                <span className="text-[11px] text-muted-foreground/30">·</span>
+                                <span className="text-[11px] text-muted-foreground">{empresa.codigo_empresa}</span>
                               </div>
                             </div>
 
                             {/* Regime + Edit */}
-                            <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0">
                               {regime ? (
                                 <span
-                                  className="text-[8px] font-medium px-1.5 py-0.5 rounded-md border"
+                                  className="text-[10px] font-medium px-2 py-1 rounded-md border"
                                   style={{
                                     color: regime.color,
                                     borderColor: regime.color.replace(")", " / 0.2)"),
@@ -314,16 +315,16 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                                   {regime.label}
                                 </span>
                               ) : (
-                                <span className="text-[8px] text-destructive/60 px-1.5 py-0.5 rounded-md bg-destructive/5 border border-destructive/10">
+                                <span className="text-[10px] text-destructive/60 px-2 py-1 rounded-md bg-destructive/5 border border-destructive/10">
                                   Sem regime
                                 </span>
                               )}
                               <button
                                 onClick={(e) => { e.stopPropagation(); handleOpenModal(empresa); }}
-                                className="p-1 rounded-md hover:bg-foreground/10 opacity-0 group-hover:opacity-100 transition-all"
+                                className="p-1.5 rounded-md hover:bg-foreground/10 opacity-0 group-hover:opacity-100 transition-all"
                                 title="Editar empresa"
                               >
-                                <Edit2 className="w-3 h-3 text-muted-foreground" />
+                                <Edit2 className="w-3.5 h-3.5 text-muted-foreground" />
                               </button>
                             </div>
                           </div>
@@ -340,16 +341,16 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
         {/* Competência — Right side bento */}
         <div className="col-span-4">
           <GlassCard accentColor="hsl(var(--blue))" index={4} hoverable={false}>
-            <div className="p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-[hsl(var(--blue))]/12 flex items-center justify-center">
-                  <Calendar className="w-3.5 h-3.5 text-[hsl(var(--blue))]" />
+            <div className="p-6 space-y-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-[hsl(var(--blue))]/12 flex items-center justify-center">
+                  <Calendar className="w-4 h-4 text-[hsl(var(--blue))]" />
                 </div>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Competência</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Competência</p>
               </div>
 
               <Select value={String(mes)} onValueChange={(v) => setMes(Number(v))}>
-                <SelectTrigger className="h-8 text-xs bg-background/30 border-border/30"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm bg-background/30 border-border/30"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {MESES.map((m, i) => (
                     <SelectItem key={i} value={String(i)}>{m}</SelectItem>
@@ -358,7 +359,7 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
               </Select>
 
               <Select value={String(ano)} onValueChange={(v) => setAno(Number(v))}>
-                <SelectTrigger className="h-8 text-xs bg-background/30 border-border/30"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm bg-background/30 border-border/30"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i).map(y => (
                     <SelectItem key={y} value={String(y)}>{y}</SelectItem>
@@ -366,8 +367,8 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                 </SelectContent>
               </Select>
 
-              <div className="pt-1 text-center">
-                <p className="text-lg font-bold text-[hsl(var(--blue))]">
+              <div className="pt-2 text-center">
+                <p className="text-2xl font-bold text-[hsl(var(--blue))]">
                   {MESES[mes].slice(0, 3)}/{ano}
                 </p>
               </div>
@@ -382,24 +383,24 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
             index={5}
             hoverable={false}
           >
-            <div className="p-4 space-y-3">
+            <div className="p-6 space-y-4">
               {selectedEmpresa ? (
                 <>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-[hsl(var(--cyan))]/12 flex items-center justify-center">
-                      <Check className="w-3.5 h-3.5 text-[hsl(var(--cyan))]" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[hsl(var(--cyan))]/12 flex items-center justify-center">
+                      <Check className="w-4 h-4 text-[hsl(var(--cyan))]" />
                     </div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Selecionada</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Selecionada</p>
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-[hsl(var(--cyan))] truncate">{selectedEmpresa.nome}</p>
-                    <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
+                    <p className="text-sm font-bold text-[hsl(var(--cyan))] truncate">{selectedEmpresa.nome}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono mt-1">
                       {selectedEmpresa.cnpj ? formatCnpj(selectedEmpresa.cnpj) : selectedEmpresa.codigo_empresa}
                     </p>
                     {(() => {
                       const r = getRegimeInfo(selectedEmpresa.regime_tributario);
                       return r ? (
-                        <span className="inline-block mt-1 text-[8px] font-medium px-1.5 py-0.5 rounded-md border" style={{
+                        <span className="inline-block mt-2 text-[10px] font-medium px-2 py-1 rounded-md border" style={{
                           color: r.color,
                           borderColor: r.color.replace(")", " / 0.2)"),
                           backgroundColor: r.color.replace(")", " / 0.06)"),
@@ -409,23 +410,23 @@ export function FiscalEmpresaCompetencia({ onConfirm }: FiscalEmpresaCompetencia
                   </div>
                   <Button
                     onClick={handleConfirm}
-                    className="w-full h-9 text-xs gap-1.5 rounded-xl font-semibold bg-[hsl(var(--cyan))] text-background hover:bg-[hsl(var(--cyan))]/85 shadow-[0_0_16px_hsl(160_100%_50%/0.15)]"
+                    className="w-full h-11 text-sm gap-2 rounded-xl font-semibold bg-[hsl(var(--cyan))] text-background hover:bg-[hsl(var(--cyan))]/85 shadow-[0_0_20px_hsl(160_100%_50%/0.15)]"
                   >
-                    <Sparkles className="w-3 h-3" />
-                    Iniciar
-                    <ChevronRight className="w-3 h-3" />
+                    <Sparkles className="w-4 h-4" />
+                    Iniciar Processamento
+                    <ChevronRight className="w-4 h-4" />
                   </Button>
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-muted/30 flex items-center justify-center">
-                      <Hash className="w-3.5 h-3.5 text-muted-foreground" />
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center">
+                      <Hash className="w-4 h-4 text-muted-foreground" />
                     </div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Seleção</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Seleção</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">Selecione uma empresa na lista para continuar</p>
-                  <Button disabled className="w-full h-9 text-xs gap-1.5 rounded-xl bg-muted text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">Selecione uma empresa na lista para continuar</p>
+                  <Button disabled className="w-full h-11 text-sm gap-2 rounded-xl bg-muted text-muted-foreground">
                     Selecione uma empresa
                   </Button>
                 </>
