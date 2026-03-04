@@ -119,8 +119,36 @@ export type NotaFiscal = NotaServico | NotaComercio;
 
 function getTextContent(parent: Element | Document | null, selector: string): string {
   if (!parent) return "";
+  // Try direct querySelector first
   const el = parent.querySelector(selector);
-  return el?.textContent?.trim() || "";
+  if (el?.textContent?.trim()) return el.textContent.trim();
+  // Fallback: case-insensitive search through children (handles namespaced XML)
+  return getTextContentByLocalName(parent, selector);
+}
+
+function getTextContentByLocalName(parent: Element | Document | null, localName: string): string {
+  if (!parent) return "";
+  const elements = parent.getElementsByTagName("*");
+  for (let i = 0; i < elements.length; i++) {
+    const el = elements[i];
+    if (el.localName.toLowerCase() === localName.toLowerCase()) {
+      return el.textContent?.trim() || "";
+    }
+  }
+  return "";
+}
+
+function findElementByLocalName(parent: Element | Document | null, ...names: string[]): Element | null {
+  if (!parent) return null;
+  const elements = parent.getElementsByTagName("*");
+  for (const name of names) {
+    for (let i = 0; i < elements.length; i++) {
+      if (elements[i].localName.toLowerCase() === name.toLowerCase()) {
+        return elements[i];
+      }
+    }
+  }
+  return null;
 }
 
 function formatCnpj(value: string): string {
@@ -285,80 +313,205 @@ export function parseNFSeXml(xmlContent: string): NotaServico | null {
 
   if (!nfse) return null;
 
-  // Check if it's actually a NFS-e - be more permissive
-  const hasNfseElements = doc.querySelector("InfNfse") || 
-                          doc.querySelector("Servico") || 
-                          doc.querySelector("PrestadorServico") ||
-                          doc.querySelector("Prestador") ||
-                          doc.querySelector("DadosPrestador") ||
-                          doc.querySelector("ValorServicos") ||
-                          doc.querySelector("Discriminacao");
+  // Check if it's actually a NFS-e - be more permissive, use case-insensitive local name search
+  const hasNfseElements = findElementByLocalName(doc, "InfNfse", "infNFSe", "infnfse") || 
+                          findElementByLocalName(doc, "Servico", "servico") || 
+                          findElementByLocalName(doc, "PrestadorServico", "Prestador", "DadosPrestador", "prestador") ||
+                          findElementByLocalName(doc, "ValorServicos", "valorServicos") ||
+                          findElementByLocalName(doc, "Discriminacao", "discriminacao") ||
+                          findElementByLocalName(doc, "xLocEmi"); // SPED Nacional
   
   if (!hasNfseElements) {
     console.warn("[parseNFSeXml] No NFS-e elements found in XML. Root element:", doc.documentElement?.tagName);
     return null;
   }
 
-  const infNfse = doc.querySelector("InfNfse") || nfse;
-  const prestador = doc.querySelector("PrestadorServico") || doc.querySelector("Prestador");
-  const tomador = doc.querySelector("TomadorServico") || doc.querySelector("Tomador");
-  const servico = doc.querySelector("Servico");
-  const valores = servico?.querySelector("Valores") || doc.querySelector("Valores");
+  // Use case-insensitive element finders for all lookups
+  const infNfse = findElementByLocalName(doc, "InfNfse", "infNFSe", "infnfse") || nfse;
+  const prestador = findElementByLocalName(doc, "PrestadorServico", "Prestador", "DadosPrestador", "prestador", "emit");
+  const tomador = findElementByLocalName(doc, "TomadorServico", "Tomador", "tomador", "dest");
+  const servico = findElementByLocalName(doc, "Servico", "servico");
+  const valores = findElementByLocalName(servico || doc as any, "Valores", "valores") || 
+                  findElementByLocalName(doc, "Valores", "valores");
 
-  const endPrestador = prestador?.querySelector("Endereco");
-  const endTomador = tomador?.querySelector("Endereco");
-  const idPrestador = prestador?.querySelector("IdentificacaoPrestador") || prestador;
-  const idTomador = tomador?.querySelector("IdentificacaoTomador") || tomador?.querySelector("CpfCnpj");
+  const endPrestador = findElementByLocalName(prestador, "Endereco", "endereco", "end");
+  const endTomador = findElementByLocalName(tomador, "Endereco", "endereco", "end");
+  const idPrestador = findElementByLocalName(prestador, "IdentificacaoPrestador", "identificacaoPrestador") || prestador;
+  const idTomador = findElementByLocalName(tomador, "IdentificacaoTomador", "identificacaoTomador", "CpfCnpj", "cpfCnpj") || 
+                    findElementByLocalName(tomador, "CpfCnpj", "cpfCnpj");
 
-  const optanteSN = getTextContent(infNfse, "OptanteSimplesNacional");
+  // SPED Nacional uses different field names
+  const optanteSN = getTextContentByLocalName(infNfse || doc.documentElement, "OptanteSimplesNacional") || 
+                    getTextContentByLocalName(infNfse || doc.documentElement, "optanteSimplesNacional") ||
+                    getTextContentByLocalName(doc, "regTrib");
 
+  // Try multiple field name patterns for each value
+  const getVal = (el: Element | Document | null, ...names: string[]) => {
+    for (const n of names) {
+      const v = getTextContentByLocalName(el, n);
+      if (v) return v;
+    }
+    return "";
+  };
+
+  const numero = getVal(infNfse, "Numero", "numero", "nNFSe") || 
+                 getVal(doc, "Numero", "numero", "nNFSe");
+  
   return {
     tipo: "servico",
-    numero: getTextContent(infNfse, "Numero"),
-    serie: getTextContent(infNfse, "Serie") || "U",
-    dataEmissao: getTextContent(infNfse, "DataEmissao")?.split("T")[0] || "",
+    numero,
+    serie: getVal(infNfse, "Serie", "serie") || "U",
+    dataEmissao: (getVal(infNfse, "DataEmissao", "dataEmissao", "dhEmi", "dEmi") || 
+                  getVal(doc, "DataEmissao", "dataEmissao", "dhEmi", "dEmi"))?.split("T")[0] || "",
     prestador: {
-      cnpj: formatCnpj(getTextContent(idPrestador, "Cnpj") || getTextContent(idPrestador, "CNPJ")),
-      razaoSocial: getTextContent(prestador, "RazaoSocial"),
-      nomeFantasia: getTextContent(prestador, "NomeFantasia"),
-      endereco: getTextContent(endPrestador, "Endereco") || getTextContent(endPrestador, "Logradouro"),
-      municipio: getTextContent(endPrestador, "Cidade") || getTextContent(endPrestador, "CodigoMunicipio"),
-      uf: getTextContent(endPrestador, "Uf") || getTextContent(endPrestador, "UF"),
-      inscricaoMunicipal: getTextContent(idPrestador, "InscricaoMunicipal"),
+      cnpj: formatCnpj(getVal(idPrestador, "Cnpj", "CNPJ", "cnpj")),
+      razaoSocial: getVal(prestador, "RazaoSocial", "razaoSocial", "xRazaoSocial", "xNome"),
+      nomeFantasia: getVal(prestador, "NomeFantasia", "nomeFantasia", "xFant"),
+      endereco: getVal(endPrestador, "Endereco", "Logradouro", "endereco", "xLgr"),
+      municipio: getVal(endPrestador, "Cidade", "CodigoMunicipio", "cidade", "xMun", "cMun"),
+      uf: getVal(endPrestador, "Uf", "UF", "uf"),
+      inscricaoMunicipal: getVal(idPrestador, "InscricaoMunicipal", "inscricaoMunicipal", "IM"),
     },
     tomador: {
       cpfCnpj: formatCpfCnpj(
-        getTextContent(idTomador, "Cnpj") || 
-        getTextContent(idTomador, "CNPJ") || 
-        getTextContent(idTomador, "Cpf") || 
-        getTextContent(idTomador, "CPF")
+        getVal(idTomador, "Cnpj", "CNPJ", "cnpj") || 
+        getVal(idTomador, "Cpf", "CPF", "cpf")
       ),
-      razaoSocial: getTextContent(tomador, "RazaoSocial"),
-      endereco: getTextContent(endTomador, "Endereco") || getTextContent(endTomador, "Logradouro"),
-      municipio: getTextContent(endTomador, "Cidade") || getTextContent(endTomador, "CodigoMunicipio"),
-      uf: getTextContent(endTomador, "Uf") || getTextContent(endTomador, "UF"),
-      email: getTextContent(tomador, "Email"),
+      razaoSocial: getVal(tomador, "RazaoSocial", "razaoSocial", "xRazaoSocial", "xNome"),
+      endereco: getVal(endTomador, "Endereco", "Logradouro", "endereco", "xLgr"),
+      municipio: getVal(endTomador, "Cidade", "CodigoMunicipio", "cidade", "xMun", "cMun"),
+      uf: getVal(endTomador, "Uf", "UF", "uf"),
+      email: getVal(tomador, "Email", "email"),
     },
     servico: {
-      discriminacao: getTextContent(servico, "Discriminacao"),
-      codigoServico: getTextContent(servico, "ItemListaServico") || getTextContent(servico, "CodigoTributacaoMunicipio"),
-      aliquotaISS: getTextContent(valores, "Aliquota"),
-      valorServicos: getTextContent(valores, "ValorServicos"),
-      valorDeducoes: getTextContent(valores, "ValorDeducoes"),
-      baseCalculo: getTextContent(valores, "BaseCalculo"),
-      valorISS: getTextContent(valores, "ValorIss") || getTextContent(valores, "ValorISS"),
-      valorIR: getTextContent(valores, "ValorIr") || getTextContent(valores, "ValorIR"),
-      valorPIS: getTextContent(valores, "ValorPis") || getTextContent(valores, "ValorPIS"),
-      valorCOFINS: getTextContent(valores, "ValorCofins") || getTextContent(valores, "ValorCOFINS"),
-      valorCSLL: getTextContent(valores, "ValorCsll") || getTextContent(valores, "ValorCSLL"),
-      valorINSS: getTextContent(valores, "ValorInss") || getTextContent(valores, "ValorINSS"),
-      valorLiquido: getTextContent(valores, "ValorLiquidoNfse") || getTextContent(valores, "ValorLiquido"),
+      discriminacao: getVal(servico || doc as any, "Discriminacao", "discriminacao", "xDescServ"),
+      codigoServico: getVal(servico || doc as any, "ItemListaServico", "itemListaServico", "CodigoTributacaoMunicipio", "codigoTributacaoMunicipio", "cServ"),
+      aliquotaISS: getVal(valores, "Aliquota", "aliquota", "pAliqAplic"),
+      valorServicos: getVal(valores, "ValorServicos", "valorServicos", "vServPrest", "vLiq"),
+      valorDeducoes: getVal(valores, "ValorDeducoes", "valorDeducoes", "vDescIncond"),
+      baseCalculo: getVal(valores, "BaseCalculo", "baseCalculo", "vBC") || getVal(valores, "ValorServicos", "valorServicos", "vServPrest"),
+      valorISS: getVal(valores, "ValorIss", "ValorISS", "valorIss", "vISS"),
+      valorIR: getVal(valores, "ValorIr", "ValorIR", "valorIr", "vRetIR"),
+      valorPIS: getVal(valores, "ValorPis", "ValorPIS", "valorPis", "vRetPIS"),
+      valorCOFINS: getVal(valores, "ValorCofins", "ValorCOFINS", "valorCofins", "vRetCOFINS"),
+      valorCSLL: getVal(valores, "ValorCsll", "ValorCSLL", "valorCsll", "vRetCSLL"),
+      valorINSS: getVal(valores, "ValorInss", "ValorINSS", "valorInss", "vRetINSS"),
+      valorLiquido: getVal(valores, "ValorLiquidoNfse", "ValorLiquido", "valorLiquidoNfse", "valorLiquido", "vLiq"),
     },
-    codigoVerificacao: getTextContent(infNfse, "CodigoVerificacao"),
-    naturezaOperacao: getTextContent(infNfse, "NaturezaOperacao"),
-    regimeEspecial: getTextContent(infNfse, "RegimeEspecialTributacao"),
+    codigoVerificacao: getVal(infNfse, "CodigoVerificacao", "codigoVerificacao", "cLocIncworking", "chSubstNFSe") || 
+                       getVal(doc, "CodigoVerificacao", "codigoVerificacao"),
+    naturezaOperacao: getVal(infNfse, "NaturezaOperacao", "naturezaOperacao") || 
+                      getVal(doc, "NaturezaOperacao", "naturezaOperacao"),
+    regimeEspecial: getVal(infNfse, "RegimeEspecialTributacao", "regimeEspecialTributacao") || "",
     optanteSimplesNacional: optanteSN === "1" || optanteSN?.toLowerCase() === "sim" ? "Sim" : "Não",
-    status: getTextContent(infNfse, "Situacao") || "Emitida",
+    status: getVal(infNfse, "Situacao", "situacao", "nfseStatus") || "Emitida",
+  };
+}
+
+// Also add a dedicated SPED Nacional parser as additional fallback
+export function parseNFSeSpedNacional(xmlContent: string): NotaServico | null {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlContent, "text/xml");
+  
+  // Check if it's SPED Nacional format (has xmlns with sped.fazenda.gov.br)
+  const root = doc.documentElement;
+  const ns = root?.namespaceURI || "";
+  const isSped = ns.includes("sped.fazenda.gov.br") || root?.tagName === "NFSe";
+  
+  if (!isSped) return null;
+  
+  // For SPED Nacional, use getElementsByTagName with wildcard since namespace-qualified selectors don't work
+  const allElements = doc.getElementsByTagName("*");
+  
+  const findEl = (...names: string[]): Element | null => {
+    for (const name of names) {
+      for (let i = 0; i < allElements.length; i++) {
+        if (allElements[i].localName === name) return allElements[i];
+      }
+    }
+    return null;
+  };
+  
+  const getText = (...names: string[]): string => {
+    for (const name of names) {
+      for (let i = 0; i < allElements.length; i++) {
+        if (allElements[i].localName === name) {
+          return allElements[i].textContent?.trim() || "";
+        }
+      }
+    }
+    return "";
+  };
+
+  // Get all text values within a parent element
+  const getTextIn = (parent: Element | null, ...names: string[]): string => {
+    if (!parent) return "";
+    const children = parent.getElementsByTagName("*");
+    for (const name of names) {
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].localName === name) {
+          return children[i].textContent?.trim() || "";
+        }
+      }
+    }
+    return "";
+  };
+
+  const prestEl = findEl("prest", "Prestador", "PrestadorServico");
+  const tomEl = findEl("toma", "Tomador", "TomadorServico");
+  const servEl = findEl("serv", "Servico");
+  const valoresEl = findEl("valores", "Valores");
+  const tribEl = findEl("trib");
+  const endPrestEl = findEl("endNac") || (prestEl ? findEl("end") : null);
+  
+  const numero = getText("nNFSe", "Numero", "numero");
+  if (!numero && !getText("vServPrest", "ValorServicos")) return null;
+
+  const aliquota = getTextIn(tribEl, "pAliqAplic", "Aliquota", "aliquota") || 
+                   getTextIn(valoresEl, "pAliqAplic", "Aliquota");
+
+  return {
+    tipo: "servico",
+    numero: numero || getText("chSubstNFSe") || "S/N",
+    serie: getText("serie", "Serie") || "U",
+    dataEmissao: (getText("dhEmi", "DataEmissao", "dataEmissao") || "").split("T")[0],
+    prestador: {
+      cnpj: formatCnpj(getTextIn(prestEl, "CNPJ", "cnpj") || getText("CNPJ")),
+      razaoSocial: getTextIn(prestEl, "xNome", "RazaoSocial", "razaoSocial") || getText("xNome"),
+      nomeFantasia: getTextIn(prestEl, "xFant", "NomeFantasia") || "",
+      endereco: getTextIn(endPrestEl, "xLgr", "Logradouro") || "",
+      municipio: getTextIn(endPrestEl, "xMun", "Cidade") || getText("xLocEmi") || "",
+      uf: getTextIn(endPrestEl, "UF", "Uf") || getText("xLocEmi") ? "" : "",
+      inscricaoMunicipal: getTextIn(prestEl, "IM", "InscricaoMunicipal") || getText("IM"),
+    },
+    tomador: {
+      cpfCnpj: formatCpfCnpj(getTextIn(tomEl, "CNPJ", "cnpj", "CPF", "cpf") || ""),
+      razaoSocial: getTextIn(tomEl, "xNome", "RazaoSocial") || "",
+      endereco: getTextIn(tomEl, "xLgr", "Logradouro") || "",
+      municipio: getTextIn(tomEl, "xMun", "Cidade") || "",
+      uf: getTextIn(tomEl, "UF", "Uf") || "",
+      email: getTextIn(tomEl, "email", "Email") || "",
+    },
+    servico: {
+      discriminacao: getTextIn(servEl, "xDescServ", "Discriminacao", "discriminacao") || getText("xDescServ"),
+      codigoServico: getTextIn(servEl, "cServ", "ItemListaServico") || getText("cServ"),
+      aliquotaISS: aliquota,
+      valorServicos: getTextIn(valoresEl, "vServPrest", "vReceb", "ValorServicos") || getText("vServPrest"),
+      valorDeducoes: getTextIn(valoresEl, "vDescIncond", "vDescCondworking", "ValorDeducoes") || "0",
+      baseCalculo: getTextIn(tribEl, "vBC", "BaseCalculo") || getTextIn(valoresEl, "vServPrest") || "0",
+      valorISS: getTextIn(tribEl, "vISS", "ValorIss") || getText("vISS") || "0",
+      valorIR: getTextIn(tribEl, "vRetIR") || getText("vRetIR") || "0",
+      valorPIS: getTextIn(tribEl, "vRetPIS") || getText("vRetPIS") || "0",
+      valorCOFINS: getTextIn(tribEl, "vRetCOFINS") || getText("vRetCOFINS") || "0",
+      valorCSLL: getTextIn(tribEl, "vRetCSLL") || getText("vRetCSLL") || "0",
+      valorINSS: getTextIn(tribEl, "vRetINSS") || getText("vRetINSS") || "0",
+      valorLiquido: getTextIn(valoresEl, "vLiq", "vReceb", "ValorLiquido") || getText("vLiq") || getText("vReceb") || "0",
+    },
+    codigoVerificacao: getText("chSubstNFSe", "CodigoVerificacao") || "",
+    naturezaOperacao: getText("natOp", "NaturezaOperacao") || "",
+    regimeEspecial: "",
+    optanteSimplesNacional: getText("regTrib") === "4" || getText("OptanteSimplesNacional") === "1" ? "Sim" : "Não",
+    status: "Emitida",
   };
 }
 
@@ -367,7 +520,11 @@ export function detectAndParseXml(xmlContent: string): NotaFiscal | null {
   const nfe = parseNFeXml(xmlContent);
   if (nfe && nfe.itens.length > 0) return nfe;
 
-  // Try NFS-e
+  // Try SPED Nacional NFS-e (newer format)
+  const sped = parseNFSeSpedNacional(xmlContent);
+  if (sped && (sped.numero || sped.servico.valorServicos)) return sped;
+
+  // Try standard NFS-e
   const nfse = parseNFSeXml(xmlContent);
   if (nfse && nfse.numero) return nfse;
 
