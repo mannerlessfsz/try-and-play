@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { 
   Receipt, Upload, FileText, Loader2, Trash2, Building2, Wrench, 
-  AlertCircle, ArrowLeft, BarChart3, Table, Download, Package
+  AlertCircle, ArrowLeft, BarChart3, Table, Download, Package, Calendar, Shield
 } from "lucide-react";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -15,12 +15,26 @@ import { detectAndParseXml, NotaFiscal, NotaServico, NotaComercio } from "@/util
 import { NotaServicoCard } from "./fiscal/NotaServicoCard";
 import { NotaComercioCard } from "./fiscal/NotaComercioCard";
 import { FiscalRelatorioServico } from "./fiscal/FiscalRelatorioServico";
+import { FiscalEmpresaCompetencia } from "./fiscal/FiscalEmpresaCompetencia";
+import { formatCnpj } from "@/utils/cnpjUtils";
+import type { EmpresaExterna } from "@/hooks/useEmpresasExternas";
 
 type Segmento = "servico" | "comercio" | null;
 type ViewMode = "cards" | "relatorio";
 
+interface FiscalContext {
+  empresa: EmpresaExterna;
+  competencia: { mes: number; ano: number };
+}
+
+const MESES_LABELS = [
+  "", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
 export const ConversorFiscal = () => {
   const [segmento, setSegmento] = useState<Segmento>(null);
+  const [fiscalCtx, setFiscalCtx] = useState<FiscalContext | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -59,6 +73,9 @@ export const ConversorFiscal = () => {
     const comercios: NotaComercio[] = [];
     let errCount = 0;
 
+    // Get empresa regime for validation context
+    const regimeEmpresa = fiscalCtx ? (fiscalCtx.empresa as any).regime_tributario : null;
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setProcessStatus(`Processando ${file.name} (${i + 1}/${files.length})...`);
@@ -69,7 +86,6 @@ export const ConversorFiscal = () => {
         const isXml = file.name.toLowerCase().endsWith('.xml');
 
         if (isPdf) {
-          // Send to edge function
           const formData = new FormData();
           formData.append('file', file);
           formData.append('tipo', segmento);
@@ -85,7 +101,7 @@ export const ConversorFiscal = () => {
           }
 
           if (segmento === 'servico') {
-            servicos.push({ ...data.data, _arquivo: file.name });
+            servicos.push({ ...data.data, _arquivo: file.name, _regime_tomador: regimeEmpresa });
           } else {
             comercios.push(data.data);
           }
@@ -93,11 +109,9 @@ export const ConversorFiscal = () => {
           const content = await file.text();
           
           if (segmento === 'servico') {
-            // Try parsing as NFS-e XML
             const { parseNFSeXml } = await import('@/utils/notaFiscalParser');
             const nota = parseNFSeXml(content);
             if (nota) {
-              // Convert to same format as PDF response
               servicos.push({
                 numero: nota.numero,
                 serie: nota.serie,
@@ -141,6 +155,7 @@ export const ConversorFiscal = () => {
                 optante_simples: nota.optanteSimplesNacional === "Sim",
                 natureza_operacao: nota.naturezaOperacao,
                 _arquivo: file.name,
+                _regime_tomador: regimeEmpresa,
               });
             } else {
               errCount++;
@@ -191,7 +206,7 @@ export const ConversorFiscal = () => {
   const activeNotas = segmento === "servico" ? notasServico : notasComercio;
   const acceptedFiles = segmento === "servico" ? ".pdf,.xml" : ".xml,.pdf";
 
-  // Segment selection screen
+  // Step 0: Segment selection
   if (!segmento) {
     return (
       <div className="space-y-6">
@@ -206,7 +221,6 @@ export const ConversorFiscal = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Serviço */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -220,7 +234,6 @@ export const ConversorFiscal = () => {
             <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
               <motion.div className="h-full" style={{ background: "linear-gradient(90deg, hsl(var(--cyan)), transparent)" }} initial={{ width: "0%" }} whileInView={{ width: "70%" }} transition={{ duration: 1, delay: 0.3 }} />
             </div>
-
             <div className="relative z-10">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 border transition-all group-hover:scale-110" style={{ backgroundColor: "hsl(var(--cyan) / 0.1)", borderColor: "hsl(var(--cyan) / 0.25)" }}>
                 <Building2 className="w-7 h-7" style={{ color: "hsl(var(--cyan))" }} />
@@ -239,7 +252,6 @@ export const ConversorFiscal = () => {
             </div>
           </motion.div>
 
-          {/* Comércio */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -253,7 +265,6 @@ export const ConversorFiscal = () => {
             <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden">
               <motion.div className="h-full" style={{ background: "linear-gradient(90deg, hsl(var(--orange)), transparent)" }} initial={{ width: "0%" }} whileInView={{ width: "70%" }} transition={{ duration: 1, delay: 0.4 }} />
             </div>
-
             <div className="relative z-10">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-4 border transition-all group-hover:scale-110" style={{ backgroundColor: "hsl(var(--orange) / 0.1)", borderColor: "hsl(var(--orange) / 0.25)" }}>
                 <Package className="w-7 h-7" style={{ color: "hsl(var(--orange))" }} />
@@ -276,6 +287,25 @@ export const ConversorFiscal = () => {
     );
   }
 
+  // Step 1 (serviço only): Empresa + Competência selection
+  if (segmento === "servico" && !fiscalCtx) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => setSegmento(null)} className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-3 h-3" /> Voltar
+          </Button>
+          <div className="w-px h-5 bg-foreground/10" />
+          <div>
+            <h2 className="text-sm font-bold">Notas de Serviço — Configuração</h2>
+            <p className="text-[10px] text-muted-foreground">Selecione empresa e competência antes de importar</p>
+          </div>
+        </div>
+        <FiscalEmpresaCompetencia onConfirm={(empresa, competencia) => setFiscalCtx({ empresa, competencia })} />
+      </div>
+    );
+  }
+
   const isServico = segmento === "servico";
   const accentColor = isServico ? "hsl(var(--cyan))" : "hsl(var(--orange))";
   const segLabel = isServico ? "Serviço" : "Comércio";
@@ -285,7 +315,10 @@ export const ConversorFiscal = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => { setSegmento(null); clearAll(); }} className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="sm" onClick={() => { 
+            if (isServico) { setFiscalCtx(null); } else { setSegmento(null); } 
+            clearAll(); 
+          }} className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-3 h-3" />
             Voltar
           </Button>
@@ -296,7 +329,16 @@ export const ConversorFiscal = () => {
           <div>
             <h2 className="text-sm font-bold">Notas de {segLabel}</h2>
             <p className="text-[10px] text-muted-foreground">
-              {isServico ? "NFS-e — PDF e XML" : "NF-e — XML e PDF"}
+              {isServico && fiscalCtx ? (
+                <>
+                  {fiscalCtx.empresa.nome} · {MESES_LABELS[fiscalCtx.competencia.mes]}/{fiscalCtx.competencia.ano}
+                  {(fiscalCtx.empresa as any).regime_tributario && (
+                    <> · <Shield className="w-2.5 h-2.5 inline" /> {(fiscalCtx.empresa as any).regime_tributario}</>
+                  )}
+                </>
+              ) : (
+                isServico ? "NFS-e — PDF e XML" : "NF-e — XML e PDF"
+              )}
             </p>
           </div>
         </div>
@@ -416,7 +458,7 @@ export const ConversorFiscal = () => {
             transition={{ duration: 0.2 }}
           >
             {isServico && viewMode === "relatorio" ? (
-              <FiscalRelatorioServico notas={notasServico} />
+              <FiscalRelatorioServico notas={notasServico} empresaRegime={(fiscalCtx?.empresa as any)?.regime_tributario} />
             ) : isServico ? (
               <div className="space-y-4">
                 <p className="text-xs text-muted-foreground">{notasServico.length} nota(s) de serviço</p>
@@ -463,7 +505,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
       <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700 blur-3xl pointer-events-none" style={{ background: accentColor }} />
 
       <div className="p-5 relative z-10">
-        {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ backgroundColor: accentColor + "15", border: `1px solid ${accentColor}30` }}>
@@ -475,6 +516,11 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
                 <Badge variant="outline" className="text-[9px] px-1.5 py-0" style={{ borderColor: accentColor + "40", color: accentColor }}>
                   Serviço
                 </Badge>
+                {nota.optante_simples && (
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-yellow-500/40 text-yellow-500">
+                    <Shield className="w-2.5 h-2.5 mr-0.5" /> Simples
+                  </Badge>
+                )}
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {nota.data_emissao || "—"} · Série {nota.serie || "U"}
@@ -488,7 +534,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Prestador */}
           <div>
             <p className="text-[10px] font-semibold mb-1.5" style={{ color: accentColor }}>▸ Prestador</p>
             <div className="space-y-0.5 text-[11px]">
@@ -497,8 +542,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
               {nota.prestador?.municipio && <p className="text-muted-foreground">{nota.prestador.municipio}/{nota.prestador.uf}</p>}
             </div>
           </div>
-
-          {/* Tomador */}
           <div>
             <p className="text-[10px] font-semibold mb-1.5" style={{ color: "hsl(var(--blue))" }}>▸ Tomador</p>
             <div className="space-y-0.5 text-[11px]">
@@ -509,7 +552,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
           </div>
         </div>
 
-        {/* Serviço */}
         {nota.servico?.discriminacao && (
           <div className="mt-3">
             <p className="text-[10px] font-semibold mb-1" style={{ color: "hsl(var(--orange))" }}>▸ Serviço</p>
@@ -519,7 +561,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
           </div>
         )}
 
-        {/* Valores e Retenções */}
         <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="p-2.5 rounded-xl bg-foreground/[0.03] border border-foreground/5 text-center">
             <p className="text-[9px] text-muted-foreground mb-0.5">Valor Serviços</p>
@@ -539,7 +580,6 @@ function NotaServicoCardFromData({ nota, index }: { nota: any; index: number }) 
           </div>
         </div>
 
-        {/* Retenções detalhadas */}
         {retTotal > 0 && (
           <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
             {nota.retencoes?.ir > 0 && <Badge variant="outline" className="text-[9px] font-mono">IR: {fv(nota.retencoes.ir)}</Badge>}
