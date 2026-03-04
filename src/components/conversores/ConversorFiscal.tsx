@@ -102,9 +102,10 @@ export const ConversorFiscal = () => {
         console.log(`[Fiscal XML] Processando ${file.name}, tamanho: ${content.length}, primeiros 200 chars:`, content.substring(0, 200));
         
         if (segmentoAtual === 'servico') {
-          const { parseNFSeXml } = await import('@/utils/notaFiscalParser');
-          const nota = parseNFSeXml(content);
-          console.log(`[Fiscal XML] parseNFSeXml resultado para ${file.name}:`, nota ? `OK - numero: ${nota.numero}` : 'NULL - parsing falhou');
+          const { parseNFSeXml, parseNFSeSpedNacional } = await import('@/utils/notaFiscalParser');
+          // Try SPED Nacional first (newer format), then standard NFS-e
+          const nota = parseNFSeSpedNacional(content) || parseNFSeXml(content);
+          console.log(`[Fiscal XML] parse resultado para ${file.name}:`, nota ? `OK - numero: ${nota.numero}, valor: ${nota.servico.valorServicos}` : 'NULL - parsing falhou');
           if (nota) {
             return {
               servico: {
