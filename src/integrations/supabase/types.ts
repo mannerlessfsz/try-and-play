@@ -2548,6 +2548,104 @@ export type Database = {
           },
         ]
       }
+      layout_campos: {
+        Row: {
+          caminhos_xpath: string[]
+          campo_destino: string
+          created_at: string
+          grupo: string
+          id: string
+          layout_id: string
+          obrigatorio: boolean
+          ordem: number
+          posicao_fim: number | null
+          posicao_inicio: number | null
+          tipo_dado: string
+          transformacao: string | null
+          valor_padrao: string | null
+        }
+        Insert: {
+          caminhos_xpath: string[]
+          campo_destino: string
+          created_at?: string
+          grupo: string
+          id?: string
+          layout_id: string
+          obrigatorio?: boolean
+          ordem?: number
+          posicao_fim?: number | null
+          posicao_inicio?: number | null
+          tipo_dado?: string
+          transformacao?: string | null
+          valor_padrao?: string | null
+        }
+        Update: {
+          caminhos_xpath?: string[]
+          campo_destino?: string
+          created_at?: string
+          grupo?: string
+          id?: string
+          layout_id?: string
+          obrigatorio?: boolean
+          ordem?: number
+          posicao_fim?: number | null
+          posicao_inicio?: number | null
+          tipo_dado?: string
+          transformacao?: string | null
+          valor_padrao?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "layout_campos_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "layout_documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      layout_documentos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          namespace_pattern: string | null
+          nome: string
+          root_element_pattern: string | null
+          tipo: string
+          updated_at: string
+          versao: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          namespace_pattern?: string | null
+          nome: string
+          root_element_pattern?: string | null
+          tipo?: string
+          updated_at?: string
+          versao?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          namespace_pattern?: string | null
+          nome?: string
+          root_element_pattern?: string | null
+          tipo?: string
+          updated_at?: string
+          versao?: string
+        }
+        Relationships: []
+      }
       legacy_entity_mapping: {
         Row: {
           id: string

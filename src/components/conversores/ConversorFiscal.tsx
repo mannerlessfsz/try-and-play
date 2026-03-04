@@ -99,13 +99,22 @@ export const ConversorFiscal = () => {
         }
       } else if (isXml) {
         const content = await file.text();
-        console.log(`[Fiscal XML] Processando ${file.name}, tamanho: ${content.length}, primeiros 200 chars:`, content.substring(0, 200));
+        console.log(`[Fiscal XML] Processando ${file.name}, tamanho: ${content.length}`);
         
         if (segmentoAtual === 'servico') {
-          const { parseNFSeXml, parseNFSeSpedNacional } = await import('@/utils/notaFiscalParser');
-          // Try SPED Nacional first (newer format), then standard NFS-e
+          // 1. Tentar parser dinâmico baseado em layouts do banco
+          const { parseXmlDynamic } = await import('@/utils/layoutDrivenParser');
+          const dynamicResult = await parseXmlDynamic(content, file.name, regimeEmpresa);
+          
+          if (dynamicResult.success && dynamicResult.data) {
+            console.log(`[Fiscal XML] ✅ ${file.name} parseado com layout "${dynamicResult.layout}"`);
+            return { servico: dynamicResult.data };
+          }
+          
+          // 2. Fallback: parsers estáticos legados
+          console.warn(`[Fiscal XML] Layout dinâmico falhou para ${file.name}: ${dynamicResult.error}. Tentando parsers estáticos...`);
+          const { parseNFSeXml, parseNFSeSpedNacional, detectAndParseXml: detect } = await import('@/utils/notaFiscalParser');
           const nota = parseNFSeSpedNacional(content) || parseNFSeXml(content);
-          console.log(`[Fiscal XML] parse resultado para ${file.name}:`, nota ? `OK - numero: ${nota.numero}, valor: ${nota.servico.valorServicos}` : 'NULL - parsing falhou');
           if (nota) {
             return {
               servico: {
@@ -155,66 +164,11 @@ export const ConversorFiscal = () => {
               },
             };
           }
-          console.warn(`[Fiscal XML] ${file.name}: parseNFSeXml retornou null. Tentando detectAndParseXml como fallback...`);
-          // Fallback: tentar como NF-e de comércio convertido
-          const { detectAndParseXml: detect } = await import('@/utils/notaFiscalParser');
-          const notaFallback = detect(content);
-          if (notaFallback) {
-            console.log(`[Fiscal XML] Fallback detectou tipo: ${notaFallback.tipo} para ${file.name}`);
-            if (notaFallback.tipo === 'servico') {
-              const ns = notaFallback as any;
-              return {
-                servico: {
-                  numero: ns.numero,
-                  serie: ns.serie,
-                  data_emissao: ns.dataEmissao,
-                  codigo_verificacao: ns.codigoVerificacao || '',
-                  prestador: {
-                    cnpj: ns.prestador?.cnpj || '',
-                    razao_social: ns.prestador?.razaoSocial || '',
-                    nome_fantasia: ns.prestador?.nomeFantasia || '',
-                    inscricao_municipal: ns.prestador?.inscricaoMunicipal || '',
-                    municipio: ns.prestador?.municipio || '',
-                    uf: ns.prestador?.uf || '',
-                  },
-                  tomador: {
-                    cpf_cnpj: ns.tomador?.cpfCnpj || '',
-                    razao_social: ns.tomador?.razaoSocial || '',
-                    endereco: ns.tomador?.endereco || '',
-                    municipio: ns.tomador?.municipio || '',
-                    uf: ns.tomador?.uf || '',
-                    email: ns.tomador?.email || '',
-                  },
-                  servico: {
-                    discriminacao: ns.servico?.discriminacao || '',
-                    codigo_servico: ns.servico?.codigoServico || '',
-                    valor_servicos: parseFloat(ns.servico?.valorServicos) || 0,
-                    valor_deducoes: parseFloat(ns.servico?.valorDeducoes) || 0,
-                    base_calculo: parseFloat(ns.servico?.baseCalculo) || 0,
-                    aliquota_iss: parseFloat(ns.servico?.aliquotaISS) || 0,
-                    valor_iss: parseFloat(ns.servico?.valorISS) || 0,
-                    iss_retido: false,
-                  },
-                  retencoes: {
-                    ir: parseFloat(ns.servico?.valorIR) || 0,
-                    pis: parseFloat(ns.servico?.valorPIS) || 0,
-                    cofins: parseFloat(ns.servico?.valorCOFINS) || 0,
-                    csll: parseFloat(ns.servico?.valorCSLL) || 0,
-                    inss: parseFloat(ns.servico?.valorINSS) || 0,
-                    iss: parseFloat(ns.servico?.valorISS) || 0,
-                  },
-                  valor_liquido: parseFloat(ns.servico?.valorLiquido) || 0,
-                  optante_simples: ns.optanteSimplesNacional === "Sim",
-                  natureza_operacao: ns.naturezaOperacao || '',
-                  _arquivo: file.name,
-                  _regime_tomador: regimeEmpresa,
-                },
-              };
-            }
-          }
-          console.error(`[Fiscal XML] ${file.name}: Não foi possível parsear como NFS-e nem como NF-e`);
+          
+          console.error(`[Fiscal XML] ${file.name}: Nenhum parser conseguiu ler este arquivo`);
           return { error: true };
         } else {
+          // Comércio - usar parser NF-e existente
           const nota = detectAndParseXml(content);
           console.log(`[Fiscal XML] detectAndParseXml resultado para ${file.name}:`, nota ? `tipo: ${nota.tipo}` : 'NULL');
           if (nota && nota.tipo === 'comercio') {
