@@ -52,7 +52,17 @@ export const ConversorFiscal = () => {
   }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) setFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      console.log(`[Fiscal] Arquivos selecionados: ${newFiles.length}`);
+      setFiles(prev => {
+        const updated = [...prev, ...newFiles];
+        console.log(`[Fiscal] Total na fila: ${updated.length}`);
+        return updated;
+      });
+    }
+    // Reset input so same files can be re-selected
+    e.target.value = '';
   };
 
   const removeFile = (index: number) => setFiles(files.filter((_, i) => i !== index));
@@ -160,6 +170,7 @@ export const ConversorFiscal = () => {
 
   const processFiles = async () => {
     if (files.length === 0 || !segmento) return;
+    console.log(`[Fiscal] Iniciando processamento de ${files.length} arquivo(s)`);
     setIsProcessing(true);
     setError(null);
     setProcessProgress(0);
@@ -210,6 +221,9 @@ export const ConversorFiscal = () => {
     if (total > 0) {
       toast.success(`${total} nota(s) processada(s) com sucesso!`);
       setFiles([]);
+      // Reset file input element so same files can be re-selected
+      const inputEl = document.getElementById("file-input-fiscal") as HTMLInputElement;
+      if (inputEl) inputEl.value = '';
     }
 
     if (errCount > 0) {
