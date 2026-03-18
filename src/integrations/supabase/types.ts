@@ -731,6 +731,47 @@ export type Database = {
         }
         Relationships: []
       }
+      casa_planos_empresa: {
+        Row: {
+          classificacao: string | null
+          cnpj: string | null
+          codigo: string
+          created_at: string
+          descricao: string
+          empresa_id: string
+          id: string
+          ordem: number | null
+        }
+        Insert: {
+          classificacao?: string | null
+          cnpj?: string | null
+          codigo: string
+          created_at?: string
+          descricao: string
+          empresa_id: string
+          id?: string
+          ordem?: number | null
+        }
+        Update: {
+          classificacao?: string | null
+          cnpj?: string | null
+          codigo?: string
+          created_at?: string
+          descricao?: string
+          empresa_id?: string
+          id?: string
+          ordem?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "casa_planos_empresa_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       categorias_financeiras: {
         Row: {
           ativo: boolean | null
@@ -1582,6 +1623,7 @@ export type Database = {
         Row: {
           apae_plano_contas_arquivo: string | null
           ativo: boolean
+          casa_plano_contas_arquivo: string | null
           cnpj: string | null
           created_at: string
           email: string | null
@@ -1597,6 +1639,7 @@ export type Database = {
         Insert: {
           apae_plano_contas_arquivo?: string | null
           ativo?: boolean
+          casa_plano_contas_arquivo?: string | null
           cnpj?: string | null
           created_at?: string
           email?: string | null
@@ -1612,6 +1655,7 @@ export type Database = {
         Update: {
           apae_plano_contas_arquivo?: string | null
           ativo?: boolean
+          casa_plano_contas_arquivo?: string | null
           cnpj?: string | null
           created_at?: string
           email?: string | null
