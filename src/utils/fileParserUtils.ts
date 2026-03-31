@@ -90,11 +90,19 @@ export async function readExcelFile(file: File): Promise<any[][]> {
  * Primeiro tenta UTF-8, depois fallback para Latin1 se detectar mojibake
  */
 export function decodeCsvBuffer(buffer: ArrayBuffer): string {
-  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+  // Remove BOM se presente
+  const bytes = new Uint8Array(buffer);
+  let start = 0;
+  if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+    start = 3; // UTF-8 BOM
+  }
+  
+  const sliced = start > 0 ? buffer.slice(start) : buffer;
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(sliced);
 
-  // Heurística de detecção de mojibake / replacement
-  if (utf8.includes("\uFFFD") || utf8.includes("Ã") || utf8.includes("�")) {
-    return new TextDecoder("latin1").decode(buffer);
+  // Heurística de detecção de mojibake / replacement — inclui padrões comuns de Latin1→UTF8
+  if (utf8.includes("\uFFFD") || utf8.includes("Ã£") || utf8.includes("Ã§") || utf8.includes("Ã©") || utf8.includes("�")) {
+    return new TextDecoder("latin1").decode(sliced);
   }
 
   return utf8;
@@ -102,14 +110,57 @@ export function decodeCsvBuffer(buffer: ArrayBuffer): string {
 
 /**
  * Parseia conteúdo CSV para array bidimensional
+ * Suporta campos entre aspas com delimitadores internos
  */
 export function parseCsvContent(text: string, delimiter?: string): any[][] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return [];
 
-  // Auto-detecta delimitador se não especificado
-  const sep = delimiter ?? (lines[0].includes(";") ? ";" : ",");
-  return lines.map((line) => line.split(sep));
+  // Auto-detecta delimitador: conta ocorrências de ; e , na primeira linha (fora de aspas)
+  const firstLine = lines[0];
+  const sep = delimiter ?? (countOutsideQuotes(firstLine, ";") >= countOutsideQuotes(firstLine, ",") ? ";" : ",");
+  
+  return lines.map((line) => splitCsvLine(line, sep));
+}
+
+/** Conta ocorrências de um caractere fora de campos entre aspas */
+function countOutsideQuotes(line: string, char: string): number {
+  let count = 0;
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '"') {
+      inQuotes = !inQuotes;
+    } else if (line[i] === char && !inQuotes) {
+      count++;
+    }
+  }
+  return count;
+}
+
+/** Divide uma linha CSV respeitando campos entre aspas */
+function splitCsvLine(line: string, sep: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && i + 1 < line.length && line[i + 1] === '"') {
+        current += '"';
+        i++; // skip escaped quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (ch === sep && !inQuotes) {
+      fields.push(current.trim());
+      current = "";
+    } else {
+      current += ch;
+    }
+  }
+  fields.push(current.trim());
+  return fields;
 }
 
 /**
