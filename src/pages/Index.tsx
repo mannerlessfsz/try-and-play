@@ -359,8 +359,8 @@ const Index = () => {
                             onClick={() => navigate(action.href)}
                             className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
-                              backgroundColor: `${accent}18`,
-                              borderColor: `${accent}50`,
+                              backgroundColor: `hsl(0 0% 10% / 0.92)`,
+                              borderColor: `${accent}60`,
                               color: accent,
                             }}
                             whileHover={{
