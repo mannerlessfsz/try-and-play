@@ -280,12 +280,12 @@ const Index = () => {
                       ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
                     `}
                     style={{
-                      backgroundColor: isExpanded ? `${accent}18` : 'hsl(var(--card) / 0.6)',
-                      borderColor: isExpanded ? `${accent}80` : 'hsl(var(--border) / 0.4)',
+                      backgroundColor: isExpanded ? `${accent}22` : 'hsl(var(--card) / 0.85)',
+                      borderColor: isExpanded ? `${accent}90` : `${accent}40`,
                       boxShadow: isExpanded
                         ? `0 0 50px ${accent}30, 0 0 100px ${accent}10`
-                        : 'none',
-                      backdropFilter: 'blur(16px)',
+                        : `0 0 20px ${accent}08`,
+                      backdropFilter: 'blur(20px)',
                     }}
                     whileHover={hasAccess ? {
                       scale: 1.1,
@@ -307,12 +307,12 @@ const Index = () => {
                       {hasAccess ? mod.icon : <Lock className="w-6 h-6" />}
                     </div>
                     <span
-                      className="text-[11px] font-bold tracking-wider"
-                      style={{ color: isExpanded ? accent : 'hsl(var(--muted-foreground))' }}
+                      className="text-[12px] font-bold tracking-wider"
+                      style={{ color: accent }}
                     >
                       {mod.title}
                     </span>
-                    <span className="text-[9px] text-muted-foreground/70 leading-tight text-center px-1">
+                    <span className="text-[10px] text-foreground/60 leading-tight text-center px-1">
                       {mod.tagline}
                     </span>
                   </motion.button>
@@ -350,8 +350,8 @@ const Index = () => {
                               x1={0} y1={0}
                               x2={-aPos.x} y2={-aPos.y}
                               stroke={accent}
-                              strokeWidth={1}
-                              strokeOpacity={0.2}
+                              strokeWidth={1.2}
+                              strokeOpacity={0.35}
                             />
                           </svg>
 
@@ -359,8 +359,8 @@ const Index = () => {
                             onClick={() => navigate(action.href)}
                             className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
-                              backgroundColor: `${accent}10`,
-                              borderColor: `${accent}35`,
+                              backgroundColor: `${accent}18`,
+                              borderColor: `${accent}50`,
                               color: accent,
                             }}
                             whileHover={{
@@ -371,7 +371,7 @@ const Index = () => {
                             whileTap={{ scale: 0.9 }}
                           >
                             {action.icon}
-                            <span className="text-[8px] font-semibold tracking-wide" style={{ color: accent }}>
+                            <span className="text-[9px] font-bold tracking-wide" style={{ color: accent }}>
                               {action.label}
                             </span>
 
