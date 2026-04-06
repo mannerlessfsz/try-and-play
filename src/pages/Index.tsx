@@ -80,8 +80,8 @@ const modules: HudModule[] = [
   },
 ];
 
-const WHEEL_RADIUS = 260;
-const ACTION_RADIUS = 160;
+const WHEEL_RADIUS = 180;
+const ACTION_RADIUS = 140;
 
 const Index = () => {
   const navigate = useNavigate();
