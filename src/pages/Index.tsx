@@ -193,15 +193,15 @@ const Index = () => {
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 100,
-            height: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 100,
+            width: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
+            height: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
             background: `
-              radial-gradient(circle, hsl(0 85% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle at 30% 70%, hsl(210 100% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle at 70% 70%, hsl(25 100% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle, hsl(var(--card) / 0.3) 0%, transparent 60%)
+              radial-gradient(circle, hsl(0 0% 100% / 0.06) 0%, hsl(0 0% 100% / 0.03) 30%, transparent 60%),
+              radial-gradient(circle, hsl(0 85% 55% / 0.05) 0%, transparent 35%),
+              radial-gradient(circle at 30% 70%, hsl(210 100% 55% / 0.05) 0%, transparent 35%),
+              radial-gradient(circle at 70% 70%, hsl(25 100% 55% / 0.05) 0%, transparent 35%)
             `,
-            filter: 'blur(40px)',
+            filter: 'blur(30px)',
           }}
         />
         <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2 }}>
