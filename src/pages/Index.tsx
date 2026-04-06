@@ -416,9 +416,9 @@ const Index = () => {
                       onClick={() => navigate(mod.href)}
                       className="flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-2xl transition-all duration-300 hover:scale-105 group"
                       style={{
-                        backgroundColor: 'hsl(var(--card) / 0.7)',
-                        borderColor: `${accent}30`,
-                        boxShadow: `0 0 40px ${accent}10`,
+                        backgroundColor: 'hsl(0 0% 10% / 0.95)',
+                        borderColor: `${accent}40`,
+                        boxShadow: `0 0 40px ${accent}15, inset 0 0 20px hsl(0 0% 100% / 0.03)`,
                       }}
                     >
                       <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${accent}15`, color: accent }}>
