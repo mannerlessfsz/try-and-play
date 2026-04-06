@@ -209,21 +209,7 @@ export const SUB_MODULE_RESOURCES: Record<AppSubModule, ResourceDefinition[]> = 
     { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
     { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
   ],
-  // Conversores > Fiscal
-  fiscal: [
-    { value: 'ajustasped', label: 'Ajusta SPED', description: 'Correção de arquivos SPED' },
-    { value: 'lancaapae', label: 'Lança APAE', description: 'Importação de arquivos APAE' },
-    { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
-    { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
-    { value: 'contabil', label: 'Dados Contábeis', description: 'Balancete, DRE, plano de contas' },
-  ],
-  // Conversores > Extrato
-  extrato: [
-    { value: 'ofx', label: 'OFX', description: 'Arquivos OFX bancários' },
-    { value: 'pdf', label: 'PDF', description: 'Extratos em PDF' },
-    { value: 'documentos', label: 'Documentos Gerais', description: 'Outros formatos' },
-  ],
-  // ConfereSped > Conferência
+  // Messenger > Comunicação
   conferencia: [
     { value: 'validacao', label: 'Validação', description: 'Validação de registros SPED' },
     { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
