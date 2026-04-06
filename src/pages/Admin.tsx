@@ -479,12 +479,6 @@ const Admin: React.FC = () => {
             <TabsTrigger value="creation" className="gap-2">
               <Pencil className="w-4 h-4" /> Criação/Edição
             </TabsTrigger>
-            <TabsTrigger value="layouts" className="gap-2">
-              <FileCode className="w-4 h-4" /> Layouts
-            </TabsTrigger>
-            <TabsTrigger value="learning" className="gap-2">
-              <Wand2 className="w-4 h-4" /> Aprendizado
-            </TabsTrigger>
           </TabsList>
 
           {/* Dashboard Tab */}
