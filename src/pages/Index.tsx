@@ -1,4 +1,4 @@
-import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
+import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 
