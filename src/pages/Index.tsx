@@ -312,7 +312,7 @@ const Index = () => {
                     >
                       {mod.title}
                     </span>
-                    <span className="text-[10px] text-foreground/60 leading-tight text-center px-1">
+                    <span className="text-[10px] text-foreground/80 leading-tight text-center px-1">
                       {mod.tagline}
                     </span>
                   </motion.button>
