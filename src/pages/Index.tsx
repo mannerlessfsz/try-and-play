@@ -127,7 +127,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-hidden" onClick={() => setExpandedModule(null)}>
       <GradientMesh />
 
       {/* Grid overlay */}
