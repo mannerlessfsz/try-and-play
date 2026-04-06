@@ -973,15 +973,6 @@ const Admin: React.FC = () => {
             <CreationEditionManager />
           </TabsContent>
 
-          {/* Layouts Tab */}
-          <TabsContent value="layouts">
-            <LayoutDocumentosManager />
-          </TabsContent>
-
-          {/* Learning Wizard Tab */}
-          <TabsContent value="learning">
-            <LayoutLearningWizard />
-          </TabsContent>
 
         </Tabs>
       </main>
