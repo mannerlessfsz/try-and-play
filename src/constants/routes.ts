@@ -89,14 +89,6 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     module: 'gestao',
   },
   {
-    path: '/conversores',
-    name: 'Conversores',
-    type: 'module',
-    requires: 'Permissão: conversores',
-    description: 'Conversão de arquivos',
-    module: 'conversores',
-  },
-  {
     path: '/messenger',
     name: 'Messenger',
     type: 'module',

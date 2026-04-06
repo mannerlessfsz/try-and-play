@@ -47,8 +47,6 @@ export type AppSubModule =
   | 'tarefas'
   // Sub-módulos de outros módulos
   | 'kanban'
-  | 'fiscal'
-  | 'extrato'
   | 'conferencia'
   | 'comunicacao';
 
