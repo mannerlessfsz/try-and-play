@@ -191,38 +191,14 @@ const Index = () => {
       <div className="relative z-10 min-h-screen flex items-center justify-center">
         <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2 }}>
 
-          {/* Center Hub */}
+          {/* Center convergence point */}
           <motion.div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-none"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.3, type: "spring", stiffness: 200, damping: 20 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
           >
-            <div className="relative">
-              <motion.div
-                className="absolute inset-0 rounded-full border border-primary/20"
-                style={{ margin: -16 }}
-                animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
-                transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              />
-              <motion.div
-                className="absolute inset-0 rounded-full border border-accent/15"
-                style={{ margin: -28 }}
-                animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0, 0.2] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              />
-
-              <button
-                onClick={() => setExpandedModule(null)}
-                className="w-28 h-28 rounded-full bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-2xl border border-border/50 flex flex-col items-center justify-center gap-1.5 hover:border-primary/40 transition-all duration-300 group"
-                style={{
-                  boxShadow: '0 0 80px hsl(var(--primary) / 0.12), 0 0 160px hsl(var(--accent) / 0.06)',
-                }}
-              >
-                <Hexagon className="w-7 h-7 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[10px] font-bold tracking-[0.15em] text-muted-foreground uppercase">HUB</span>
-              </button>
-            </div>
+            <div className="w-3 h-3 rounded-full bg-border/30" />
           </motion.div>
 
           {/* Orbit ring */}
@@ -257,10 +233,10 @@ const Index = () => {
                     <motion.line
                       x1={0} y1={0}
                       x2={pos.x} y2={pos.y}
-                      stroke={isExpanded ? accent : 'hsl(var(--border))'}
-                      strokeWidth={isExpanded ? 2 : 0.8}
+                      stroke={accent}
+                      strokeWidth={isExpanded ? 2 : 1}
                       strokeDasharray={isExpanded ? "none" : "4 4"}
-                      strokeOpacity={isExpanded ? 0.5 : 0.3}
+                      strokeOpacity={isExpanded ? 0.5 : 0.2}
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
                       transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
