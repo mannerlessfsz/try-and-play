@@ -371,7 +371,7 @@ const Index = () => {
                             whileTap={{ scale: 0.9 }}
                           >
                             {action.icon}
-                            <span className="text-[8px] font-semibold tracking-wide" style={{ color: accent }}>
+                            <span className="text-[9px] font-bold tracking-wide" style={{ color: accent }}>
                               {action.label}
                             </span>
 
