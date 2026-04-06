@@ -84,12 +84,6 @@ export const APP_MODULES: {
     color: 'bg-blue-500',
   },
   {
-    value: 'conversores',
-    label: 'Conversores',
-    description: 'Conversão de arquivos fiscais, extratos e documentos',
-    color: 'bg-green-500',
-  },
-  {
     value: 'messenger',
     label: 'Messenger',
     description: 'Comunicação via WhatsApp Business',
