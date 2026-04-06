@@ -31,7 +31,6 @@ export type AppRole = 'admin' | 'manager' | 'user';
 export type AppModule = 
   | 'taskvault' 
   | 'gestao' 
-  | 'conversores' 
   | 'messenger'
   // Legados (mantidos para compatibilidade com banco de dados)
   | 'financialace' 
