@@ -312,7 +312,6 @@ export function AdminDashboard() {
       const moduleLabels: Record<string, string> = {
         gestao: 'GESTÃO',
         taskvault: 'TaskVault',
-        conversores: 'Conversores',
         messenger: 'Messenger',
       };
       
