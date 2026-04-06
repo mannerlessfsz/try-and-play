@@ -232,44 +232,6 @@ const basicPermissionTree: ModuleTree[] = [
     ]
   },
   {
-    id: 'conversores',
-    label: 'CONVERSORES',
-    icon: <RefreshCw className="w-5 h-5" />,
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-500/10 border-cyan-500/30',
-    children: [
-      {
-        id: 'fiscal',
-        label: 'Fiscal',
-        icon: <FileText className="w-4 h-4" />,
-        children: [
-          { id: 'ajustasped', label: 'Ajusta SPED (processar)' },
-          { id: 'lancaapae', label: 'Lança APAE (importar)' },
-          { id: 'download', label: 'Download arquivos convertidos' },
-        ]
-      },
-      {
-        id: 'extrato',
-        label: 'Extrato',
-        icon: <Landmark className="w-4 h-4" />,
-        children: [
-          { id: 'ofx', label: 'Converter OFX' },
-          { id: 'pdf', label: 'Converter PDF' },
-          { id: 'download', label: 'Download arquivos' },
-        ]
-      },
-      {
-        id: 'sistemas',
-        label: 'Sistemas Legados',
-        icon: <Home className="w-4 h-4" />,
-        children: [
-          { id: 'casa', label: 'Conversor CASA' },
-          { id: 'lider', label: 'Conversor LÍDER' },
-        ]
-      },
-    ]
-  },
-  {
     id: 'messenger',
     label: 'MESSENGER',
     icon: <MessageCircle className="w-5 h-5" />,
@@ -480,53 +442,6 @@ const proPermissionTree: ModuleTree[] = [
               { id: 'export', label: 'Exportar relatórios' },
             ]
           },
-        ]
-      },
-    ]
-  },
-  {
-    id: 'conversores',
-    label: 'CONVERSORES PRO',
-    icon: <RefreshCw className="w-5 h-5" />,
-    color: 'text-cyan-500',
-    bgColor: 'bg-gradient-to-r from-cyan-500/10 to-teal-500/10 border-cyan-500/30',
-    children: [
-      {
-        id: 'fiscal',
-        label: 'Fiscal (Básico +)',
-        icon: <FileText className="w-4 h-4" />,
-        children: [
-          { id: 'conferesped', label: 'Conferir SPED (validação)', proOnly: true },
-          { id: 'relatorios', label: 'Relatórios de conferência', proOnly: true },
-          { id: 'historico', label: 'Histórico de conversões', proOnly: true },
-        ]
-      },
-      {
-        id: 'extrato',
-        label: 'Extrato (Básico +)',
-        icon: <Landmark className="w-4 h-4" />,
-        children: [
-          { id: 'batch', label: 'Processamento em lote (batch)', proOnly: true },
-        ]
-      },
-      {
-        id: 'sistemas',
-        label: 'Sistemas (Básico +)',
-        icon: <Home className="w-4 h-4" />,
-        children: [
-          { id: 'regras', label: 'Regras de exclusão personalizadas', proOnly: true },
-          { id: 'export_config', label: 'Exportar configurações', proOnly: true },
-        ]
-      },
-      {
-        id: 'contabil',
-        label: 'Contábil',
-        icon: <PieChart className="w-4 h-4" />,
-        proOnly: true,
-        children: [
-          { id: 'balancete', label: 'Converter Balancete' },
-          { id: 'dre', label: 'Converter DRE' },
-          { id: 'plano', label: 'Converter Plano de Contas' },
         ]
       },
     ]

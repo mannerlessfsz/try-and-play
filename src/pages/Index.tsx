@@ -1,4 +1,4 @@
-import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, RefreshCw, Zap } from "lucide-react";
+import { CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 
@@ -43,14 +43,6 @@ const features: FeatureConfig[] = [
     variant: "orange",
     href: "/messenger",
     module: "messenger",
-  },
-  {
-    icon: <RefreshCw className="w-6 h-6" />,
-    title: "CONVERSORES",
-    description: "Converta arquivos fiscais, extratos, SPED, APAE, CASA e LÍDER",
-    variant: "cyan",
-    href: "/conversores",
-    module: "conversores",
   },
 ];
 

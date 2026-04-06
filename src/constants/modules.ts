@@ -31,7 +31,6 @@ export type AppRole = 'admin' | 'manager' | 'user';
 export type AppModule = 
   | 'taskvault' 
   | 'gestao' 
-  | 'conversores' 
   | 'messenger'
   // Legados (mantidos para compatibilidade com banco de dados)
   | 'financialace' 
@@ -48,8 +47,6 @@ export type AppSubModule =
   | 'tarefas'
   // Sub-módulos de outros módulos
   | 'kanban'
-  | 'fiscal'
-  | 'extrato'
   | 'conferencia'
   | 'comunicacao';
 
@@ -85,12 +82,6 @@ export const APP_MODULES: {
     color: 'bg-blue-500',
   },
   {
-    value: 'conversores',
-    label: 'Conversores',
-    description: 'Conversão de arquivos fiscais, extratos e documentos',
-    color: 'bg-green-500',
-  },
-  {
     value: 'messenger',
     label: 'Messenger',
     description: 'Comunicação via WhatsApp Business',
@@ -104,7 +95,6 @@ export const APP_MODULES: {
 export const MODULE_LABELS: Record<AppModule, string> = {
   taskvault: 'TaskVault',
   gestao: 'GESTÃO',
-  conversores: 'Conversores',
   messenger: 'Messenger',
   // Legados - apontam para os novos
   financialace: 'GESTÃO',
@@ -119,8 +109,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
 export const LEGACY_MODULE_MAP: Record<string, AppModule> = {
   'financialace': 'gestao',
   'erp': 'gestao',
-  'ajustasped': 'conversores',
-  'conferesped': 'conversores',
+  'ajustasped': 'gestao',
+  'conferesped': 'gestao',
 };
 
 /**
@@ -153,10 +143,6 @@ export const MODULE_SUB_MODULES: Record<AppModule, SubModuleDefinition[]> = {
   ],
   taskvault: [
     { value: 'kanban', label: 'Kanban', description: 'Gestão visual de tarefas' },
-  ],
-  conversores: [
-    { value: 'fiscal', label: 'Fiscal', description: 'Conversão de arquivos fiscais' },
-    { value: 'extrato', label: 'Extrato', description: 'Conversão de extratos bancários' },
   ],
   messenger: [
     { value: 'comunicacao', label: 'Comunicação', description: 'Conversas, contatos e mensagens' },
@@ -221,21 +207,7 @@ export const SUB_MODULE_RESOURCES: Record<AppSubModule, ResourceDefinition[]> = 
     { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
     { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
   ],
-  // Conversores > Fiscal
-  fiscal: [
-    { value: 'ajustasped', label: 'Ajusta SPED', description: 'Correção de arquivos SPED' },
-    { value: 'lancaapae', label: 'Lança APAE', description: 'Importação de arquivos APAE' },
-    { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
-    { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
-    { value: 'contabil', label: 'Dados Contábeis', description: 'Balancete, DRE, plano de contas' },
-  ],
-  // Conversores > Extrato
-  extrato: [
-    { value: 'ofx', label: 'OFX', description: 'Arquivos OFX bancários' },
-    { value: 'pdf', label: 'PDF', description: 'Extratos em PDF' },
-    { value: 'documentos', label: 'Documentos Gerais', description: 'Outros formatos' },
-  ],
-  // ConfereSped > Conferência
+  // Messenger > Comunicação
   conferencia: [
     { value: 'validacao', label: 'Validação', description: 'Validação de registros SPED' },
     { value: 'relatorios', label: 'Relatórios', description: 'Relatórios de conferência' },
@@ -291,16 +263,6 @@ export const MODULE_RESOURCES: Record<AppModule, ResourceDefinition[]> = {
     { value: 'atividades', label: 'Atividades', description: 'Histórico de atividades' },
     { value: 'arquivos', label: 'Arquivos', description: 'Anexos das tarefas' },
     { value: 'kanban', label: 'Kanban', description: 'Visualização Kanban' },
-  ],
-  conversores: [
-    { value: 'fiscal', label: 'Arquivos Fiscais', description: 'XML de NF-e, SPED, CT-e' },
-    { value: 'extrato', label: 'Extratos Bancários', description: 'OFX, PDF para CSV/Excel' },
-    { value: 'documentos', label: 'Documentos Gerais', description: 'PDF, texto, planilhas' },
-    { value: 'contabil', label: 'Dados Contábeis', description: 'Balancete, DRE, plano de contas' },
-    { value: 'ajustasped', label: 'Ajusta SPED', description: 'Correção de arquivos SPED' },
-    { value: 'lancaapae', label: 'Lança APAE', description: 'Importação de arquivos APAE' },
-    { value: 'casa', label: 'Conversor CASA', description: 'Arquivos do sistema CASA' },
-    { value: 'lider', label: 'Conversor LÍDER', description: 'Arquivos do sistema LÍDER' },
   ],
   messenger: [
     { value: 'conversas', label: 'Conversas', description: 'Gerenciamento de conversas' },

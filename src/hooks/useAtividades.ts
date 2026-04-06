@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Atividade } from "@/types/task";
 
-export type ModuloAtividade = "taskvault" | "ajustasped" | "conferesped" | "gestao" | "conversores" | "admin";
+export type ModuloAtividade = "taskvault" | "gestao" | "admin";
 
 export function useAtividades(modulo?: ModuloAtividade, empresaId?: string) {
   const [atividades, setAtividades] = useState<Atividade[]>([]);

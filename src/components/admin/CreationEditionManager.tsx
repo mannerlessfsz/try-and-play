@@ -49,7 +49,6 @@ interface Logica {
 }
 
 const MODULOS = [
-  'conversores',
   'financialace',
   'taskvault',
   'erp',
