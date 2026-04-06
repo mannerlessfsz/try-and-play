@@ -232,44 +232,6 @@ const basicPermissionTree: ModuleTree[] = [
     ]
   },
   {
-    id: 'conversores',
-    label: 'CONVERSORES',
-    icon: <RefreshCw className="w-5 h-5" />,
-    color: 'text-cyan-500',
-    bgColor: 'bg-cyan-500/10 border-cyan-500/30',
-    children: [
-      {
-        id: 'fiscal',
-        label: 'Fiscal',
-        icon: <FileText className="w-4 h-4" />,
-        children: [
-          { id: 'ajustasped', label: 'Ajusta SPED (processar)' },
-          { id: 'lancaapae', label: 'Lança APAE (importar)' },
-          { id: 'download', label: 'Download arquivos convertidos' },
-        ]
-      },
-      {
-        id: 'extrato',
-        label: 'Extrato',
-        icon: <Landmark className="w-4 h-4" />,
-        children: [
-          { id: 'ofx', label: 'Converter OFX' },
-          { id: 'pdf', label: 'Converter PDF' },
-          { id: 'download', label: 'Download arquivos' },
-        ]
-      },
-      {
-        id: 'sistemas',
-        label: 'Sistemas Legados',
-        icon: <Home className="w-4 h-4" />,
-        children: [
-          { id: 'casa', label: 'Conversor CASA' },
-          { id: 'lider', label: 'Conversor LÍDER' },
-        ]
-      },
-    ]
-  },
-  {
     id: 'messenger',
     label: 'MESSENGER',
     icon: <MessageCircle className="w-5 h-5" />,
