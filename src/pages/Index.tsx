@@ -193,15 +193,15 @@ const Index = () => {
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 100,
-            height: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 100,
+            width: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
+            height: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
             background: `
-              radial-gradient(circle, hsl(0 85% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle at 30% 70%, hsl(210 100% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle at 70% 70%, hsl(25 100% 55% / 0.04) 0%, transparent 40%),
-              radial-gradient(circle, hsl(var(--card) / 0.3) 0%, transparent 60%)
+              radial-gradient(circle, hsl(0 0% 100% / 0.06) 0%, hsl(0 0% 100% / 0.03) 30%, transparent 60%),
+              radial-gradient(circle, hsl(0 85% 55% / 0.05) 0%, transparent 35%),
+              radial-gradient(circle at 30% 70%, hsl(210 100% 55% / 0.05) 0%, transparent 35%),
+              radial-gradient(circle at 70% 70%, hsl(25 100% 55% / 0.05) 0%, transparent 35%)
             `,
-            filter: 'blur(40px)',
+            filter: 'blur(30px)',
           }}
         />
         <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2 }}>
@@ -280,12 +280,12 @@ const Index = () => {
                       ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
                     `}
                     style={{
-                      backgroundColor: isExpanded ? `${accent}22` : 'hsl(var(--card) / 0.85)',
-                      borderColor: isExpanded ? `${accent}90` : `${accent}40`,
+                      backgroundColor: isExpanded ? `hsl(0 0% 12% / 0.95)` : 'hsl(0 0% 10% / 0.95)',
+                      borderColor: isExpanded ? `${accent}90` : `${accent}50`,
                       boxShadow: isExpanded
-                        ? `0 0 50px ${accent}30, 0 0 100px ${accent}10`
-                        : `0 0 20px ${accent}08`,
-                      backdropFilter: 'blur(20px)',
+                        ? `0 0 50px ${accent}30, 0 0 100px ${accent}10, inset 0 0 30px hsl(0 0% 100% / 0.04)`
+                        : `0 0 20px ${accent}10, inset 0 0 20px hsl(0 0% 100% / 0.03)`,
+                      backdropFilter: 'blur(24px)',
                     }}
                     whileHover={hasAccess ? {
                       scale: 1.1,
@@ -312,7 +312,7 @@ const Index = () => {
                     >
                       {mod.title}
                     </span>
-                    <span className="text-[10px] text-foreground/60 leading-tight text-center px-1">
+                    <span className="text-[10px] text-foreground/80 leading-tight text-center px-1">
                       {mod.tagline}
                     </span>
                   </motion.button>
@@ -359,8 +359,8 @@ const Index = () => {
                             onClick={() => navigate(action.href)}
                             className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
-                              backgroundColor: `${accent}18`,
-                              borderColor: `${accent}50`,
+                              backgroundColor: `hsl(0 0% 10% / 0.92)`,
+                              borderColor: `${accent}60`,
                               color: accent,
                             }}
                             whileHover={{
@@ -416,9 +416,9 @@ const Index = () => {
                       onClick={() => navigate(mod.href)}
                       className="flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-2xl transition-all duration-300 hover:scale-105 group"
                       style={{
-                        backgroundColor: 'hsl(var(--card) / 0.7)',
-                        borderColor: `${accent}30`,
-                        boxShadow: `0 0 40px ${accent}10`,
+                        backgroundColor: 'hsl(0 0% 10% / 0.95)',
+                        borderColor: `${accent}40`,
+                        boxShadow: `0 0 40px ${accent}15, inset 0 0 20px hsl(0 0% 100% / 0.03)`,
                       }}
                     >
                       <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${accent}15`, color: accent }}>
