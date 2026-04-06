@@ -38,7 +38,6 @@ import {
 const MODULE_ICONS: Record<string, React.ReactNode> = {
   taskvault: <CheckSquare className="w-5 h-5" />,
   gestao: <Layers className="w-5 h-5" />,
-  conversores: <RefreshCw className="w-5 h-5" />,
   messenger: <MessageCircle className="w-5 h-5" />,
 };
 
