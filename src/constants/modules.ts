@@ -111,8 +111,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
 export const LEGACY_MODULE_MAP: Record<string, AppModule> = {
   'financialace': 'gestao',
   'erp': 'gestao',
-  'ajustasped': 'conversores',
-  'conferesped': 'conversores',
+  'ajustasped': 'gestao',
+  'conferesped': 'gestao',
 };
 
 /**
