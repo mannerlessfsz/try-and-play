@@ -146,10 +146,6 @@ export const MODULE_SUB_MODULES: Record<AppModule, SubModuleDefinition[]> = {
   taskvault: [
     { value: 'kanban', label: 'Kanban', description: 'Gestão visual de tarefas' },
   ],
-  conversores: [
-    { value: 'fiscal', label: 'Fiscal', description: 'Conversão de arquivos fiscais' },
-    { value: 'extrato', label: 'Extrato', description: 'Conversão de extratos bancários' },
-  ],
   messenger: [
     { value: 'comunicacao', label: 'Comunicação', description: 'Conversas, contatos e mensagens' },
   ],
