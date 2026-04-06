@@ -23,8 +23,6 @@ import { AuditLogViewer } from '@/components/admin/AuditLogViewer';
 import SystemArchitectureViewer from '@/components/admin/SystemArchitectureViewer';
 import { CreationEditionManager } from '@/components/admin/CreationEditionManager';
 import { UserPermissionsManager } from '@/components/admin/UserPermissionsManager';
-import { LayoutDocumentosManager } from '@/components/admin/LayoutDocumentosManager';
-import { LayoutLearningWizard } from '@/components/admin/LayoutLearningWizard';
 
 import { 
   ArrowLeft, 
