@@ -262,7 +262,7 @@ const Index = () => {
                   scale: 1,
                   opacity: 1,
                   x: pos.x - (isExpanded ? 180 : 120),
-                  y: pos.y - (isExpanded ? 'auto' : 80),
+                  y: pos.y - (isExpanded ? 200 : 80),
                 }}
                 style={{
                   x: pos.x - (isExpanded ? 180 : 120),
