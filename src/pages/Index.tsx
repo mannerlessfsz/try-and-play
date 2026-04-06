@@ -307,12 +307,12 @@ const Index = () => {
                       {hasAccess ? mod.icon : <Lock className="w-6 h-6" />}
                     </div>
                     <span
-                      className="text-[11px] font-bold tracking-wider"
-                      style={{ color: isExpanded ? accent : 'hsl(var(--muted-foreground))' }}
+                      className="text-[12px] font-bold tracking-wider"
+                      style={{ color: accent }}
                     >
                       {mod.title}
                     </span>
-                    <span className="text-[9px] text-muted-foreground/70 leading-tight text-center px-1">
+                    <span className="text-[10px] text-foreground/60 leading-tight text-center px-1">
                       {mod.tagline}
                     </span>
                   </motion.button>
