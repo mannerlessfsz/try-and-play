@@ -258,7 +258,7 @@ const Index = () => {
                   transition={{ delay: 0.5 + index * 0.12, type: "spring", stiffness: 180, damping: 18 }}
                 >
                   <motion.button
-                    onClick={() => hasAccess && toggleModule(mod.id)}
+                    onClick={(e) => { e.stopPropagation(); hasAccess && toggleModule(mod.id); }}
                     disabled={!hasAccess}
                     className={`
                       relative w-28 h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all duration-300
