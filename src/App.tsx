@@ -39,7 +39,7 @@ const Admin = lazy(() => lazyRetry(() => import("./pages/Admin")));
 const TaskVault = lazy(() => lazyRetry(() => import("./pages/TaskVault")));
 const Messenger = lazy(() => lazyRetry(() => import("./pages/Messenger")));
 const FinancialACE = lazy(() => lazyRetry(() => import("./pages/FinancialACE")));
-const Conversores = lazy(() => lazyRetry(() => import("./pages/Conversores")));
+
 const UsuariosAdmin = lazy(() => lazyRetry(() => import("./pages/UsuariosAdmin")));
 const InstallApp = lazy(() => lazyRetry(() => import("./pages/InstallApp")));
 
