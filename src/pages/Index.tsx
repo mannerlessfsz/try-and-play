@@ -233,10 +233,10 @@ const Index = () => {
                     <motion.line
                       x1={0} y1={0}
                       x2={pos.x} y2={pos.y}
-                      stroke={isExpanded ? accent : 'hsl(var(--border))'}
-                      strokeWidth={isExpanded ? 2 : 0.8}
+                      stroke={accent}
+                      strokeWidth={isExpanded ? 2 : 1}
                       strokeDasharray={isExpanded ? "none" : "4 4"}
-                      strokeOpacity={isExpanded ? 0.5 : 0.3}
+                      strokeOpacity={isExpanded ? 0.5 : 0.2}
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
                       transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
