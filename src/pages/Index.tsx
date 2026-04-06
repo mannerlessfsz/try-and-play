@@ -44,14 +44,6 @@ const features: FeatureConfig[] = [
     href: "/messenger",
     module: "messenger",
   },
-  {
-    icon: <RefreshCw className="w-6 h-6" />,
-    title: "CONVERSORES",
-    description: "Converta arquivos fiscais, extratos, SPED, APAE, CASA e LÍDER",
-    variant: "cyan",
-    href: "/conversores",
-    module: "conversores",
-  },
 ];
 
 const containerVariants = {
