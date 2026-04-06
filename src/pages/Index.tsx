@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap,
   ListTodo, Building2, Eye, BarChart3, Users, Package, ShoppingCart,
   Wallet, FileText, PieChart, Send, BookOpen, Bot,
-  ChevronRight, Lock, Hexagon, Clock, TrendingUp, Target, Layers
+  ChevronRight, Lock, Hexagon
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -25,82 +25,64 @@ interface HudModule {
   icon: React.ReactNode;
   title: string;
   tagline: string;
-  description: string;
   accentHsl: string;
   module: AppModule;
   href: string;
-  stats: { label: string; value: string; icon: React.ReactNode }[];
   actions: HudAction[];
 }
 
 const modules: HudModule[] = [
   {
     id: "taskvault",
-    icon: <CheckSquare className="w-8 h-8" />,
+    icon: <CheckSquare className="w-7 h-7" />,
     title: "TASKVAULT",
-    tagline: "Gestão de tarefas e projetos",
-    description: "Controle completo de tarefas, projetos e produtividade da equipe com Kanban, timeline e automações.",
+    tagline: "Gestão de tarefas",
     accentHsl: "0 85% 55%",
     module: "taskvault",
     href: "/taskvault",
-    stats: [
-      { label: "Pendentes", value: "—", icon: <Clock className="w-3.5 h-3.5" /> },
-      { label: "Empresas", value: "—", icon: <Building2 className="w-3.5 h-3.5" /> },
-      { label: "Concluídas", value: "—", icon: <Target className="w-3.5 h-3.5" /> },
-    ],
     actions: [
-      { icon: <ListTodo className="w-4 h-4" />, label: "Minhas Tarefas", description: "Kanban e lista de tarefas ativas", href: "/taskvault" },
-      { icon: <Building2 className="w-4 h-4" />, label: "Empresas", description: "Cadastro e gestão de empresas", href: "/taskvault" },
-      { icon: <Eye className="w-4 h-4" />, label: "Visão Geral", description: "Dashboard com métricas e heatmap", href: "/taskvault" },
-      { icon: <BarChart3 className="w-4 h-4" />, label: "Relatórios", description: "Análises de produtividade", href: "/taskvault" },
+      { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", description: "Kanban e lista", href: "/taskvault" },
+      { icon: <Building2 className="w-5 h-5" />, label: "Empresas", description: "Cadastro", href: "/taskvault" },
+      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", description: "Dashboard", href: "/taskvault" },
+      { icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/taskvault" },
     ],
   },
   {
     id: "gestao",
-    icon: <DollarSign className="w-8 h-8" />,
+    icon: <DollarSign className="w-7 h-7" />,
     title: "GESTÃO",
-    tagline: "ERP + Financeiro integrado",
-    description: "Sistema integrado de gestão: financeiro, vendas, compras, estoque e relatórios gerenciais.",
+    tagline: "ERP + Financeiro",
     accentHsl: "210 100% 55%",
     module: "gestao",
     href: "/gestao",
-    stats: [
-      { label: "Transações", value: "—", icon: <TrendingUp className="w-3.5 h-3.5" /> },
-      { label: "Clientes", value: "—", icon: <Users className="w-3.5 h-3.5" /> },
-      { label: "Produtos", value: "—", icon: <Package className="w-3.5 h-3.5" /> },
-    ],
     actions: [
-      { icon: <Wallet className="w-4 h-4" />, label: "Financeiro", description: "Contas, transações e fluxo de caixa", href: "/gestao" },
-      { icon: <Users className="w-4 h-4" />, label: "Clientes", description: "Cadastro e histórico de clientes", href: "/gestao" },
-      { icon: <Package className="w-4 h-4" />, label: "Produtos", description: "Catálogo e controle de estoque", href: "/gestao" },
-      { icon: <ShoppingCart className="w-4 h-4" />, label: "Vendas", description: "Orçamentos, pedidos e faturamento", href: "/gestao" },
-      { icon: <FileText className="w-4 h-4" />, label: "Compras", description: "Pedidos de compra e recebimentos", href: "/gestao" },
-      { icon: <PieChart className="w-4 h-4" />, label: "Relatórios", description: "Análises e demonstrativos", href: "/gestao" },
+      { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", description: "Contas e fluxo", href: "/gestao" },
+      { icon: <Users className="w-5 h-5" />, label: "Clientes", description: "Cadastro", href: "/gestao" },
+      { icon: <Package className="w-5 h-5" />, label: "Produtos", description: "Estoque", href: "/gestao" },
+      { icon: <ShoppingCart className="w-5 h-5" />, label: "Vendas", description: "Pedidos", href: "/gestao" },
+      { icon: <FileText className="w-5 h-5" />, label: "Compras", description: "Fornecedores", href: "/gestao" },
+      { icon: <PieChart className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/gestao" },
     ],
   },
   {
     id: "messenger",
-    icon: <MessageCircle className="w-8 h-8" />,
+    icon: <MessageCircle className="w-7 h-7" />,
     title: "MESSENGER",
-    tagline: "Comunicação unificada",
-    description: "Central de comunicação interna e externa com chat em tempo real, templates e integração com contatos.",
+    tagline: "Comunicação",
     accentHsl: "25 100% 55%",
     module: "messenger",
     href: "/messenger",
-    stats: [
-      { label: "Mensagens", value: "—", icon: <Send className="w-3.5 h-3.5" /> },
-      { label: "Contatos", value: "—", icon: <BookOpen className="w-3.5 h-3.5" /> },
-      { label: "Templates", value: "—", icon: <Layers className="w-3.5 h-3.5" /> },
-    ],
     actions: [
-      { icon: <Send className="w-4 h-4" />, label: "Conversas", description: "Chat em tempo real", href: "/messenger" },
-      { icon: <BookOpen className="w-4 h-4" />, label: "Contatos", description: "Lista de contatos e grupos", href: "/messenger" },
-      { icon: <Bot className="w-4 h-4" />, label: "Templates", description: "Modelos de mensagens rápidas", href: "/messenger" },
+      { icon: <Send className="w-5 h-5" />, label: "Conversas", description: "Chat em tempo real", href: "/messenger" },
+      { icon: <BookOpen className="w-5 h-5" />, label: "Contatos", description: "Lista e grupos", href: "/messenger" },
+      { icon: <Bot className="w-5 h-5" />, label: "Templates", description: "Mensagens rápidas", href: "/messenger" },
     ],
   },
 ];
 
-// Layout: 3 large cards arranged in a triangular/radial pattern around a center hub
+const WHEEL_RADIUS = 260;
+const ACTION_RADIUS = 160;
+
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -112,12 +94,37 @@ const Index = () => {
     setExpandedModule(prev => prev === id ? null : id);
   };
 
-  // Positions around center — top, bottom-left, bottom-right
-  const positions = [
-    { x: 0, y: -280 },      // top
-    { x: -320, y: 180 },    // bottom-left
-    { x: 320, y: 180 },     // bottom-right
-  ];
+  const modulePositions = useMemo(() => {
+    const count = modules.length;
+    const startAngle = -90;
+    const totalArc = 360;
+    return modules.map((_, i) => {
+      const angleDeg = startAngle + (totalArc / count) * i;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      return {
+        x: Math.cos(angleRad) * WHEEL_RADIUS,
+        y: Math.sin(angleRad) * WHEEL_RADIUS,
+        angleDeg,
+      };
+    });
+  }, []);
+
+  const getActionPositions = (moduleIndex: number, actionCount: number) => {
+    const moduleAngle = modulePositions[moduleIndex].angleDeg;
+    const fanSpread = Math.min(actionCount * 30, 150);
+    const startAngle = moduleAngle - fanSpread / 2;
+
+    return Array.from({ length: actionCount }, (_, i) => {
+      const angleDeg = actionCount === 1
+        ? moduleAngle
+        : startAngle + (fanSpread / (actionCount - 1)) * i;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      return {
+        x: Math.cos(angleRad) * ACTION_RADIUS,
+        y: Math.sin(angleRad) * ACTION_RADIUS,
+      };
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -180,9 +187,9 @@ const Index = () => {
         </div>
       </motion.div>
 
-      {/* HUD Wheel */}
+      {/* Wheel HUD */}
       <div className="relative z-10 min-h-screen flex items-center justify-center">
-        <div className="relative" style={{ width: 900, height: 700 }}>
+        <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2 }}>
 
           {/* Center Hub */}
           <motion.div
@@ -195,15 +202,16 @@ const Index = () => {
               <motion.div
                 className="absolute inset-0 rounded-full border border-primary/20"
                 style={{ margin: -16 }}
-                animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
+                animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
               />
               <motion.div
                 className="absolute inset-0 rounded-full border border-accent/15"
                 style={{ margin: -28 }}
-                animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
+                animate={{ scale: [1, 1.4, 1], opacity: [0.2, 0, 0.2] }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
               />
+
               <button
                 onClick={() => setExpandedModule(null)}
                 className="w-28 h-28 rounded-full bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-2xl border border-border/50 flex flex-col items-center justify-center gap-1.5 hover:border-primary/40 transition-all duration-300 group"
@@ -212,228 +220,234 @@ const Index = () => {
                 }}
               >
                 <Hexagon className="w-7 h-7 text-primary group-hover:scale-110 transition-transform" />
-                <span className="text-[9px] font-bold tracking-[0.15em] text-muted-foreground uppercase">HUB</span>
+                <span className="text-[10px] font-bold tracking-[0.15em] text-muted-foreground uppercase">HUB</span>
               </button>
             </div>
           </motion.div>
 
-          {/* Connection lines from center */}
-          {modules.map((mod, index) => {
-            const pos = positions[index];
-            const isExpanded = expandedModule === mod.id;
-            const accent = `hsl(${mod.accentHsl})`;
-            return (
-              <motion.svg
-                key={`line-${mod.id}`}
-                className="absolute top-1/2 left-1/2 pointer-events-none"
-                style={{ width: 1, height: 1, overflow: 'visible' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 + index * 0.1 }}
-              >
-                <motion.line
-                  x1={0} y1={0}
-                  x2={pos.x} y2={pos.y}
-                  stroke={isExpanded ? accent : 'hsl(var(--border))'}
-                  strokeWidth={isExpanded ? 2 : 0.8}
-                  strokeDasharray={isExpanded ? "none" : "6 6"}
-                  strokeOpacity={isExpanded ? 0.5 : 0.25}
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ delay: 0.6 + index * 0.1, duration: 0.5 }}
-                />
-              </motion.svg>
-            );
-          })}
+          {/* Orbit ring */}
+          <motion.div
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-border/20 pointer-events-none"
+            style={{ width: WHEEL_RADIUS * 2, height: WHEEL_RADIUS * 2 }}
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
+          />
 
-          {/* Module Cards - large, info-rich */}
+          {/* Module Nodes */}
           {modules.map((mod, index) => {
-            const pos = positions[index];
+            const pos = modulePositions[index];
             const hasAccess = hasModuleAccessFlexible(mod.module, empresaAtiva?.id);
             const isExpanded = expandedModule === mod.id;
             const accent = `hsl(${mod.accentHsl})`;
+            const actionPositions = getActionPositions(index, mod.actions.length);
 
             return (
-              <motion.div
-                key={mod.id}
-                className="absolute top-1/2 left-1/2 z-10"
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{
-                  scale: 1,
-                  opacity: 1,
-                  x: pos.x - (isExpanded ? 180 : 120),
-                  y: pos.y - (isExpanded ? 200 : 80),
-                }}
-                style={{
-                  x: pos.x - (isExpanded ? 180 : 120),
-                  y: pos.y - (isExpanded ? 200 : 80),
-                }}
-                transition={{ delay: 0.5 + index * 0.12, type: "spring", stiffness: 150, damping: 20 }}
-              >
+              <div key={mod.id}>
+                {/* Connection line from center to module */}
                 <motion.div
-                  layout
-                  onClick={() => hasAccess && toggleModule(mod.id)}
-                  className={`
-                    relative rounded-2xl border-2 backdrop-blur-2xl overflow-hidden transition-colors duration-300
-                    ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
-                  `}
-                  style={{
-                    width: isExpanded ? 360 : 240,
-                    backgroundColor: isExpanded ? `${accent}08` : 'hsl(var(--card) / 0.6)',
-                    borderColor: isExpanded ? `${accent}60` : 'hsl(var(--border) / 0.3)',
-                    boxShadow: isExpanded
-                      ? `0 0 60px ${accent}20, 0 0 120px ${accent}08, inset 0 1px 0 ${accent}15`
-                      : `0 0 20px hsl(var(--background) / 0.5)`,
-                  }}
-                  whileHover={hasAccess && !isExpanded ? {
-                    scale: 1.05,
-                    boxShadow: `0 0 40px ${accent}20`,
-                  } : {}}
-                  transition={{ layout: { duration: 0.35, type: "spring", stiffness: 200, damping: 25 } }}
+                  className="absolute top-1/2 left-1/2 pointer-events-none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
                 >
-                  {/* Glow bar top */}
-                  {isExpanded && (
-                    <motion.div
-                      className="absolute top-0 left-0 right-0 h-[2px]"
-                      style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
+                  <svg
+                    style={{ position: 'absolute', top: -1, left: -1, width: 2, height: 2, overflow: 'visible' }}
+                  >
+                    <motion.line
+                      x1={0} y1={0}
+                      x2={pos.x} y2={pos.y}
+                      stroke={isExpanded ? accent : 'hsl(var(--border))'}
+                      strokeWidth={isExpanded ? 2 : 0.8}
+                      strokeDasharray={isExpanded ? "none" : "4 4"}
+                      strokeOpacity={isExpanded ? 0.5 : 0.3}
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
                     />
-                  )}
+                  </svg>
+                </motion.div>
 
-                  {/* Card Header */}
-                  <div className="p-4 flex items-center gap-3">
-                    <div
-                      className="p-2.5 rounded-xl flex-shrink-0"
-                      style={{
-                        backgroundColor: `${accent}15`,
-                        color: hasAccess ? accent : 'hsl(var(--muted-foreground))',
-                      }}
-                    >
-                      {hasAccess ? mod.icon : <Lock className="w-8 h-8" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold tracking-wider" style={{ color: hasAccess ? accent : 'hsl(var(--muted-foreground))' }}>
-                        {mod.title}
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground">{mod.tagline}</p>
-                    </div>
-                    {hasAccess && (
+                {/* Module Node — BIGGER */}
+                <motion.div
+                  className="absolute top-1/2 left-1/2 z-10"
+                  style={{ x: pos.x, y: pos.y }}
+                  initial={{ scale: 0, opacity: 0 }}
+                  animate={{
+                    scale: 1,
+                    opacity: 1,
+                    x: pos.x - 56,
+                    y: pos.y - 56,
+                  }}
+                  transition={{ delay: 0.5 + index * 0.12, type: "spring", stiffness: 180, damping: 18 }}
+                >
+                  <motion.button
+                    onClick={() => hasAccess && toggleModule(mod.id)}
+                    disabled={!hasAccess}
+                    className={`
+                      relative w-28 h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all duration-300
+                      ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
+                    `}
+                    style={{
+                      backgroundColor: isExpanded ? `${accent}18` : 'hsl(var(--card) / 0.6)',
+                      borderColor: isExpanded ? `${accent}80` : 'hsl(var(--border) / 0.4)',
+                      boxShadow: isExpanded
+                        ? `0 0 50px ${accent}30, 0 0 100px ${accent}10`
+                        : 'none',
+                      backdropFilter: 'blur(16px)',
+                    }}
+                    whileHover={hasAccess ? {
+                      scale: 1.1,
+                      boxShadow: `0 0 40px ${accent}25`,
+                    } : {}}
+                    whileTap={hasAccess ? { scale: 0.95 } : {}}
+                  >
+                    {/* Glow ring on expanded */}
+                    {isExpanded && (
                       <motion.div
-                        animate={{ rotate: isExpanded ? 90 : 0 }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                      </motion.div>
+                        className="absolute -inset-1.5 rounded-2xl pointer-events-none"
+                        style={{ border: `1px solid ${accent}40` }}
+                        animate={{ scale: [1, 1.08, 1], opacity: [0.6, 0, 0.6] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
                     )}
-                  </div>
 
-                  {/* Stats row - always visible */}
-                  {hasAccess && (
-                    <div className="px-4 pb-3 flex gap-2">
-                      {mod.stats.map((stat) => (
-                        <div
-                          key={stat.label}
-                          className="flex-1 rounded-lg px-2 py-1.5 text-center"
-                          style={{
-                            backgroundColor: `${accent}08`,
-                            border: `1px solid ${accent}12`,
+                    <div style={{ color: hasAccess ? accent : undefined }}>
+                      {hasAccess ? mod.icon : <Lock className="w-6 h-6" />}
+                    </div>
+                    <span
+                      className="text-[11px] font-bold tracking-wider"
+                      style={{ color: isExpanded ? accent : 'hsl(var(--muted-foreground))' }}
+                    >
+                      {mod.title}
+                    </span>
+                    <span className="text-[9px] text-muted-foreground/70 leading-tight text-center px-1">
+                      {mod.tagline}
+                    </span>
+                  </motion.button>
+
+                  {/* Action Nodes (expanded outward) — BIGGER */}
+                  <AnimatePresence>
+                    {isExpanded && hasAccess && mod.actions.map((action, actionIdx) => {
+                      const aPos = actionPositions[actionIdx];
+                      return (
+                        <motion.div
+                          key={action.label}
+                          className="absolute z-10"
+                          style={{ top: 56, left: 56 }}
+                          initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                          animate={{
+                            x: aPos.x - 32,
+                            y: aPos.y - 32,
+                            scale: 1,
+                            opacity: 1,
+                          }}
+                          exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                          transition={{
+                            delay: actionIdx * 0.06,
+                            type: "spring",
+                            stiffness: 220,
+                            damping: 20,
                           }}
                         >
-                          <div className="flex items-center justify-center gap-1 text-muted-foreground mb-0.5">
-                            {stat.icon}
-                          </div>
-                          <p className="text-xs font-bold" style={{ color: accent }}>{stat.value}</p>
-                          <p className="text-[8px] text-muted-foreground uppercase tracking-wider">{stat.label}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          {/* Connection line from module to action */}
+                          <svg
+                            className="absolute pointer-events-none"
+                            style={{ top: 32, left: 32, width: 1, height: 1, overflow: 'visible' }}
+                          >
+                            <line
+                              x1={0} y1={0}
+                              x2={-aPos.x} y2={-aPos.y}
+                              stroke={accent}
+                              strokeWidth={1}
+                              strokeOpacity={0.2}
+                            />
+                          </svg>
 
-                  {/* Expanded content */}
-                  <AnimatePresence>
-                    {isExpanded && hasAccess && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                        className="overflow-hidden"
-                      >
-                        {/* Description */}
-                        <div className="px-4 pb-3">
-                          <p className="text-xs text-muted-foreground leading-relaxed">{mod.description}</p>
-                        </div>
+                          <motion.button
+                            onClick={() => navigate(action.href)}
+                            className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
+                            style={{
+                              backgroundColor: `${accent}10`,
+                              borderColor: `${accent}35`,
+                              color: accent,
+                            }}
+                            whileHover={{
+                              scale: 1.15,
+                              backgroundColor: `${accent}25`,
+                              boxShadow: `0 0 25px ${accent}30`,
+                            }}
+                            whileTap={{ scale: 0.9 }}
+                          >
+                            {action.icon}
+                            <span className="text-[8px] font-semibold tracking-wide" style={{ color: accent }}>
+                              {action.label}
+                            </span>
 
-                        {/* Separator */}
-                        <div className="mx-4 h-px" style={{ backgroundColor: `${accent}15` }} />
-
-                        {/* Actions list */}
-                        <div className="p-3 space-y-1">
-                          <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold px-1 mb-1.5">Ações Rápidas</p>
-                          {mod.actions.map((action) => (
-                            <button
-                              key={action.label}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(action.href);
-                              }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 hover:scale-[1.02] group/item text-left"
+                            {/* Tooltip with description */}
+                            <div
+                              className="absolute whitespace-nowrap px-3 py-2 rounded-lg pointer-events-none opacity-0 group-hover/action:opacity-100 transition-opacity duration-200 -top-12 flex flex-col items-center z-30"
                               style={{
-                                backgroundColor: 'hsl(var(--card) / 0.3)',
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = `${accent}12`;
-                                e.currentTarget.style.boxShadow = `0 0 15px ${accent}10`;
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'hsl(var(--card) / 0.3)';
-                                e.currentTarget.style.boxShadow = 'none';
+                                backgroundColor: 'hsl(var(--card))',
+                                border: `1px solid ${accent}30`,
+                                boxShadow: `0 4px 20px hsl(var(--background) / 0.8)`,
                               }}
                             >
-                              <div
-                                className="p-1.5 rounded-md flex-shrink-0"
-                                style={{
-                                  backgroundColor: `${accent}10`,
-                                  color: accent,
-                                }}
-                              >
-                                {action.icon}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-semibold text-foreground">{action.label}</p>
-                                <p className="text-[9px] text-muted-foreground truncate">{action.description}</p>
-                              </div>
-                              <ChevronRight className="w-3 h-3 text-muted-foreground opacity-0 group-hover/item:opacity-100 group-hover/item:translate-x-0.5 transition-all" />
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Enter module button */}
-                        <div className="p-3 pt-0">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(mod.href);
-                            }}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all duration-300 hover:scale-[1.02]"
-                            style={{
-                              backgroundColor: accent,
-                              color: 'hsl(var(--background))',
-                              boxShadow: `0 4px 20px ${accent}40`,
-                            }}
-                          >
-                            Acessar {mod.title}
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
+                              <span className="text-[11px] font-bold" style={{ color: accent }}>{action.label}</span>
+                              <span className="text-[9px] text-muted-foreground">{action.description}</span>
+                            </div>
+                          </motion.button>
+                        </motion.div>
+                      );
+                    })}
                   </AnimatePresence>
                 </motion.div>
-              </motion.div>
+              </div>
             );
           })}
+
+          {/* Module info panel (inside wheel, bottom center) */}
+          <AnimatePresence>
+            {expandedModule && (
+              <motion.div
+                className="absolute bottom-8 left-1/2 -translate-x-1/2 z-30"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ duration: 0.25 }}
+              >
+                {(() => {
+                  const mod = modules.find(m => m.id === expandedModule);
+                  if (!mod) return null;
+                  const accent = `hsl(${mod.accentHsl})`;
+                  return (
+                    <button
+                      onClick={() => navigate(mod.href)}
+                      className="flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-2xl transition-all duration-300 hover:scale-105 group"
+                      style={{
+                        backgroundColor: 'hsl(var(--card) / 0.7)',
+                        borderColor: `${accent}30`,
+                        boxShadow: `0 0 40px ${accent}10`,
+                      }}
+                    >
+                      <div className="p-2.5 rounded-xl" style={{ backgroundColor: `${accent}15`, color: accent }}>
+                        {mod.icon}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold" style={{ color: accent }}>{mod.title}</p>
+                        <p className="text-xs text-muted-foreground">{mod.tagline}</p>
+                        <p className="text-[10px] text-muted-foreground/60 mt-0.5">{mod.actions.length} ações disponíveis</p>
+                      </div>
+                      <div className="flex items-center gap-1 ml-2">
+                        <span className="text-xs font-semibold" style={{ color: accent }}>Acessar</span>
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" style={{ color: accent }} />
+                      </div>
+                    </button>
+                  );
+                })()}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
