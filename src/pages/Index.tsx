@@ -350,8 +350,8 @@ const Index = () => {
                               x1={0} y1={0}
                               x2={-aPos.x} y2={-aPos.y}
                               stroke={accent}
-                              strokeWidth={1}
-                              strokeOpacity={0.2}
+                              strokeWidth={1.2}
+                              strokeOpacity={0.35}
                             />
                           </svg>
 
