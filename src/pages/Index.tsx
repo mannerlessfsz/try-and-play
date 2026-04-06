@@ -280,12 +280,12 @@ const Index = () => {
                       ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
                     `}
                     style={{
-                      backgroundColor: isExpanded ? `${accent}18` : 'hsl(var(--card) / 0.6)',
-                      borderColor: isExpanded ? `${accent}80` : 'hsl(var(--border) / 0.4)',
+                      backgroundColor: isExpanded ? `${accent}22` : 'hsl(var(--card) / 0.85)',
+                      borderColor: isExpanded ? `${accent}90` : `${accent}40`,
                       boxShadow: isExpanded
                         ? `0 0 50px ${accent}30, 0 0 100px ${accent}10`
-                        : 'none',
-                      backdropFilter: 'blur(16px)',
+                        : `0 0 20px ${accent}08`,
+                      backdropFilter: 'blur(20px)',
                     }}
                     whileHover={hasAccess ? {
                       scale: 1.1,
