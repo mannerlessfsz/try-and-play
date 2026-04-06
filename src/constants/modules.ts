@@ -97,7 +97,6 @@ export const APP_MODULES: {
 export const MODULE_LABELS: Record<AppModule, string> = {
   taskvault: 'TaskVault',
   gestao: 'GESTÃO',
-  conversores: 'Conversores',
   messenger: 'Messenger',
   // Legados - apontam para os novos
   financialace: 'GESTÃO',
