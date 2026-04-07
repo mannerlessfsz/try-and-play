@@ -55,7 +55,7 @@ const InstallApp = () => {
         <div>
           <h1 className="text-2xl font-bold mb-2">Instalar VaultCorp</h1>
           <p className="text-sm text-muted-foreground">
-            Acesse seus conversores e ferramentas direto da tela inicial do seu dispositivo.
+            Acesse suas ferramentas direto da tela inicial do seu dispositivo.
           </p>
         </div>
 
