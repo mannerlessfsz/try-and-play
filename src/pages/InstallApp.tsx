@@ -63,8 +63,8 @@ const InstallApp = () => {
           <div className="glass rounded-xl p-6 space-y-3">
             <CheckCircle className="w-10 h-10 text-[hsl(var(--cyan))] mx-auto" />
             <p className="text-sm font-medium">App já instalado!</p>
-            <Link to="/conversores">
-              <Button variant="outline" size="sm" className="mt-2">Abrir Conversores</Button>
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm" className="mt-2">Abrir Dashboard</Button>
             </Link>
           </div>
         ) : isIOS ? (
