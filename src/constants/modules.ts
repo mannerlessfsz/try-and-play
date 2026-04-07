@@ -99,8 +99,8 @@ export const MODULE_LABELS: Record<AppModule, string> = {
   // Legados - apontam para os novos
   financialace: 'GESTÃO',
   erp: 'GESTÃO',
-  ajustasped: 'Conversores',
-  conferesped: 'Conversores',
+  ajustasped: 'Legado',
+  conferesped: 'Legado',
 };
 
 /**
