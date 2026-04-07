@@ -121,7 +121,7 @@ const InstallApp = () => {
           </div>
         </div>
 
-        <Link to="/conversores" className="block">
+        <Link to="/dashboard" className="block">
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
             Continuar no navegador
           </Button>
