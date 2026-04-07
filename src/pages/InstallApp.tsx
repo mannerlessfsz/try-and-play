@@ -55,7 +55,7 @@ const InstallApp = () => {
         <div>
           <h1 className="text-2xl font-bold mb-2">Instalar VaultCorp</h1>
           <p className="text-sm text-muted-foreground">
-            Acesse seus conversores e ferramentas direto da tela inicial do seu dispositivo.
+            Acesse suas ferramentas direto da tela inicial do seu dispositivo.
           </p>
         </div>
 
@@ -63,8 +63,8 @@ const InstallApp = () => {
           <div className="glass rounded-xl p-6 space-y-3">
             <CheckCircle className="w-10 h-10 text-[hsl(var(--cyan))] mx-auto" />
             <p className="text-sm font-medium">App já instalado!</p>
-            <Link to="/conversores">
-              <Button variant="outline" size="sm" className="mt-2">Abrir Conversores</Button>
+            <Link to="/dashboard">
+              <Button variant="outline" size="sm" className="mt-2">Abrir Dashboard</Button>
             </Link>
           </div>
         ) : isIOS ? (
@@ -121,7 +121,7 @@ const InstallApp = () => {
           </div>
         </div>
 
-        <Link to="/conversores" className="block">
+        <Link to="/dashboard" className="block">
           <Button variant="ghost" size="sm" className="text-xs text-muted-foreground">
             Continuar no navegador
           </Button>
