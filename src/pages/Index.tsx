@@ -172,9 +172,9 @@ const modules: HudModule[] = [
   },
 ];
 
-const WHEEL_RADIUS = 180;
-const ACTION_RADIUS = 140;
-const SUB_ACTION_RADIUS = 90;
+const WHEEL_RADIUS = 120;
+const ACTION_RADIUS = 160;
+const SUB_ACTION_RADIUS = 110;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -388,8 +388,8 @@ const Index = () => {
                   animate={{
                     scale: 1,
                     opacity: 1,
-                    x: pos.x - 56,
-                    y: pos.y - 56,
+                    x: pos.x - 72,
+                    y: pos.y - 72,
                   }}
                   transition={{ delay: 0.5 + index * 0.12, type: "spring", stiffness: 180, damping: 18 }}
                 >
@@ -397,7 +397,7 @@ const Index = () => {
                     onClick={(e) => { e.stopPropagation(); hasAccess && toggleModule(mod.id); }}
                     disabled={!hasAccess}
                     className={`
-                      relative w-28 h-28 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all duration-300
+                      relative w-36 h-36 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all duration-300
                       ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}
                     `}
                     style={{
@@ -427,12 +427,12 @@ const Index = () => {
                       {hasAccess ? mod.icon : <Lock className="w-6 h-6" />}
                     </div>
                     <span
-                      className="text-[12px] font-bold tracking-wider"
+                      className="text-sm font-bold tracking-wider"
                       style={{ color: accent }}
                     >
                       {mod.title}
                     </span>
-                    <span className="text-[10px] text-foreground/80 leading-tight text-center px-1">
+                    <span className="text-xs text-foreground/80 leading-tight text-center px-2">
                       {mod.tagline}
                     </span>
                   </motion.button>
@@ -452,11 +452,11 @@ const Index = () => {
                         <motion.div
                           key={action.label}
                           className="absolute z-10"
-                          style={{ top: 56, left: 56 }}
+                          style={{ top: 72, left: 72 }}
                           initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                           animate={{
-                            x: aPos.x - 32,
-                            y: aPos.y - 32,
+                             x: aPos.x - 44,
+                            y: aPos.y - 44,
                             scale: 1,
                             opacity: 1,
                           }}
@@ -471,7 +471,7 @@ const Index = () => {
                           {/* Connection line from module to action */}
                           <svg
                             className="absolute pointer-events-none"
-                            style={{ top: 32, left: 32, width: 1, height: 1, overflow: 'visible' }}
+                            style={{ top: 44, left: 44, width: 1, height: 1, overflow: 'visible' }}
                           >
                             <line
                               x1={0} y1={0}
@@ -491,7 +491,7 @@ const Index = () => {
                                 navigate(action.href);
                               }
                             }}
-                            className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
+                            className="w-[88px] h-[88px] rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all duration-200 group/action relative"
                             style={{
                               backgroundColor: isActionExpanded ? `${accent}18` : `hsl(0 0% 10% / 0.92)`,
                               borderColor: isActionExpanded ? `${accent}90` : `${accent}60`,
@@ -515,17 +515,17 @@ const Index = () => {
                             )}
 
                             {action.icon}
-                            <span className="text-[9px] font-bold tracking-wide" style={{ color: accent }}>
+                            <span className="text-[11px] font-bold tracking-wide" style={{ color: accent }}>
                               {action.label}
                             </span>
 
                             {/* Small indicator for sub-actions */}
                             {hasSubActions && (
                               <div
-                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full flex items-center justify-center"
+                                className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center"
                                 style={{ backgroundColor: accent }}
                               >
-                                <span className="text-[6px] font-bold text-black">{action.subActions!.length}</span>
+                                <span className="text-[8px] font-bold text-black">{action.subActions!.length}</span>
                               </div>
                             )}
 
@@ -551,11 +551,11 @@ const Index = () => {
                                 <motion.div
                                   key={sub.label}
                                   className="absolute z-20"
-                                  style={{ top: 32, left: 32 }}
+                                  style={{ top: 44, left: 44 }}
                                   initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                   animate={{
-                                    x: sPos.x - 22,
-                                    y: sPos.y - 22,
+                                    x: sPos.x - 30,
+                                    y: sPos.y - 30,
                                     scale: 1,
                                     opacity: 1,
                                   }}
@@ -570,7 +570,7 @@ const Index = () => {
                                   {/* Connection line from action to sub-action */}
                                   <svg
                                     className="absolute pointer-events-none"
-                                    style={{ top: 22, left: 22, width: 1, height: 1, overflow: 'visible' }}
+                                    style={{ top: 30, left: 30, width: 1, height: 1, overflow: 'visible' }}
                                   >
                                     <line
                                       x1={0} y1={0}
@@ -584,7 +584,7 @@ const Index = () => {
 
                                   <motion.button
                                     onClick={(e) => { e.stopPropagation(); navigate(sub.href); }}
-                                    className="w-11 h-11 rounded-lg border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/sub relative"
+                                    className="w-[60px] h-[60px] rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
                                     style={{
                                       backgroundColor: `hsl(0 0% 8% / 0.92)`,
                                       borderColor: `${accent}50`,
@@ -598,7 +598,7 @@ const Index = () => {
                                     whileTap={{ scale: 0.85 }}
                                   >
                                     {sub.icon}
-                                    <span className="text-[6px] font-bold tracking-wide leading-none mt-0.5" style={{ color: accent }}>
+                                    <span className="text-[9px] font-bold tracking-wide leading-none mt-0.5" style={{ color: accent }}>
                                       {sub.label}
                                     </span>
 
