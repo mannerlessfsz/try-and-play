@@ -173,7 +173,7 @@ const modules: HudModule[] = [
 ];
 
 const WHEEL_RADIUS = 100;
-const ACTION_RADIUS = 190;
+const ACTION_RADIUS = 220;
 const SUB_ACTION_RADIUS = 100;
 
 const Index = () => {
@@ -217,7 +217,7 @@ const Index = () => {
   const getActionPositions = (moduleIndex: number, actionCount: number) => {
     const moduleAngle = modulePositions[moduleIndex].angleDeg;
     // Max spread = 100° to stay well within the 120° sector
-    const fanSpread = Math.min(actionCount * 18, 100);
+    const fanSpread = Math.min(actionCount * 22, 110);
     const startAngle = moduleAngle - fanSpread / 2;
 
     return Array.from({ length: actionCount }, (_, i) => {
