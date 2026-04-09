@@ -457,8 +457,8 @@ const Index = () => {
                           style={{ top: 72, left: 72 }}
                           initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                           animate={{
-                             x: aPos.x - 44,
-                            y: aPos.y - 44,
+                             x: aPos.x - 36,
+                            y: aPos.y - 36,
                             scale: 1,
                             opacity: 1,
                           }}
@@ -473,7 +473,7 @@ const Index = () => {
                           {/* Connection line from module to action */}
                           <svg
                             className="absolute pointer-events-none"
-                            style={{ top: 44, left: 44, width: 1, height: 1, overflow: 'visible' }}
+                            style={{ top: 36, left: 36, width: 1, height: 1, overflow: 'visible' }}
                           >
                             <line
                               x1={0} y1={0}
@@ -553,11 +553,11 @@ const Index = () => {
                                 <motion.div
                                   key={sub.label}
                                   className="absolute z-20"
-                                  style={{ top: 44, left: 44 }}
+                                  style={{ top: 36, left: 36 }}
                                   initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                   animate={{
-                                    x: sPos.x - 30,
-                                    y: sPos.y - 30,
+                                    x: sPos.x - 26,
+                                    y: sPos.y - 26,
                                     scale: 1,
                                     opacity: 1,
                                   }}
@@ -572,7 +572,7 @@ const Index = () => {
                                   {/* Connection line from action to sub-action */}
                                   <svg
                                     className="absolute pointer-events-none"
-                                    style={{ top: 30, left: 30, width: 1, height: 1, overflow: 'visible' }}
+                                    style={{ top: 26, left: 26, width: 1, height: 1, overflow: 'visible' }}
                                   >
                                     <line
                                       x1={0} y1={0}
@@ -586,7 +586,7 @@ const Index = () => {
 
                                   <motion.button
                                     onClick={(e) => { e.stopPropagation(); navigate(sub.href); }}
-                                    className="w-[60px] h-[60px] rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
+                                    className="w-[52px] h-[52px] rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
                                     style={{
                                       backgroundColor: `hsl(0 0% 8% / 0.92)`,
                                       borderColor: `${accent}50`,
