@@ -1,9 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap,
   ListTodo, Building2, Eye, BarChart3, Users, Package, ShoppingCart,
   Wallet, FileText, PieChart, Send, BookOpen, Bot,
-  ChevronRight, Lock, Hexagon
+  ChevronRight, Lock, Layers, Plus, List, Calendar,
+  TrendingUp, Target, CreditCard, Tags, Landmark,
+  UserPlus, Search, Box, ClipboardList, Truck,
+  Receipt, BarChart, MessageSquare, History, UserCheck, FolderPlus, Edit
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -13,11 +16,18 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
+interface HudSubAction {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+}
+
 interface HudAction {
   icon: React.ReactNode;
   label: string;
   description: string;
   href: string;
+  subActions?: HudSubAction[];
 }
 
 interface HudModule {
@@ -41,10 +51,36 @@ const modules: HudModule[] = [
     module: "taskvault",
     href: "/taskvault",
     actions: [
-      { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", description: "Kanban e lista", href: "/taskvault" },
-      { icon: <Building2 className="w-5 h-5" />, label: "Empresas", description: "Cadastro", href: "/taskvault" },
-      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", description: "Dashboard", href: "/taskvault" },
-      { icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/taskvault" },
+      {
+        icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", description: "Kanban e lista", href: "/taskvault",
+        subActions: [
+          { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault" },
+          { icon: <List className="w-4 h-4" />, label: "Lista", href: "/taskvault" },
+          { icon: <Plus className="w-4 h-4" />, label: "Criar Tarefa", href: "/taskvault" },
+        ],
+      },
+      {
+        icon: <Building2 className="w-5 h-5" />, label: "Empresas", description: "Cadastro", href: "/taskvault",
+        subActions: [
+          { icon: <Plus className="w-4 h-4" />, label: "Cadastrar", href: "/taskvault" },
+          { icon: <List className="w-4 h-4" />, label: "Listar", href: "/taskvault" },
+        ],
+      },
+      {
+        icon: <Eye className="w-5 h-5" />, label: "Visão Geral", description: "Dashboard", href: "/taskvault",
+        subActions: [
+          { icon: <BarChart3 className="w-4 h-4" />, label: "Dashboard", href: "/taskvault" },
+          { icon: <Calendar className="w-4 h-4" />, label: "Timeline", href: "/taskvault" },
+          { icon: <Target className="w-4 h-4" />, label: "Heatmap", href: "/taskvault" },
+        ],
+      },
+      {
+        icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/taskvault",
+        subActions: [
+          { icon: <TrendingUp className="w-4 h-4" />, label: "Por Status", href: "/taskvault" },
+          { icon: <Calendar className="w-4 h-4" />, label: "Por Período", href: "/taskvault" },
+        ],
+      },
     ],
   },
   {
@@ -56,12 +92,50 @@ const modules: HudModule[] = [
     module: "gestao",
     href: "/gestao",
     actions: [
-      { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", description: "Contas e fluxo", href: "/gestao" },
-      { icon: <Users className="w-5 h-5" />, label: "Clientes", description: "Cadastro", href: "/gestao" },
-      { icon: <Package className="w-5 h-5" />, label: "Produtos", description: "Estoque", href: "/gestao" },
-      { icon: <ShoppingCart className="w-5 h-5" />, label: "Vendas", description: "Pedidos", href: "/gestao" },
-      { icon: <FileText className="w-5 h-5" />, label: "Compras", description: "Fornecedores", href: "/gestao" },
-      { icon: <PieChart className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/gestao" },
+      {
+        icon: <Wallet className="w-5 h-5" />, label: "Financeiro", description: "Contas e fluxo", href: "/gestao",
+        subActions: [
+          { icon: <Receipt className="w-4 h-4" />, label: "Transações", href: "/gestao" },
+          { icon: <Landmark className="w-4 h-4" />, label: "Contas", href: "/gestao" },
+          { icon: <Tags className="w-4 h-4" />, label: "Categorias", href: "/gestao" },
+          { icon: <CreditCard className="w-4 h-4" />, label: "Parcelas", href: "/gestao" },
+        ],
+      },
+      {
+        icon: <Users className="w-5 h-5" />, label: "Clientes", description: "Cadastro", href: "/gestao",
+        subActions: [
+          { icon: <UserPlus className="w-4 h-4" />, label: "Cadastrar", href: "/gestao" },
+          { icon: <Search className="w-4 h-4" />, label: "Buscar", href: "/gestao" },
+        ],
+      },
+      {
+        icon: <Package className="w-5 h-5" />, label: "Produtos", description: "Estoque", href: "/gestao",
+        subActions: [
+          { icon: <Plus className="w-4 h-4" />, label: "Novo Produto", href: "/gestao" },
+          { icon: <Box className="w-4 h-4" />, label: "Estoque", href: "/gestao" },
+        ],
+      },
+      {
+        icon: <ShoppingCart className="w-5 h-5" />, label: "Vendas", description: "Pedidos", href: "/gestao",
+        subActions: [
+          { icon: <Plus className="w-4 h-4" />, label: "Nova Venda", href: "/gestao" },
+          { icon: <ClipboardList className="w-4 h-4" />, label: "Orçamentos", href: "/gestao" },
+        ],
+      },
+      {
+        icon: <FileText className="w-5 h-5" />, label: "Compras", description: "Fornecedores", href: "/gestao",
+        subActions: [
+          { icon: <Plus className="w-4 h-4" />, label: "Nova Compra", href: "/gestao" },
+          { icon: <Truck className="w-4 h-4" />, label: "Fornecedores", href: "/gestao" },
+        ],
+      },
+      {
+        icon: <PieChart className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/gestao",
+        subActions: [
+          { icon: <BarChart className="w-4 h-4" />, label: "Fluxo de Caixa", href: "/gestao" },
+          { icon: <TrendingUp className="w-4 h-4" />, label: "DRE", href: "/gestao" },
+        ],
+      },
     ],
   },
   {
@@ -73,15 +147,34 @@ const modules: HudModule[] = [
     module: "messenger",
     href: "/messenger",
     actions: [
-      { icon: <Send className="w-5 h-5" />, label: "Conversas", description: "Chat em tempo real", href: "/messenger" },
-      { icon: <BookOpen className="w-5 h-5" />, label: "Contatos", description: "Lista e grupos", href: "/messenger" },
-      { icon: <Bot className="w-5 h-5" />, label: "Templates", description: "Mensagens rápidas", href: "/messenger" },
+      {
+        icon: <Send className="w-5 h-5" />, label: "Conversas", description: "Chat em tempo real", href: "/messenger",
+        subActions: [
+          { icon: <MessageSquare className="w-4 h-4" />, label: "Nova Conversa", href: "/messenger" },
+          { icon: <History className="w-4 h-4" />, label: "Histórico", href: "/messenger" },
+        ],
+      },
+      {
+        icon: <BookOpen className="w-5 h-5" />, label: "Contatos", description: "Lista e grupos", href: "/messenger",
+        subActions: [
+          { icon: <UserCheck className="w-4 h-4" />, label: "Lista", href: "/messenger" },
+          { icon: <FolderPlus className="w-4 h-4" />, label: "Grupos", href: "/messenger" },
+        ],
+      },
+      {
+        icon: <Bot className="w-5 h-5" />, label: "Templates", description: "Mensagens rápidas", href: "/messenger",
+        subActions: [
+          { icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/messenger" },
+          { icon: <Edit className="w-4 h-4" />, label: "Gerenciar", href: "/messenger" },
+        ],
+      },
     ],
   },
 ];
 
 const WHEEL_RADIUS = 180;
 const ACTION_RADIUS = 140;
+const SUB_ACTION_RADIUS = 90;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -89,10 +182,21 @@ const Index = () => {
   const { isAdmin, hasModuleAccessFlexible } = useModulePermissions();
   const { empresaAtiva } = useEmpresaAtiva();
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+  const [expandedAction, setExpandedAction] = useState<string | null>(null);
 
-  const toggleModule = (id: string) => {
+  const handleBackgroundClick = useCallback(() => {
+    setExpandedModule(null);
+    setExpandedAction(null);
+  }, []);
+
+  const toggleModule = useCallback((id: string) => {
     setExpandedModule(prev => prev === id ? null : id);
-  };
+    setExpandedAction(null);
+  }, []);
+
+  const toggleAction = useCallback((actionKey: string) => {
+    setExpandedAction(prev => prev === actionKey ? null : actionKey);
+  }, []);
 
   const modulePositions = useMemo(() => {
     const count = modules.length;
@@ -122,12 +226,29 @@ const Index = () => {
       return {
         x: Math.cos(angleRad) * ACTION_RADIUS,
         y: Math.sin(angleRad) * ACTION_RADIUS,
+        angleDeg,
+      };
+    });
+  };
+
+  const getSubActionPositions = (actionAngleDeg: number, subCount: number) => {
+    const fanSpread = Math.min(subCount * 25, 100);
+    const startAngle = actionAngleDeg - fanSpread / 2;
+
+    return Array.from({ length: subCount }, (_, i) => {
+      const angleDeg = subCount === 1
+        ? actionAngleDeg
+        : startAngle + (fanSpread / (subCount - 1)) * i;
+      const angleRad = (angleDeg * Math.PI) / 180;
+      return {
+        x: Math.cos(angleRad) * SUB_ACTION_RADIUS,
+        y: Math.sin(angleRad) * SUB_ACTION_RADIUS,
       };
     });
   };
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden" onClick={() => setExpandedModule(null)}>
+    <div className="min-h-screen bg-background relative overflow-hidden" onClick={handleBackgroundClick}>
       <GradientMesh />
 
       {/* Grid overlay */}
@@ -193,8 +314,8 @@ const Index = () => {
         <div
           className="absolute rounded-full pointer-events-none"
           style={{
-            width: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
-            height: (WHEEL_RADIUS + ACTION_RADIUS) * 2 + 200,
+            width: (WHEEL_RADIUS + ACTION_RADIUS + SUB_ACTION_RADIUS) * 2 + 200,
+            height: (WHEEL_RADIUS + ACTION_RADIUS + SUB_ACTION_RADIUS) * 2 + 200,
             background: `
               radial-gradient(circle, hsl(0 0% 100% / 0.06) 0%, hsl(0 0% 100% / 0.03) 30%, transparent 60%),
               radial-gradient(circle, hsl(0 85% 55% / 0.05) 0%, transparent 35%),
@@ -204,7 +325,7 @@ const Index = () => {
             filter: 'blur(30px)',
           }}
         />
-        <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + 100) * 2 }}>
+        <div className="relative" style={{ width: (WHEEL_RADIUS + ACTION_RADIUS + SUB_ACTION_RADIUS + 100) * 2, height: (WHEEL_RADIUS + ACTION_RADIUS + SUB_ACTION_RADIUS + 100) * 2 }}>
 
           {/* Center convergence point */}
           <motion.div
@@ -259,7 +380,7 @@ const Index = () => {
                   </svg>
                 </motion.div>
 
-                {/* Module Node — BIGGER */}
+                {/* Module Node */}
                 <motion.div
                   className="absolute top-1/2 left-1/2 z-10"
                   style={{ x: pos.x, y: pos.y }}
@@ -293,7 +414,6 @@ const Index = () => {
                     } : {}}
                     whileTap={hasAccess ? { scale: 0.95 } : {}}
                   >
-                    {/* Glow ring on expanded */}
                     {isExpanded && (
                       <motion.div
                         className="absolute -inset-1.5 rounded-2xl pointer-events-none"
@@ -317,10 +437,17 @@ const Index = () => {
                     </span>
                   </motion.button>
 
-                  {/* Action Nodes (expanded outward) — BIGGER */}
+                  {/* Action Nodes (Level 2) */}
                   <AnimatePresence>
                     {isExpanded && hasAccess && mod.actions.map((action, actionIdx) => {
                       const aPos = actionPositions[actionIdx];
+                      const actionKey = `${mod.id}-${action.label}`;
+                      const isActionExpanded = expandedAction === actionKey;
+                      const hasSubActions = action.subActions && action.subActions.length > 0;
+                      const subPositions = hasSubActions
+                        ? getSubActionPositions(aPos.angleDeg, action.subActions!.length)
+                        : [];
+
                       return (
                         <motion.div
                           key={action.label}
@@ -356,11 +483,18 @@ const Index = () => {
                           </svg>
 
                           <motion.button
-                            onClick={() => navigate(action.href)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (hasSubActions) {
+                                toggleAction(actionKey);
+                              } else {
+                                navigate(action.href);
+                              }
+                            }}
                             className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
-                              backgroundColor: `hsl(0 0% 10% / 0.92)`,
-                              borderColor: `${accent}60`,
+                              backgroundColor: isActionExpanded ? `${accent}18` : `hsl(0 0% 10% / 0.92)`,
+                              borderColor: isActionExpanded ? `${accent}90` : `${accent}60`,
                               color: accent,
                             }}
                             whileHover={{
@@ -370,24 +504,120 @@ const Index = () => {
                             }}
                             whileTap={{ scale: 0.9 }}
                           >
+                            {/* Pulse ring when expanded */}
+                            {isActionExpanded && (
+                              <motion.div
+                                className="absolute -inset-1 rounded-xl pointer-events-none"
+                                style={{ border: `1px solid ${accent}40` }}
+                                animate={{ scale: [1, 1.12, 1], opacity: [0.5, 0, 0.5] }}
+                                transition={{ duration: 1.8, repeat: Infinity }}
+                              />
+                            )}
+
                             {action.icon}
                             <span className="text-[9px] font-bold tracking-wide" style={{ color: accent }}>
                               {action.label}
                             </span>
 
-                            {/* Tooltip with description */}
+                            {/* Small indicator for sub-actions */}
+                            {hasSubActions && (
+                              <div
+                                className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full flex items-center justify-center"
+                                style={{ backgroundColor: accent }}
+                              >
+                                <span className="text-[6px] font-bold text-black">{action.subActions!.length}</span>
+                              </div>
+                            )}
+
+                            {/* Tooltip */}
                             <div
                               className="absolute whitespace-nowrap px-3 py-2 rounded-lg pointer-events-none opacity-0 group-hover/action:opacity-100 transition-opacity duration-200 -top-12 flex flex-col items-center z-30"
                               style={{
-                                backgroundColor: 'hsl(var(--card))',
+                                backgroundColor: 'hsl(0 0% 8% / 0.95)',
                                 border: `1px solid ${accent}30`,
-                                boxShadow: `0 4px 20px hsl(var(--background) / 0.8)`,
+                                boxShadow: `0 4px 20px hsl(0 0% 0% / 0.8)`,
                               }}
                             >
                               <span className="text-[11px] font-bold" style={{ color: accent }}>{action.label}</span>
-                              <span className="text-[9px] text-muted-foreground">{action.description}</span>
+                              <span className="text-[9px] text-foreground/70">{action.description}</span>
                             </div>
                           </motion.button>
+
+                          {/* Sub-Action Nodes (Level 3) */}
+                          <AnimatePresence>
+                            {isActionExpanded && hasSubActions && action.subActions!.map((sub, subIdx) => {
+                              const sPos = subPositions[subIdx];
+                              return (
+                                <motion.div
+                                  key={sub.label}
+                                  className="absolute z-20"
+                                  style={{ top: 32, left: 32 }}
+                                  initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                                  animate={{
+                                    x: sPos.x - 22,
+                                    y: sPos.y - 22,
+                                    scale: 1,
+                                    opacity: 1,
+                                  }}
+                                  exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                                  transition={{
+                                    delay: subIdx * 0.04,
+                                    type: "spring",
+                                    stiffness: 260,
+                                    damping: 22,
+                                  }}
+                                >
+                                  {/* Connection line from action to sub-action */}
+                                  <svg
+                                    className="absolute pointer-events-none"
+                                    style={{ top: 22, left: 22, width: 1, height: 1, overflow: 'visible' }}
+                                  >
+                                    <line
+                                      x1={0} y1={0}
+                                      x2={-sPos.x} y2={-sPos.y}
+                                      stroke={accent}
+                                      strokeWidth={0.8}
+                                      strokeOpacity={0.3}
+                                      strokeDasharray="2 3"
+                                    />
+                                  </svg>
+
+                                  <motion.button
+                                    onClick={(e) => { e.stopPropagation(); navigate(sub.href); }}
+                                    className="w-11 h-11 rounded-lg border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/sub relative"
+                                    style={{
+                                      backgroundColor: `hsl(0 0% 8% / 0.92)`,
+                                      borderColor: `${accent}50`,
+                                      color: accent,
+                                    }}
+                                    whileHover={{
+                                      scale: 1.2,
+                                      backgroundColor: `${accent}30`,
+                                      boxShadow: `0 0 20px ${accent}35`,
+                                    }}
+                                    whileTap={{ scale: 0.85 }}
+                                  >
+                                    {sub.icon}
+                                    <span className="text-[6px] font-bold tracking-wide leading-none mt-0.5" style={{ color: accent }}>
+                                      {sub.label}
+                                    </span>
+
+                                    {/* Tooltip */}
+                                    <div
+                                      className="absolute whitespace-nowrap px-2 py-1 rounded-md pointer-events-none opacity-0 group-hover/sub:opacity-100 transition-opacity duration-200 -top-8 z-40"
+                                      style={{
+                                        backgroundColor: 'hsl(0 0% 6% / 0.95)',
+                                        border: `1px solid ${accent}25`,
+                                        boxShadow: `0 2px 12px hsl(0 0% 0% / 0.8)`,
+                                      }}
+                                    >
+                                      <span className="text-[10px] font-semibold" style={{ color: accent }}>{sub.label}</span>
+                                    </div>
+                                  </motion.button>
+                                </motion.div>
+                              );
+                            })}
+                          </AnimatePresence>
                         </motion.div>
                       );
                     })}
@@ -397,7 +627,7 @@ const Index = () => {
             );
           })}
 
-          {/* Module info panel (inside wheel, bottom center) */}
+          {/* Module info panel */}
           <AnimatePresence>
             {expandedModule && (
               <motion.div
@@ -413,7 +643,7 @@ const Index = () => {
                   const accent = `hsl(${mod.accentHsl})`;
                   return (
                     <button
-                      onClick={() => navigate(mod.href)}
+                      onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
                       className="flex items-center gap-4 px-6 py-4 rounded-2xl border backdrop-blur-2xl transition-all duration-300 hover:scale-105 group"
                       style={{
                         backgroundColor: 'hsl(0 0% 10% / 0.95)',
