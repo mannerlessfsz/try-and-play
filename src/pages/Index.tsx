@@ -493,7 +493,7 @@ const Index = () => {
                                 navigate(action.href);
                               }
                             }}
-                            className="w-[88px] h-[88px] rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all duration-200 group/action relative"
+                            className="w-[72px] h-[72px] rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
                               backgroundColor: isActionExpanded ? `${accent}18` : `hsl(0 0% 10% / 0.92)`,
                               borderColor: isActionExpanded ? `${accent}90` : `${accent}60`,
