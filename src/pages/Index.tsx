@@ -172,9 +172,9 @@ const modules: HudModule[] = [
   },
 ];
 
-const WHEEL_RADIUS = 120;
-const ACTION_RADIUS = 160;
-const SUB_ACTION_RADIUS = 110;
+const WHEEL_RADIUS = 100;
+const ACTION_RADIUS = 220;
+const SUB_ACTION_RADIUS = 100;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -213,9 +213,11 @@ const Index = () => {
     });
   }, []);
 
+  // Each module gets a 120° sector. Actions spread within that sector, biased outward.
   const getActionPositions = (moduleIndex: number, actionCount: number) => {
     const moduleAngle = modulePositions[moduleIndex].angleDeg;
-    const fanSpread = Math.min(actionCount * 30, 150);
+    // Max spread = 100° to stay well within the 120° sector
+    const fanSpread = Math.min(actionCount * 22, 110);
     const startAngle = moduleAngle - fanSpread / 2;
 
     return Array.from({ length: actionCount }, (_, i) => {
@@ -232,7 +234,7 @@ const Index = () => {
   };
 
   const getSubActionPositions = (actionAngleDeg: number, subCount: number) => {
-    const fanSpread = Math.min(subCount * 25, 100);
+    const fanSpread = Math.min(subCount * 20, 60);
     const startAngle = actionAngleDeg - fanSpread / 2;
 
     return Array.from({ length: subCount }, (_, i) => {
@@ -455,8 +457,8 @@ const Index = () => {
                           style={{ top: 72, left: 72 }}
                           initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                           animate={{
-                             x: aPos.x - 44,
-                            y: aPos.y - 44,
+                             x: aPos.x - 36,
+                            y: aPos.y - 36,
                             scale: 1,
                             opacity: 1,
                           }}
@@ -471,7 +473,7 @@ const Index = () => {
                           {/* Connection line from module to action */}
                           <svg
                             className="absolute pointer-events-none"
-                            style={{ top: 44, left: 44, width: 1, height: 1, overflow: 'visible' }}
+                            style={{ top: 36, left: 36, width: 1, height: 1, overflow: 'visible' }}
                           >
                             <line
                               x1={0} y1={0}
@@ -491,7 +493,7 @@ const Index = () => {
                                 navigate(action.href);
                               }
                             }}
-                            className="w-[88px] h-[88px] rounded-xl border-2 flex flex-col items-center justify-center gap-1 transition-all duration-200 group/action relative"
+                            className="w-[72px] h-[72px] rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
                               backgroundColor: isActionExpanded ? `${accent}18` : `hsl(0 0% 10% / 0.92)`,
                               borderColor: isActionExpanded ? `${accent}90` : `${accent}60`,
@@ -551,11 +553,11 @@ const Index = () => {
                                 <motion.div
                                   key={sub.label}
                                   className="absolute z-20"
-                                  style={{ top: 44, left: 44 }}
+                                  style={{ top: 36, left: 36 }}
                                   initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                   animate={{
-                                    x: sPos.x - 30,
-                                    y: sPos.y - 30,
+                                    x: sPos.x - 26,
+                                    y: sPos.y - 26,
                                     scale: 1,
                                     opacity: 1,
                                   }}
@@ -570,7 +572,7 @@ const Index = () => {
                                   {/* Connection line from action to sub-action */}
                                   <svg
                                     className="absolute pointer-events-none"
-                                    style={{ top: 30, left: 30, width: 1, height: 1, overflow: 'visible' }}
+                                    style={{ top: 26, left: 26, width: 1, height: 1, overflow: 'visible' }}
                                   >
                                     <line
                                       x1={0} y1={0}
@@ -584,7 +586,7 @@ const Index = () => {
 
                                   <motion.button
                                     onClick={(e) => { e.stopPropagation(); navigate(sub.href); }}
-                                    className="w-[60px] h-[60px] rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
+                                    className="w-[52px] h-[52px] rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
                                     style={{
                                       backgroundColor: `hsl(0 0% 8% / 0.92)`,
                                       borderColor: `${accent}50`,
