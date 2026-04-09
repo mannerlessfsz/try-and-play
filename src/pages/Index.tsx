@@ -172,9 +172,9 @@ const modules: HudModule[] = [
   },
 ];
 
-const WHEEL_RADIUS = 120;
-const ACTION_RADIUS = 160;
-const SUB_ACTION_RADIUS = 110;
+const WHEEL_RADIUS = 100;
+const ACTION_RADIUS = 190;
+const SUB_ACTION_RADIUS = 100;
 
 const Index = () => {
   const navigate = useNavigate();
@@ -213,9 +213,11 @@ const Index = () => {
     });
   }, []);
 
+  // Each module gets a 120° sector. Actions spread within that sector, biased outward.
   const getActionPositions = (moduleIndex: number, actionCount: number) => {
     const moduleAngle = modulePositions[moduleIndex].angleDeg;
-    const fanSpread = Math.min(actionCount * 30, 150);
+    // Max spread = 100° to stay well within the 120° sector
+    const fanSpread = Math.min(actionCount * 18, 100);
     const startAngle = moduleAngle - fanSpread / 2;
 
     return Array.from({ length: actionCount }, (_, i) => {
@@ -232,7 +234,7 @@ const Index = () => {
   };
 
   const getSubActionPositions = (actionAngleDeg: number, subCount: number) => {
-    const fanSpread = Math.min(subCount * 25, 100);
+    const fanSpread = Math.min(subCount * 20, 60);
     const startAngle = actionAngleDeg - fanSpread / 2;
 
     return Array.from({ length: subCount }, (_, i) => {
