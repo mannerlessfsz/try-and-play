@@ -349,6 +349,89 @@ export default function TaskVault() {
                 <button onClick={() => setActiveFilter("all")} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
               </motion.div>
             )}
+            {viewMode !== "timeline" && (
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 bg-card/60 text-sm font-medium text-primary hover:bg-card/80 transition-all">
+                    <CalendarRange className="w-3.5 h-3.5" />
+                    {dateRange?.from ? (
+                      <span>
+                        {format(dateRange.from, "dd MMM", { locale: ptBR })}
+                        {dateRange.to ? ` – ${format(dateRange.to, "dd MMM", { locale: ptBR })}` : ""}
+                      </span>
+                    ) : (
+                      <span>Período</span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">Selecione o período</span>
+                      <div className="flex items-center gap-2">
+                        {dateRange?.from && (
+                          <button
+                            onClick={() => setDateRange(undefined)}
+                            className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded bg-muted/50"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <CalendarPicker
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={(range, selectedDay) => {
+                        if (!dateRange?.from || (dateRange.from && dateRange.to)) {
+                          setDateRange({ from: selectedDay, to: undefined });
+                        } else {
+                          const from = dateRange.from;
+                          const to = selectedDay;
+                          if (from > to) {
+                            setDateRange({ from: to, to: from });
+                          } else {
+                            setDateRange({ from, to });
+                          }
+                          setDatePickerOpen(false);
+                        }
+                      }}
+                      numberOfMonths={1}
+                      today={undefined as unknown as Date}
+                      defaultMonth={new Date()}
+                      locale={ptBR}
+                      className={cn("p-0 pointer-events-auto")}
+                      classNames={{
+                        caption_label: "text-sm font-medium cursor-pointer hover:text-primary transition-colors",
+                      }}
+                      components={{
+                        CaptionLabel: ({ displayMonth }: { displayMonth: Date }) => {
+                          const monthName = format(displayMonth, "LLLL yyyy", { locale: ptBR });
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
+                                const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
+                                setDateRange({ from: firstDay, to: lastDay });
+                                setDatePickerOpen(false);
+                              }}
+                              className="text-sm font-medium capitalize hover:text-primary hover:underline transition-colors"
+                              title={`Selecionar ${monthName} inteiro`}
+                            >
+                              {monthName}
+                            </button>
+                          );
+                        },
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground/50 text-center">
+                      Clique no nome do mês para selecionar o mês inteiro
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
             <Button variant="outline" size="sm" onClick={() => navigate("/taskvault/cadastro")} className="gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10">
               <FileText className="w-3.5 h-3.5" />
               Cadastro
