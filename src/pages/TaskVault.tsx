@@ -660,6 +660,21 @@ export default function TaskVault() {
       )}
       <TaskSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} initialTab={settingsInitialTab} />
 
+      <Dialog open={showActivityModal} onOpenChange={setShowActivityModal}>
+        <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Atividade Recente
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">{atividades.length}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            <ActivityPulseFeed atividades={atividades} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
     </div>
     </ModulePageWrapper>
   );
