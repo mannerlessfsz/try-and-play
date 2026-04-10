@@ -181,7 +181,7 @@ const Index = () => {
       </motion.div>
 
       {/* ══════════════ MODULE CARDS (resting state) ══════════════ */}
-      <div className="relative z-10 w-full h-screen flex items-center justify-center">
+      <div className="relative z-10 w-full min-h-screen flex items-center justify-center" style={{ minHeight: "100vh", minWidth: "100vw" }}>
         {/* Inter-module lines */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
           {!focusedModule && modules.map((m, i) =>
