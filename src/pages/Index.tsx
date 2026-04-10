@@ -187,7 +187,7 @@ function WheelSegment({
   const iconSize = depth === 0 ? 22 : depth === 1 ? 18 : 15;
 
   return (
-    <g className="cursor-pointer" onClick={onSelect} onMouseEnter={onHover} onMouseLeave={onLeave}>
+    <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onSelect(); }} onMouseEnter={onHover} onMouseLeave={onLeave}>
       {/* Dark bg */}
       <path d={d} fill="hsl(0 0% 4%)" fillOpacity={0.88} />
       {/* Color overlay */}
@@ -276,7 +276,10 @@ function MultiRingWheel({
       <svg
         width={svgSize} height={svgSize}
         viewBox={`${-svgSize / 2} ${-svgSize / 2} ${svgSize} ${svgSize}`}
+        onClick={onBack}
       >
+        {/* Clickable background to catch empty area clicks */}
+        <rect x={-svgSize / 2} y={-svgSize / 2} width={svgSize} height={svgSize} fill="transparent" />
         {/* Ring guide circles - only for full rings (depth 0 & 1) */}
         {rings.slice(0, 2).map((_, rIdx) => {
           const innerR = RING_INNER[rIdx];
