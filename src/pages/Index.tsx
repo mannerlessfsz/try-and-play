@@ -259,22 +259,7 @@ const Index = () => {
                   </motion.button>
                 )}
 
-                {/* "Acessar" button - fixed at bottom of screen */}
-                {isFocused && (
-                  <motion.div
-                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50"
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
-                      className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
-                      style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
-                    >
-                      <span className="text-sm font-bold whitespace-nowrap">Acessar {mod.title}</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </motion.div>
-                )}
+                {/* "Acessar" button moved outside - rendered via portal below */}
 
                 {/* ═══ LEVEL 2: ACTIONS (orbit around module) ═══ */}
                 <AnimatePresence>
