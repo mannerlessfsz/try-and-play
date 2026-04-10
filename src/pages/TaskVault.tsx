@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
@@ -27,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">(() => {
     const saved = localStorage.getItem("taskvault-view-mode");
     if (saved === "lista" || saved === "kanban" || saved === "timeline") return saved;
@@ -329,6 +331,10 @@ export default function TaskVault() {
                 <button onClick={() => setActiveFilter("all")} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
               </motion.div>
             )}
+            <Button variant="outline" size="sm" onClick={() => navigate("/taskvault/cadastro")} className="gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10">
+              <FileText className="w-3.5 h-3.5" />
+              Cadastro
+            </Button>
             <div className="flex-1" />
             <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1">
               {([
