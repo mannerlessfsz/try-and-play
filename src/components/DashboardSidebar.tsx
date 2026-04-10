@@ -46,15 +46,16 @@ function SidebarItem({
         }}
         className={cn(
           "w-full flex items-center gap-2.5 py-2 px-3 rounded-lg text-left transition-all duration-150",
-          "hover:bg-muted/50 group text-sm",
-          open && hasChildren && "bg-muted/30"
+          "hover:bg-white/15 dark:hover:bg-muted/50 group text-sm",
+          open && hasChildren && "bg-white/10 dark:bg-muted/30"
         )}
         style={{ paddingLeft: `${pl}px` }}
       >
-        <span className="shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" style={{ color: accent }}>
-          {item.icon}
+        <span className="shrink-0 opacity-80 group-hover:opacity-100 transition-opacity text-white dark:text-current" style={{ color: undefined }}>
+          <span className="hidden dark:inline" style={{ color: accent }}>{item.icon}</span>
+          <span className="dark:hidden">{item.icon}</span>
         </span>
-        <span className="flex-1 text-foreground/80 group-hover:text-foreground transition-colors font-medium text-[13px]">
+        <span className="flex-1 text-white/80 dark:text-foreground/80 group-hover:text-white dark:group-hover:text-foreground transition-colors font-medium text-[13px]">
           {item.label}
         </span>
         {hasChildren && (
@@ -189,8 +190,8 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                     {/* Direct access button */}
                     <button
                       onClick={() => navigate(mod.href)}
-                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-muted/40"
-                      style={{ color: accent, borderTop: `1px solid ${accent}15` }}
+                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-white/15 dark:hover:bg-muted/40 text-white dark:text-current"
+                      style={{ borderTop: `1px solid hsl(0 0% 100% / 0.2)` }}
                     >
                       Acessar {mod.title} →
                     </button>
