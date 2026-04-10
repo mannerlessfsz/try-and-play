@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap,
   ListTodo, Building2, Eye, BarChart3, Users, Package, ShoppingCart,
@@ -7,7 +7,7 @@ import {
   TrendingUp, Target, CreditCard, Tags, Landmark,
   UserPlus, Search, Box, ClipboardList, Truck,
   Receipt, BarChart, MessageSquare, History, UserCheck, FolderPlus, Edit,
-  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, X
+  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, X, ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -18,156 +18,401 @@ import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Types ──
-interface HudLeaf { icon: React.ReactNode; label: string; href: string; }
-interface HudSubAction { icon: React.ReactNode; label: string; href: string; leaves?: HudLeaf[]; }
-interface HudAction { icon: React.ReactNode; label: string; description: string; href: string; subActions?: HudSubAction[]; }
+interface WheelItem {
+  icon: React.ReactNode;
+  label: string;
+  href: string;
+  accentHsl?: string;
+  children?: WheelItem[];
+}
+
 interface HudModule {
-  id: string; icon: React.ReactNode; title: string; tagline: string;
-  accentHsl: string; module: AppModule; href: string;
-  restPosition: { x: number; y: number };
-  actions: HudAction[];
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  tagline: string;
+  accentHsl: string;
+  module: AppModule;
+  href: string;
+  items: WheelItem[];
 }
 
 // ── Data ──
 const modules: HudModule[] = [
   {
-    id: "taskvault", icon: <CheckSquare className="w-8 h-8" />, title: "TASKVAULT", tagline: "Gestão de tarefas",
+    id: "taskvault", icon: <CheckSquare className="w-7 h-7" />, title: "TASKVAULT", tagline: "Gestão de tarefas",
     accentHsl: "0 85% 55%", module: "taskvault", href: "/taskvault",
-    restPosition: { x: 20, y: 50 },
-    actions: [
-      { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", description: "Kanban e lista", href: "/taskvault",
-        subActions: [
-          { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault", leaves: [{ icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/taskvault" }, { icon: <ArrowUpDown className="w-3 h-3" />, label: "Ordenar", href: "/taskvault" }] },
-          { icon: <List className="w-4 h-4" />, label: "Lista", href: "/taskvault", leaves: [{ icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/taskvault" }, { icon: <Download className="w-3 h-3" />, label: "Exportar", href: "/taskvault" }] },
-          { icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/taskvault" },
-        ],
-      },
-      { icon: <Building2 className="w-5 h-5" />, label: "Empresas", description: "Cadastro", href: "/taskvault",
-        subActions: [{ icon: <Plus className="w-4 h-4" />, label: "Cadastrar", href: "/taskvault" }, { icon: <List className="w-4 h-4" />, label: "Listar", href: "/taskvault" }],
-      },
-      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", description: "Dashboard", href: "/taskvault",
-        subActions: [
-          { icon: <BarChart3 className="w-4 h-4" />, label: "Dashboard", href: "/taskvault", leaves: [{ icon: <Clock className="w-3 h-3" />, label: "Hoje", href: "/taskvault" }, { icon: <Calendar className="w-3 h-3" />, label: "Semana", href: "/taskvault" }] },
-          { icon: <Calendar className="w-4 h-4" />, label: "Timeline", href: "/taskvault" },
-          { icon: <Target className="w-4 h-4" />, label: "Heatmap", href: "/taskvault" },
-        ],
-      },
-      { icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/taskvault",
-        subActions: [{ icon: <TrendingUp className="w-4 h-4" />, label: "Por Status", href: "/taskvault" }, { icon: <Calendar className="w-4 h-4" />, label: "Por Período", href: "/taskvault" }],
-      },
+    items: [
+      { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", href: "/taskvault", children: [
+        { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault", children: [
+          { icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/taskvault" },
+          { icon: <ArrowUpDown className="w-3 h-3" />, label: "Ordenar", href: "/taskvault" },
+        ]},
+        { icon: <List className="w-4 h-4" />, label: "Lista", href: "/taskvault", children: [
+          { icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/taskvault" },
+          { icon: <Download className="w-3 h-3" />, label: "Exportar", href: "/taskvault" },
+        ]},
+        { icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/taskvault" },
+      ]},
+      { icon: <Building2 className="w-5 h-5" />, label: "Empresas", href: "/taskvault", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Cadastrar", href: "/taskvault" },
+        { icon: <List className="w-4 h-4" />, label: "Listar", href: "/taskvault" },
+      ]},
+      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", href: "/taskvault", children: [
+        { icon: <BarChart3 className="w-4 h-4" />, label: "Dashboard", href: "/taskvault", children: [
+          { icon: <Clock className="w-3 h-3" />, label: "Hoje", href: "/taskvault" },
+          { icon: <Calendar className="w-3 h-3" />, label: "Semana", href: "/taskvault" },
+        ]},
+        { icon: <Calendar className="w-4 h-4" />, label: "Timeline", href: "/taskvault" },
+        { icon: <Target className="w-4 h-4" />, label: "Heatmap", href: "/taskvault" },
+      ]},
+      { icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", href: "/taskvault", children: [
+        { icon: <TrendingUp className="w-4 h-4" />, label: "Por Status", href: "/taskvault" },
+        { icon: <Calendar className="w-4 h-4" />, label: "Por Período", href: "/taskvault" },
+      ]},
     ],
   },
   {
-    id: "gestao", icon: <DollarSign className="w-8 h-8" />, title: "GESTÃO", tagline: "ERP + Financeiro",
+    id: "gestao", icon: <DollarSign className="w-7 h-7" />, title: "GESTÃO", tagline: "ERP + Financeiro",
     accentHsl: "210 100% 55%", module: "gestao", href: "/gestao",
-    restPosition: { x: 50, y: 50 },
-    actions: [
-      { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", description: "Contas e fluxo", href: "/gestao",
-        subActions: [
-          { icon: <Receipt className="w-4 h-4" />, label: "Transações", href: "/gestao", leaves: [{ icon: <Plus className="w-3 h-3" />, label: "Nova", href: "/gestao" }, { icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/gestao" }, { icon: <Download className="w-3 h-3" />, label: "Exportar", href: "/gestao" }] },
-          { icon: <Landmark className="w-4 h-4" />, label: "Contas", href: "/gestao", leaves: [{ icon: <Plus className="w-3 h-3" />, label: "Nova Conta", href: "/gestao" }, { icon: <Upload className="w-3 h-3" />, label: "Importar", href: "/gestao" }] },
-          { icon: <Tags className="w-4 h-4" />, label: "Categorias", href: "/gestao" },
-          { icon: <CreditCard className="w-4 h-4" />, label: "Parcelas", href: "/gestao", leaves: [{ icon: <Clock className="w-3 h-3" />, label: "Vencendo", href: "/gestao" }, { icon: <Star className="w-3 h-3" />, label: "Atrasadas", href: "/gestao" }] },
-          { icon: <Repeat className="w-4 h-4" />, label: "Recorrências", href: "/gestao" },
-        ],
-      },
-      { icon: <Users className="w-5 h-5" />, label: "Clientes", description: "Cadastro", href: "/gestao",
-        subActions: [{ icon: <UserPlus className="w-4 h-4" />, label: "Cadastrar", href: "/gestao" }, { icon: <Search className="w-4 h-4" />, label: "Buscar", href: "/gestao" }],
-      },
-      { icon: <Package className="w-5 h-5" />, label: "Produtos", description: "Estoque", href: "/gestao",
-        subActions: [{ icon: <Plus className="w-4 h-4" />, label: "Novo", href: "/gestao" }, { icon: <Box className="w-4 h-4" />, label: "Estoque", href: "/gestao", leaves: [{ icon: <ArrowUpDown className="w-3 h-3" />, label: "Movimentar", href: "/gestao" }, { icon: <Hash className="w-3 h-3" />, label: "Inventário", href: "/gestao" }] }],
-      },
-      { icon: <ShoppingCart className="w-5 h-5" />, label: "Vendas", description: "Pedidos", href: "/gestao",
-        subActions: [{ icon: <Plus className="w-4 h-4" />, label: "Nova Venda", href: "/gestao" }, { icon: <ClipboardList className="w-4 h-4" />, label: "Orçamentos", href: "/gestao" }],
-      },
-      { icon: <FileText className="w-5 h-5" />, label: "Compras", description: "Fornecedores", href: "/gestao",
-        subActions: [{ icon: <Plus className="w-4 h-4" />, label: "Nova Compra", href: "/gestao" }, { icon: <Truck className="w-4 h-4" />, label: "Fornecedores", href: "/gestao" }],
-      },
-      { icon: <PieChart className="w-5 h-5" />, label: "Relatórios", description: "Análises", href: "/gestao",
-        subActions: [{ icon: <BarChart className="w-4 h-4" />, label: "Fluxo Caixa", href: "/gestao" }, { icon: <TrendingUp className="w-4 h-4" />, label: "DRE", href: "/gestao" }],
-      },
+    items: [
+      { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", href: "/gestao", children: [
+        { icon: <Receipt className="w-4 h-4" />, label: "Transações", href: "/gestao", children: [
+          { icon: <Plus className="w-3 h-3" />, label: "Nova", href: "/gestao" },
+          { icon: <Filter className="w-3 h-3" />, label: "Filtrar", href: "/gestao" },
+          { icon: <Download className="w-3 h-3" />, label: "Exportar", href: "/gestao" },
+        ]},
+        { icon: <Landmark className="w-4 h-4" />, label: "Contas", href: "/gestao", children: [
+          { icon: <Plus className="w-3 h-3" />, label: "Nova Conta", href: "/gestao" },
+          { icon: <Upload className="w-3 h-3" />, label: "Importar", href: "/gestao" },
+        ]},
+        { icon: <Tags className="w-4 h-4" />, label: "Categorias", href: "/gestao" },
+        { icon: <CreditCard className="w-4 h-4" />, label: "Parcelas", href: "/gestao", children: [
+          { icon: <Clock className="w-3 h-3" />, label: "Vencendo", href: "/gestao" },
+          { icon: <Star className="w-3 h-3" />, label: "Atrasadas", href: "/gestao" },
+        ]},
+        { icon: <Repeat className="w-4 h-4" />, label: "Recorrências", href: "/gestao" },
+      ]},
+      { icon: <Users className="w-5 h-5" />, label: "Clientes", href: "/gestao", children: [
+        { icon: <UserPlus className="w-4 h-4" />, label: "Cadastrar", href: "/gestao" },
+        { icon: <Search className="w-4 h-4" />, label: "Buscar", href: "/gestao" },
+      ]},
+      { icon: <Package className="w-5 h-5" />, label: "Produtos", href: "/gestao", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Novo", href: "/gestao" },
+        { icon: <Box className="w-4 h-4" />, label: "Estoque", href: "/gestao", children: [
+          { icon: <ArrowUpDown className="w-3 h-3" />, label: "Movimentar", href: "/gestao" },
+          { icon: <Hash className="w-3 h-3" />, label: "Inventário", href: "/gestao" },
+        ]},
+      ]},
+      { icon: <ShoppingCart className="w-5 h-5" />, label: "Vendas", href: "/gestao", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Nova Venda", href: "/gestao" },
+        { icon: <ClipboardList className="w-4 h-4" />, label: "Orçamentos", href: "/gestao" },
+      ]},
+      { icon: <FileText className="w-5 h-5" />, label: "Compras", href: "/gestao", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Nova Compra", href: "/gestao" },
+        { icon: <Truck className="w-4 h-4" />, label: "Fornecedores", href: "/gestao" },
+      ]},
+      { icon: <PieChart className="w-5 h-5" />, label: "Relatórios", href: "/gestao", children: [
+        { icon: <BarChart className="w-4 h-4" />, label: "Fluxo Caixa", href: "/gestao" },
+        { icon: <TrendingUp className="w-4 h-4" />, label: "DRE", href: "/gestao" },
+      ]},
     ],
   },
   {
-    id: "messenger", icon: <MessageCircle className="w-8 h-8" />, title: "MESSENGER", tagline: "Comunicação",
+    id: "messenger", icon: <MessageCircle className="w-7 h-7" />, title: "MESSENGER", tagline: "Comunicação",
     accentHsl: "25 100% 55%", module: "messenger", href: "/messenger",
-    restPosition: { x: 80, y: 50 },
-    actions: [
-      { icon: <Send className="w-5 h-5" />, label: "Conversas", description: "Chat", href: "/messenger",
-        subActions: [
-          { icon: <MessageSquare className="w-4 h-4" />, label: "Nova", href: "/messenger", leaves: [{ icon: <UserCheck className="w-3 h-3" />, label: "Individual", href: "/messenger" }, { icon: <Users className="w-3 h-3" />, label: "Grupo", href: "/messenger" }] },
-          { icon: <History className="w-4 h-4" />, label: "Histórico", href: "/messenger" },
-          { icon: <Star className="w-4 h-4" />, label: "Favoritas", href: "/messenger" },
-        ],
-      },
-      { icon: <BookOpen className="w-5 h-5" />, label: "Contatos", description: "Lista e grupos", href: "/messenger",
-        subActions: [{ icon: <UserCheck className="w-4 h-4" />, label: "Lista", href: "/messenger" }, { icon: <FolderPlus className="w-4 h-4" />, label: "Grupos", href: "/messenger" }],
-      },
-      { icon: <Bot className="w-5 h-5" />, label: "Templates", description: "Mensagens rápidas", href: "/messenger",
-        subActions: [{ icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/messenger" }, { icon: <Edit className="w-4 h-4" />, label: "Gerenciar", href: "/messenger" }],
-      },
+    items: [
+      { icon: <Send className="w-5 h-5" />, label: "Conversas", href: "/messenger", children: [
+        { icon: <MessageSquare className="w-4 h-4" />, label: "Nova", href: "/messenger", children: [
+          { icon: <UserCheck className="w-3 h-3" />, label: "Individual", href: "/messenger" },
+          { icon: <Users className="w-3 h-3" />, label: "Grupo", href: "/messenger" },
+        ]},
+        { icon: <History className="w-4 h-4" />, label: "Histórico", href: "/messenger" },
+        { icon: <Star className="w-4 h-4" />, label: "Favoritas", href: "/messenger" },
+      ]},
+      { icon: <BookOpen className="w-5 h-5" />, label: "Contatos", href: "/messenger", children: [
+        { icon: <UserCheck className="w-4 h-4" />, label: "Lista", href: "/messenger" },
+        { icon: <FolderPlus className="w-4 h-4" />, label: "Grupos", href: "/messenger" },
+      ]},
+      { icon: <Bot className="w-5 h-5" />, label: "Templates", href: "/messenger", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/messenger" },
+        { icon: <Edit className="w-4 h-4" />, label: "Gerenciar", href: "/messenger" },
+      ]},
     ],
   },
 ];
 
-// ── Orbit helper: distributes N items in a 360° circle ──
-function orbit(count: number, radius: number, offsetDeg = -90) {
-  const step = 360 / count;
-  return Array.from({ length: count }, (_, i) => {
-    const deg = offsetDeg + step * i;
-    const rad = (deg * Math.PI) / 180;
-    return { x: Math.cos(rad) * radius, y: Math.sin(rad) * radius, deg };
-  });
-}
+// ── SVG Segment for the wheel ──
+function WheelSegment({
+  index, total, innerR, outerR, isSelected, isHovered, accent, icon, label,
+  onSelect, onHover, onLeave,
+}: {
+  index: number; total: number; innerR: number; outerR: number;
+  isSelected: boolean; isHovered: boolean; accent: string;
+  icon: React.ReactNode; label: string;
+  onSelect: () => void; onHover: () => void; onLeave: () => void;
+}) {
+  const gap = 0.02; // radians gap between segments
+  const anglePerItem = (2 * Math.PI) / total;
+  const startAngle = anglePerItem * index - Math.PI / 2 + gap / 2;
+  const endAngle = startAngle + anglePerItem - gap;
 
-// ── Bead chain: small dots connecting parent to child ──
-function BeadChain({ x, y, accent, count = 3, size = 4, expanded = false }: { x: number; y: number; accent: string; count?: number; size?: number; expanded?: boolean }) {
-  const beads = Array.from({ length: count }, (_, i) => {
-    const t = (i + 1) / (count + 1);
-    return { cx: -x * t, cy: -y * t };
-  });
+  const midAngle = (startAngle + endAngle) / 2;
+  const iconR = (innerR + outerR) / 2;
+  const iconX = Math.cos(midAngle) * iconR;
+  const iconY = Math.sin(midAngle) * iconR;
+  const labelR = iconR + 2;
+
+  // Arc path
+  const x1 = Math.cos(startAngle) * innerR;
+  const y1 = Math.sin(startAngle) * innerR;
+  const x2 = Math.cos(startAngle) * outerR;
+  const y2 = Math.sin(startAngle) * outerR;
+  const x3 = Math.cos(endAngle) * outerR;
+  const y3 = Math.sin(endAngle) * outerR;
+  const x4 = Math.cos(endAngle) * innerR;
+  const y4 = Math.sin(endAngle) * innerR;
+  const largeArc = anglePerItem - gap > Math.PI ? 1 : 0;
+
+  const d = [
+    `M ${x1} ${y1}`,
+    `L ${x2} ${y2}`,
+    `A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3}`,
+    `L ${x4} ${y4}`,
+    `A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1}`,
+    "Z",
+  ].join(" ");
+
+  const fillOpacity = isSelected ? 0.35 : isHovered ? 0.2 : 0.08;
+  const strokeOpacity = isSelected ? 0.9 : isHovered ? 0.6 : 0.25;
+
   return (
-    <svg className="absolute pointer-events-none" style={{ top: 0, left: 0, width: 1, height: 1, overflow: "visible" }}>
-      {beads.map((b, i) => (
-        <motion.circle
-          key={i}
-          cx={b.cx} cy={b.cy}
-          fill={accent}
-          initial={{ r: 0, opacity: 0 }}
-          animate={{
-            r: expanded ? size * 1.4 : size,
-            opacity: expanded ? 0.7 : 0.35,
-          }}
-          transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 20 }}
+    <g className="cursor-pointer" onClick={onSelect} onMouseEnter={onHover} onMouseLeave={onLeave}>
+      <motion.path
+        d={d}
+        fill={accent}
+        stroke={accent}
+        strokeWidth={isSelected ? 2.5 : 1.5}
+        initial={{ fillOpacity: 0, strokeOpacity: 0 }}
+        animate={{ fillOpacity, strokeOpacity }}
+        transition={{ duration: 0.25 }}
+      />
+      {/* Icon */}
+      <foreignObject
+        x={iconX - 16} y={iconY - 20} width={32} height={28}
+        className="pointer-events-none"
+      >
+        <div className="w-full h-full flex items-center justify-center" style={{ color: isSelected || isHovered ? accent : `${accent}` }}>
+          {icon}
+        </div>
+      </foreignObject>
+      {/* Label */}
+      <text
+        x={iconX} y={iconY + 16}
+        textAnchor="middle"
+        className="pointer-events-none select-none"
+        style={{
+          fill: isSelected ? accent : `${accent}cc`,
+          fontSize: isSelected ? "9px" : "8px",
+          fontWeight: isSelected ? 700 : 600,
+          letterSpacing: "0.05em",
+        }}
+      >
+        {label}
+      </text>
+      {/* Selected glow */}
+      {isSelected && (
+        <motion.path
+          d={d}
+          fill="none"
+          stroke={accent}
+          strokeWidth={1}
+          initial={{ strokeOpacity: 0 }}
+          animate={{ strokeOpacity: [0.3, 0.6, 0.3] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          style={{ filter: `drop-shadow(0 0 8px ${accent})` }}
         />
-      ))}
-    </svg>
+      )}
+    </g>
   );
 }
 
-// ── Radii per level (distance from PARENT, not from center) ──
-const R1 = 240; // actions from module
-const R2 = 160; // sub-actions from action  
-const R3 = 80;  // leaves from sub-action (closer together)
+// ── Main Weapon Wheel component ──
+function WeaponWheel({
+  items, accent, onSelect, selectedIndex, onBack, depth,
+}: {
+  items: WheelItem[];
+  accent: string;
+  onSelect: (index: number) => void;
+  selectedIndex: number | null;
+  onBack?: () => void;
+  depth: number;
+}) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
+  // Scale wheel based on depth
+  const sizes = [
+    { inner: 80, outer: 180 },  // depth 0: modules
+    { inner: 70, outer: 165 },  // depth 1: actions
+    { inner: 60, outer: 145 },  // depth 2: sub-actions
+    { inner: 50, outer: 125 },  // depth 3: leaves
+  ];
+  const { inner, outer } = sizes[Math.min(depth, 3)];
+  const svgSize = (outer + 30) * 2;
+
+  return (
+    <motion.div
+      className="relative"
+      initial={{ scale: 0.5, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.5, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 200, damping: 22 }}
+    >
+      <svg
+        width={svgSize} height={svgSize}
+        viewBox={`${-svgSize / 2} ${-svgSize / 2} ${svgSize} ${svgSize}`}
+        className="drop-shadow-2xl"
+      >
+        {/* Background ring glow */}
+        <defs>
+          <radialGradient id={`wheel-glow-${depth}`}>
+            <stop offset="0%" stopColor={accent} stopOpacity="0.05" />
+            <stop offset="60%" stopColor={accent} stopOpacity="0.02" />
+            <stop offset="100%" stopColor={accent} stopOpacity="0" />
+          </radialGradient>
+        </defs>
+        <circle cx={0} cy={0} r={outer + 20} fill={`url(#wheel-glow-${depth})`} />
+
+        {/* Inner ring border */}
+        <circle cx={0} cy={0} r={inner} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.15} />
+        {/* Outer ring border */}
+        <circle cx={0} cy={0} r={outer} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.15} />
+
+        {/* Segments */}
+        {items.map((item, i) => (
+          <WheelSegment
+            key={`${item.label}-${i}`}
+            index={i}
+            total={items.length}
+            innerR={inner}
+            outerR={outer}
+            isSelected={selectedIndex === i}
+            isHovered={hoveredIndex === i}
+            accent={accent}
+            icon={item.icon}
+            label={item.label}
+            onSelect={() => onSelect(i)}
+            onHover={() => setHoveredIndex(i)}
+            onLeave={() => setHoveredIndex(null)}
+          />
+        ))}
+      </svg>
+
+      {/* Center content */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="flex flex-col items-center gap-1">
+          {onBack && (
+            <motion.button
+              className="pointer-events-auto w-10 h-10 rounded-full border flex items-center justify-center backdrop-blur-xl transition-colors hover:bg-foreground/10"
+              style={{ borderColor: `${accent}40`, color: accent }}
+              onClick={onBack}
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </motion.button>
+          )}
+          {selectedIndex !== null && items[selectedIndex]?.children && (
+            <motion.div
+              className="pointer-events-none mt-1"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <span className="text-[9px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full border" style={{ color: accent, borderColor: `${accent}30`, background: `${accent}10` }}>
+                {items[selectedIndex].children!.length} opções
+              </span>
+            </motion.div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── Page ──
 const Index = () => {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { isAdmin, hasModuleAccessFlexible } = useModulePermissions();
   const { empresaAtiva } = useEmpresaAtiva();
-  const [focusedModule, setFocusedModule] = useState<string | null>(null);
-  const [expandedAction, setExpandedAction] = useState<string | null>(null);
-  const [expandedSub, setExpandedSub] = useState<string | null>(null);
 
-  const closeFocus = useCallback(() => { setFocusedModule(null); setExpandedAction(null); setExpandedSub(null); }, []);
-  const openModule = useCallback((id: string) => { setFocusedModule(id); setExpandedAction(null); setExpandedSub(null); }, []);
-  const toggleAction = useCallback((k: string) => { setExpandedAction(p => p === k ? null : k); setExpandedSub(null); }, []);
-  const toggleSub = useCallback((k: string) => { setExpandedSub(p => p === k ? null : k); }, []);
+  // Navigation stack: each entry is { items, selectedIndex, accentHsl, title }
+  type NavLevel = { items: WheelItem[]; selected: number | null; title: string };
+  const [activeModule, setActiveModule] = useState<HudModule | null>(null);
+  const [navStack, setNavStack] = useState<NavLevel[]>([]);
 
-  const focusedMod = focusedModule ? modules.find(m => m.id === focusedModule) : null;
+  const accent = activeModule ? `hsl(${activeModule.accentHsl})` : "hsl(var(--primary))";
+
+  const openModule = useCallback((mod: HudModule) => {
+    setActiveModule(mod);
+    setNavStack([{ items: mod.items, selected: null, title: mod.title }]);
+  }, []);
+
+  const closeWheel = useCallback(() => {
+    setActiveModule(null);
+    setNavStack([]);
+  }, []);
+
+  const goBack = useCallback(() => {
+    if (navStack.length <= 1) {
+      closeWheel();
+    } else {
+      setNavStack(prev => prev.slice(0, -1));
+    }
+  }, [navStack.length, closeWheel]);
+
+  const selectItem = useCallback((index: number) => {
+    setNavStack(prev => {
+      const current = prev[prev.length - 1];
+      const item = current.items[index];
+      if (item.children && item.children.length > 0) {
+        // Drill down
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...current, selected: index };
+        return [...updated, { items: item.children, selected: null, title: item.label }];
+      } else {
+        // Navigate
+        navigate(item.href);
+        return prev;
+      }
+    });
+  }, [navigate]);
+
+  const currentLevel = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+
+  // Breadcrumb
+  const breadcrumb = useMemo(() => {
+    if (!activeModule || navStack.length === 0) return [];
+    return [activeModule.title, ...navStack.slice(0, -1).map(l => {
+      if (l.selected !== null) return l.items[l.selected].label;
+      return null;
+    }).filter(Boolean)];
+  }, [activeModule, navStack]);
+
+  // Module wheel items for the initial ring
+  const moduleWheelItems: WheelItem[] = useMemo(() => {
+    return modules.map(m => ({
+      icon: m.icon,
+      label: m.title,
+      href: m.href,
+      accentHsl: m.accentHsl,
+      children: m.items,
+    }));
+  }, []);
 
   return (
-    <div className="min-h-screen bg-background relative overflow-auto">
+    <div className="min-h-screen bg-background relative overflow-hidden">
       <GradientMesh />
 
       {/* Grid */}
@@ -204,290 +449,123 @@ const Index = () => {
         </div>
       </motion.div>
 
-      {/* ══════════════ MODULE CARDS (resting state) ══════════════ */}
-      <div className="relative z-10 w-full min-h-screen flex items-center justify-center" style={{ minHeight: "100vh", minWidth: "100vw" }}>
-        {/* Inter-module lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-          {!focusedModule && modules.map((m, i) =>
-            modules.slice(i + 1).map(o => (
-              <line key={`${m.id}-${o.id}`} x1={`${m.restPosition.x}%`} y1={`${m.restPosition.y}%`} x2={`${o.restPosition.x}%`} y2={`${o.restPosition.y}%`} stroke="hsl(var(--border))" strokeWidth={0.5} strokeOpacity={0.15} strokeDasharray="6 6" />
-            ))
-          )}
-        </svg>
-
-        {modules.map((mod, mIdx) => {
-          const hasAccess = hasModuleAccessFlexible(mod.module, empresaAtiva?.id);
-          const accent = `hsl(${mod.accentHsl})`;
-          const isFocused = focusedModule === mod.id;
-          const isHidden = focusedModule !== null && !isFocused;
-          const MOD = 140;
-
-          return (
+      {/* ══════════ MAIN CONTENT ══════════ */}
+      <div className="relative z-10 w-full min-h-screen flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          {!activeModule ? (
+            /* ── Module selection: 3 cards ── */
             <motion.div
-              key={mod.id}
-              className="absolute"
-              style={{ zIndex: isFocused ? 30 : 5 }}
-              animate={{
-                left: isFocused ? "50%" : `${mod.restPosition.x}%`,
-                top: isFocused ? "50%" : `${mod.restPosition.y}%`,
-                opacity: isHidden ? 0.15 : 1,
-                scale: isHidden ? 0.7 : 1,
-              }}
-              transition={{ type: "spring", stiffness: 120, damping: 20 }}
+              key="module-cards"
+              className="flex items-center gap-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.3 }}
             >
-              <div style={{ transform: "translate(-50%, -50%)", position: "relative" }}>
-                {/* Orbit guide rings (visible when focused) */}
-                {isFocused && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none">
-                    {/* R1 orbit ring */}
-                    <div className="absolute rounded-full border-2 border-dashed" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, borderColor: `${accent}25` }} />
-                    <div className="absolute rounded-full" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, background: `radial-gradient(circle, transparent 70%, ${accent}08 100%)` }} />
-                  </motion.div>
-                )}
-
-                {/* Glow */}
-                <div className="absolute pointer-events-none" style={{ width: 500, height: 500, left: MOD / 2 - 250, top: MOD / 2 - 250, background: `radial-gradient(circle, ${accent}${isFocused ? "12" : "06"} 0%, transparent 60%)`, filter: "blur(40px)" }} />
-
-                {/* Module button */}
-                <motion.button
-                  onClick={(e) => { e.stopPropagation(); if (!hasAccess) return; isFocused ? closeFocus() : openModule(mod.id); }}
-                  disabled={!hasAccess}
-                  className={`relative flex flex-col items-center justify-center gap-2 rounded-2xl border-2 transition-colors duration-300 ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
-                  style={{
-                    width: MOD, height: MOD,
-                    backgroundColor: isFocused ? "hsl(0 0% 8% / 0.98)" : "hsl(0 0% 6% / 0.97)",
-                    borderColor: isFocused ? `${accent}90` : `${accent}50`,
-                    boxShadow: isFocused ? `0 0 80px ${accent}30, inset 0 0 30px hsl(0 0% 100% / 0.04)` : `0 0 20px ${accent}10`,
-                    backdropFilter: "blur(24px)",
-                  }}
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.3 + mIdx * 0.15, type: "spring", stiffness: 180, damping: 18 }}
-                  whileHover={hasAccess && !isFocused ? { scale: 1.06, boxShadow: `0 0 50px ${accent}30` } : {}}
-                >
-                  {isFocused && <motion.div className="absolute -inset-2 rounded-2xl pointer-events-none" style={{ border: `1px solid ${accent}30` }} animate={{ scale: [1, 1.05, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 2.5, repeat: Infinity }} />}
-                  <div style={{ color: hasAccess ? accent : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</div>
-                  <span className="text-sm font-bold tracking-wider" style={{ color: accent }}>{mod.title}</span>
-                  <span className="text-[10px] text-foreground/70 leading-tight text-center px-2">{mod.tagline}</span>
-                </motion.button>
-
-                {/* Close button */}
-                {isFocused && (
+              {modules.map((mod, mIdx) => {
+                const hasAccess = hasModuleAccessFlexible(mod.module, empresaAtiva?.id);
+                const a = `hsl(${mod.accentHsl})`;
+                return (
                   <motion.button
-                    onClick={(e) => { e.stopPropagation(); closeFocus(); }}
-                    className="absolute -top-3 -right-3 w-7 h-7 rounded-full border flex items-center justify-center z-40"
-                    style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
-                    initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}
+                    key={mod.id}
+                    onClick={() => hasAccess && openModule(mod)}
+                    disabled={!hasAccess}
+                    className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 transition-colors duration-300 ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
+                    style={{
+                      width: 160, height: 160,
+                      backgroundColor: "hsl(0 0% 6% / 0.97)",
+                      borderColor: `${a}50`,
+                      backdropFilter: "blur(24px)",
+                    }}
+                    initial={{ scale: 0, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 + mIdx * 0.12, type: "spring", stiffness: 180, damping: 18 }}
+                    whileHover={hasAccess ? { scale: 1.08, borderColor: `${a}90`, boxShadow: `0 0 60px ${a}25` } : {}}
+                    whileTap={hasAccess ? { scale: 0.95 } : {}}
                   >
-                    <X className="w-3.5 h-3.5" />
+                    {/* Glow */}
+                    <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: `radial-gradient(circle at center, ${a}10 0%, transparent 70%)` }} />
+                    <div style={{ color: hasAccess ? a : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</div>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <span className="text-sm font-bold tracking-wider" style={{ color: a }}>{mod.title}</span>
+                      <span className="text-[10px] text-foreground/60">{mod.tagline}</span>
+                    </div>
+                    {hasAccess && (
+                      <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: a }}>
+                        <span className="text-[9px] font-bold text-black">{mod.items.length}</span>
+                      </div>
+                    )}
                   </motion.button>
-                )}
-
-                {/* "Acessar" button moved outside - rendered via portal below */}
-
-                {/* ═══ LEVEL 2: ACTIONS (orbit around module) ═══ */}
-                <AnimatePresence>
-                  {isFocused && hasAccess && (() => {
-                    const actionPositions = orbit(mod.actions.length, R1);
-                    return mod.actions.map((action, aIdx) => {
-                      const aPos = actionPositions[aIdx];
-                      const aKey = `${mod.id}-${action.label}`;
-                      const aExp = expandedAction === aKey;
-                      const hasSubs = action.subActions && action.subActions.length > 0;
-                      const A = 72;
-
-                      return (
-                        <motion.div
-                          key={action.label}
-                          className="absolute z-20"
-                          style={{ top: MOD / 2, left: MOD / 2 }}
-                          initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                          animate={{ x: aPos.x - A / 2, y: aPos.y - A / 2, scale: 1, opacity: 1 }}
-                          exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                          transition={{ delay: aIdx * 0.06, type: "spring", stiffness: 200, damping: 18 }}
-                        >
-                          {/* Orbit ring R2 around this action when expanded */}
-                          {aExp && hasSubs && (
-                            <motion.div className="absolute pointer-events-none" style={{ top: A / 2 - R2, left: A / 2 - R2, width: R2 * 2, height: R2 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-                              <div className="w-full h-full rounded-full border border-dashed" style={{ borderColor: `${accent}20` }} />
-                              <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 60%, ${accent}06 100%)` }} />
-                            </motion.div>
-                          )}
-
-                          {/* Bead chain: module → action */}
-                          <div className="absolute" style={{ top: A / 2, left: A / 2 }}>
-                            <BeadChain x={aPos.x} y={aPos.y} accent={accent} count={4} size={3.5} expanded={aExp} />
-                          </div>
-
-                          <motion.button
-                            onClick={(e) => { e.stopPropagation(); hasSubs ? toggleAction(aKey) : navigate(action.href); }}
-                            className="rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
-                            style={{
-                              width: A, height: A,
-                              backgroundColor: aExp ? `${accent}20` : "hsl(0 0% 5% / 0.97)",
-                              borderColor: aExp ? `${accent}90` : `${accent}55`,
-                              color: accent,
-                            }}
-                            whileHover={{ scale: 1.1, boxShadow: `0 0 25px ${accent}30` }}
-                            whileTap={{ scale: 0.92 }}
-                          >
-                            {aExp && <motion.div className="absolute -inset-1 rounded-xl pointer-events-none" style={{ border: `1px solid ${accent}35` }} animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0, 0.4] }} transition={{ duration: 1.8, repeat: Infinity }} />}
-                            {action.icon}
-                            <span className="text-[10px] font-bold tracking-wide" style={{ color: accent }}>{action.label}</span>
-                            {hasSubs && (
-                              <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: accent }}>
-                                <span className="text-[8px] font-bold text-black">{action.subActions!.length}</span>
-                              </div>
-                            )}
-                            <div className="absolute whitespace-nowrap px-2 py-1 rounded-lg pointer-events-none opacity-0 group-hover/action:opacity-100 transition-opacity duration-200 -top-9 z-30" style={{ backgroundColor: "hsl(0 0% 5% / 0.97)", border: `1px solid ${accent}30` }}>
-                              <span className="text-[10px] font-bold" style={{ color: accent }}>{action.description}</span>
-                            </div>
-                          </motion.button>
-
-                          {/* ═══ LEVEL 3: SUB-ACTIONS (orbit around THIS action) ═══ */}
-                          <AnimatePresence>
-                            {aExp && hasSubs && (() => {
-                              const subPositions = orbit(action.subActions!.length, R2, aPos.deg - 60);
-                              return action.subActions!.map((sub, sIdx) => {
-                                const sPos = subPositions[sIdx];
-                                const sKey = `${aKey}-${sub.label}`;
-                                const sExp = expandedSub === sKey;
-                                const hasLeaves = sub.leaves && sub.leaves.length > 0;
-                                const S = 56;
-
-                                return (
-                                  <motion.div
-                                    key={sub.label}
-                                    className="absolute z-30"
-                                    style={{ top: A / 2, left: A / 2 }}
-                                    initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                    animate={{ x: sPos.x - S / 2, y: sPos.y - S / 2, scale: 1, opacity: 1 }}
-                                    exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                    transition={{ delay: sIdx * 0.04, type: "spring", stiffness: 240, damping: 20 }}
-                                   >
-                                    {/* Orbit ring R3 around this sub-action when expanded */}
-                                    {sExp && hasLeaves && (
-                                      <motion.div className="absolute pointer-events-none" style={{ top: S / 2 - R3, left: S / 2 - R3, width: R3 * 2, height: R3 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
-                                        <div className="w-full h-full rounded-full border border-dotted" style={{ borderColor: `${accent}18` }} />
-                                        <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 50%, ${accent}04 100%)` }} />
-                                      </motion.div>
-                                    )}
-
-                                    {/* Bead chain: action → sub */}
-                                    <div className="absolute" style={{ top: S / 2, left: S / 2 }}>
-                                      <BeadChain x={sPos.x} y={sPos.y} accent={accent} count={3} size={2.5} expanded={sExp} />
-                                    </div>
-
-                                    <motion.button
-                                      onClick={(e) => { e.stopPropagation(); hasLeaves ? toggleSub(sKey) : navigate(sub.href); }}
-                                      className="rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 relative"
-                                      style={{
-                                        width: S, height: S,
-                                        backgroundColor: sExp ? `${accent}20` : "hsl(0 0% 4% / 0.97)",
-                                        borderColor: sExp ? `${accent}70` : `${accent}40`,
-                                        color: accent,
-                                      }}
-                                      whileHover={{ scale: 1.12, boxShadow: `0 0 18px ${accent}30` }}
-                                      whileTap={{ scale: 0.88 }}
-                                    >
-                                      {sExp && <motion.div className="absolute -inset-0.5 rounded-lg pointer-events-none" style={{ border: `1px solid ${accent}30` }} animate={{ scale: [1, 1.06, 1], opacity: [0.3, 0, 0.3] }} transition={{ duration: 1.5, repeat: Infinity }} />}
-                                      {sub.icon}
-                                      <span className="text-[8px] font-bold tracking-wide leading-none" style={{ color: accent }}>{sub.label}</span>
-                                      {hasLeaves && (
-                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: accent }}>
-                                          <span className="text-[7px] font-bold text-black">{sub.leaves!.length}</span>
-                                        </div>
-                                      )}
-                                    </motion.button>
-
-                                    {/* ═══ LEVEL 4: LEAVES (orbit around THIS sub-action) ═══ */}
-                                    <AnimatePresence>
-                                      {sExp && hasLeaves && (() => {
-                                        const leafPositions = orbit(sub.leaves!.length, R3, sPos.deg - 45);
-                                        return sub.leaves!.map((leaf, lIdx) => {
-                                          const lPos = leafPositions[lIdx];
-                                          const L = 44;
-                                          return (
-                                            <motion.div
-                                              key={leaf.label}
-                                              className="absolute z-40"
-                                              style={{ top: S / 2, left: S / 2 }}
-                                              initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                              animate={{ x: lPos.x - L / 2, y: lPos.y - L / 2, scale: 1, opacity: 1 }}
-                                              exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                              transition={{ delay: lIdx * 0.03, type: "spring", stiffness: 280, damping: 22 }}
-                                            >
-                                              <div className="absolute" style={{ top: L / 2, left: L / 2 }}>
-                                                <BeadChain x={lPos.x} y={lPos.y} accent={accent} count={2} size={2} expanded />
-                                              </div>
-                                              <motion.button
-                                                onClick={(e) => { e.stopPropagation(); navigate(leaf.href); }}
-                                                className="rounded-md border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/leaf relative"
-                                                style={{
-                                                  width: L, height: L,
-                                                  backgroundColor: "hsl(0 0% 3% / 0.97)",
-                                                  borderColor: `${accent}35`,
-                                                  color: accent,
-                                                }}
-                                                whileHover={{ scale: 1.15, backgroundColor: `${accent}30`, boxShadow: `0 0 15px ${accent}30` }}
-                                                whileTap={{ scale: 0.88 }}
-                                              >
-                                                {leaf.icon}
-                                                <span className="text-[7px] font-bold leading-none mt-0.5" style={{ color: accent }}>{leaf.label}</span>
-                                                <div className="absolute whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none opacity-0 group-hover/leaf:opacity-100 transition-opacity duration-200 -top-6 z-50" style={{ backgroundColor: "hsl(0 0% 4% / 0.97)", border: `1px solid ${accent}25` }}>
-                                                  <span className="text-[9px] font-semibold" style={{ color: accent }}>{leaf.label}</span>
-                                                </div>
-                                              </motion.button>
-                                            </motion.div>
-                                          );
-                                        });
-                                      })()}
-                                    </AnimatePresence>
-                                  </motion.div>
-                                );
-                              });
-                            })()}
-                          </AnimatePresence>
-                        </motion.div>
-                      );
-                    });
-                  })()}
-                </AnimatePresence>
-              </div>
+                );
+              })}
             </motion.div>
-          );
-        })}
+          ) : (
+            /* ── Weapon Wheel ── */
+            <motion.div
+              key="weapon-wheel"
+              className="flex flex-col items-center gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              {/* Breadcrumb */}
+              <motion.div
+                className="flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-xl"
+                style={{ borderColor: `${accent}30`, background: `${accent}08` }}
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+              >
+                {breadcrumb.map((crumb, i) => (
+                  <span key={i} className="flex items-center gap-2">
+                    {i > 0 && <ChevronRight className="w-3 h-3" style={{ color: `${accent}60` }} />}
+                    <span className="text-xs font-semibold tracking-wider uppercase" style={{ color: i === breadcrumb.length - 1 ? accent : `${accent}80` }}>
+                      {crumb}
+                    </span>
+                  </span>
+                ))}
+              </motion.div>
+
+              {/* The wheel */}
+              {currentLevel && (
+                <WeaponWheel
+                  key={navStack.length}
+                  items={currentLevel.items}
+                  accent={accent}
+                  selectedIndex={currentLevel.selected}
+                  onSelect={selectItem}
+                  onBack={goBack}
+                  depth={navStack.length - 1}
+                />
+              )}
+
+              {/* Acessar button */}
+              <motion.button
+                onClick={() => navigate(activeModule.href)}
+                className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
+                style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <span className="text-sm font-bold">Acessar {activeModule.title}</span>
+                <ChevronRight className="w-4 h-4" />
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* "Acessar" button - truly fixed at bottom, outside transform context */}
+      {/* Backdrop overlay when wheel is open */}
       <AnimatePresence>
-        {focusedMod && (
-          <motion.div
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
-            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
-          >
-            <button
-              onClick={() => navigate(focusedMod.href)}
-              className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
-              style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `hsl(${focusedMod.accentHsl})50`, color: `hsl(${focusedMod.accentHsl})` }}
-            >
-              <span className="text-sm font-bold whitespace-nowrap">Acessar {focusedMod.title}</span>
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Backdrop overlay when focused */}
-      <AnimatePresence>
-        {focusedModule && (
+        {activeModule && (
           <motion.div
             className="fixed inset-0 z-[4]"
-            style={{ backgroundColor: "hsl(0 0% 0% / 0.5)" }}
+            style={{ backgroundColor: "hsl(0 0% 0% / 0.6)" }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={closeFocus}
+            onClick={closeWheel}
           />
         )}
       </AnimatePresence>
