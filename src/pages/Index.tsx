@@ -120,11 +120,35 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
   });
 }
 
+// ── Bead chain: small dots connecting parent to child ──
+function BeadChain({ x, y, accent, count = 3, size = 4, expanded = false }: { x: number; y: number; accent: string; count?: number; size?: number; expanded?: boolean }) {
+  const beads = Array.from({ length: count }, (_, i) => {
+    const t = (i + 1) / (count + 1);
+    return { cx: -x * t, cy: -y * t };
+  });
+  return (
+    <svg className="absolute pointer-events-none" style={{ top: 0, left: 0, width: 1, height: 1, overflow: "visible" }}>
+      {beads.map((b, i) => (
+        <motion.circle
+          key={i}
+          cx={b.cx} cy={b.cy}
+          fill={accent}
+          initial={{ r: 0, opacity: 0 }}
+          animate={{
+            r: expanded ? size * 1.4 : size,
+            opacity: expanded ? 0.7 : 0.35,
+          }}
+          transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 20 }}
+        />
+      ))}
+    </svg>
+  );
+}
+
 // ── Radii per level (distance from PARENT, not from center) ──
-// Calculated to fit within viewport: max total reach ~480px from center
 const R1 = 240; // actions from module
 const R2 = 160; // sub-actions from action  
-const R3 = 110; // leaves from sub-action
+const R3 = 80;  // leaves from sub-action (closer together)
 
 const Index = () => {
   const navigate = useNavigate();
@@ -290,10 +314,10 @@ const Index = () => {
                             </motion.div>
                           )}
 
-                          {/* Line: module → action */}
-                          <svg className="absolute pointer-events-none" style={{ top: A / 2, left: A / 2, width: 1, height: 1, overflow: "visible" }}>
-                            <line x1={0} y1={0} x2={-aPos.x} y2={-aPos.y} stroke={accent} strokeWidth={1.2} strokeOpacity={0.3} />
-                          </svg>
+                          {/* Bead chain: module → action */}
+                          <div className="absolute" style={{ top: A / 2, left: A / 2 }}>
+                            <BeadChain x={aPos.x} y={aPos.y} accent={accent} count={4} size={3.5} expanded={aExp} />
+                          </div>
 
                           <motion.button
                             onClick={(e) => { e.stopPropagation(); hasSubs ? toggleAction(aKey) : navigate(action.href); }}
@@ -349,10 +373,10 @@ const Index = () => {
                                       </motion.div>
                                     )}
 
-                                    {/* Line: action → sub */}
-                                    <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: "visible" }}>
-                                      <line x1={0} y1={0} x2={-sPos.x} y2={-sPos.y} stroke={accent} strokeWidth={0.8} strokeOpacity={0.25} strokeDasharray="3 3" />
-                                    </svg>
+                                    {/* Bead chain: action → sub */}
+                                    <div className="absolute" style={{ top: S / 2, left: S / 2 }}>
+                                      <BeadChain x={sPos.x} y={sPos.y} accent={accent} count={3} size={2.5} expanded={sExp} />
+                                    </div>
 
                                     <motion.button
                                       onClick={(e) => { e.stopPropagation(); hasLeaves ? toggleSub(sKey) : navigate(sub.href); }}
@@ -393,9 +417,9 @@ const Index = () => {
                                               exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                               transition={{ delay: lIdx * 0.03, type: "spring", stiffness: 280, damping: 22 }}
                                             >
-                                              <svg className="absolute pointer-events-none" style={{ top: L / 2, left: L / 2, width: 1, height: 1, overflow: "visible" }}>
-                                                <line x1={0} y1={0} x2={-lPos.x} y2={-lPos.y} stroke={accent} strokeWidth={0.6} strokeOpacity={0.2} strokeDasharray="2 2" />
-                                              </svg>
+                                              <div className="absolute" style={{ top: L / 2, left: L / 2 }}>
+                                                <BeadChain x={lPos.x} y={lPos.y} accent={accent} count={2} size={2} expanded />
+                                              </div>
                                               <motion.button
                                                 onClick={(e) => { e.stopPropagation(); navigate(leaf.href); }}
                                                 className="rounded-md border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/leaf relative"
