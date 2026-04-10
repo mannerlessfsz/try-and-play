@@ -44,6 +44,7 @@ const FinancialACE = lazy(() => lazyRetry(() => import("./pages/FinancialACE")))
 const UsuariosAdmin = lazy(() => lazyRetry(() => import("./pages/UsuariosAdmin")));
 const InstallApp = lazy(() => lazyRetry(() => import("./pages/InstallApp")));
 const ClienteTaskVault = lazy(() => lazyRetry(() => import("./pages/ClienteTaskVault")));
+const TaskVaultCadastro = lazy(() => lazyRetry(() => import("./pages/TaskVaultCadastro")));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">

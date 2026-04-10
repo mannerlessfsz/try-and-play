@@ -199,7 +199,7 @@ export default function TaskVaultCadastro() {
 
   if (isLoading) {
     return (
-      <ModulePageWrapper moduleName="taskvault">
+      <ModulePageWrapper module="taskvault">
         <div className="min-h-screen flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
@@ -208,7 +208,7 @@ export default function TaskVaultCadastro() {
   }
 
   return (
-    <ModulePageWrapper moduleName="taskvault">
+    <ModulePageWrapper module="taskvault">
       <div className="max-w-[1600px] mx-auto px-6 py-6 space-y-6">
 
         {/* Header */}
