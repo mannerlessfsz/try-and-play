@@ -354,7 +354,15 @@ const Index = () => {
                                     animate={{ x: sPos.x - S / 2, y: sPos.y - S / 2, scale: 1, opacity: 1 }}
                                     exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                     transition={{ delay: sIdx * 0.04, type: "spring", stiffness: 240, damping: 20 }}
-                                  >
+                                   >
+                                    {/* Orbit ring R3 around this sub-action when expanded */}
+                                    {sExp && hasLeaves && (
+                                      <motion.div className="absolute pointer-events-none" style={{ top: S / 2 - R3, left: S / 2 - R3, width: R3 * 2, height: R3 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                                        <div className="w-full h-full rounded-full border border-dotted" style={{ borderColor: `${accent}18` }} />
+                                        <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 50%, ${accent}04 100%)` }} />
+                                      </motion.div>
+                                    )}
+
                                     {/* Line: action → sub */}
                                     <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: "visible" }}>
                                       <line x1={0} y1={0} x2={-sPos.x} y2={-sPos.y} stroke={accent} strokeWidth={0.8} strokeOpacity={0.25} strokeDasharray="3 3" />
