@@ -390,7 +390,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 </div>
 
                 {/* ── Left side: Tasks ── */}
-                <div className="w-[calc(50%-20px)]">
+                <div className="w-[calc(65%-20px)]">
                   <div className="flex justify-end">
                     <CompactDayNode
                       dateKey={dateKey}
@@ -424,7 +424,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 </div>
 
                 {/* ── Right side: Empresas summary ── */}
-                <div className="w-[calc(50%-20px)]">
+                <div className="w-[calc(35%-20px)]">
                   <div className="flex justify-start">
                     <div className="w-full ml-0">
                       {empresas.length > 0 ? (
