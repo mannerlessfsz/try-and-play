@@ -240,6 +240,26 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             </button>
           ))}
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setWeekOffset(w => w - 1)}
+            className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setWeekOffset(0)}
+            className="text-sm font-semibold px-4 py-1.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-all border border-primary/30"
+          >
+            <Calendar className="w-3.5 h-3.5 inline mr-1.5" />Hoje
+          </button>
+          <button
+            onClick={() => setWeekOffset(w => w + 1)}
+            className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
         <div className="flex items-center gap-2 ml-auto">
           <button
             onClick={() => setShowCompleted(v => !v)}
@@ -250,27 +270,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
           <Button variant="ghost" size="sm" className="h-8 text-xs gap-1 text-muted-foreground/60" onClick={() => exportCSV(tarefas, getEmpresaNome)}>
             <Download className="w-3 h-3" /> CSV
           </Button>
-          <div className="w-px h-5 bg-foreground/10" />
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setWeekOffset(w => w - 1)}
-              className="p-1 rounded-md bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setWeekOffset(0)}
-              className="text-xs font-medium px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-all border border-primary/20"
-            >
-              <Calendar className="w-3 h-3 inline mr-1" />Hoje
-            </button>
-            <button
-              onClick={() => setWeekOffset(w => w + 1)}
-              className="p-1 rounded-md bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
         </div>
       </div>
 
