@@ -616,7 +616,7 @@ const Index = () => {
             className="fixed inset-0 z-[4]"
             style={{ backgroundColor: "hsl(0 0% 0% / 0.65)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={closeWheel}
+            onClick={handleBack}
           />
         )}
       </AnimatePresence>
