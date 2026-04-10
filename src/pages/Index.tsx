@@ -142,7 +142,7 @@ const Index = () => {
   const focusedMod = focusedModule ? modules.find(m => m.id === focusedModule) : null;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-auto">
       <GradientMesh />
 
       {/* Grid */}
