@@ -118,16 +118,16 @@ export default function TaskVaultDocumentos() {
 
   if (loading) {
     return (
-      <ModulePageWrapper accentHsl="var(--module-red)">
+      <ModulePageWrapper module="taskvault">
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="w-8 h-8 animate-spin text-red-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
         </div>
       </ModulePageWrapper>
     );
   }
 
   return (
-    <ModulePageWrapper accentHsl="var(--module-red)">
+    <ModulePageWrapper module="taskvault">
       <div className="max-w-6xl mx-auto space-y-6 p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
