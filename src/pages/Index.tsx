@@ -17,7 +17,6 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-// ── Types ──
 interface HudLeaf {
   icon: React.ReactNode;
   label: string;
@@ -47,14 +46,10 @@ interface HudModule {
   accentHsl: string;
   module: AppModule;
   href: string;
-  // Position on screen as percentage
   position: { x: number; y: number };
-  // Angle range for actions to fan out (degrees)
-  fanCenter: number;
   actions: HudAction[];
 }
 
-// ── Data ──
 const modules: HudModule[] = [
   {
     id: "taskvault",
@@ -64,8 +59,7 @@ const modules: HudModule[] = [
     accentHsl: "0 85% 55%",
     module: "taskvault",
     href: "/taskvault",
-    position: { x: 15, y: 30 },
-    fanCenter: 0, // fan to the right
+    position: { x: 23, y: 52 },
     actions: [
       {
         icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", description: "Kanban e lista", href: "/taskvault",
@@ -107,8 +101,7 @@ const modules: HudModule[] = [
     accentHsl: "210 100% 55%",
     module: "gestao",
     href: "/gestao",
-    position: { x: 50, y: 45 },
-    fanCenter: 90, // fan downward and around
+    position: { x: 50, y: 56 },
     actions: [
       {
         icon: <Wallet className="w-5 h-5" />, label: "Financeiro", description: "Contas e fluxo", href: "/gestao",
@@ -165,8 +158,7 @@ const modules: HudModule[] = [
     accentHsl: "25 100% 55%",
     module: "messenger",
     href: "/messenger",
-    position: { x: 85, y: 30 },
-    fanCenter: 180, // fan to the left
+    position: { x: 77, y: 52 },
     actions: [
       {
         icon: <Send className="w-5 h-5" />, label: "Conversas", description: "Chat", href: "/messenger",
@@ -194,19 +186,23 @@ const modules: HudModule[] = [
   },
 ];
 
-// ── Layout radii (distance from parent) ──
-const ACTION_DIST = 180;
-const SUB_DIST = 110;
-const LEAF_DIST = 80;
+const ACTION_DIST = 190;
+const SUB_DIST = 300;
+const LEAF_DIST = 390;
 
-// ── Helpers ──
-function fanPositions(parentAngle: number, count: number, dist: number, spreadPerItem: number, maxSpread: number) {
-  const fan = Math.min(count * spreadPerItem, maxSpread);
-  const start = parentAngle - fan / 2;
+function orbitPositions(count: number, dist: number, angleOffset = -90) {
+  if (count <= 0) return [] as { x: number; y: number; deg: number }[];
+
+  const step = 360 / count;
+
   return Array.from({ length: count }, (_, i) => {
-    const deg = count === 1 ? parentAngle : start + (fan / (count - 1)) * i;
+    const deg = angleOffset + step * i;
     const rad = (deg * Math.PI) / 180;
-    return { x: Math.cos(rad) * dist, y: Math.sin(rad) * dist, deg };
+    return {
+      x: Math.cos(rad) * dist,
+      y: Math.sin(rad) * dist,
+      deg,
+    };
   });
 }
 
@@ -219,39 +215,73 @@ const Index = () => {
   const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [expandedSub, setExpandedSub] = useState<string | null>(null);
 
-  const handleBg = useCallback(() => { setExpandedModule(null); setExpandedAction(null); setExpandedSub(null); }, []);
-  const toggleModule = useCallback((id: string) => { setExpandedModule(p => p === id ? null : id); setExpandedAction(null); setExpandedSub(null); }, []);
-  const toggleAction = useCallback((k: string) => { setExpandedAction(p => p === k ? null : k); setExpandedSub(null); }, []);
-  const toggleSub = useCallback((k: string) => { setExpandedSub(p => p === k ? null : k); }, []);
+  const handleBg = useCallback(() => {
+    setExpandedModule(null);
+    setExpandedAction(null);
+    setExpandedSub(null);
+  }, []);
+
+  const toggleModule = useCallback((id: string) => {
+    setExpandedModule((prev) => (prev === id ? null : id));
+    setExpandedAction(null);
+    setExpandedSub(null);
+  }, []);
+
+  const toggleAction = useCallback((key: string) => {
+    setExpandedAction((prev) => (prev === key ? null : key));
+    setExpandedSub(null);
+  }, []);
+
+  const toggleSub = useCallback((key: string) => {
+    setExpandedSub((prev) => (prev === key ? null : key));
+  }, []);
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden" onClick={handleBg}>
       <GradientMesh />
 
-      {/* Grid */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.012]" style={{ backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`, backgroundSize: '60px 60px' }} />
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.012]"
+        style={{
+          backgroundImage: `linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
+        }}
+      />
 
-      {/* Top bar */}
-      <motion.div className="fixed top-0 left-0 right-0 z-50 px-4 py-3" initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.5 }}>
+      <motion.div
+        className="fixed top-0 left-0 right-0 z-50 px-4 py-3"
+        initial={{ y: -50, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+      >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
             <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl border border-border/30">
               <Zap className="w-5 h-5 text-primary fill-primary" />
             </div>
             <div>
-              <h1 className="text-base font-bold tracking-tight text-foreground">VAULT<span className="text-primary">CORP</span></h1>
+              <h1 className="text-base font-bold tracking-tight text-foreground">
+                VAULT<span className="text-primary">CORP</span>
+              </h1>
               <p className="text-[9px] text-muted-foreground tracking-[0.2em] uppercase">Command Center</p>
             </div>
           </motion.div>
+
           {empresaAtiva && (
-            <motion.div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/30 bg-card/40 backdrop-blur-xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
+            <motion.div
+              className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/30 bg-card/40 backdrop-blur-xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
               <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">{empresaAtiva.nome}</span>
             </motion.div>
           )}
+
           <div className="flex items-center gap-1.5">
             {isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin')} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8">
+              <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8">
                 <Settings className="w-3.5 h-3.5" /> Admin
               </Button>
             )}
@@ -262,35 +292,104 @@ const Index = () => {
         </div>
       </motion.div>
 
-      {/* ── Modules spread across the full viewport ── */}
       <div className="relative z-10 w-full h-screen">
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+          {modules.map((mod, i) =>
+            modules.slice(i + 1).map((other) => (
+              <line
+                key={`${mod.id}-${other.id}`}
+                x1={`${mod.position.x}%`}
+                y1={`${mod.position.y}%`}
+                x2={`${other.position.x}%`}
+                y2={`${other.position.y}%`}
+                stroke="hsl(var(--border))"
+                strokeWidth={0.5}
+                strokeOpacity={0.15}
+                strokeDasharray="6 6"
+              />
+            ))
+          )}
+        </svg>
+
         {modules.map((mod, mIdx) => {
           const hasAccess = hasModuleAccessFlexible(mod.module, empresaAtiva?.id);
-          const isExp = expandedModule === mod.id;
+          const isExpanded = expandedModule === mod.id;
           const accent = `hsl(${mod.accentHsl})`;
-          const actionPos = fanPositions(mod.fanCenter, mod.actions.length, ACTION_DIST, 28, 160);
+          const actionPositions = orbitPositions(mod.actions.length, ACTION_DIST, -90 + mIdx * 18);
           const MOD = 128;
 
           return (
             <div
               key={mod.id}
               className="absolute"
-              style={{ left: `${mod.position.x}%`, top: `${mod.position.y}%`, transform: 'translate(-50%, -50%)' }}
+              style={{ left: `${mod.position.x}%`, top: `${mod.position.y}%`, transform: "translate(-50%, -50%)" }}
             >
-              {/* Glow behind module */}
-              <div className="absolute pointer-events-none" style={{ width: 500, height: 500, left: -250 + MOD / 2, top: -250 + MOD / 2, background: `radial-gradient(circle, ${accent}08 0%, transparent 60%)`, filter: 'blur(40px)' }} />
-
-              {/* Module button */}
-              <motion.button
-                onClick={(e) => { e.stopPropagation(); hasAccess && toggleModule(mod.id); }}
-                disabled={!hasAccess}
-                className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 transition-all duration-300 ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}`}
+              <div
+                className="absolute pointer-events-none"
                 style={{
-                  width: MOD, height: MOD,
-                  backgroundColor: isExp ? 'hsl(0 0% 8% / 0.98)' : 'hsl(0 0% 6% / 0.97)',
-                  borderColor: isExp ? `${accent}90` : `${accent}50`,
-                  boxShadow: isExp ? `0 0 60px ${accent}30, inset 0 0 30px hsl(0 0% 100% / 0.04)` : `0 0 20px ${accent}10`,
-                  backdropFilter: 'blur(24px)',
+                  width: 860,
+                  height: 860,
+                  left: -430 + MOD / 2,
+                  top: -430 + MOD / 2,
+                  background: `radial-gradient(circle, ${accent}08 0%, transparent 62%)`,
+                  filter: "blur(42px)",
+                }}
+              />
+
+              <motion.div
+                className="absolute inset-0 pointer-events-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: isExpanded ? 1 : 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                <div
+                  className="absolute rounded-full border border-dashed"
+                  style={{
+                    width: ACTION_DIST * 2,
+                    height: ACTION_DIST * 2,
+                    left: MOD / 2 - ACTION_DIST,
+                    top: MOD / 2 - ACTION_DIST,
+                    borderColor: `${accent}18`,
+                  }}
+                />
+                <div
+                  className="absolute rounded-full border border-dashed"
+                  style={{
+                    width: SUB_DIST * 2,
+                    height: SUB_DIST * 2,
+                    left: MOD / 2 - SUB_DIST,
+                    top: MOD / 2 - SUB_DIST,
+                    borderColor: `${accent}12`,
+                  }}
+                />
+                <div
+                  className="absolute rounded-full border border-dashed"
+                  style={{
+                    width: LEAF_DIST * 2,
+                    height: LEAF_DIST * 2,
+                    left: MOD / 2 - LEAF_DIST,
+                    top: MOD / 2 - LEAF_DIST,
+                    borderColor: `${accent}10`,
+                  }}
+                />
+              </motion.div>
+
+              <motion.button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (hasAccess) toggleModule(mod.id);
+                }}
+                disabled={!hasAccess}
+                className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 transition-all duration-300 ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
+                style={{
+                  width: MOD,
+                  height: MOD,
+                  backgroundColor: isExpanded ? "hsl(0 0% 8% / 0.98)" : "hsl(0 0% 6% / 0.97)",
+                  borderColor: isExpanded ? `${accent}90` : `${accent}50`,
+                  boxShadow: isExpanded
+                    ? `0 0 60px ${accent}30, inset 0 0 30px hsl(0 0% 100% / 0.04)`
+                    : `0 0 20px ${accent}10`,
+                  backdropFilter: "blur(24px)",
                 }}
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -298,37 +397,45 @@ const Index = () => {
                 whileHover={hasAccess ? { scale: 1.06, boxShadow: `0 0 50px ${accent}30` } : {}}
                 whileTap={hasAccess ? { scale: 0.95 } : {}}
               >
-                {isExp && <motion.div className="absolute -inset-1.5 rounded-2xl pointer-events-none" style={{ border: `1px solid ${accent}40` }} animate={{ scale: [1, 1.06, 1], opacity: [0.6, 0, 0.6] }} transition={{ duration: 2, repeat: Infinity }} />}
-                <div style={{ color: hasAccess ? accent : undefined }}>{hasAccess ? mod.icon : <Lock className="w-6 h-6" />}</div>
+                {isExpanded && (
+                  <motion.div
+                    className="absolute -inset-1.5 rounded-2xl pointer-events-none"
+                    style={{ border: `1px solid ${accent}40` }}
+                    animate={{ scale: [1, 1.06, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
+
+                <div style={{ color: hasAccess ? accent : undefined }}>
+                  {hasAccess ? mod.icon : <Lock className="w-6 h-6" />}
+                </div>
                 <span className="text-sm font-bold tracking-wider" style={{ color: accent }}>{mod.title}</span>
                 <span className="text-[10px] text-foreground/70 leading-tight text-center px-2">{mod.tagline}</span>
+
+                {isExpanded && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(mod.href);
+                    }}
+                    className="absolute top-2 right-2 flex items-center justify-center w-7 h-7 rounded-full border"
+                    style={{ backgroundColor: "hsl(0 0% 4% / 0.9)", borderColor: `${accent}40`, color: accent }}
+                    aria-label={`Abrir ${mod.title}`}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </motion.button>
 
-              {/* "Acessar" chip */}
               <AnimatePresence>
-                {isExp && (
-                  <motion.button
-                    onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
-                    className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1.5 rounded-full border backdrop-blur-xl transition-all hover:scale-105"
-                    style={{ top: MOD + 8, backgroundColor: 'hsl(0 0% 6% / 0.95)', borderColor: `${accent}40`, color: accent }}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                  >
-                    <span className="text-[10px] font-bold whitespace-nowrap">Acessar {mod.title}</span>
-                    <ChevronRight className="w-3 h-3" />
-                  </motion.button>
-                )}
-              </AnimatePresence>
-
-              {/* ── Level 2: Actions ── */}
-              <AnimatePresence>
-                {isExp && hasAccess && mod.actions.map((action, aIdx) => {
-                  const ap = actionPos[aIdx];
-                  const aKey = `${mod.id}-${action.label}`;
-                  const aExp = expandedAction === aKey;
-                  const hasSubs = action.subActions && action.subActions.length > 0;
-                  const subPos = hasSubs ? fanPositions(ap.deg, action.subActions!.length, SUB_DIST, 25, 80) : [];
+                {isExpanded && hasAccess && mod.actions.map((action, actionIdx) => {
+                  const actionPos = actionPositions[actionIdx];
+                  const actionKey = `${mod.id}-${action.label}`;
+                  const isActionExpanded = expandedAction === actionKey;
+                  const hasSubActions = action.subActions && action.subActions.length > 0;
+                  const subPositions = hasSubActions
+                    ? orbitPositions(action.subActions!.length, SUB_DIST, actionPos.deg - 90)
+                    : [];
                   const A = 68;
 
                   return (
@@ -337,49 +444,69 @@ const Index = () => {
                       className="absolute z-10"
                       style={{ top: MOD / 2, left: MOD / 2 }}
                       initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                      animate={{ x: ap.x - A / 2, y: ap.y - A / 2, scale: 1, opacity: 1 }}
+                      animate={{ x: actionPos.x - A / 2, y: actionPos.y - A / 2, scale: 1, opacity: 1 }}
                       exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                      transition={{ delay: aIdx * 0.05, type: "spring", stiffness: 220, damping: 20 }}
+                      transition={{ delay: actionIdx * 0.05, type: "spring", stiffness: 220, damping: 20 }}
                     >
-                      {/* Line */}
-                      <svg className="absolute pointer-events-none" style={{ top: A / 2, left: A / 2, width: 1, height: 1, overflow: 'visible' }}>
-                        <line x1={0} y1={0} x2={-ap.x} y2={-ap.y} stroke={accent} strokeWidth={1} strokeOpacity={0.3} />
+                      <svg className="absolute pointer-events-none" style={{ top: A / 2, left: A / 2, width: 1, height: 1, overflow: "visible" }}>
+                        <line x1={0} y1={0} x2={-actionPos.x} y2={-actionPos.y} stroke={accent} strokeWidth={1} strokeOpacity={0.3} />
                       </svg>
 
                       <motion.button
-                        onClick={(e) => { e.stopPropagation(); hasSubs ? toggleAction(aKey) : navigate(action.href); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (hasSubActions) {
+                            toggleAction(actionKey);
+                          } else {
+                            navigate(action.href);
+                          }
+                        }}
                         className="rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                         style={{
-                          width: A, height: A,
-                          backgroundColor: aExp ? `${accent}20` : 'hsl(0 0% 5% / 0.97)',
-                          borderColor: aExp ? `${accent}90` : `${accent}55`,
+                          width: A,
+                          height: A,
+                          backgroundColor: isActionExpanded ? `${accent}20` : "hsl(0 0% 5% / 0.97)",
+                          borderColor: isActionExpanded ? `${accent}90` : `${accent}55`,
                           color: accent,
                         }}
                         whileHover={{ scale: 1.1, boxShadow: `0 0 25px ${accent}30` }}
                         whileTap={{ scale: 0.92 }}
                       >
-                        {aExp && <motion.div className="absolute -inset-1 rounded-xl pointer-events-none" style={{ border: `1px solid ${accent}40` }} animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0, 0.5] }} transition={{ duration: 1.8, repeat: Infinity }} />}
+                        {isActionExpanded && (
+                          <motion.div
+                            className="absolute -inset-1 rounded-xl pointer-events-none"
+                            style={{ border: `1px solid ${accent}40` }}
+                            animate={{ scale: [1, 1.1, 1], opacity: [0.5, 0, 0.5] }}
+                            transition={{ duration: 1.8, repeat: Infinity }}
+                          />
+                        )}
+
                         {action.icon}
                         <span className="text-[10px] font-bold tracking-wide" style={{ color: accent }}>{action.label}</span>
-                        {hasSubs && (
+
+                        {hasSubActions && (
                           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center" style={{ backgroundColor: accent }}>
                             <span className="text-[7px] font-bold text-black">{action.subActions!.length}</span>
                           </div>
                         )}
-                        {/* Tooltip */}
-                        <div className="absolute whitespace-nowrap px-2 py-1 rounded-lg pointer-events-none opacity-0 group-hover/action:opacity-100 transition-opacity duration-200 -top-9 z-30" style={{ backgroundColor: 'hsl(0 0% 5% / 0.97)', border: `1px solid ${accent}30` }}>
+
+                        <div
+                          className="absolute whitespace-nowrap px-2 py-1 rounded-lg pointer-events-none opacity-0 group-hover/action:opacity-100 transition-opacity duration-200 -top-9 z-30"
+                          style={{ backgroundColor: "hsl(0 0% 5% / 0.97)", border: `1px solid ${accent}30` }}
+                        >
                           <span className="text-[10px] font-bold" style={{ color: accent }}>{action.description}</span>
                         </div>
                       </motion.button>
 
-                      {/* ── Level 3: Sub-actions ── */}
                       <AnimatePresence>
-                        {aExp && hasSubs && action.subActions!.map((sub, sIdx) => {
-                          const sp = subPos[sIdx];
-                          const sKey = `${aKey}-${sub.label}`;
-                          const sExp = expandedSub === sKey;
+                        {isActionExpanded && hasSubActions && action.subActions!.map((sub, subIdx) => {
+                          const subPos = subPositions[subIdx];
+                          const subKey = `${actionKey}-${sub.label}`;
+                          const isSubExpanded = expandedSub === subKey;
                           const hasLeaves = sub.leaves && sub.leaves.length > 0;
-                          const leafPos = hasLeaves ? fanPositions(sp.deg, sub.leaves!.length, LEAF_DIST, 28, 70) : [];
+                          const leafPositions = hasLeaves
+                            ? orbitPositions(sub.leaves!.length, LEAF_DIST, subPos.deg - 90)
+                            : [];
                           const S = 52;
 
                           return (
@@ -388,29 +515,60 @@ const Index = () => {
                               className="absolute z-20"
                               style={{ top: A / 2, left: A / 2 }}
                               initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                              animate={{ x: sp.x - S / 2, y: sp.y - S / 2, scale: 1, opacity: 1 }}
+                              animate={{
+                                x: subPos.x - actionPos.x - S / 2,
+                                y: subPos.y - actionPos.y - S / 2,
+                                scale: 1,
+                                opacity: 1,
+                              }}
                               exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                              transition={{ delay: sIdx * 0.04, type: "spring", stiffness: 260, damping: 22 }}
+                              transition={{ delay: subIdx * 0.04, type: "spring", stiffness: 260, damping: 22 }}
                             >
-                              <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: 'visible' }}>
-                                <line x1={0} y1={0} x2={-sp.x} y2={-sp.y} stroke={accent} strokeWidth={0.8} strokeOpacity={0.25} strokeDasharray="3 3" />
+                              <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: "visible" }}>
+                                <line
+                                  x1={0}
+                                  y1={0}
+                                  x2={actionPos.x - subPos.x}
+                                  y2={actionPos.y - subPos.y}
+                                  stroke={accent}
+                                  strokeWidth={0.8}
+                                  strokeOpacity={0.25}
+                                  strokeDasharray="3 3"
+                                />
                               </svg>
 
                               <motion.button
-                                onClick={(e) => { e.stopPropagation(); hasLeaves ? toggleSub(sKey) : navigate(sub.href); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (hasLeaves) {
+                                    toggleSub(subKey);
+                                  } else {
+                                    navigate(sub.href);
+                                  }
+                                }}
                                 className="rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
                                 style={{
-                                  width: S, height: S,
-                                  backgroundColor: sExp ? `${accent}20` : 'hsl(0 0% 4% / 0.97)',
-                                  borderColor: sExp ? `${accent}70` : `${accent}40`,
+                                  width: S,
+                                  height: S,
+                                  backgroundColor: isSubExpanded ? `${accent}20` : "hsl(0 0% 4% / 0.97)",
+                                  borderColor: isSubExpanded ? `${accent}70` : `${accent}40`,
                                   color: accent,
                                 }}
                                 whileHover={{ scale: 1.12, boxShadow: `0 0 18px ${accent}30` }}
                                 whileTap={{ scale: 0.88 }}
                               >
-                                {sExp && <motion.div className="absolute -inset-0.5 rounded-lg pointer-events-none" style={{ border: `1px solid ${accent}35` }} animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0, 0.4] }} transition={{ duration: 1.5, repeat: Infinity }} />}
+                                {isSubExpanded && (
+                                  <motion.div
+                                    className="absolute -inset-0.5 rounded-lg pointer-events-none"
+                                    style={{ border: `1px solid ${accent}35` }}
+                                    animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0, 0.4] }}
+                                    transition={{ duration: 1.5, repeat: Infinity }}
+                                  />
+                                )}
+
                                 {sub.icon}
                                 <span className="text-[8px] font-bold tracking-wide leading-none" style={{ color: accent }}>{sub.label}</span>
+
                                 {hasLeaves && (
                                   <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ backgroundColor: accent }}>
                                     <span className="text-[7px] font-bold text-black">{sub.leaves!.length}</span>
@@ -418,31 +576,49 @@ const Index = () => {
                                 )}
                               </motion.button>
 
-                              {/* ── Level 4: Leaves ── */}
                               <AnimatePresence>
-                                {sExp && hasLeaves && sub.leaves!.map((leaf, lIdx) => {
-                                  const lp = leafPos[lIdx];
+                                {isSubExpanded && hasLeaves && sub.leaves!.map((leaf, leafIdx) => {
+                                  const leafPos = leafPositions[leafIdx];
                                   const L = 40;
+
                                   return (
                                     <motion.div
                                       key={leaf.label}
                                       className="absolute z-30"
                                       style={{ top: S / 2, left: S / 2 }}
                                       initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                      animate={{ x: lp.x - L / 2, y: lp.y - L / 2, scale: 1, opacity: 1 }}
+                                      animate={{
+                                        x: leafPos.x - subPos.x - L / 2,
+                                        y: leafPos.y - subPos.y - L / 2,
+                                        scale: 1,
+                                        opacity: 1,
+                                      }}
                                       exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
-                                      transition={{ delay: lIdx * 0.03, type: "spring", stiffness: 300, damping: 24 }}
+                                      transition={{ delay: leafIdx * 0.03, type: "spring", stiffness: 300, damping: 24 }}
                                     >
-                                      <svg className="absolute pointer-events-none" style={{ top: L / 2, left: L / 2, width: 1, height: 1, overflow: 'visible' }}>
-                                        <line x1={0} y1={0} x2={-lp.x} y2={-lp.y} stroke={accent} strokeWidth={0.6} strokeOpacity={0.2} strokeDasharray="2 2" />
+                                      <svg className="absolute pointer-events-none" style={{ top: L / 2, left: L / 2, width: 1, height: 1, overflow: "visible" }}>
+                                        <line
+                                          x1={0}
+                                          y1={0}
+                                          x2={subPos.x - leafPos.x}
+                                          y2={subPos.y - leafPos.y}
+                                          stroke={accent}
+                                          strokeWidth={0.6}
+                                          strokeOpacity={0.2}
+                                          strokeDasharray="2 2"
+                                        />
                                       </svg>
 
                                       <motion.button
-                                        onClick={(e) => { e.stopPropagation(); navigate(leaf.href); }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          navigate(leaf.href);
+                                        }}
                                         className="rounded-md border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/leaf relative"
                                         style={{
-                                          width: L, height: L,
-                                          backgroundColor: 'hsl(0 0% 3% / 0.97)',
+                                          width: L,
+                                          height: L,
+                                          backgroundColor: "hsl(0 0% 3% / 0.97)",
                                           borderColor: `${accent}35`,
                                           color: accent,
                                         }}
@@ -451,7 +627,10 @@ const Index = () => {
                                       >
                                         {leaf.icon}
                                         <span className="text-[7px] font-bold leading-none mt-0.5" style={{ color: accent }}>{leaf.label}</span>
-                                        <div className="absolute whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none opacity-0 group-hover/leaf:opacity-100 transition-opacity duration-200 -top-6 z-40" style={{ backgroundColor: 'hsl(0 0% 4% / 0.97)', border: `1px solid ${accent}25` }}>
+                                        <div
+                                          className="absolute whitespace-nowrap px-1.5 py-0.5 rounded pointer-events-none opacity-0 group-hover/leaf:opacity-100 transition-opacity duration-200 -top-6 z-40"
+                                          style={{ backgroundColor: "hsl(0 0% 4% / 0.97)", border: `1px solid ${accent}25` }}
+                                        >
                                           <span className="text-[9px] font-semibold" style={{ color: accent }}>{leaf.label}</span>
                                         </div>
                                       </motion.button>
@@ -467,37 +646,11 @@ const Index = () => {
                   );
                 })}
               </AnimatePresence>
-
-              {/* Connecting lines from center to each module */}
-              {modules.filter(m => m.id !== mod.id).map(other => {
-                const dx = (other.position.x - mod.position.x);
-                const dy = (other.position.y - mod.position.y);
-                // Convert % to approximate vw/vh for line (we'll use SVG in viewport coords)
-                return null; // skip inter-module lines for cleanliness
-              })}
             </div>
           );
         })}
-
-        {/* Inter-module connection lines */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
-          {modules.map((mod, i) =>
-            modules.slice(i + 1).map(other => (
-              <line
-                key={`${mod.id}-${other.id}`}
-                x1={`${mod.position.x}%`} y1={`${mod.position.y}%`}
-                x2={`${other.position.x}%`} y2={`${other.position.y}%`}
-                stroke="hsl(var(--border))"
-                strokeWidth={0.5}
-                strokeOpacity={0.15}
-                strokeDasharray="6 6"
-              />
-            ))
-          )}
-        </svg>
       </div>
 
-      {/* Bottom fade */}
       <div className="fixed bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none z-[5]" />
     </div>
   );
