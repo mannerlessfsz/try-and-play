@@ -393,6 +393,13 @@ const Index = () => {
 
   const [activeModule, setActiveModule] = useState<HudModule | null>(null);
   const [selections, setSelections] = useState<(number | null)[]>([]);
+  const [viewMode, setViewMode] = useState<"radial" | "sidebar">(() => {
+    return (localStorage.getItem("dashboard-view-mode") as "radial" | "sidebar") || "radial";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dashboard-view-mode", viewMode);
+  }, [viewMode]);
 
   const accent = activeModule ? `hsl(${activeModule.accentHsl})` : "hsl(var(--primary))";
 
