@@ -121,9 +121,9 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
 }
 
 // ── Radii per level (distance from PARENT, not from center) ──
-const R1 = 220; // actions from module
-const R2 = 140; // sub-actions from action
-const R3 = 100; // leaves from sub-action
+const R1 = 260; // actions from module
+const R2 = 170; // sub-actions from action
+const R3 = 120; // leaves from sub-action
 
 const Index = () => {
   const navigate = useNavigate();
@@ -256,17 +256,21 @@ const Index = () => {
                   </motion.button>
                 )}
 
-                {/* "Acessar" button */}
+                {/* "Acessar" button - fixed at bottom of screen */}
                 {isFocused && (
-                  <motion.button
-                    onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
-                    className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-4 py-2 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform z-40"
-                    style={{ top: MOD + 12, backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
-                    initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+                  <motion.div
+                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50"
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                   >
-                    <span className="text-xs font-bold whitespace-nowrap">Acessar {mod.title}</span>
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </motion.button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
+                      className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
+                      style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
+                    >
+                      <span className="text-sm font-bold whitespace-nowrap">Acessar {mod.title}</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </motion.div>
                 )}
 
                 {/* ═══ LEVEL 2: ACTIONS (orbit around module) ═══ */}
