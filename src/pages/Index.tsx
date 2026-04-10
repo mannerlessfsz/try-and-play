@@ -121,9 +121,9 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
 }
 
 // ── Radii per level (distance from PARENT, not from center) ──
-const R1 = 260; // actions from module
-const R2 = 170; // sub-actions from action
-const R3 = 120; // leaves from sub-action
+const R1 = 320; // actions from module
+const R2 = 220; // sub-actions from action
+const R3 = 150; // leaves from sub-action
 
 const Index = () => {
   const navigate = useNavigate();
@@ -214,7 +214,9 @@ const Index = () => {
                 {/* Orbit guide rings (visible when focused) */}
                 {isFocused && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none">
-                    <div className="absolute rounded-full border border-dashed" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, borderColor: `${accent}15` }} />
+                    {/* R1 orbit ring */}
+                    <div className="absolute rounded-full border-2 border-dashed" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, borderColor: `${accent}25` }} />
+                    <div className="absolute rounded-full" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, background: `radial-gradient(circle, transparent 70%, ${accent}08 100%)` }} />
                   </motion.div>
                 )}
 
@@ -294,6 +296,14 @@ const Index = () => {
                           exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                           transition={{ delay: aIdx * 0.06, type: "spring", stiffness: 200, damping: 18 }}
                         >
+                          {/* Orbit ring R2 around this action when expanded */}
+                          {aExp && hasSubs && (
+                            <motion.div className="absolute pointer-events-none" style={{ top: A / 2 - R2, left: A / 2 - R2, width: R2 * 2, height: R2 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                              <div className="w-full h-full rounded-full border border-dashed" style={{ borderColor: `${accent}20` }} />
+                              <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 60%, ${accent}06 100%)` }} />
+                            </motion.div>
+                          )}
+
                           {/* Line: module → action */}
                           <svg className="absolute pointer-events-none" style={{ top: A / 2, left: A / 2, width: 1, height: 1, overflow: "visible" }}>
                             <line x1={0} y1={0} x2={-aPos.x} y2={-aPos.y} stroke={accent} strokeWidth={1.2} strokeOpacity={0.3} />
@@ -344,7 +354,15 @@ const Index = () => {
                                     animate={{ x: sPos.x - S / 2, y: sPos.y - S / 2, scale: 1, opacity: 1 }}
                                     exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                     transition={{ delay: sIdx * 0.04, type: "spring", stiffness: 240, damping: 20 }}
-                                  >
+                                   >
+                                    {/* Orbit ring R3 around this sub-action when expanded */}
+                                    {sExp && hasLeaves && (
+                                      <motion.div className="absolute pointer-events-none" style={{ top: S / 2 - R3, left: S / 2 - R3, width: R3 * 2, height: R3 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                                        <div className="w-full h-full rounded-full border border-dotted" style={{ borderColor: `${accent}18` }} />
+                                        <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 50%, ${accent}04 100%)` }} />
+                                      </motion.div>
+                                    )}
+
                                     {/* Line: action → sub */}
                                     <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: "visible" }}>
                                       <line x1={0} y1={0} x2={-sPos.x} y2={-sPos.y} stroke={accent} strokeWidth={0.8} strokeOpacity={0.25} strokeDasharray="3 3" />
