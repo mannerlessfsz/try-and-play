@@ -1445,6 +1445,59 @@ export type Database = {
           },
         ]
       }
+      documento_modelos: {
+        Row: {
+          arquivo_modelo_nome: string | null
+          arquivo_modelo_url: string | null
+          ativo: boolean
+          created_at: string
+          departamento: string | null
+          descricao: string | null
+          empresa_id: string | null
+          id: string
+          nome: string
+          palavras_chave: string[]
+          tipo_documento: string
+          updated_at: string
+        }
+        Insert: {
+          arquivo_modelo_nome?: string | null
+          arquivo_modelo_url?: string | null
+          ativo?: boolean
+          created_at?: string
+          departamento?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          nome: string
+          palavras_chave?: string[]
+          tipo_documento?: string
+          updated_at?: string
+        }
+        Update: {
+          arquivo_modelo_nome?: string | null
+          arquivo_modelo_url?: string | null
+          ativo?: boolean
+          created_at?: string
+          departamento?: string | null
+          descricao?: string | null
+          empresa_id?: string | null
+          id?: string
+          nome?: string
+          palavras_chave?: string[]
+          tipo_documento?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_modelos_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       domain_events: {
         Row: {
           account_id: string
@@ -3912,6 +3965,109 @@ export type Database = {
             columns: ["tarefa_id"]
             isOneToOne: false
             referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_documento_validacoes: {
+        Row: {
+          created_at: string
+          documento_modelo_id: string
+          id: string
+          palavras_encontradas: string[] | null
+          palavras_faltantes: string[] | null
+          percentual_match: number | null
+          status: string
+          tarefa_arquivo_id: string
+          tarefa_id: string
+          texto_extraido: string | null
+          validado_em: string | null
+        }
+        Insert: {
+          created_at?: string
+          documento_modelo_id: string
+          id?: string
+          palavras_encontradas?: string[] | null
+          palavras_faltantes?: string[] | null
+          percentual_match?: number | null
+          status?: string
+          tarefa_arquivo_id: string
+          tarefa_id: string
+          texto_extraido?: string | null
+          validado_em?: string | null
+        }
+        Update: {
+          created_at?: string
+          documento_modelo_id?: string
+          id?: string
+          palavras_encontradas?: string[] | null
+          palavras_faltantes?: string[] | null
+          percentual_match?: number | null
+          status?: string
+          tarefa_arquivo_id?: string
+          tarefa_id?: string
+          texto_extraido?: string | null
+          validado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_documento_validacoes_documento_modelo_id_fkey"
+            columns: ["documento_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "documento_modelos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_documento_validacoes_tarefa_arquivo_id_fkey"
+            columns: ["tarefa_arquivo_id"]
+            isOneToOne: false
+            referencedRelation: "tarefa_arquivos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_documento_validacoes_tarefa_id_fkey"
+            columns: ["tarefa_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tarefa_documentos_obrigatorios: {
+        Row: {
+          created_at: string
+          documento_modelo_id: string
+          id: string
+          obrigatorio: boolean
+          tarefa_modelo_id: string
+        }
+        Insert: {
+          created_at?: string
+          documento_modelo_id: string
+          id?: string
+          obrigatorio?: boolean
+          tarefa_modelo_id: string
+        }
+        Update: {
+          created_at?: string
+          documento_modelo_id?: string
+          id?: string
+          obrigatorio?: boolean
+          tarefa_modelo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefa_documentos_obrigatorios_documento_modelo_id_fkey"
+            columns: ["documento_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "documento_modelos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefa_documentos_obrigatorios_tarefa_modelo_id_fkey"
+            columns: ["tarefa_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "tarefas_modelo"
             referencedColumns: ["id"]
           },
         ]
