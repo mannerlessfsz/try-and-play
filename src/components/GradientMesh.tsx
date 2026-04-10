@@ -32,22 +32,22 @@ export function GradientMesh({ className = '' }: GradientMeshProps) {
     // Light: soft module colors
     const blobs = isDark
       ? [
-          { x: 0.3, y: 0.3, radius: 0.35, color: { r: 212, g: 175, b: 55 }, speed: 0.0003, phase: 0 },  // gold
-          { x: 0.7, y: 0.5, radius: 0.3, color: { r: 180, g: 140, b: 30 }, speed: 0.0004, phase: 2 },   // dark gold
-          { x: 0.5, y: 0.8, radius: 0.25, color: { r: 140, g: 100, b: 20 }, speed: 0.0005, phase: 4 },  // deep amber
+          { x: 0.3, y: 0.3, radius: 0.35, color: { r: 204, g: 153, b: 0 }, speed: 0.0003, phase: 0 },   // warm amber
+          { x: 0.7, y: 0.5, radius: 0.3, color: { r: 180, g: 120, b: 0 }, speed: 0.0004, phase: 2 },    // deep amber
+          { x: 0.5, y: 0.8, radius: 0.25, color: { r: 150, g: 90, b: 0 }, speed: 0.0005, phase: 4 },    // burnt amber
         ]
       : [
-          { x: 0.2, y: 0.3, radius: 0.35, color: { r: 220, g: 60, b: 60 }, speed: 0.0003, phase: 0 },   // red
-          { x: 0.8, y: 0.3, radius: 0.3, color: { r: 40, g: 120, b: 220 }, speed: 0.0004, phase: 2 },    // blue
-          { x: 0.5, y: 0.8, radius: 0.3, color: { r: 245, g: 140, b: 30 }, speed: 0.0005, phase: 4 },   // orange
-          { x: 0.3, y: 0.7, radius: 0.25, color: { r: 40, g: 160, b: 100 }, speed: 0.0003, phase: 1 },  // green
+          { x: 0.2, y: 0.3, radius: 0.35, color: { r: 200, g: 30, b: 40 }, speed: 0.0003, phase: 0 },   // solid red
+          { x: 0.8, y: 0.3, radius: 0.3, color: { r: 20, g: 80, b: 200 }, speed: 0.0004, phase: 2 },    // solid blue
+          { x: 0.5, y: 0.8, radius: 0.3, color: { r: 255, g: 128, b: 0 }, speed: 0.0005, phase: 4 },    // solid orange
+          { x: 0.3, y: 0.7, radius: 0.25, color: { r: 20, g: 140, b: 70 }, speed: 0.0003, phase: 1 },   // solid green
         ];
 
     const animate = () => {
       time++;
 
       // Dark: pure black, Light: warm cream
-      ctx.fillStyle = isDark ? 'hsl(0, 0%, 2%)' : 'hsl(40, 20%, 96%)';
+      ctx.fillStyle = isDark ? 'hsl(0, 0%, 2%)' : 'hsl(35, 25%, 95%)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       const blobAlpha = isDark ? [0.18, 0.06] : [0.12, 0.04];
