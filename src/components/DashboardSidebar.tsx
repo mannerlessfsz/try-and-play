@@ -115,7 +115,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
           <motion.div
             key={mod.id}
             className={cn(
-              "rounded-xl border backdrop-blur-xl overflow-hidden transition-colors duration-200",
+              "rounded-xl border backdrop-blur-xl overflow-hidden transition-colors duration-200 relative",
               mod.hasAccess ? "cursor-pointer" : "opacity-30 grayscale cursor-not-allowed"
             )}
             style={{
