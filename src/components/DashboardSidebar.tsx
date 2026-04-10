@@ -120,12 +120,18 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
             )}
             style={{
               borderColor: isExpanded ? `${accent}50` : "hsl(var(--border) / 0.3)",
-              background: isExpanded
-                ? `hsl(var(--card) / 0.97)`
-                : "hsl(var(--card) / 0.85)",
             }}
             layout
           >
+            {/* Light mode: colored bg / Dark mode: dark card */}
+            <div
+              className="absolute inset-0 rounded-xl dark:hidden"
+              style={{ background: `linear-gradient(135deg, ${accent}ee, ${accent}cc)` }}
+            />
+            <div
+              className="absolute inset-0 rounded-xl hidden dark:block"
+              style={{ background: isExpanded ? "hsl(var(--card) / 0.97)" : "hsl(var(--card) / 0.85)" }}
+            />
             {/* Module header */}
             <button
               className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
