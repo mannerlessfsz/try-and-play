@@ -417,9 +417,9 @@ const Index = () => {
                                               exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                                               transition={{ delay: lIdx * 0.03, type: "spring", stiffness: 280, damping: 22 }}
                                             >
-                                              <svg className="absolute pointer-events-none" style={{ top: L / 2, left: L / 2, width: 1, height: 1, overflow: "visible" }}>
-                                                <line x1={0} y1={0} x2={-lPos.x} y2={-lPos.y} stroke={accent} strokeWidth={0.6} strokeOpacity={0.2} strokeDasharray="2 2" />
-                                              </svg>
+                                              <div className="absolute" style={{ top: L / 2, left: L / 2 }}>
+                                                <BeadChain x={lPos.x} y={lPos.y} accent={accent} count={2} size={2} expanded />
+                                              </div>
                                               <motion.button
                                                 onClick={(e) => { e.stopPropagation(); navigate(leaf.href); }}
                                                 className="rounded-md border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/leaf relative"
