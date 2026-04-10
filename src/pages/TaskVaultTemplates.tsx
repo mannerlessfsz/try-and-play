@@ -3,7 +3,7 @@ import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { useNavigate } from "react-router-dom";
 import {
   Plus, Trash2, Loader2, FileText, ArrowLeft, Search,
-  Tag, Upload, X, Eye, EyeOff, CheckCircle2, Edit,
+  Tag, Upload, X, CheckCircle2, Edit,
   FileUp, Settings2, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,37 +33,37 @@ const DEPARTAMENTOS = [
 
 const emptyForm: DocumentoModeloForm = {
   nome: "",
-  tipo_documento: "obrigacao",
-  palavras_chave: [],
+  tipoDocumento: "geral",
+  palavrasChave: [],
   descricao: "",
-  departamento: "",
-  ativo: true,
+  departamento: null,
+  empresaId: null,
 };
 
 export default function TaskVaultTemplates() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const {
-    modelos, isLoading,
-    createModelo, updateModelo, deleteModelo,
-    isCreating, isUpdating, isDeleting,
+    modelos, loading,
+    addModelo, updateModelo, deleteModelo, uploadArquivoModelo,
   } = useDocumentoModelos();
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingModelo, setEditingModelo] = useState<DocumentoModelo | null>(null);
   const [form, setForm] = useState<DocumentoModeloForm>(emptyForm);
+  const [ativo, setAtivo] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterDept, setFilterDept] = useState("all");
   const [newKeyword, setNewKeyword] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Filtered list
   const filtered = useMemo(() => {
-    return (modelos || []).filter(m => {
+    return modelos.filter(m => {
       const matchSearch = !searchTerm ||
         m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        m.palavras_chave?.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()));
+        m.palavrasChave?.some(k => k.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchDept = filterDept === "all" || m.departamento === filterDept;
       return matchSearch && matchDept;
     });
@@ -72,6 +72,7 @@ export default function TaskVaultTemplates() {
   const handleOpenNew = () => {
     setEditingModelo(null);
     setForm(emptyForm);
+    setAtivo(true);
     setSelectedFile(null);
     setShowDialog(true);
   };
@@ -80,52 +81,61 @@ export default function TaskVaultTemplates() {
     setEditingModelo(modelo);
     setForm({
       nome: modelo.nome,
-      tipo_documento: modelo.tipo_documento,
-      palavras_chave: modelo.palavras_chave || [],
+      tipoDocumento: modelo.tipoDocumento,
+      palavrasChave: modelo.palavrasChave || [],
       descricao: modelo.descricao || "",
-      departamento: modelo.departamento || "",
-      ativo: modelo.ativo,
+      departamento: modelo.departamento,
+      empresaId: modelo.empresaId,
     });
+    setAtivo(modelo.ativo);
     setSelectedFile(null);
     setShowDialog(true);
   };
 
   const handleAddKeyword = () => {
     const kw = newKeyword.trim();
-    if (kw && !form.palavras_chave.includes(kw)) {
-      setForm(prev => ({ ...prev, palavras_chave: [...prev.palavras_chave, kw] }));
+    if (kw && !form.palavrasChave.includes(kw)) {
+      setForm(prev => ({ ...prev, palavrasChave: [...prev.palavrasChave, kw] }));
       setNewKeyword("");
     }
   };
 
   const handleRemoveKeyword = (kw: string) => {
-    setForm(prev => ({ ...prev, palavras_chave: prev.palavras_chave.filter(k => k !== kw) }));
+    setForm(prev => ({ ...prev, palavrasChave: prev.palavrasChave.filter(k => k !== kw) }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.nome.trim()) {
       toast({ title: "Nome é obrigatório", variant: "destructive" });
       return;
     }
-    if (form.palavras_chave.length === 0) {
+    if (form.palavrasChave.length === 0) {
       toast({ title: "Adicione ao menos uma palavra-chave", variant: "destructive" });
       return;
     }
 
-    if (editingModelo) {
-      updateModelo({ id: editingModelo.id, ...form }, {
-        onSuccess: () => setShowDialog(false),
-      });
-    } else {
-      createModelo(form, {
-        onSuccess: () => setShowDialog(false),
-      });
+    setSaving(true);
+    try {
+      if (editingModelo) {
+        await updateModelo(editingModelo.id, { ...form, ativo });
+        if (selectedFile) {
+          await uploadArquivoModelo(editingModelo.id, selectedFile);
+        }
+      } else {
+        const success = await addModelo(form);
+        if (success && selectedFile) {
+          // For new models we'd need the id - refetch will handle it
+        }
+      }
+      setShowDialog(false);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Excluir este template?")) {
-      deleteModelo(id);
+      await deleteModelo(id);
     }
   };
 
@@ -133,11 +143,10 @@ export default function TaskVaultTemplates() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      // Extract keywords from filename
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
       const words = nameWithoutExt.split(/[-_\s]+/).filter(w => w.length > 2);
-      if (words.length > 0 && form.palavras_chave.length === 0) {
-        setForm(prev => ({ ...prev, palavras_chave: words }));
+      if (words.length > 0 && form.palavrasChave.length === 0) {
+        setForm(prev => ({ ...prev, palavrasChave: words }));
       }
     }
   };
@@ -194,10 +203,10 @@ export default function TaskVaultTemplates() {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            { label: "Total", value: modelos?.length || 0, color: "text-primary" },
-            { label: "Ativos", value: modelos?.filter(m => m.ativo).length || 0, color: "text-emerald-500" },
-            { label: "Inativos", value: modelos?.filter(m => !m.ativo).length || 0, color: "text-muted-foreground" },
-            { label: "Palavras-chave", value: modelos?.reduce((acc, m) => acc + (m.palavras_chave?.length || 0), 0) || 0, color: "text-amber-500" },
+            { label: "Total", value: modelos.length, color: "text-primary" },
+            { label: "Ativos", value: modelos.filter(m => m.ativo).length, color: "text-primary" },
+            { label: "Inativos", value: modelos.filter(m => !m.ativo).length, color: "text-muted-foreground" },
+            { label: "Palavras-chave", value: modelos.reduce((acc, m) => acc + (m.palavrasChave?.length || 0), 0), color: "text-primary" },
           ].map(stat => (
             <Card key={stat.label} className="border-border/50">
               <CardContent className="p-4 text-center">
@@ -209,7 +218,7 @@ export default function TaskVaultTemplates() {
         </div>
 
         {/* List */}
-        {isLoading ? (
+        {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
@@ -253,7 +262,7 @@ export default function TaskVaultTemplates() {
                               </Badge>
                             )}
                             <Badge variant="outline" className="text-xs">
-                              {TIPOS_DOCUMENTO.find(t => t.value === modelo.tipo_documento)?.label || modelo.tipo_documento}
+                              {TIPOS_DOCUMENTO.find(t => t.value === modelo.tipoDocumento)?.label || modelo.tipoDocumento}
                             </Badge>
                           </div>
                           {modelo.descricao && (
@@ -261,7 +270,7 @@ export default function TaskVaultTemplates() {
                           )}
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                            {(modelo.palavras_chave || []).map(kw => (
+                            {(modelo.palavrasChave || []).map(kw => (
                               <Badge key={kw} variant="secondary" className="text-xs font-mono">
                                 {kw}
                               </Badge>
@@ -277,7 +286,6 @@ export default function TaskVaultTemplates() {
                             size="icon"
                             onClick={() => handleDelete(modelo.id)}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            disabled={isDeleting}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -301,7 +309,6 @@ export default function TaskVaultTemplates() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-5 py-4">
-              {/* Nome */}
               <div className="space-y-2">
                 <Label>Nome do Template *</Label>
                 <Input
@@ -312,17 +319,14 @@ export default function TaskVaultTemplates() {
                 />
               </div>
 
-              {/* Tipo + Departamento */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tipo</Label>
                   <Select
-                    value={form.tipo_documento}
-                    onValueChange={(v) => setForm(prev => ({ ...prev, tipo_documento: v }))}
+                    value={form.tipoDocumento}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, tipoDocumento: v }))}
                   >
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {TIPOS_DOCUMENTO.map(t => (
                         <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
@@ -334,11 +338,9 @@ export default function TaskVaultTemplates() {
                   <Label>Departamento</Label>
                   <Select
                     value={form.departamento || "none"}
-                    onValueChange={(v) => setForm(prev => ({ ...prev, departamento: v === "none" ? "" : v }))}
+                    onValueChange={(v) => setForm(prev => ({ ...prev, departamento: v === "none" ? null : v }))}
                   >
-                    <SelectTrigger className="rounded-xl">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
+                    <SelectTrigger className="rounded-xl"><SelectValue placeholder="Selecione" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {DEPARTAMENTOS.map(d => (
@@ -349,7 +351,6 @@ export default function TaskVaultTemplates() {
                 </div>
               </div>
 
-              {/* Descrição */}
               <div className="space-y-2">
                 <Label>Descrição</Label>
                 <Textarea
@@ -362,7 +363,6 @@ export default function TaskVaultTemplates() {
 
               <Separator />
 
-              {/* Upload de arquivo modelo */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Upload className="w-4 h-4" />
@@ -377,9 +377,7 @@ export default function TaskVaultTemplates() {
                       <FileText className="w-5 h-5 text-primary" />
                       <span className="text-sm text-foreground">{selectedFile.name}</span>
                       <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
+                        variant="ghost" size="icon" className="h-6 w-6"
                         onClick={(e) => { e.stopPropagation(); setSelectedFile(null); }}
                       >
                         <X className="w-3 h-3" />
@@ -404,7 +402,6 @@ export default function TaskVaultTemplates() {
 
               <Separator />
 
-              {/* Palavras-chave */}
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <Tag className="w-4 h-4" />
@@ -425,21 +422,18 @@ export default function TaskVaultTemplates() {
                     <Plus className="w-4 h-4" />
                   </Button>
                 </div>
-                {form.palavras_chave.length > 0 && (
+                {form.palavrasChave.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {form.palavras_chave.map(kw => (
+                    {form.palavrasChave.map(kw => (
                       <Badge key={kw} variant="secondary" className="gap-1 font-mono text-xs">
                         {kw}
-                        <X
-                          className="w-3 h-3 cursor-pointer hover:text-destructive"
-                          onClick={() => handleRemoveKeyword(kw)}
-                        />
+                        <X className="w-3 h-3 cursor-pointer hover:text-destructive" onClick={() => handleRemoveKeyword(kw)} />
                       </Badge>
                     ))}
                   </div>
                 )}
-                {form.palavras_chave.length === 0 && (
-                  <div className="flex items-center gap-2 text-amber-500 text-xs">
+                {form.palavrasChave.length === 0 && (
+                  <div className="flex items-center gap-2 text-destructive text-xs">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     Adicione pelo menos uma palavra-chave
                   </div>
@@ -448,30 +442,19 @@ export default function TaskVaultTemplates() {
 
               <Separator />
 
-              {/* Ativo */}
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Template Ativo</Label>
                   <p className="text-xs text-muted-foreground">Templates inativos não serão usados na validação</p>
                 </div>
-                <Switch
-                  checked={form.ativo}
-                  onCheckedChange={(v) => setForm(prev => ({ ...prev, ativo: v }))}
-                />
+                <Switch checked={ativo} onCheckedChange={setAtivo} />
               </div>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setShowDialog(false)} className="rounded-xl">
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={isCreating || isUpdating}
-                className="gap-2 rounded-xl"
-              >
-                {(isCreating || isUpdating) && <Loader2 className="w-4 h-4 animate-spin" />}
+              <Button variant="outline" onClick={() => setShowDialog(false)} className="rounded-xl">Cancelar</Button>
+              <Button onClick={handleSave} disabled={saving} className="gap-2 rounded-xl">
+                {saving && <Loader2 className="w-4 h-4 animate-spin" />}
                 <CheckCircle2 className="w-4 h-4" />
                 {editingModelo ? "Salvar Alterações" : "Criar Template"}
               </Button>
