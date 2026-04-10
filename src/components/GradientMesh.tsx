@@ -28,20 +28,29 @@ export function GradientMesh({ className = '' }: GradientMeshProps) {
     resize();
     window.addEventListener('resize', resize);
 
-    const blobs = [
-      { x: 0.3, y: 0.3, radius: 0.4, color: { r: 220, g: 40, b: 100 }, speed: 0.0003, phase: 0 },
-      { x: 0.7, y: 0.6, radius: 0.35, color: { r: 60, g: 130, b: 246 }, speed: 0.0004, phase: 2 },
-      { x: 0.5, y: 0.8, radius: 0.3, color: { r: 20, g: 184, b: 166 }, speed: 0.0005, phase: 4 },
-      { x: 0.2, y: 0.7, radius: 0.25, color: { r: 249, g: 115, b: 22 }, speed: 0.0003, phase: 1 },
-    ];
+    // Dark: gold/amber tones on pure black
+    // Light: soft module colors
+    const blobs = isDark
+      ? [
+          { x: 0.3, y: 0.3, radius: 0.35, color: { r: 212, g: 175, b: 55 }, speed: 0.0003, phase: 0 },  // gold
+          { x: 0.7, y: 0.5, radius: 0.3, color: { r: 180, g: 140, b: 30 }, speed: 0.0004, phase: 2 },   // dark gold
+          { x: 0.5, y: 0.8, radius: 0.25, color: { r: 140, g: 100, b: 20 }, speed: 0.0005, phase: 4 },  // deep amber
+        ]
+      : [
+          { x: 0.2, y: 0.3, radius: 0.35, color: { r: 220, g: 60, b: 60 }, speed: 0.0003, phase: 0 },   // red
+          { x: 0.8, y: 0.3, radius: 0.3, color: { r: 40, g: 120, b: 220 }, speed: 0.0004, phase: 2 },    // blue
+          { x: 0.5, y: 0.8, radius: 0.3, color: { r: 245, g: 140, b: 30 }, speed: 0.0005, phase: 4 },   // orange
+          { x: 0.3, y: 0.7, radius: 0.25, color: { r: 40, g: 160, b: 100 }, speed: 0.0003, phase: 1 },  // green
+        ];
 
     const animate = () => {
       time++;
 
-      ctx.fillStyle = isDark ? 'hsl(230, 22%, 5%)' : 'hsl(225, 18%, 95%)';
+      // Dark: pure black, Light: warm cream
+      ctx.fillStyle = isDark ? 'hsl(0, 0%, 2%)' : 'hsl(40, 20%, 96%)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const blobAlpha = isDark ? [0.35, 0.12] : [0.18, 0.06];
+      const blobAlpha = isDark ? [0.18, 0.06] : [0.12, 0.04];
 
       blobs.forEach((blob) => {
         const offsetX = Math.sin(time * blob.speed + blob.phase) * 0.1;
@@ -62,9 +71,10 @@ export function GradientMesh({ className = '' }: GradientMeshProps) {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       });
 
+      // Noise
       ctx.globalCompositeOperation = 'overlay';
-      ctx.globalAlpha = isDark ? 0.02 : 0.01;
-      for (let i = 0; i < 1000; i++) {
+      ctx.globalAlpha = isDark ? 0.015 : 0.008;
+      for (let i = 0; i < 800; i++) {
         const nx = Math.random() * canvas.width;
         const ny = Math.random() * canvas.height;
         const brightness = Math.random() * 255;
