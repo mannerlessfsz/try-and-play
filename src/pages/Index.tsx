@@ -429,7 +429,7 @@ const Index = () => {
                     className={`relative flex flex-col items-center justify-center gap-1.5 transition-all duration-300 rounded-2xl border-2 ${hasAccess ? 'cursor-pointer' : 'cursor-not-allowed opacity-30 grayscale'}`}
                     style={{
                       width: MOD_HALF * 2, height: MOD_HALF * 2,
-                      backgroundColor: isExpanded ? 'hsl(0 0% 12% / 0.95)' : 'hsl(0 0% 10% / 0.95)',
+                      backgroundColor: isExpanded ? 'hsl(0 0% 8% / 0.98)' : 'hsl(0 0% 6% / 0.97)',
                       borderColor: isExpanded ? `${accent}90` : `${accent}50`,
                       boxShadow: isExpanded ? `0 0 50px ${accent}30, inset 0 0 30px hsl(0 0% 100% / 0.04)` : `0 0 20px ${accent}10`,
                       backdropFilter: 'blur(24px)',
@@ -475,7 +475,7 @@ const Index = () => {
                             className="rounded-xl border-2 flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/action relative"
                             style={{
                               width: A_HALF * 2, height: A_HALF * 2,
-                              backgroundColor: isActionExp ? `${accent}18` : 'hsl(0 0% 10% / 0.92)',
+                              backgroundColor: isActionExp ? `${accent}22` : 'hsl(0 0% 5% / 0.97)',
                               borderColor: isActionExp ? `${accent}90` : `${accent}60`,
                               color: accent,
                             }}
@@ -528,7 +528,7 @@ const Index = () => {
                                     className="rounded-lg border flex flex-col items-center justify-center gap-0.5 transition-all duration-200 group/sub relative"
                                     style={{
                                       width: S_HALF * 2, height: S_HALF * 2,
-                                      backgroundColor: isSubExp ? `${accent}18` : 'hsl(0 0% 8% / 0.92)',
+                                      backgroundColor: isSubExp ? `${accent}22` : 'hsl(0 0% 4% / 0.97)',
                                       borderColor: isSubExp ? `${accent}70` : `${accent}45`,
                                       color: accent,
                                     }}
@@ -572,7 +572,7 @@ const Index = () => {
                                             className="rounded-md border flex flex-col items-center justify-center gap-0 transition-all duration-200 group/leaf relative"
                                             style={{
                                               width: L_HALF * 2, height: L_HALF * 2,
-                                              backgroundColor: 'hsl(0 0% 7% / 0.92)',
+                                              backgroundColor: 'hsl(0 0% 3% / 0.97)',
                                               borderColor: `${accent}40`,
                                               color: accent,
                                             }}
