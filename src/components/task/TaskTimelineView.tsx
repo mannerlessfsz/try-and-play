@@ -589,7 +589,7 @@ function CompactDayNode({
             {!isExpanded && totalCount > 0 && (
               <div className="flex gap-0.5">
                 {tasks.slice(0, 5).map((t, i) => (
-                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${prioridadeDot[t.prioridade]} ring-1 ring-white/20`} />
+                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${STATUS_COLOR_STYLES[getTaskStatusColor(t)].dot} ring-1 ring-white/20`} />
                 ))}
                 {totalCount > 5 && <span className="text-[8px] text-white/50 ml-0.5">+{totalCount - 5}</span>}
               </div>
