@@ -328,7 +328,39 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 defaultMonth={new Date()}
                 locale={ptBR}
                 className={cn("p-0 pointer-events-auto")}
+                classNames={{
+                  caption_label: "text-sm font-medium cursor-pointer hover:text-primary transition-colors",
+                }}
+                formatters={{
+                  formatCaption: (date) => {
+                    return format(date, "LLLL yyyy", { locale: ptBR });
+                  },
+                }}
+                onMonthChange={() => {}}
+                components={{
+                  CaptionLabel: ({ displayMonth }: { displayMonth: Date }) => {
+                    const monthName = format(displayMonth, "LLLL yyyy", { locale: ptBR });
+                    return (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
+                          const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
+                          setDateRange({ from: firstDay, to: lastDay });
+                          setDatePickerOpen(false);
+                        }}
+                        className="text-sm font-medium capitalize hover:text-primary hover:underline transition-colors"
+                        title={`Selecionar ${monthName} inteiro`}
+                      >
+                        {monthName}
+                      </button>
+                    );
+                  },
+                }}
               />
+              <p className="text-[10px] text-muted-foreground/50 text-center">
+                Clique no nome do mês para selecionar o mês inteiro
+              </p>
             </div>
           </PopoverContent>
         </Popover>
