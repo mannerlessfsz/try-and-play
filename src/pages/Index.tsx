@@ -7,7 +7,7 @@ import {
   TrendingUp, Target, CreditCard, Tags, Landmark,
   UserPlus, Search, Box, ClipboardList, Truck,
   Receipt, BarChart, MessageSquare, History, UserCheck, FolderPlus, Edit,
-  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, X, ArrowLeft
+  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, ArrowLeft
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -22,7 +22,6 @@ interface WheelItem {
   icon: React.ReactNode;
   label: string;
   href: string;
-  accentHsl?: string;
   children?: WheelItem[];
 }
 
@@ -137,32 +136,12 @@ const modules: HudModule[] = [
   },
 ];
 
-// ── Ring config: each depth adds a concentric ring ──
-const RING_INNER = [85, 195, 290, 370];   // inner radius per depth
-const RING_OUTER = [180, 275, 360, 430];   // outer radius per depth
-const RING_OPACITY = [0.12, 0.09, 0.06, 0.04]; // base fill
+// ── Ring radii ──
+const RING_INNER = [85, 195, 290, 370];
+const RING_OUTER = [180, 275, 360, 430];
 
-// ── SVG Segment ──
-function WheelSegment({
-  index, total, innerR, outerR, isSelected, isHovered, accent, icon, label,
-  hasChildren, onSelect, onHover, onLeave, depth,
-}: {
-  index: number; total: number; innerR: number; outerR: number;
-  isSelected: boolean; isHovered: boolean; accent: string;
-  icon: React.ReactNode; label: string; hasChildren: boolean;
-  onSelect: () => void; onHover: () => void; onLeave: () => void;
-  depth: number;
-}) {
-  const gap = 0.03;
-  const anglePerItem = (2 * Math.PI) / total;
-  const startAngle = anglePerItem * index - Math.PI / 2 + gap / 2;
-  const endAngle = startAngle + anglePerItem - gap;
-  const midAngle = (startAngle + endAngle) / 2;
-  const iconR = (innerR + outerR) / 2;
-  const iconX = Math.cos(midAngle) * iconR;
-  const iconY = Math.sin(midAngle) * iconR;
-  const bandWidth = outerR - innerR;
-
+// ── Arc path builder ──
+function arcPath(startAngle: number, endAngle: number, innerR: number, outerR: number) {
   const x1 = Math.cos(startAngle) * innerR;
   const y1 = Math.sin(startAngle) * innerR;
   const x2 = Math.cos(startAngle) * outerR;
@@ -171,32 +150,49 @@ function WheelSegment({
   const y3 = Math.sin(endAngle) * outerR;
   const x4 = Math.cos(endAngle) * innerR;
   const y4 = Math.sin(endAngle) * innerR;
-  const largeArc = anglePerItem - gap > Math.PI ? 1 : 0;
-
-  const d = [
+  const span = endAngle - startAngle;
+  const largeArc = span > Math.PI ? 1 : 0;
+  return [
     `M ${x1} ${y1}`, `L ${x2} ${y2}`,
     `A ${outerR} ${outerR} 0 ${largeArc} 1 ${x3} ${y3}`,
     `L ${x4} ${y4}`,
     `A ${innerR} ${innerR} 0 ${largeArc} 0 ${x1} ${y1}`, "Z",
   ].join(" ");
+}
 
-  const baseFill = RING_OPACITY[depth] ?? 0.06;
-  const fillOpacity = isSelected ? 0.4 : isHovered ? 0.25 : baseFill;
+// ── SVG Segment ──
+function WheelSegment({
+  startAngle, endAngle, innerR, outerR, isSelected, isHovered, accent, icon, label,
+  hasChildren, onSelect, onHover, onLeave, depth,
+}: {
+  startAngle: number; endAngle: number; innerR: number; outerR: number;
+  isSelected: boolean; isHovered: boolean; accent: string;
+  icon: React.ReactNode; label: string; hasChildren: boolean;
+  onSelect: () => void; onHover: () => void; onLeave: () => void;
+  depth: number;
+}) {
+  const midAngle = (startAngle + endAngle) / 2;
+  const iconR = (innerR + outerR) / 2;
+  const iconX = Math.cos(midAngle) * iconR;
+  const iconY = Math.sin(midAngle) * iconR;
+
+  const d = arcPath(startAngle, endAngle, innerR, outerR);
+
+  const baseOpacities = [0.12, 0.09, 0.07, 0.05];
+  const baseFill = baseOpacities[Math.min(depth, 3)];
+  const fillOpacity = isSelected ? 0.45 : isHovered ? 0.28 : baseFill;
   const strokeOpacity = isSelected ? 1 : isHovered ? 0.7 : 0.3;
 
-  // Text sizing by depth
   const fontSize = depth === 0 ? 12 : depth === 1 ? 11 : 10;
-  const iconSize = depth === 0 ? 24 : depth === 1 ? 20 : 16;
+  const iconSize = depth === 0 ? 22 : depth === 1 ? 18 : 15;
 
   return (
     <g className="cursor-pointer" onClick={onSelect} onMouseEnter={onHover} onMouseLeave={onLeave}>
-      {/* Dark background fill for readability */}
-      <path d={d} fill="hsl(0 0% 4%)" fillOpacity={0.85} />
+      {/* Dark bg */}
+      <path d={d} fill="hsl(0 0% 4%)" fillOpacity={0.88} />
       {/* Color overlay */}
       <motion.path
-        d={d}
-        fill={accent}
-        stroke={accent}
+        d={d} fill={accent} stroke={accent}
         strokeWidth={isSelected ? 2.5 : 1.5}
         initial={{ fillOpacity: 0, strokeOpacity: 0 }}
         animate={{ fillOpacity, strokeOpacity }}
@@ -204,35 +200,33 @@ function WheelSegment({
       />
       {/* Icon */}
       <foreignObject
-        x={iconX - iconSize / 2} y={iconY - iconSize / 2 - 6}
+        x={iconX - iconSize / 2} y={iconY - iconSize / 2 - 5}
         width={iconSize} height={iconSize}
         className="pointer-events-none"
       >
-        <div className="w-full h-full flex items-center justify-center" style={{ color: isSelected || isHovered ? "#fff" : `${accent}dd` }}>
+        <div className="w-full h-full flex items-center justify-center text-white" style={{ opacity: isSelected || isHovered ? 1 : 0.85 }}>
           {icon}
         </div>
       </foreignObject>
-      {/* Label */}
+      {/* Label - always white */}
       <text
         x={iconX} y={iconY + iconSize / 2 + 2}
         textAnchor="middle"
         className="pointer-events-none select-none"
         style={{
-          fill: isSelected ? "#fff" : isHovered ? "#ffffffcc" : `${accent}bb`,
+          fill: "#ffffff",
           fontSize: `${fontSize}px`,
-          fontWeight: isSelected ? 800 : 700,
+          fontWeight: isSelected ? 800 : 600,
           letterSpacing: "0.04em",
-          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+          opacity: isSelected ? 1 : isHovered ? 0.95 : 0.75,
+          textShadow: "0 1px 6px rgba(0,0,0,0.9)",
         }}
       >
         {label}
       </text>
-      {/* Children indicator */}
+      {/* Has-children dot */}
       {hasChildren && !isSelected && (
-        <circle
-          cx={iconX + iconSize / 2 + 4} cy={iconY - iconSize / 2 - 4}
-          r={4} fill={accent} fillOpacity={0.8}
-        />
+        <circle cx={iconX + iconSize / 2 + 3} cy={iconY - iconSize / 2 - 3} r={3.5} fill={accent} fillOpacity={0.9} />
       )}
       {/* Selected glow */}
       {isSelected && (
@@ -248,11 +242,19 @@ function WheelSegment({
   );
 }
 
+// ── Ring data with parent angle info ──
+interface RingData {
+  items: WheelItem[];
+  selectedIndex: number | null;
+  depth: number;
+  parentMidAngle: number | null; // null = full ring, number = partial arc centered here
+}
+
 // ── Multi-ring Wheel ──
 function MultiRingWheel({
   rings, accent, onSelect, onBack, centerIcon, centerLabel,
 }: {
-  rings: { items: WheelItem[]; selectedIndex: number | null; depth: number }[];
+  rings: RingData[];
   accent: string;
   onSelect: (depth: number, index: number) => void;
   onBack: () => void;
@@ -275,72 +277,93 @@ function MultiRingWheel({
         width={svgSize} height={svgSize}
         viewBox={`${-svgSize / 2} ${-svgSize / 2} ${svgSize} ${svgSize}`}
       >
-        {/* Ring border circles */}
-        {rings.map((ring, rIdx) => {
-          const innerR = RING_INNER[Math.min(rIdx, 3)];
-          const outerR = RING_OUTER[Math.min(rIdx, 3)];
+        {/* Ring guide circles - only for full rings (depth 0 & 1) */}
+        {rings.slice(0, 2).map((_, rIdx) => {
+          const innerR = RING_INNER[rIdx];
+          const outerR = RING_OUTER[rIdx];
           return (
             <g key={`ring-border-${rIdx}`}>
-              <circle cx={0} cy={0} r={innerR} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.12} />
-              <circle cx={0} cy={0} r={outerR} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.12} />
+              <circle cx={0} cy={0} r={innerR} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.1} />
+              <circle cx={0} cy={0} r={outerR} fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.1} />
             </g>
           );
         })}
 
-        {/* Render all rings */}
+        {/* Render rings */}
         {rings.map((ring, rIdx) => {
           const innerR = RING_INNER[Math.min(rIdx, 3)];
           const outerR = RING_OUTER[Math.min(rIdx, 3)];
+          const isPartial = ring.parentMidAngle !== null;
+          const count = ring.items.length;
+          const gap = 0.03;
+
+          // For partial rings: each item gets ~0.5 rad, centered on parent angle
+          const itemArc = isPartial ? 0.5 : (2 * Math.PI) / count;
+          const totalSpan = isPartial ? count * itemArc : 2 * Math.PI;
+          const arcStart = isPartial
+            ? (ring.parentMidAngle! - totalSpan / 2)
+            : -Math.PI / 2;
+
           return (
             <g key={`ring-${rIdx}`}>
+              {/* Partial ring arc guide */}
+              {isPartial && (
+                <path
+                  d={arcPath(arcStart, arcStart + totalSpan, innerR, outerR)}
+                  fill="none" stroke={accent} strokeWidth={0.5} strokeOpacity={0.15}
+                  strokeDasharray="4 4"
+                />
+              )}
               <AnimatePresence>
-                {ring.items.map((item, i) => (
-                  <motion.g
-                    key={`${rIdx}-${item.label}-${i}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                  >
-                    <WheelSegment
-                      index={i}
-                      total={ring.items.length}
-                      innerR={innerR}
-                      outerR={outerR}
-                      isSelected={ring.selectedIndex === i}
-                      isHovered={hovered?.depth === rIdx && hovered?.index === i}
-                      accent={accent}
-                      icon={item.icon}
-                      label={item.label}
-                      hasChildren={!!(item.children && item.children.length > 0)}
-                      onSelect={() => onSelect(rIdx, i)}
-                      onHover={() => setHovered({ depth: rIdx, index: i })}
-                      onLeave={() => setHovered(null)}
-                      depth={rIdx}
-                    />
-                  </motion.g>
-                ))}
+                {ring.items.map((item, i) => {
+                  const segStart = arcStart + i * itemArc + gap / 2;
+                  const segEnd = arcStart + (i + 1) * itemArc - gap / 2;
+                  return (
+                    <motion.g
+                      key={`${rIdx}-${item.label}-${i}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ delay: i * 0.04 }}
+                    >
+                      <WheelSegment
+                        startAngle={segStart}
+                        endAngle={segEnd}
+                        innerR={innerR}
+                        outerR={outerR}
+                        isSelected={ring.selectedIndex === i}
+                        isHovered={hovered?.depth === rIdx && hovered?.index === i}
+                        accent={accent}
+                        icon={item.icon}
+                        label={item.label}
+                        hasChildren={!!(item.children && item.children.length > 0)}
+                        onSelect={() => onSelect(rIdx, i)}
+                        onHover={() => setHovered({ depth: rIdx, index: i })}
+                        onLeave={() => setHovered(null)}
+                        depth={rIdx}
+                      />
+                    </motion.g>
+                  );
+                })}
               </AnimatePresence>
             </g>
           );
         })}
       </svg>
 
-      {/* Center content */}
+      {/* Center */}
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <div className="flex flex-col items-center gap-2">
-          {/* Module icon */}
           {centerIcon && (
             <div className="w-14 h-14 rounded-full flex items-center justify-center border-2" style={{ borderColor: `${accent}60`, color: accent, background: `${accent}15` }}>
               {centerIcon}
             </div>
           )}
           {centerLabel && (
-            <span className="text-xs font-bold tracking-widest uppercase" style={{ color: accent, textShadow: `0 0 20px ${accent}` }}>
+            <span className="text-xs font-bold tracking-widest uppercase text-white" style={{ textShadow: `0 0 20px ${accent}` }}>
               {centerLabel}
             </span>
           )}
-          {/* Back button */}
           <motion.button
             className="pointer-events-auto w-8 h-8 rounded-full border flex items-center justify-center backdrop-blur-xl transition-colors hover:bg-foreground/10 mt-1"
             style={{ borderColor: `${accent}40`, color: accent }}
@@ -364,7 +387,6 @@ const Index = () => {
   const { empresaAtiva } = useEmpresaAtiva();
 
   const [activeModule, setActiveModule] = useState<HudModule | null>(null);
-  // selections[0] = selected index in ring 0, etc.
   const [selections, setSelections] = useState<(number | null)[]>([]);
 
   const accent = activeModule ? `hsl(${activeModule.accentHsl})` : "hsl(var(--primary))";
@@ -379,20 +401,46 @@ const Index = () => {
     setSelections([]);
   }, []);
 
-  // Build rings from selections
-  const rings = useMemo(() => {
+  // Build rings with parent angle info
+  const rings: RingData[] = useMemo(() => {
     if (!activeModule) return [];
-    const result: { items: WheelItem[]; selectedIndex: number | null; depth: number }[] = [];
+    const result: RingData[] = [];
     let currentItems: WheelItem[] = activeModule.items;
-    result.push({ items: currentItems, selectedIndex: selections[0] ?? null, depth: 0 });
+
+    // Ring 0: full circle
+    result.push({ items: currentItems, selectedIndex: selections[0] ?? null, depth: 0, parentMidAngle: null });
 
     for (let d = 0; d < selections.length; d++) {
       const sel = selections[d];
       if (sel === null || sel === undefined) break;
       const item = currentItems[sel];
       if (!item?.children || item.children.length === 0) break;
+
+      // Calculate parent's mid angle
+      const parentRing = result[d];
+      const parentCount = parentRing.items.length;
+      let parentMidAngle: number | null = null;
+
+      if (parentRing.parentMidAngle !== null) {
+        // Parent was partial: reconstruct its angle
+        const pItemArc = 0.5;
+        const pTotalSpan = parentCount * pItemArc;
+        const pArcStart = parentRing.parentMidAngle - pTotalSpan / 2;
+        parentMidAngle = pArcStart + sel * pItemArc + pItemArc / 2;
+      } else {
+        // Parent was full ring
+        const anglePerItem = (2 * Math.PI) / parentCount;
+        parentMidAngle = -Math.PI / 2 + anglePerItem * sel + anglePerItem / 2;
+      }
+
       currentItems = item.children;
-      result.push({ items: currentItems, selectedIndex: selections[d + 1] ?? null, depth: d + 1 });
+      const isPartial = d >= 1; // depth 2+ = partial
+      result.push({
+        items: currentItems,
+        selectedIndex: selections[d + 1] ?? null,
+        depth: d + 1,
+        parentMidAngle: isPartial ? parentMidAngle : null,
+      });
     }
     return result;
   }, [activeModule, selections]);
@@ -401,34 +449,22 @@ const Index = () => {
     setSelections(prev => {
       const item = rings[depth]?.items[index];
       if (!item) return prev;
-
-      // If clicking already selected item at this depth, deselect it (collapse)
-      if (prev[depth] === index) {
-        return prev.slice(0, depth);
-      }
-
-      // If item has children, select it to expand next ring
+      if (prev[depth] === index) return prev.slice(0, depth);
       if (item.children && item.children.length > 0) {
         const next = prev.slice(0, depth);
         next[depth] = index;
         return next;
       }
-
-      // Leaf item → navigate
       navigate(item.href);
       return prev;
     });
   }, [rings, navigate]);
 
   const handleBack = useCallback(() => {
-    if (selections.length === 0) {
-      closeWheel();
-    } else {
-      setSelections(prev => prev.slice(0, -1));
-    }
+    if (selections.length === 0) closeWheel();
+    else setSelections(prev => prev.slice(0, -1));
   }, [selections.length, closeWheel]);
 
-  // Breadcrumb
   const breadcrumb = useMemo(() => {
     if (!activeModule) return [];
     const crumbs = [activeModule.title];
@@ -532,28 +568,24 @@ const Index = () => {
             <motion.div
               key="weapon-wheel"
               className="flex flex-col items-center gap-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             >
               {/* Breadcrumb */}
               <motion.div
                 className="flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-xl"
                 style={{ borderColor: `${accent}30`, background: "hsl(0 0% 4% / 0.8)" }}
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
+                initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               >
                 {breadcrumb.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-2">
                     {i > 0 && <ChevronRight className="w-3 h-3" style={{ color: `${accent}60` }} />}
-                    <span className="text-xs font-bold tracking-wider uppercase" style={{ color: i === breadcrumb.length - 1 ? accent : `${accent}80` }}>
+                    <span className="text-xs font-bold tracking-wider uppercase" style={{ color: i === breadcrumb.length - 1 ? "#fff" : "#ffffff99" }}>
                       {crumb}
                     </span>
                   </span>
                 ))}
               </motion.div>
 
-              {/* Multi-ring wheel */}
               <MultiRingWheel
                 rings={rings}
                 accent={accent}
@@ -563,14 +595,11 @@ const Index = () => {
                 centerLabel={activeModule.title}
               />
 
-              {/* Acessar button */}
               <motion.button
                 onClick={() => navigate(activeModule.href)}
                 className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
                 style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
+                initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
               >
                 <span className="text-sm font-bold">Acessar {activeModule.title}</span>
                 <ChevronRight className="w-4 h-4" />
@@ -591,7 +620,6 @@ const Index = () => {
           />
         )}
       </AnimatePresence>
-
       <div className="fixed bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none z-[5]" />
     </div>
   );
