@@ -96,6 +96,14 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     description: 'Comunicação via WhatsApp Business',
     module: 'messenger',
   },
+  // Portal do Cliente
+  {
+    path: '/cliente/taskvault',
+    name: 'Portal TaskVault',
+    type: 'protected',
+    requires: 'Autenticação',
+    description: 'Visão do cliente para tarefas e documentos',
+  },
 ];
 
 // ============================================================================
