@@ -335,6 +335,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   }
                 }}
                 numberOfMonths={1}
+                today={undefined as unknown as Date}
                 defaultMonth={new Date()}
                 locale={ptBR}
                 className={cn("p-0 pointer-events-auto")}
