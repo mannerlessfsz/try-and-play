@@ -143,6 +143,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [showCompleted, setShowCompleted] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const filteredTarefas = useMemo(() => {
     let list = tarefas;
