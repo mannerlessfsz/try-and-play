@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { WidgetRibbon } from "@/components/WidgetRibbon";
 import { CommandCenter } from "@/components/task/CommandCenter";
 import { KanbanCard } from "@/components/task/KanbanCard";
@@ -401,11 +402,12 @@ export default function TaskVault() {
   }
 
   return (
+    <ModulePageWrapper module="taskvault">
     <div className="min-h-screen bg-background pt-14 pb-40" style={{ fontFamily: "'Inter', sans-serif", WebkitFontSmoothing: "antialiased", MozOsxFontSmoothing: "grayscale" }}>
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
-        accentColor="magenta" 
+        accentColor="magenta"
         sidebarContent={sidebarContent}
       />
       
@@ -826,5 +828,6 @@ export default function TaskVault() {
       </div>
 
     </div>
+    </ModulePageWrapper>
   );
 }

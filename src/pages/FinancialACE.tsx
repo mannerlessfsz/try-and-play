@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export default function FinancialACE() {
   }
 
   return (
+    <ModulePageWrapper module="gestao">
     <div className="min-h-screen bg-background">
       {/* Command Bar */}
       <GestaoCommandBar
@@ -124,12 +126,12 @@ export default function FinancialACE() {
         {activeFilter !== "all" && activeSection === "financeiro" && activeTab !== "dashboard" && (
           <div className="mb-4 flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Filtro ativo:</span>
-            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[hsl(var(--blue))]/20 text-[hsl(var(--blue))] border border-[hsl(var(--blue))]/30">
+            <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/20 text-primary border border-primary/30">
               {activeFilter === "receitas" ? "Receitas" : activeFilter === "despesas" ? "Despesas" : "Pendentes"}
             </span>
             <button
               onClick={() => setActiveFilter("all")}
-              className="text-xs text-[hsl(var(--blue))] hover:text-[hsl(var(--blue))]/80 underline"
+              className="text-xs text-primary hover:text-primary/80 underline"
             >
               Limpar filtro
             </button>
@@ -215,5 +217,6 @@ export default function FinancialACE() {
         )}
       </div>
     </div>
+    </ModulePageWrapper>
   );
 }

@@ -73,15 +73,10 @@ export function GestaoCommandBar({
   return (
     <div className="sticky top-0 z-40">
       {/* Top Bar */}
-      <div className="relative bg-card/90 backdrop-blur-xl border-b border-[hsl(var(--cyan)/0.15)]">
+      <div className="relative bg-card/90 backdrop-blur-xl border-b border-primary/15">
         {/* Ambient gradient */}
         <div
-          className={cn(
-            "absolute inset-0 opacity-40 pointer-events-none",
-            activeSection === "financeiro"
-              ? "bg-gradient-to-r from-blue-500/10 via-transparent to-transparent"
-              : "bg-gradient-to-r from-emerald-500/10 via-transparent to-transparent"
-          )}
+          className="absolute inset-0 opacity-40 pointer-events-none bg-gradient-to-r from-primary/10 via-transparent to-transparent"
         />
 
         <div className="relative flex items-center h-14 px-4 gap-3">
@@ -147,12 +142,7 @@ export function GestaoCommandBar({
           {/* Section Segmented Control */}
           <div className="relative flex items-center p-1 rounded-xl bg-foreground/5 border border-foreground/5">
             <motion.div
-              className={cn(
-                "absolute top-1 bottom-1 rounded-lg",
-                activeSection === "financeiro"
-                  ? "bg-blue-500/20 border border-blue-500/30"
-                  : "bg-emerald-500/20 border border-emerald-500/30"
-              )}
+              className="absolute top-1 bottom-1 rounded-lg bg-primary/20 border border-primary/30"
               layoutId="section-indicator"
               style={{
                 left: activeSection === "financeiro" ? 4 : "50%",
@@ -165,7 +155,7 @@ export function GestaoCommandBar({
               className={cn(
                 "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 activeSection === "financeiro"
-                  ? "text-blue-400"
+                  ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -177,7 +167,7 @@ export function GestaoCommandBar({
               className={cn(
                 "relative z-10 flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 activeSection === "gestao"
-                  ? "text-emerald-400"
+                  ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -201,9 +191,7 @@ export function GestaoCommandBar({
                     className={cn(
                       "relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors",
                       isActive
-                        ? activeSection === "financeiro"
-                          ? "text-blue-300"
-                          : "text-emerald-300"
+                        ? "text-primary"
                         : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     )}
                     initial={{ opacity: 0, y: -8 }}
@@ -215,12 +203,7 @@ export function GestaoCommandBar({
                     {isActive && (
                       <motion.div
                         layoutId="active-tab-pill"
-                        className={cn(
-                          "absolute inset-0 rounded-lg",
-                          activeSection === "financeiro"
-                            ? "bg-blue-500/15 border border-blue-500/20"
-                            : "bg-emerald-500/15 border border-emerald-500/20"
-                        )}
+                        className="absolute inset-0 rounded-lg bg-primary/15 border border-primary/20"
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
                     )}
@@ -267,12 +250,7 @@ export function GestaoCommandBar({
 
         {/* Bottom active line */}
         <motion.div
-          className={cn(
-            "absolute bottom-0 h-px",
-            activeSection === "financeiro"
-              ? "bg-gradient-to-r from-blue-500/60 via-blue-400/30 to-transparent"
-              : "bg-gradient-to-r from-emerald-500/60 via-emerald-400/30 to-transparent"
-          )}
+          className="absolute bottom-0 h-px bg-gradient-to-r from-primary/60 via-primary/30 to-transparent"
           initial={{ width: "0%" }}
           animate={{ width: "60%" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
