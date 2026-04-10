@@ -274,15 +274,12 @@ export default function TaskVault() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-1">
-                  {metricSegments.map((seg, i) => {
+                  {metricSegments.map((seg) => {
                     const isActive = activeFilter === seg.id;
                     const Icon = seg.icon;
                     return (
-                      <motion.button
+                      <button
                         key={seg.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + i * 0.04 }}
                         onClick={() => handleFilterClick(seg.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group/metric
                           ${isActive 
@@ -296,7 +293,7 @@ export default function TaskVault() {
                           <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
                           <p className="text-base font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
                         </div>
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
