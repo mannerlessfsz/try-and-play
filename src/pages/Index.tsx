@@ -502,7 +502,7 @@ const Index = () => {
       <motion.div className="fixed top-0 left-0 right-0 z-50 px-4 py-3" initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.5 }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl border border-border/30">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-xl border border-primary/20">
               <Zap className="w-5 h-5 text-primary fill-primary" />
             </div>
             <div>
