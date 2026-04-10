@@ -647,15 +647,11 @@ function CompactDayNode({
                               }}
                               className={`
                                 mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all
-                                ${isDone
-                                  ? "border-green-500 bg-green-500 text-white"
-                                  : tarefa.status === "em_andamento"
-                                    ? "border-blue-500 bg-blue-500/20"
-                                    : "border-foreground/20 hover:border-primary"}
+                                border-current ${colorStyle.text}
                               `}
                             >
                               {isDone && <CheckCircle2 className="w-2.5 h-2.5" />}
-                              {tarefa.status === "em_andamento" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                              {tarefa.status === "em_andamento" && <div className={`w-1.5 h-1.5 rounded-full ${colorStyle.dot} animate-pulse`} />}
                             </button>
 
                             <div className="flex-1 min-w-0">
@@ -666,12 +662,13 @@ function CompactDayNode({
                                 <ChevronDown className={`w-3 h-3 text-muted-foreground/25 flex-shrink-0 transition-transform ${isTaskExpanded ? "rotate-180" : ""}`} />
                               </div>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {/* Status color badge */}
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${colorStyle.bg} ${colorStyle.text} ${colorStyle.border} border`}>
+                                  {colorStyle.label}
+                                </span>
                                 <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5 truncate max-w-[120px]">
                                   <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
                                   {getEmpresaNome(tarefa.empresaId)}
-                                </span>
-                                <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${prioridadeColors[tarefa.prioridade]}`}>
-                                  {prioridadeLabels[tarefa.prioridade]}
                                 </span>
                                 {tarefa.arquivos && tarefa.arquivos.length > 0 && (
                                   <span className="text-[9px] text-muted-foreground/30 flex items-center gap-0.5">
@@ -682,7 +679,7 @@ function CompactDayNode({
                               {(tarefa.progresso ?? 0) > 0 && !isDone && (
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <div className="flex-1 max-w-[80px] h-0.5 bg-foreground/8 rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary rounded-full" style={{ width: `${tarefa.progresso}%` }} />
+                                    <div className={`h-full ${colorStyle.dot} rounded-full`} style={{ width: `${tarefa.progresso}%` }} />
                                   </div>
                                   <span className="text-[9px] text-muted-foreground/30">{tarefa.progresso}%</span>
                                 </div>
