@@ -43,6 +43,7 @@ const FinancialACE = lazy(() => lazyRetry(() => import("./pages/FinancialACE")))
 
 const UsuariosAdmin = lazy(() => lazyRetry(() => import("./pages/UsuariosAdmin")));
 const InstallApp = lazy(() => lazyRetry(() => import("./pages/InstallApp")));
+const ClienteTaskVault = lazy(() => lazyRetry(() => import("./pages/ClienteTaskVault")));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
@@ -84,6 +85,7 @@ const App = () => {
                   <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />
                   <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
                   <Route path="/install" element={<InstallApp />} />
+                  <Route path="/cliente/taskvault" element={<ProtectedRoute><ClienteTaskVault /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
