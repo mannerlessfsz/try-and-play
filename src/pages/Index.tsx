@@ -18,6 +18,7 @@ import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { DashboardSidebar } from "@/components/DashboardSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 // ── Types ──
 interface WheelItem {
