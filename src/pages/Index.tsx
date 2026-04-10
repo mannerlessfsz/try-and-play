@@ -207,7 +207,7 @@ function WheelSegment({
         width={iconSize} height={iconSize}
         className="pointer-events-none"
       >
-        <div className="w-full h-full flex items-center justify-center text-white" style={{ opacity: isSelected || isHovered ? 1 : 0.85 }}>
+        <div className="w-full h-full flex items-center justify-center text-foreground" style={{ opacity: isSelected || isHovered ? 1 : 0.85 }}>
           {icon}
         </div>
       </foreignObject>
@@ -217,7 +217,7 @@ function WheelSegment({
         textAnchor="middle"
         className="pointer-events-none select-none"
         style={{
-          fill: "#ffffff",
+          fill: "hsl(var(--foreground))",
           fontSize: `${fontSize}px`,
           fontWeight: isSelected ? 800 : 600,
           letterSpacing: "0.04em",
@@ -366,7 +366,7 @@ function MultiRingWheel({
             </div>
           )}
           {centerLabel && (
-            <span className="text-xs font-bold tracking-widest uppercase text-white" style={{ textShadow: `0 0 20px ${accent}` }}>
+            <span className="text-xs font-bold tracking-widest uppercase text-foreground" style={{ textShadow: `0 0 20px ${accent}` }}>
               {centerLabel}
             </span>
           )}
@@ -619,7 +619,7 @@ const Index = () => {
                 {breadcrumb.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-2">
                     {i > 0 && <ChevronRight className="w-3 h-3" style={{ color: `${accent}60` }} />}
-                    <span className="text-xs font-bold tracking-wider uppercase" style={{ color: i === breadcrumb.length - 1 ? "#fff" : "#ffffff99" }}>
+                    <span className="text-xs font-bold tracking-wider uppercase" style={{ color: i === breadcrumb.length - 1 ? "hsl(var(--foreground))" : "hsl(var(--muted-foreground))" }}>
                       {crumb}
                     </span>
                   </span>
