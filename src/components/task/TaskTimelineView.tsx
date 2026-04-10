@@ -1,9 +1,9 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { Tarefa, prioridadeColors } from "@/types/task";
 import {
-  Building2, FileText, Trash2, CheckCircle2, Circle, Timer,
-  Search, Download, X, ChevronDown, Flame, Clock, Sparkles,
-  Calendar, AlertTriangle, ArrowUp, Filter, LayoutList, ChevronLeft, ChevronRight
+  Building2, FileText, CheckCircle2, Circle, Timer,
+  Search, Download, X, ChevronDown, Flame, Sparkles,
+  Calendar, AlertTriangle, ArrowUp, LayoutList
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,19 @@ const prioridadeDot: Record<string, string> = {
   urgente: "bg-purple-500",
 };
 
+const prioridadeBanner: Record<string, string> = {
+  baixa: "from-green-500 to-green-600",
+  media: "from-yellow-500 to-yellow-600",
+  alta: "from-red-500 to-red-600",
+  urgente: "from-purple-500 to-purple-600",
+};
+
+const statusBanner: Record<string, string> = {
+  pendente: "from-muted-foreground/60 to-muted-foreground/80",
+  em_andamento: "from-blue-500 to-blue-600",
+  concluida: "from-green-500 to-green-600",
+};
+
 function toDateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
@@ -59,10 +72,26 @@ function isToday(dateStr: string): boolean {
   return new Date(dateStr + "T12:00:00").toDateString() === new Date().toDateString();
 }
 
+function isTomorrow(dateStr: string): boolean {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return new Date(dateStr + "T12:00:00").toDateString() === tomorrow.toDateString();
+}
+
 function getDaysUntilDeadline(dateStr: string): number {
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const target = new Date(dateStr + "T12:00:00");
   return Math.ceil((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDateLabel(dateStr: string): string {
+  if (isToday(dateStr)) return "Hoje";
+  if (isTomorrow(dateStr)) return "Amanhã";
+  const d = new Date(dateStr + "T12:00:00");
+  const days = getDaysUntilDeadline(dateStr);
+  if (days < 0) return `${Math.abs(days)}d atrás`;
+  if (days <= 7) return d.toLocaleDateString("pt-BR", { weekday: "long" });
+  return d.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
 }
 
 type FilterMode = "all" | "pending" | "overdue" | "urgent";
@@ -80,7 +109,19 @@ function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   URL.revokeObjectURL(url);
 }
 
-const WEEKDAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+// Step color palette for numbered date groups (like image 2)
+const STEP_COLORS = [
+  "from-blue-500 to-blue-600",
+  "from-emerald-500 to-emerald-600",
+  "from-amber-500 to-amber-600",
+  "from-rose-500 to-rose-600",
+  "from-violet-500 to-violet-600",
+  "from-cyan-500 to-cyan-600",
+  "from-orange-500 to-orange-600",
+  "from-pink-500 to-pink-600",
+  "from-teal-500 to-teal-600",
+  "from-indigo-500 to-indigo-600",
+];
 
 // ── Main Component ──
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
@@ -88,23 +129,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [showCompleted, setShowCompleted] = useState(true);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [monthOffset, setMonthOffset] = useState(0);
-
-  // Current viewing month
-  const viewDate = useMemo(() => {
-    const d = new Date();
-    d.setMonth(d.getMonth() + monthOffset);
-    return d;
-  }, [monthOffset]);
-
-  const year = viewDate.getFullYear();
-  const month = viewDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0=Sun
-  const todayKey = toDateKey(new Date());
-
-  const monthLabel = viewDate.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
 
   // Filter tasks
   const filteredTarefas = useMemo(() => {
@@ -122,30 +146,39 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Build task map for current month
-  const taskMap = useMemo(() => {
-    const map: Record<string, Tarefa[]> = {};
+  // Group by date, generate 30-day window
+  const groupedByDate = useMemo(() => {
+    const taskMap: Record<string, Tarefa[]> = {};
     const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
     filteredTarefas.forEach(t => {
       const key = t.prazoEntrega || "__no_date__";
-      if (!map[key]) map[key] = [];
-      map[key].push(t);
+      if (!taskMap[key]) taskMap[key] = [];
+      taskMap[key].push(t);
     });
-    Object.values(map).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
-    return map;
-  }, [filteredTarefas]);
+    Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
-  // Generate calendar grid cells
-  const calendarCells = useMemo(() => {
-    const cells: { dateKey: string | null; day: number; tasks: Tarefa[] }[] = [];
-    // Leading empty cells
-    for (let i = 0; i < firstDayOfWeek; i++) cells.push({ dateKey: null, day: 0, tasks: [] });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const key = toDateKey(new Date(year, month, d));
-      cells.push({ dateKey: key, day: d, tasks: taskMap[key] || [] });
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 7);
+
+    const calendarDays: { dateKey: string; tasks: Tarefa[] }[] = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const key = toDateKey(d);
+      calendarDays.push({ dateKey: key, tasks: taskMap[key] || [] });
     }
-    return cells;
-  }, [year, month, daysInMonth, firstDayOfWeek, taskMap]);
+
+    // Extra dates outside window
+    const windowStart = calendarDays[0].dateKey;
+    const windowEnd = calendarDays[calendarDays.length - 1].dateKey;
+    const extraDates = Object.keys(taskMap).filter(k => k !== "__no_date__" && (k < windowStart || k > windowEnd)).sort();
+    const before = extraDates.filter(k => k < windowStart).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+    const after = extraDates.filter(k => k > windowEnd).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+    const result = [...before, ...calendarDays, ...after];
+    if (taskMap["__no_date__"]?.length) result.push({ dateKey: "__no_date__", tasks: taskMap["__no_date__"] });
+    return result;
+  }, [filteredTarefas]);
 
   // Stats
   const stats = useMemo(() => {
@@ -156,28 +189,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return { total, completed, overdue, inProgress, rate: total > 0 ? Math.round((completed / total) * 100) : 0 };
   }, [tarefas]);
 
-  // Tasks for selected date
-  const selectedTasks = useMemo(() => {
-    if (!selectedDate) return [];
-    return taskMap[selectedDate] || [];
-  }, [selectedDate, taskMap]);
-
-  // No-date tasks
-  const noDateTasks = taskMap["__no_date__"] || [];
-
-  const getTileStyle = (dateKey: string, tasks: Tarefa[]) => {
-    const today = isToday(dateKey);
-    const hasOverdue = tasks.some(t => t.prazoEntrega && isOverdue(t.prazoEntrega) && t.status !== "concluida");
-    const allDone = tasks.length > 0 && tasks.every(t => t.status === "concluida");
-    const hasUrgent = tasks.some(t => t.prioridade === "urgente" || t.prioridade === "alta");
-
-    if (today) return "ring-2 ring-primary/50 bg-primary/8";
-    if (allDone) return "bg-green-500/8 border-green-500/20";
-    if (hasOverdue) return "bg-red-500/8 border-red-500/20";
-    if (hasUrgent) return "bg-amber-500/5 border-amber-500/15";
-    if (tasks.length > 0) return "bg-card/80 border-foreground/12";
-    return "bg-card/30 border-foreground/6";
-  };
+  // Only groups with tasks + today
+  const activeGroups = groupedByDate.filter(g => g.tasks.length > 0 || isToday(g.dateKey));
+  let stepNumber = 0;
 
   return (
     <div className="space-y-4">
@@ -275,372 +289,373 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
       </div>
 
-      {/* ─── Month Navigation ─── */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setMonthOffset(o => o - 1)}
-          className="p-2 rounded-lg hover:bg-card/60 text-muted-foreground/60 hover:text-foreground transition-colors"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-primary" />
-          <h2 className="text-lg font-bold text-foreground capitalize">{monthLabel}</h2>
-          {monthOffset !== 0 && (
-            <button
-              onClick={() => setMonthOffset(0)}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium hover:bg-primary/20 transition-colors"
-            >
-              Hoje
-            </button>
-          )}
-        </div>
-        <button
-          onClick={() => setMonthOffset(o => o + 1)}
-          className="p-2 rounded-lg hover:bg-card/60 text-muted-foreground/60 hover:text-foreground transition-colors"
-        >
-          <ChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+      {/* ─── Alternating Timeline ─── */}
+      <div className="relative">
+        {/* Central vertical line */}
+        <div className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 bg-gradient-to-b from-primary/40 via-foreground/15 to-foreground/5 rounded-full" />
 
-      {/* ─── Bento Grid Calendar ─── */}
-      <div className="rounded-2xl border border-foreground/8 bg-card/40 p-3 backdrop-blur-sm">
-        {/* Weekday headers */}
-        <div className="grid grid-cols-7 gap-1.5 mb-1.5">
-          {WEEKDAYS.map((wd, i) => (
-            <div
-              key={wd}
-              className={`text-center text-[10px] font-semibold uppercase tracking-wider py-1 ${i === 0 || i === 6 ? "text-muted-foreground/30" : "text-muted-foreground/50"}`}
-            >
-              {wd}
-            </div>
-          ))}
-        </div>
+        <div className="space-y-0">
+          {activeGroups.map((group, groupIdx) => {
+            const { dateKey, tasks } = group;
+            const isLeft = groupIdx % 2 === 0;
+            const today = isToday(dateKey);
+            const overdue = dateKey !== "__no_date__" && isOverdue(dateKey);
+            const allDone = tasks.length > 0 && tasks.every(t => t.status === "concluida");
+            const noDate = dateKey === "__no_date__";
+            const hasTasks = tasks.length > 0;
 
-        {/* Day tiles */}
-        <div className="grid grid-cols-7 gap-1.5">
-          {calendarCells.map((cell, idx) => {
-            if (!cell.dateKey) {
-              return <div key={`empty-${idx}`} className="aspect-square" />;
-            }
+            stepNumber++;
+            const stepColorIdx = (stepNumber - 1) % STEP_COLORS.length;
+            const stepColor = overdue && !allDone
+              ? "from-red-500 to-red-600"
+              : allDone
+                ? "from-green-500 to-green-600"
+                : today
+                  ? "from-primary to-primary"
+                  : STEP_COLORS[stepColorIdx];
 
-            const today = isToday(cell.dateKey);
-            const selected = selectedDate === cell.dateKey;
-            const isWeekend = [0, 6].includes(new Date(cell.dateKey + "T12:00:00").getDay());
-            const taskCount = cell.tasks.length;
-            const hasOverdueTask = cell.tasks.some(t => t.prazoEntrega && isOverdue(t.prazoEntrega) && t.status !== "concluida");
-            const allDone = taskCount > 0 && cell.tasks.every(t => t.status === "concluida");
-            const hasUrgent = cell.tasks.some(t => t.prioridade === "urgente");
-            const completedCount = cell.tasks.filter(t => t.status === "concluida").length;
+            const dateLabel = noDate
+              ? "Sem Prazo"
+              : today
+                ? "HOJE"
+                : formatDateLabel(dateKey);
+
+            const fullDate = noDate
+              ? ""
+              : new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", {
+                  day: "numeric", month: "long", year: "numeric"
+                });
+
+            const completedCount = tasks.filter(t => t.status === "concluida").length;
 
             return (
-              <motion.button
-                key={cell.dateKey}
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setSelectedDate(prev => prev === cell.dateKey ? null : cell.dateKey!)}
-                className={`
-                  relative rounded-xl border p-1.5 transition-all duration-200 text-left
-                  min-h-[72px] flex flex-col justify-between overflow-hidden
-                  ${selected ? "ring-2 ring-primary border-primary/40 bg-primary/10 shadow-lg shadow-primary/10" : getTileStyle(cell.dateKey, cell.tasks)}
-                  ${!selected && taskCount > 0 ? "hover:shadow-md hover:border-foreground/20" : "hover:bg-card/50"}
-                  ${isWeekend && taskCount === 0 ? "opacity-50" : ""}
-                `}
+              <motion.div
+                key={dateKey}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(groupIdx * 0.04, 0.6), duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                className="relative flex items-start py-4"
               >
-                {/* Day number */}
-                <div className="flex items-center justify-between">
-                  <span className={`
-                    text-xs font-bold tabular-nums leading-none
-                    ${today ? "text-primary" : selected ? "text-primary" : "text-foreground/70"}
+                {/* ── Central dot / step number ── */}
+                <div className="absolute left-1/2 -translate-x-1/2 z-20 top-6">
+                  <div className={`
+                    w-10 h-10 rounded-full bg-gradient-to-br ${stepColor}
+                    flex items-center justify-center shadow-lg
+                    ${today ? "ring-4 ring-primary/30 animate-pulse-glow" : "ring-2 ring-background"}
                   `}>
-                    {cell.day}
-                  </span>
-                  {today && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                  )}
-                  {hasOverdueTask && !today && (
-                    <Flame className="w-2.5 h-2.5 text-red-500" />
+                    <span className="text-sm font-bold text-white">
+                      {String(stepNumber).padStart(2, "0")}
+                    </span>
+                  </div>
+                </div>
+
+                {/* ── Left side ── */}
+                <div className={`w-[calc(50%-28px)] ${isLeft ? "" : "order-last"}`}>
+                  {isLeft && (
+                    <div className="flex justify-end">
+                      <TimelineCard
+                        dateKey={dateKey}
+                        dateLabel={dateLabel}
+                        fullDate={fullDate}
+                        tasks={tasks}
+                        stepColor={stepColor}
+                        today={today}
+                        overdue={overdue && !allDone}
+                        allDone={allDone}
+                        noDate={noDate}
+                        completedCount={completedCount}
+                        expandedTaskId={expandedTaskId}
+                        setExpandedTaskId={setExpandedTaskId}
+                        getEmpresaNome={getEmpresaNome}
+                        onDelete={onDelete}
+                        onStatusChange={onStatusChange}
+                        onUploadArquivo={onUploadArquivo}
+                        onDeleteArquivo={onDeleteArquivo}
+                        side="left"
+                      />
+                    </div>
                   )}
                 </div>
 
-                {/* Task indicators */}
-                {taskCount > 0 ? (
-                  <div className="flex flex-col gap-0.5 mt-1">
-                    {/* Priority dots row */}
-                    <div className="flex items-center gap-0.5 flex-wrap">
-                      {cell.tasks.slice(0, 5).map((t, ti) => (
-                        <div
-                          key={ti}
-                          className={`
-                            w-2 h-2 rounded-full flex-shrink-0
-                            ${t.status === "concluida" ? "bg-green-500/60" : prioridadeDot[t.prioridade]}
-                          `}
-                        />
-                      ))}
-                      {taskCount > 5 && (
-                        <span className="text-[8px] text-muted-foreground/50 font-medium">+{taskCount - 5}</span>
-                      )}
+                {/* ── Connector arm ── */}
+                <div className="w-14 flex-shrink-0 relative flex items-start pt-9">
+                  <div className={`
+                    absolute top-[30px] h-0.5 bg-gradient-to-r
+                    ${isLeft
+                      ? "right-[28px] left-0 from-transparent to-foreground/20"
+                      : "left-[28px] right-0 from-foreground/20 to-transparent"
+                    }
+                  `} />
+                </div>
+
+                {/* ── Right side ── */}
+                <div className={`w-[calc(50%-28px)] ${isLeft ? "order-last" : ""}`}>
+                  {!isLeft && (
+                    <div className="flex justify-start">
+                      <TimelineCard
+                        dateKey={dateKey}
+                        dateLabel={dateLabel}
+                        fullDate={fullDate}
+                        tasks={tasks}
+                        stepColor={stepColor}
+                        today={today}
+                        overdue={overdue && !allDone}
+                        allDone={allDone}
+                        noDate={noDate}
+                        completedCount={completedCount}
+                        expandedTaskId={expandedTaskId}
+                        setExpandedTaskId={setExpandedTaskId}
+                        getEmpresaNome={getEmpresaNome}
+                        onDelete={onDelete}
+                        onStatusChange={onStatusChange}
+                        onUploadArquivo={onUploadArquivo}
+                        onDeleteArquivo={onDeleteArquivo}
+                        side="right"
+                      />
                     </div>
-
-                    {/* Mini progress bar */}
-                    {taskCount > 0 && (
-                      <div className="w-full h-0.5 bg-foreground/8 rounded-full overflow-hidden mt-0.5">
-                        <div
-                          className={`h-full rounded-full transition-all ${allDone ? "bg-green-500" : "bg-primary"}`}
-                          style={{ width: `${taskCount > 0 ? (completedCount / taskCount) * 100 : 0}%` }}
-                        />
-                      </div>
-                    )}
-
-                    {/* Count badge */}
-                    <span className={`
-                      text-[9px] font-semibold mt-0.5
-                      ${allDone ? "text-green-400" : hasOverdueTask ? "text-red-400" : "text-muted-foreground/50"}
-                    `}>
-                      {completedCount}/{taskCount}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex-1" />
-                )}
-
-                {/* Urgent glow effect */}
-                {hasUrgent && !allDone && (
-                  <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none" />
-                )}
-              </motion.button>
+                  )}
+                </div>
+              </motion.div>
             );
           })}
         </div>
+
+        {/* End cap */}
+        <div className="flex justify-center pt-2 pb-4">
+          <div className="w-4 h-4 rounded-full bg-foreground/10 ring-2 ring-background" />
+        </div>
       </div>
 
-      {/* ─── Selected Day Drawer ─── */}
-      <AnimatePresence mode="wait">
-        {selectedDate && (
-          <motion.div
-            key={selectedDate}
-            initial={{ opacity: 0, height: 0, y: -10 }}
-            animate={{ opacity: 1, height: "auto", y: 0 }}
-            exit={{ opacity: 0, height: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
-            className="overflow-hidden"
+      {/* Scroll to top */}
+      {activeGroups.length > 5 && (
+        <div className="flex justify-center pt-2">
+          <button
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground/40 hover:text-foreground/60 transition-colors px-3 py-1.5 rounded-full bg-card/40 border border-foreground/8"
           >
-            <div className="rounded-2xl border border-primary/20 bg-card/80 backdrop-blur-sm p-4">
-              {/* Day header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`
-                    w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold
-                    ${isToday(selectedDate) ? "bg-primary text-primary-foreground" :
-                      isOverdue(selectedDate) ? "bg-red-500/15 text-red-400 border border-red-500/20" :
-                      "bg-foreground/10 text-foreground/80"}
-                  `}>
-                    {new Date(selectedDate + "T12:00:00").getDate()}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground capitalize">
-                      {new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}
-                    </h3>
-                    <p className="text-[10px] text-muted-foreground/50">
-                      {selectedTasks.length === 0 ? "Nenhuma tarefa agendada" :
-                        `${selectedTasks.length} tarefa${selectedTasks.length > 1 ? "s" : ""} · ${selectedTasks.filter(t => t.status === "concluida").length} concluída${selectedTasks.filter(t => t.status === "concluida").length !== 1 ? "s" : ""}`}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedDate(null)}
-                  className="p-1.5 rounded-lg hover:bg-foreground/10 text-muted-foreground/40 hover:text-foreground transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Tasks list */}
-              {selectedTasks.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground/30">
-                  <Calendar className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">Dia livre</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {selectedTasks.map((tarefa, ti) => {
-                    const isExpanded = expandedTaskId === tarefa.id;
-                    const isDone = tarefa.status === "concluida";
-                    const isTaskOverdue = tarefa.prazoEntrega && isOverdue(tarefa.prazoEntrega) && !isDone;
-
-                    return (
-                      <motion.div
-                        key={tarefa.id}
-                        initial={{ opacity: 0, x: -12 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: ti * 0.05, duration: 0.3 }}
-                        className={`
-                          group relative rounded-xl border transition-all duration-200 overflow-hidden
-                          ${isDone ? "opacity-60" : ""}
-                          ${isExpanded
-                            ? "border-primary/30 bg-card/90 shadow-lg shadow-primary/5"
-                            : isTaskOverdue
-                              ? "border-red-500/20 bg-card/70 hover:border-red-500/30 hover:bg-card/80 hover:shadow-md"
-                              : "border-foreground/8 bg-card/60 hover:border-foreground/15 hover:bg-card/80 hover:shadow-md hover:shadow-foreground/5"
-                          }
-                        `}
-                      >
-                        {/* Priority accent strip */}
-                        <div className={`absolute left-0 top-0 bottom-0 w-1 ${prioridadeDot[tarefa.prioridade]} rounded-l-xl`} />
-
-                        {/* Card body */}
-                        <div
-                          className="flex items-start gap-3 p-3.5 pl-4 cursor-pointer"
-                          onClick={() => setExpandedTaskId(prev => prev === tarefa.id ? null : tarefa.id)}
-                        >
-                          {/* Status button */}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const next = tarefa.status === "pendente" ? "em_andamento" : tarefa.status === "em_andamento" ? "concluida" : "pendente";
-                              onStatusChange(tarefa.id, next);
-                            }}
-                            className={`
-                              mt-0.5 flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
-                              ${isDone
-                                ? "border-green-500 bg-green-500 text-white"
-                                : tarefa.status === "em_andamento"
-                                  ? "border-blue-500 bg-blue-500/20"
-                                  : "border-foreground/20 hover:border-primary"
-                              }
-                            `}
-                          >
-                            {isDone && <CheckCircle2 className="w-3 h-3" />}
-                            {tarefa.status === "em_andamento" && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
-                          </button>
-
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <p className={`text-sm font-medium leading-snug ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-                                {tarefa.titulo}
-                              </p>
-                              <ChevronDown className={`w-4 h-4 text-muted-foreground/30 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
-                            </div>
-                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                              <span className="text-xs text-muted-foreground/50 flex items-center gap-1 truncate max-w-[160px]">
-                                <Building2 className="w-3 h-3 flex-shrink-0" />
-                                {getEmpresaNome(tarefa.empresaId)}
-                              </span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${prioridadeColors[tarefa.prioridade]}`}>
-                                {prioridadeLabels[tarefa.prioridade]}
-                              </span>
-                              {tarefa.arquivos && tarefa.arquivos.length > 0 && (
-                                <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5">
-                                  <FileText className="w-3 h-3" />{tarefa.arquivos.length}
-                                </span>
-                              )}
-                              {tarefa.responsavel && (
-                                <span className="text-[10px] text-muted-foreground/40 truncate max-w-[100px]">
-                                  @{tarefa.responsavel}
-                                </span>
-                              )}
-                            </div>
-                            {(tarefa.progresso ?? 0) > 0 && !isDone && (
-                              <div className="flex items-center gap-2 mt-2">
-                                <div className="flex-1 max-w-[120px] h-1 bg-foreground/8 rounded-full overflow-hidden">
-                                  <motion.div
-                                    className="h-full bg-primary rounded-full"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${tarefa.progresso}%` }}
-                                    transition={{ duration: 0.5, delay: 0.1 }}
-                                  />
-                                </div>
-                                <span className="text-[10px] text-muted-foreground/40 font-medium">{tarefa.progresso}%</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Quick actions on hover */}
-                        <div className="absolute top-2.5 right-10 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {(["pendente", "em_andamento", "concluida"] as const).map(s => (
-                            <button
-                              key={s}
-                              onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
-                              title={statusLabels[s]}
-                              className={`p-1 rounded-md transition-all text-xs ${
-                                tarefa.status === s
-                                  ? s === "concluida" ? "bg-green-500/20 text-green-400"
-                                    : s === "em_andamento" ? "bg-blue-500/20 text-blue-400"
-                                      : "bg-foreground/10 text-foreground/60"
-                                  : "text-muted-foreground/25 hover:text-foreground/60 hover:bg-foreground/5"
-                              }`}
-                            >
-                              {statusIcons[s]}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Expanded content */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: "auto", opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.25, ease: "easeInOut" }}
-                              className="overflow-hidden border-t border-foreground/8"
-                            >
-                              <div className="p-4">
-                                <ExpandedTaskCard
-                                  tarefa={tarefa}
-                                  empresaNome={getEmpresaNome(tarefa.empresaId)}
-                                  onDelete={() => onDelete(tarefa.id)}
-                                  onStatusChange={(s) => onStatusChange(tarefa.id, s)}
-                                  onUploadArquivo={onUploadArquivo ? (file) => onUploadArquivo(tarefa.id, file) : undefined}
-                                  onDeleteArquivo={onDeleteArquivo}
-                                  defaultExpanded
-                                />
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ─── No-date tasks ─── */}
-      {noDateTasks.length > 0 && !selectedDate && (
-        <div className="rounded-2xl border border-foreground/8 bg-card/40 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full bg-muted-foreground/40" />
-            <h3 className="text-xs font-semibold text-muted-foreground/60 uppercase tracking-wider">Sem prazo definido</h3>
-            <span className="text-[10px] text-muted-foreground/40 ml-auto">{noDateTasks.length}</span>
-          </div>
-          <div className="space-y-1.5">
-            {noDateTasks.slice(0, 5).map(t => (
-              <div
-                key={t.id}
-                className="flex items-center gap-2.5 p-2 rounded-lg bg-card/50 border border-foreground/6 hover:bg-card/70 transition-colors cursor-pointer"
-                onClick={() => onTaskClick?.(t.id)}
-              >
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${prioridadeDot[t.prioridade]}`} />
-                <span className={`text-xs flex-1 truncate ${t.status === "concluida" ? "line-through text-muted-foreground/50" : "text-foreground/80"}`}>
-                  {t.titulo}
-                </span>
-                <span className="text-[10px] text-muted-foreground/40">{getEmpresaNome(t.empresaId)}</span>
-              </div>
-            ))}
-            {noDateTasks.length > 5 && (
-              <p className="text-[10px] text-muted-foreground/30 text-center pt-1">
-                +{noDateTasks.length - 5} tarefas sem prazo
-              </p>
-            )}
-          </div>
+            <ArrowUp className="w-3 h-3" /> Voltar ao topo
+          </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Timeline Card Component ──
+interface TimelineCardProps {
+  dateKey: string;
+  dateLabel: string;
+  fullDate: string;
+  tasks: Tarefa[];
+  stepColor: string;
+  today: boolean;
+  overdue: boolean;
+  allDone: boolean;
+  noDate: boolean;
+  completedCount: number;
+  expandedTaskId: string | null;
+  setExpandedTaskId: (id: string | null) => void;
+  getEmpresaNome: (id: string) => string;
+  onDelete: (id: string) => void;
+  onStatusChange: (id: string, status: Tarefa["status"]) => void;
+  onUploadArquivo?: (tarefaId: string, file: File) => Promise<void>;
+  onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
+  side: "left" | "right";
+}
+
+function TimelineCard({
+  dateKey, dateLabel, fullDate, tasks, stepColor,
+  today, overdue, allDone, noDate, completedCount,
+  expandedTaskId, setExpandedTaskId,
+  getEmpresaNome, onDelete, onStatusChange,
+  onUploadArquivo, onDeleteArquivo, side,
+}: TimelineCardProps) {
+  const totalCount = tasks.length;
+
+  return (
+    <div className={`w-full max-w-[420px] ${side === "left" ? "mr-0" : "ml-0"}`}>
+      {/* Card with colored top banner */}
+      <div className={`
+        rounded-xl border overflow-hidden transition-all
+        ${today ? "border-primary/30 shadow-lg shadow-primary/10" :
+          overdue ? "border-red-500/20 shadow-md shadow-red-500/5" :
+          allDone ? "border-green-500/20" :
+          "border-foreground/10"}
+        bg-card/80 backdrop-blur-sm
+      `}>
+        {/* Colored banner header (like image 2 step headers) */}
+        <div className={`bg-gradient-to-r ${stepColor} px-4 py-2.5 flex items-center justify-between`}>
+          <div className="flex items-center gap-2">
+            {today && <Calendar className="w-3.5 h-3.5 text-white/80" />}
+            {overdue && <Flame className="w-3.5 h-3.5 text-white/80" />}
+            {allDone && <CheckCircle2 className="w-3.5 h-3.5 text-white/80" />}
+            <span className="text-sm font-bold text-white uppercase tracking-wide">
+              {dateLabel}
+            </span>
+          </div>
+          {totalCount > 0 && (
+            <span className="text-xs font-semibold text-white/80 bg-white/15 px-2 py-0.5 rounded-full">
+              {completedCount}/{totalCount}
+            </span>
+          )}
+        </div>
+
+        {/* Date subtitle */}
+        {fullDate && (
+          <div className="px-4 pt-2 pb-1">
+            <span className="text-[10px] text-muted-foreground/50 capitalize">{fullDate}</span>
+          </div>
+        )}
+
+        {/* Description / tasks area */}
+        <div className="px-4 py-3">
+          {totalCount === 0 ? (
+            <p className="text-xs text-muted-foreground/30 italic">Nenhuma tarefa agendada</p>
+          ) : (
+            <div className="space-y-2">
+              {tasks.map((tarefa) => {
+                const isExpanded = expandedTaskId === tarefa.id;
+                const isDone = tarefa.status === "concluida";
+                const isTaskOverdue = tarefa.prazoEntrega && isOverdue(tarefa.prazoEntrega) && !isDone;
+
+                return (
+                  <div
+                    key={tarefa.id}
+                    className={`
+                      group relative rounded-lg border transition-all duration-200 overflow-hidden
+                      ${isDone ? "opacity-50" : ""}
+                      ${isExpanded
+                        ? "border-primary/30 bg-primary/5"
+                        : isTaskOverdue
+                          ? "border-red-500/15 bg-red-500/5 hover:border-red-500/25"
+                          : "border-foreground/6 bg-foreground/3 hover:border-foreground/12 hover:bg-foreground/5"}
+                    `}
+                  >
+                    {/* Priority left strip */}
+                    <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${prioridadeDot[tarefa.prioridade]} rounded-l`} />
+
+                    <div
+                      className="flex items-start gap-2.5 p-2.5 pl-3 cursor-pointer"
+                      onClick={() => setExpandedTaskId(expandedTaskId === tarefa.id ? null : tarefa.id)}
+                    >
+                      {/* Status toggle */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const next = tarefa.status === "pendente" ? "em_andamento" : tarefa.status === "em_andamento" ? "concluida" : "pendente";
+                          onStatusChange(tarefa.id, next);
+                        }}
+                        className={`
+                          mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all
+                          ${isDone
+                            ? "border-green-500 bg-green-500 text-white"
+                            : tarefa.status === "em_andamento"
+                              ? "border-blue-500 bg-blue-500/20"
+                              : "border-foreground/20 hover:border-primary"}
+                        `}
+                      >
+                        {isDone && <CheckCircle2 className="w-2.5 h-2.5" />}
+                        {tarefa.status === "em_andamento" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                      </button>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1">
+                          <p className={`text-xs font-medium leading-snug ${isDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
+                            {tarefa.titulo}
+                          </p>
+                          <ChevronDown className={`w-3 h-3 text-muted-foreground/25 flex-shrink-0 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5 truncate max-w-[120px]">
+                            <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
+                            {getEmpresaNome(tarefa.empresaId)}
+                          </span>
+                          <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${prioridadeColors[tarefa.prioridade]}`}>
+                            {prioridadeLabels[tarefa.prioridade]}
+                          </span>
+                          {tarefa.arquivos && tarefa.arquivos.length > 0 && (
+                            <span className="text-[9px] text-muted-foreground/30 flex items-center gap-0.5">
+                              <FileText className="w-2.5 h-2.5" />{tarefa.arquivos.length}
+                            </span>
+                          )}
+                        </div>
+                        {(tarefa.progresso ?? 0) > 0 && !isDone && (
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <div className="flex-1 max-w-[80px] h-0.5 bg-foreground/8 rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full" style={{ width: `${tarefa.progresso}%` }} />
+                            </div>
+                            <span className="text-[9px] text-muted-foreground/30">{tarefa.progresso}%</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Quick status on hover */}
+                    <div className="absolute top-1.5 right-7 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {(["pendente", "em_andamento", "concluida"] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={(e) => { e.stopPropagation(); onStatusChange(tarefa.id, s); }}
+                          title={statusLabels[s]}
+                          className={`p-0.5 rounded transition-all text-xs ${
+                            tarefa.status === s
+                              ? s === "concluida" ? "bg-green-500/20 text-green-400"
+                                : s === "em_andamento" ? "bg-blue-500/20 text-blue-400"
+                                  : "bg-foreground/10 text-foreground/60"
+                              : "text-muted-foreground/20 hover:text-foreground/50 hover:bg-foreground/5"
+                          }`}
+                        >
+                          {statusIcons[s]}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Expanded */}
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.25, ease: "easeInOut" }}
+                          className="overflow-hidden border-t border-foreground/6"
+                        >
+                          <div className="p-3">
+                            <ExpandedTaskCard
+                              tarefa={tarefa}
+                              empresaNome={getEmpresaNome(tarefa.empresaId)}
+                              onDelete={() => onDelete(tarefa.id)}
+                              onStatusChange={(s) => onStatusChange(tarefa.id, s)}
+                              onUploadArquivo={onUploadArquivo ? (file) => onUploadArquivo(tarefa.id, file) : undefined}
+                              onDeleteArquivo={onDeleteArquivo}
+                              defaultExpanded
+                            />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom colored accent line */}
+        <div className={`h-1 bg-gradient-to-r ${stepColor} opacity-40`} />
+      </div>
+
+      {/* Arrow pointer toward center line */}
+      <div className={`absolute top-[26px] ${side === "left" ? "right-[calc(50%-20px)]" : "left-[calc(50%-20px)]"}`}>
+        <div className={`
+          w-3 h-3 rotate-45 border bg-card/80
+          ${today ? "border-primary/30" : overdue ? "border-red-500/20" : "border-foreground/10"}
+          ${side === "left"
+            ? "border-l-0 border-b-0"
+            : "border-r-0 border-t-0"
+          }
+        `} />
+      </div>
     </div>
   );
 }
