@@ -97,18 +97,38 @@ function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   URL.revokeObjectURL(url);
 }
 
-const STEP_COLORS = [
-  "from-blue-500 to-blue-600",
-  "from-emerald-500 to-emerald-600",
-  "from-amber-500 to-amber-600",
-  "from-rose-500 to-rose-600",
-  "from-violet-500 to-violet-600",
-  "from-cyan-500 to-cyan-600",
-  "from-orange-500 to-orange-600",
-  "from-pink-500 to-pink-600",
-  "from-teal-500 to-teal-600",
-  "from-indigo-500 to-indigo-600",
-];
+// Task status color based on deadline proximity
+// Verde = a fazer | Amarelo = 2 dias da entrega | Vermelho = 1+ dia após entrega | Azul = concluída | Laranja = concluída com justificativa
+type TaskStatusColor = "green" | "yellow" | "red" | "blue" | "orange";
+
+function getTaskStatusColor(tarefa: Tarefa): TaskStatusColor {
+  if (tarefa.status === "concluida") {
+    return tarefa.justificativa ? "orange" : "blue";
+  }
+  if (!tarefa.prazoEntrega) return "green";
+  const days = getDaysUntilDeadline(tarefa.prazoEntrega);
+  if (days < 0) return "red";
+  if (days <= 2) return "yellow";
+  return "green";
+}
+
+const STATUS_COLOR_STYLES: Record<TaskStatusColor, { gradient: string; bg: string; border: string; text: string; dot: string; label: string }> = {
+  green:  { gradient: "from-emerald-500 to-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/25", text: "text-emerald-500", dot: "bg-emerald-500", label: "A fazer" },
+  yellow: { gradient: "from-amber-400 to-yellow-500",    bg: "bg-amber-500/10",   border: "border-amber-500/25",   text: "text-amber-500",   dot: "bg-amber-500",   label: "Atenção" },
+  red:    { gradient: "from-red-500 to-red-600",         bg: "bg-red-500/10",     border: "border-red-500/25",     text: "text-red-500",     dot: "bg-red-500",     label: "Atrasada" },
+  blue:   { gradient: "from-blue-500 to-blue-600",       bg: "bg-blue-500/10",    border: "border-blue-500/25",    text: "text-blue-500",    dot: "bg-blue-500",    label: "Concluída" },
+  orange: { gradient: "from-orange-500 to-orange-600",   bg: "bg-orange-500/10",  border: "border-orange-500/25",  text: "text-orange-500",  dot: "bg-orange-500",  label: "Justificada" },
+};
+
+function getGroupStepColor(tasks: Tarefa[]): string {
+  if (tasks.length === 0) return "from-foreground/30 to-foreground/40";
+  const colors = tasks.map(getTaskStatusColor);
+  if (colors.includes("red")) return STATUS_COLOR_STYLES.red.gradient;
+  if (colors.includes("orange")) return STATUS_COLOR_STYLES.orange.gradient;
+  if (colors.includes("yellow")) return STATUS_COLOR_STYLES.yellow.gradient;
+  if (colors.includes("green")) return STATUS_COLOR_STYLES.green.gradient;
+  return STATUS_COLOR_STYLES.blue.gradient;
+}
 
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
