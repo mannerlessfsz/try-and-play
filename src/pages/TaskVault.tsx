@@ -9,11 +9,10 @@ import { TaskModal } from "@/components/task/TaskModal";
 import { TaskSettingsModal } from "@/components/task/TaskSettingsModal";
 import { TaskTimelineView } from "@/components/task/TaskTimelineView";
 import { 
-  ListTodo, Plus, Trash2, CheckSquare, Clock, 
-  Calendar, Settings, Bell, Zap, Building2,
-  Activity, List, Columns, Loader2, FileText, Briefcase, RefreshCw,
-  GanttChart, ChevronDown, TrendingUp, Flame, CheckCircle2,
-  AlertTriangle, Timer, Search, X, Sparkles
+  ListTodo, Plus, Trash2, CheckCircle2,
+  Calendar, Settings, Activity, List, Columns, Loader2, FileText,
+  GanttChart, TrendingUp, Flame,
+  Timer, Search, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,10 +36,9 @@ export default function TaskVault() {
   const [showOnboardTip, setShowOnboardTip] = useState(() => !localStorage.getItem("taskvault-onboard-seen"));
   const [showModal, setShowModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [settingsInitialTab, setSettingsInitialTab] = useState("modelos");
+  const [settingsInitialTab] = useState("modelos");
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState("all");
-  const [activityPanelOpen, setActivityPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSetViewMode = useCallback((mode: "lista" | "kanban" | "timeline") => {
@@ -67,19 +65,21 @@ export default function TaskVault() {
   const { empresasDisponiveis, loading: empresasLoading } = useEmpresaAtiva();
   const { tarefas, loading: tarefasLoading, addTarefa, updateTarefa, deleteTarefa: deleteTarefaDB, uploadArquivo, deleteArquivo, refetch: refetchTarefas } = useTarefas();
   const { atividades, addAtividade } = useAtividades("taskvault");
-  const { tarefasModelo, gerarTarefas, isGenerating } = useTarefasModelo();
+  const { gerarTarefas, isGenerating } = useTarefasModelo();
   
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
   const [expandedKanbanId, setExpandedKanbanId] = useState<string | null>(null);
 
   useEffect(() => { refetchTarefas(); }, [empresasDisponiveis]);
 
-  const tarefasFiltradas = selectedEmpresaId === "all" ? tarefas : tarefas.filter(t => t.empresaId === selectedEmpresaId);
-
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  const tarefasFiltradas = useMemo(
+    () => selectedEmpresaId === "all" ? tarefas : tarefas.filter(t => t.empresaId === selectedEmpresaId),
+    [tarefas, selectedEmpresaId]
+  );
 
   const stats = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
     const total = tarefasFiltradas.length;
     const done = tarefasFiltradas.filter(t => t.status === "concluida").length;
     const active = tarefasFiltradas.filter(t => t.status !== "concluida").length;
@@ -91,7 +91,9 @@ export default function TaskVault() {
     return { total, done, active, overdue, rate: total > 0 ? Math.round((done / total) * 100) : 0 };
   }, [tarefasFiltradas]);
 
-  const getFilteredTarefas = () => {
+  const filteredTarefas = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
     let list = tarefasFiltradas;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -107,19 +109,17 @@ export default function TaskVault() {
       });
       default: return list;
     }
-  };
+  }, [tarefasFiltradas, searchQuery, activeFilter]);
 
-  const filteredTarefas = getFilteredTarefas();
-
-  const handleFilterClick = (filter: FilterType) => {
+  const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
-  };
+  }, []);
 
-  const logAtividade = async (tipo: "criacao" | "conclusao" | "comentario" | "edicao", descricao: string, tarefaId?: string) => {
+  const logAtividade = useCallback(async (tipo: "criacao" | "conclusao" | "comentario" | "edicao", descricao: string, tarefaId?: string) => {
     await addAtividade(tipo, descricao, { tarefaId });
-  };
+  }, [addAtividade]);
 
-  const handleSaveTarefa = async () => {
+  const handleSaveTarefa = useCallback(async () => {
     if (!novaTarefa.titulo || !novaTarefa.empresaId) {
       toast({ title: "Preencha os campos obrigatórios", variant: "destructive" });
       return;
@@ -136,16 +136,16 @@ export default function TaskVault() {
       setShowModal(false);
       toast({ title: "Tarefa criada com sucesso!" });
     }
-  };
+  }, [novaTarefa, addTarefa, logAtividade]);
 
-  const handleDeleteTarefa = async (id: string) => {
+  const handleDeleteTarefa = useCallback(async (id: string) => {
     const tarefa = tarefas.find(t => t.id === id);
     await deleteTarefaDB(id);
     if (tarefa) await logAtividade("edicao", `Tarefa excluída: ${tarefa.titulo}`, id);
     toast({ title: "Tarefa excluída" });
-  };
+  }, [tarefas, deleteTarefaDB, logAtividade]);
 
-  const sendCompletionEmail = async (tarefa: Tarefa) => {
+  const sendCompletionEmail = useCallback(async (tarefa: Tarefa) => {
     if (!tarefa.contatoId || !tarefa.arquivos || tarefa.arquivos.length === 0) return;
     try {
       const { data: contato } = await supabase.from('empresa_contatos').select('nome, email').eq('id', tarefa.contatoId).single();
@@ -160,21 +160,21 @@ export default function TaskVault() {
     } catch {
       toast({ title: "Aviso", description: "Tarefa concluída, mas não foi possível enviar o e-mail", variant: "destructive" });
     }
-  };
+  }, [empresasDisponiveis]);
 
-  const handleUpdateTarefaStatus = async (id: string, status: Tarefa["status"]) => {
+  const handleUpdateTarefaStatus = useCallback(async (id: string, status: Tarefa["status"]) => {
     const tarefa = tarefas.find(t => t.id === id);
     await updateTarefa(id, { status, progresso: status === "concluida" ? 100 : status === "em_andamento" ? 50 : tarefa?.progresso || 0 });
     if (tarefa && status === "concluida") {
       await logAtividade("conclusao", `Tarefa concluída: ${tarefa.titulo}`, id);
       await sendCompletionEmail(tarefa);
     }
-  };
+  }, [tarefas, updateTarefa, logAtividade, sendCompletionEmail]);
 
-  const handleUploadArquivo = async (tarefaId: string, file: File) => { await uploadArquivo(tarefaId, file); };
-  const handleDeleteArquivo = async (arquivoId: string, url?: string) => { await deleteArquivo(arquivoId, url); };
+  const handleUploadArquivo = useCallback(async (tarefaId: string, file: File) => { await uploadArquivo(tarefaId, file); }, [uploadArquivo]);
+  const handleDeleteArquivo = useCallback(async (arquivoId: string, url?: string) => { await deleteArquivo(arquivoId, url); }, [deleteArquivo]);
 
-  const handleGerarTarefasMes = async () => {
+  const handleGerarTarefasMes = useCallback(async () => {
     const now = new Date();
     const empresasParaGerar = selectedEmpresaId === "all" ? empresasDisponiveis : empresasDisponiveis.filter(e => e.id === selectedEmpresaId);
     let totalGeradas = 0;
@@ -186,15 +186,15 @@ export default function TaskVault() {
     }
     if (totalGeradas > 0) { toast({ title: "Tarefas geradas", description: `${totalGeradas} nova(s)` }); refetchTarefas(); }
     else toast({ title: "Nenhuma tarefa nova", description: "Todas já existem" });
-  };
+  }, [selectedEmpresaId, empresasDisponiveis, refetchTarefas]);
 
-  const getEmpresaNome = (id: string) => empresasDisponiveis.find(e => e.id === id)?.nome || "-";
+  const getEmpresaNome = useCallback((id: string) => empresasDisponiveis.find(e => e.id === id)?.nome || "-", [empresasDisponiveis]);
 
-  const kanbanColumns = {
+  const kanbanColumns = useMemo(() => ({
     pendente: filteredTarefas.filter(t => t.status === "pendente"),
     em_andamento: filteredTarefas.filter(t => t.status === "em_andamento"),
     concluida: filteredTarefas.filter(t => t.status === "concluida"),
-  };
+  }), [filteredTarefas]);
 
   const isLoading = empresasLoading || tarefasLoading;
 
@@ -227,7 +227,7 @@ export default function TaskVault() {
         {/* Main column */}
         <div className="flex-1 min-w-0 flex flex-col gap-5">
 
-          {/* ═══ HERO HEADER (inside main column) ═══ */}
+          {/* ═══ HERO HEADER ═══ */}
           <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-card/40">
             <div className="absolute inset-0 pointer-events-none">
               <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20" style={{ background: "hsl(var(--primary))" }} />
@@ -532,7 +532,7 @@ export default function TaskVault() {
         </div>
         </div>
 
-        {/* Activity sidebar — spans full height of the flex row */}
+        {/* Activity sidebar */}
         <div className="w-72 flex-shrink-0 hidden xl:flex flex-col gap-5 self-stretch">
           <div className="flex-1 rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20 flex-shrink-0">
