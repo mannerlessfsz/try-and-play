@@ -38,7 +38,7 @@ interface HudModule {
 const modules: HudModule[] = [
   {
     id: "taskvault", icon: <CheckSquare className="w-7 h-7" />, title: "TASKVAULT", tagline: "Gestão de tarefas",
-    accentHsl: "0 85% 55%", module: "taskvault", href: "/taskvault",
+    accentHsl: "var(--module-red)", module: "taskvault", href: "/taskvault",
     items: [
       { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", href: "/taskvault", children: [
         { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault", children: [
@@ -71,7 +71,7 @@ const modules: HudModule[] = [
   },
   {
     id: "gestao", icon: <DollarSign className="w-7 h-7" />, title: "GESTÃO", tagline: "ERP + Financeiro",
-    accentHsl: "210 100% 55%", module: "gestao", href: "/gestao",
+    accentHsl: "var(--module-blue)", module: "gestao", href: "/gestao",
     items: [
       { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", href: "/gestao", children: [
         { icon: <Receipt className="w-4 h-4" />, label: "Transações", href: "/gestao", children: [
@@ -117,7 +117,7 @@ const modules: HudModule[] = [
   },
   {
     id: "messenger", icon: <MessageCircle className="w-7 h-7" />, title: "MESSENGER", tagline: "Comunicação",
-    accentHsl: "25 100% 55%", module: "messenger", href: "/messenger",
+    accentHsl: "var(--module-orange)", module: "messenger", href: "/messenger",
     items: [
       { icon: <Send className="w-5 h-5" />, label: "Conversas", href: "/messenger", children: [
         { icon: <MessageSquare className="w-4 h-4" />, label: "Nova", href: "/messenger", children: [
