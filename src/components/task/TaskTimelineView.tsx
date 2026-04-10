@@ -201,46 +201,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
   return (
     <div className="space-y-4">
-      {/* ─── Stats Bar ─── */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/60 border border-foreground/8">
-          <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="font-semibold text-foreground">{stats.total}</span>
-              <span className="text-muted-foreground/60">total</span>
-            </div>
-            <div className="w-px h-4 bg-foreground/10" />
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-              <span className="font-semibold text-green-400">{stats.completed}</span>
-            </div>
-            <div className="w-px h-4 bg-foreground/10" />
-            <div className="flex items-center gap-1.5">
-              <Timer className="w-3.5 h-3.5 text-blue-500" />
-              <span className="font-semibold text-blue-400">{stats.inProgress}</span>
-            </div>
-            {stats.overdue > 0 && (
-              <>
-                <div className="w-px h-4 bg-foreground/10" />
-                <div className="flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 text-red-500" />
-                  <span className="font-semibold text-red-400">{stats.overdue}</span>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="w-20 h-1.5 bg-foreground/8 rounded-full overflow-hidden ml-2">
-            <motion.div
-              className="h-full bg-gradient-to-r from-primary to-green-500 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${stats.rate}%` }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            />
-          </div>
-          <span className="text-[10px] font-medium text-muted-foreground/50">{stats.rate}%</span>
-        </div>
-      </div>
 
       {/* ─── Toolbar ─── */}
       <div className="flex items-center gap-2 flex-wrap">
