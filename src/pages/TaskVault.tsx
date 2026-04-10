@@ -524,11 +524,12 @@ export default function TaskVault() {
           </motion.div>
         )}
         </div>
+        </div>
 
-        {/* Activity sidebar */}
-        <div className="w-72 flex-shrink-0 hidden xl:block">
-          <div className="sticky top-20 rounded-2xl border border-border/30 bg-card/40 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20">
+        {/* Activity sidebar — spans full height of the flex row */}
+        <div className="w-72 flex-shrink-0 hidden xl:flex flex-col gap-5 self-stretch">
+          <div className="flex-1 rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20 flex-shrink-0">
               <div className="relative">
                 <Activity className="w-4 h-4 text-primary" />
                 <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -536,7 +537,7 @@ export default function TaskVault() {
               <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Atividade Recente</span>
               <span className="ml-auto text-[10px] text-muted-foreground/40 tabular-nums">{atividades.length}</span>
             </div>
-            <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-3">
               <ActivityPulseFeed atividades={atividades} />
             </div>
           </div>
