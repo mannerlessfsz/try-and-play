@@ -353,7 +353,7 @@ export default function TaskVault() {
           </div>
 
           {/* ═══ VIEW CONTENT ═══ */}
-          <div className="flex-1 min-h-0 pb-8">
+          <div className="flex-1 min-h-0">
         {/* Onboard tip */}
         <AnimatePresence>
           {showOnboardTip && (
