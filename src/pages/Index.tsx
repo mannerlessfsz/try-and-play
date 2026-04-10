@@ -373,10 +373,10 @@ const Index = () => {
                                       </motion.div>
                                     )}
 
-                                    {/* Line: action → sub */}
-                                    <svg className="absolute pointer-events-none" style={{ top: S / 2, left: S / 2, width: 1, height: 1, overflow: "visible" }}>
-                                      <line x1={0} y1={0} x2={-sPos.x} y2={-sPos.y} stroke={accent} strokeWidth={0.8} strokeOpacity={0.25} strokeDasharray="3 3" />
-                                    </svg>
+                                    {/* Bead chain: action → sub */}
+                                    <div className="absolute" style={{ top: S / 2, left: S / 2 }}>
+                                      <BeadChain x={sPos.x} y={sPos.y} accent={accent} count={3} size={2.5} expanded={sExp} />
+                                    </div>
 
                                     <motion.button
                                       onClick={(e) => { e.stopPropagation(); hasLeaves ? toggleSub(sKey) : navigate(sub.href); }}
