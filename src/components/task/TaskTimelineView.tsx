@@ -536,7 +536,7 @@ function TimelineCard({
 
                     <div
                       className="flex items-start gap-2.5 p-2.5 pl-3 cursor-pointer"
-                      onClick={() => setExpandedTaskId(prev => prev === tarefa.id ? null : tarefa.id)}
+                      onClick={() => setExpandedTaskId(expandedTaskId === tarefa.id ? null : tarefa.id)}
                     >
                       {/* Status toggle */}
                       <button
