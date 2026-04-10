@@ -83,6 +83,7 @@ const App = () => {
                   <Route path="/admin" element={<ProtectedRoute requireAdmin><Admin /></ProtectedRoute>} />
                   <Route path="/usuarios" element={<ProtectedRoute requireAdmin><UsuariosAdmin /></ProtectedRoute>} />
                   <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
+                  <Route path="/taskvault/cadastro" element={<ProtectedRoute module="taskvault"><TaskVaultCadastro /></ProtectedRoute>} />
                   <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />
                   <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
                   <Route path="/install" element={<InstallApp />} />
