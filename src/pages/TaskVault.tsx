@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { Tarefa, prioridadeColors, statusColors } from "@/types/task";
 import { useAtividades } from "@/hooks/useAtividades";
@@ -48,6 +49,7 @@ export default function TaskVault() {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [showActivityModal, setShowActivityModal] = useState(false);
 
   const handleSetViewMode = useCallback((mode: "lista" | "kanban" | "timeline") => {
     setViewMode(mode);
@@ -304,19 +306,33 @@ export default function TaskVault() {
                     );
                   })}
                 </div>
-                <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50 uppercase tracking-wider">
-                    <TrendingUp className="w-3 h-3" /> Progresso
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50 uppercase tracking-wider">
+                      <TrendingUp className="w-3 h-3" /> Progresso
+                    </div>
+                    <div className="w-28 h-1.5 rounded-full overflow-hidden flex bg-foreground/5">
+                      {stats.total > 0 && (
+                        <>
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.done / stats.total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/70 h-full" />
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.active / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 }} className="bg-blue-500/50 h-full" />
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.overdue / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.2 }} className="bg-red-500/50 h-full" />
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="w-28 h-1.5 rounded-full overflow-hidden flex bg-foreground/5">
-                    {stats.total > 0 && (
-                      <>
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.done / stats.total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/70 h-full" />
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.active / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 }} className="bg-blue-500/50 h-full" />
-                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.overdue / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.2 }} className="bg-red-500/50 h-full" />
-                      </>
+                  <button
+                    onClick={() => setShowActivityModal(true)}
+                    className="relative flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all border border-border/40 hover:border-border"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Atividade</span>
+                    {atividades.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-[9px] font-bold text-primary-foreground flex items-center justify-center">
+                        {atividades.length > 9 ? "9+" : atividades.length}
+                      </span>
                     )}
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -637,28 +653,27 @@ export default function TaskVault() {
         </div>
         </div>
 
-        {/* Activity sidebar */}
-        <div className="w-56 flex-shrink-0 hidden xl:block self-start">
-          <div className="rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col max-h-[420px]">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20 flex-shrink-0">
-              <div className="relative">
-                <Activity className="w-4 h-4 text-primary" />
-                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              </div>
-              <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Atividade Recente</span>
-              <span className="ml-auto text-[10px] text-muted-foreground/40 tabular-nums">{atividades.length}</span>
-            </div>
-            <div className="flex-1 overflow-y-auto p-3">
-              <ActivityPulseFeed atividades={atividades} />
-            </div>
-          </div>
-        </div>
       </div>
 
       {showModal && (
         <TaskModal novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} empresas={empresasDisponiveis.map(e => ({ id: e.id, nome: e.nome, cnpj: e.cnpj || "", email: e.email || "" }))} onSave={handleSaveTarefa} onClose={() => setShowModal(false)} />
       )}
       <TaskSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} initialTab={settingsInitialTab} />
+
+      <Dialog open={showActivityModal} onOpenChange={setShowActivityModal}>
+        <DialogContent className="max-w-md max-h-[70vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-primary" />
+              Atividade Recente
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">{atividades.length}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto -mx-6 px-6">
+            <ActivityPulseFeed atividades={atividades} />
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </div>
     </ModulePageWrapper>
