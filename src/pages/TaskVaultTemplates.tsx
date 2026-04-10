@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Plus, Trash2, Loader2, FileText, ArrowLeft, Search,
   Tag, Upload, X, CheckCircle2, Edit,
-  FileUp, Settings2, AlertTriangle
+  FileUp, Settings2, AlertTriangle, Sparkles, Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
   TIPOS_DOCUMENTO,
 } from "@/hooks/useDocumentoModelos";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const DEPARTAMENTOS = [
   { value: "fiscal", label: "Fiscal" },
@@ -57,7 +58,9 @@ export default function TaskVaultTemplates() {
   const [newKeyword, setNewKeyword] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const analyzeInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = useMemo(() => {
     return modelos.filter(m => {
@@ -143,11 +146,78 @@ export default function TaskVaultTemplates() {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      const nameWithoutExt = file.name.replace(/\.[^.]+$/, "");
-      const words = nameWithoutExt.split(/[-_\s]+/).filter(w => w.length > 2);
-      if (words.length > 0 && form.palavrasChave.length === 0) {
-        setForm(prev => ({ ...prev, palavrasChave: words }));
+    }
+  };
+
+  // AI-powered PDF analysis
+  const handleAnalyzePdf = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.toLowerCase().endsWith(".pdf")) {
+      toast({ title: "Envie um arquivo PDF", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande (máx. 20MB)", variant: "destructive" });
+      return;
+    }
+
+    setAnalyzing(true);
+    setSelectedFile(file);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-document`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: "Erro desconhecido" }));
+        throw new Error(err.error || `Erro ${response.status}`);
       }
+
+      const data = await response.json();
+
+      // Auto-fill form with AI suggestions
+      setForm(prev => ({
+        ...prev,
+        nome: data.nome || prev.nome,
+        tipoDocumento: data.tipo_documento || prev.tipoDocumento,
+        departamento: data.departamento || prev.departamento,
+        descricao: data.descricao || prev.descricao,
+        palavrasChave: data.palavras_chave?.length > 0 ? data.palavras_chave : prev.palavrasChave,
+      }));
+
+      toast({
+        title: "Documento analisado com sucesso!",
+        description: "Revise os dados extraídos e ajuste se necessário.",
+      });
+
+      // Open dialog with pre-filled data
+      setShowDialog(true);
+    } catch (error) {
+      console.error("Analyze error:", error);
+      toast({
+        title: "Erro ao analisar documento",
+        description: error instanceof Error ? error.message : "Tente novamente",
+        variant: "destructive",
+      });
+      // Still open dialog for manual entry
+      setShowDialog(true);
+    } finally {
+      setAnalyzing(false);
+      if (analyzeInputRef.current) analyzeInputRef.current.value = "";
     }
   };
 
@@ -170,11 +240,47 @@ export default function TaskVaultTemplates() {
               </p>
             </div>
           </div>
-          <Button onClick={handleOpenNew} className="gap-2 rounded-xl">
-            <Plus className="w-4 h-4" />
-            Novo Template
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => analyzeInputRef.current?.click()}
+              disabled={analyzing}
+              className="gap-2 rounded-xl border-primary/30 hover:border-primary"
+            >
+              {analyzing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Brain className="w-4 h-4 text-primary" />
+              )}
+              {analyzing ? "Analisando..." : "Criar por IA"}
+            </Button>
+            <Button onClick={handleOpenNew} className="gap-2 rounded-xl">
+              <Plus className="w-4 h-4" />
+              Novo Template
+            </Button>
+          </div>
+          <input
+            ref={analyzeInputRef}
+            type="file"
+            accept=".pdf"
+            onChange={handleAnalyzePdf}
+            className="hidden"
+          />
         </div>
+
+        {/* AI Banner */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4 flex items-start gap-3">
+            <Sparkles className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Criação Inteligente de Templates</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Envie um PDF de exemplo (guia DARF, DAS, holerite, etc.) e a IA extrairá automaticamente 
+                as palavras-chave, tipo e departamento. Você pode revisar e ajustar antes de salvar.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -228,11 +334,20 @@ export default function TaskVaultTemplates() {
               <FileText className="w-12 h-12 text-muted-foreground/50 mb-4" />
               <h3 className="text-lg font-semibold text-foreground mb-1">Nenhum template encontrado</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Crie templates para validar automaticamente os documentos enviados nas tarefas
+                Crie templates manualmente ou envie um PDF para a IA configurar automaticamente
               </p>
-              <Button onClick={handleOpenNew} className="gap-2">
-                <Plus className="w-4 h-4" /> Criar Template
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => analyzeInputRef.current?.click()}
+                  className="gap-2"
+                >
+                  <Brain className="w-4 h-4" /> Criar por IA
+                </Button>
+                <Button onClick={handleOpenNew} className="gap-2">
+                  <Plus className="w-4 h-4" /> Criar Manual
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
@@ -363,6 +478,7 @@ export default function TaskVaultTemplates() {
 
               <Separator />
 
+              {/* Upload de arquivo modelo */}
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Upload className="w-4 h-4" />
@@ -402,6 +518,7 @@ export default function TaskVaultTemplates() {
 
               <Separator />
 
+              {/* Palavras-chave */}
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <Tag className="w-4 h-4" />
@@ -462,6 +579,34 @@ export default function TaskVaultTemplates() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Analyzing overlay */}
+      <AnimatePresence>
+        {analyzing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+          >
+            <Card className="w-80 border-primary/30">
+              <CardContent className="p-8 flex flex-col items-center text-center gap-4">
+                <div className="relative">
+                  <Brain className="w-12 h-12 text-primary animate-pulse" />
+                  <Sparkles className="w-5 h-5 text-primary absolute -top-1 -right-1 animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-foreground">Analisando documento...</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    A IA está extraindo palavras-chave e identificando o tipo do documento
+                  </p>
+                </div>
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </ModulePageWrapper>
   );
 }
