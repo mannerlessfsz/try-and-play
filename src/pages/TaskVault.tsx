@@ -255,14 +255,9 @@ export default function TaskVault() {
             <div className="relative px-5 py-4">
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <motion.div 
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative"
-                  >
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative">
                     <ListTodo className="w-5 h-5 text-primary-foreground" />
-                  </motion.div>
+                  </div>
                   <div>
                     <h1 className="text-xl font-bold text-foreground tracking-tight leading-none">TaskVault</h1>
                     <p className="text-xs text-muted-foreground mt-0.5">Central de tarefas e entregas</p>
