@@ -543,7 +543,20 @@ const Index = () => {
         onClick={activeModule ? closeWheel : undefined}
       >
         <AnimatePresence mode="wait">
-          {!activeModule ? (
+          {viewMode === "sidebar" ? (
+            <motion.div
+              key="sidebar-view"
+              className="w-full max-w-sm pt-20 pb-10 px-4"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            >
+              <DashboardSidebar
+                modules={modules.map(mod => ({
+                  ...mod,
+                  hasAccess: hasModuleAccessFlexible(mod.module, empresaAtiva?.id),
+                }))}
+              />
+            </motion.div>
+          ) : !activeModule ? (
             <motion.div
               key="module-cards"
               className="flex items-center gap-8"
