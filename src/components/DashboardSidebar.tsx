@@ -134,7 +134,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
             />
             {/* Module header */}
             <button
-              className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
+              className="relative z-10 w-full flex items-center gap-3 p-4 hover:bg-white/10 dark:hover:bg-muted/30 transition-colors"
               onClick={() => {
                 if (!mod.hasAccess) return;
                 setExpandedModule(isExpanded ? null : mod.id);
