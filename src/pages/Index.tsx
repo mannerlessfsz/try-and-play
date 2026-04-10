@@ -296,6 +296,14 @@ const Index = () => {
                           exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
                           transition={{ delay: aIdx * 0.06, type: "spring", stiffness: 200, damping: 18 }}
                         >
+                          {/* Orbit ring R2 around this action when expanded */}
+                          {aExp && hasSubs && (
+                            <motion.div className="absolute pointer-events-none" style={{ top: A / 2 - R2, left: A / 2 - R2, width: R2 * 2, height: R2 * 2 }} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}>
+                              <div className="w-full h-full rounded-full border border-dashed" style={{ borderColor: `${accent}20` }} />
+                              <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, transparent 60%, ${accent}06 100%)` }} />
+                            </motion.div>
+                          )}
+
                           {/* Line: module → action */}
                           <svg className="absolute pointer-events-none" style={{ top: A / 2, left: A / 2, width: 1, height: 1, overflow: "visible" }}>
                             <line x1={0} y1={0} x2={-aPos.x} y2={-aPos.y} stroke={accent} strokeWidth={1.2} strokeOpacity={0.3} />
