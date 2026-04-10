@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export default function FinancialACE() {
   }
 
   return (
+    <ModulePageWrapper module="gestao">
     <div className="min-h-screen bg-background">
       {/* Command Bar */}
       <GestaoCommandBar
@@ -215,5 +217,6 @@ export default function FinancialACE() {
         )}
       </div>
     </div>
+    </ModulePageWrapper>
   );
 }
