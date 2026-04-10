@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { Tarefa, prioridadeColors } from "@/types/task";
 import {
   Building2, FileText, CheckCircle2, Circle, Timer,
-  Search, Download, X, ChevronDown, Flame, Sparkles,
+  Search, Download, X, ChevronDown, Flame,
   Calendar, AlertTriangle, ArrowUp, LayoutList,
   ChevronLeft, ChevronRight, CalendarRange
 } from "lucide-react";
@@ -27,30 +27,24 @@ interface TaskTimelineViewProps {
   onDeleteArquivo?: (arquivoId: string, url?: string) => Promise<void>;
 }
 
-const statusIcons = {
+const statusIcons: Record<Tarefa["status"], JSX.Element> = {
   pendente: <Circle className="w-3.5 h-3.5" />,
   em_andamento: <Timer className="w-3.5 h-3.5" />,
   concluida: <CheckCircle2 className="w-3.5 h-3.5" />,
 };
 
-const statusLabels = {
+const statusLabels: Record<Tarefa["status"], string> = {
   pendente: "Pendente",
   em_andamento: "Em andamento",
   concluida: "Concluída",
 };
 
 const prioridadeLabels: Record<string, string> = {
-  baixa: "Baixa",
-  media: "Média",
-  alta: "Alta",
-  urgente: "Urgente",
+  baixa: "Baixa", media: "Média", alta: "Alta", urgente: "Urgente",
 };
 
 const prioridadeDot: Record<string, string> = {
-  baixa: "bg-green-500",
-  media: "bg-yellow-500",
-  alta: "bg-red-500",
-  urgente: "bg-purple-500",
+  baixa: "bg-green-500", media: "bg-yellow-500", alta: "bg-red-500", urgente: "bg-purple-500",
 };
 
 function toDateKey(d: Date): string {
@@ -103,8 +97,6 @@ function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   URL.revokeObjectURL(url);
 }
 
-// Task status color based on deadline proximity
-// Verde = a fazer | Amarelo = 2 dias da entrega | Vermelho = 1+ dia após entrega | Azul = concluída | Laranja = concluída com justificativa
 type TaskStatusColor = "green" | "yellow" | "red" | "blue" | "orange";
 
 function getTaskStatusColor(tarefa: Tarefa): TaskStatusColor {
@@ -161,14 +153,12 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Calculate timeline window based on dateRange or default 30-day window
   const timelineGroups = useMemo(() => {
     const taskMap: Record<string, Tarefa[]> = {};
-    const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
+    const prioOrder: Record<string, number> = { urgente: 0, alta: 1, media: 2, baixa: 3 };
     filteredTarefas.forEach(t => {
       const key = t.prazoEntrega || "__no_date__";
-      if (!taskMap[key]) taskMap[key] = [];
-      taskMap[key].push(t);
+      (taskMap[key] ??= []).push(t);
     });
     Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
@@ -195,14 +185,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       days.push({ dateKey: key, tasks: taskMap[key] || [] });
     }
 
-    if (dateRange?.from && dateRange?.to) {
-      return days;
-    }
+    if (dateRange?.from && dateRange?.to) return days;
 
     const windowKeys = new Set(days.map(d => d.dateKey));
-    const extraDates = Object.keys(taskMap)
-      .filter(k => k !== "__no_date__" && !windowKeys.has(k))
-      .sort();
+    const extraDates = Object.keys(taskMap).filter(k => k !== "__no_date__" && !windowKeys.has(k)).sort();
     const before = extraDates.filter(k => k < days[0].dateKey).map(k => ({ dateKey: k, tasks: taskMap[k] }));
     const after = extraDates.filter(k => k > days[days.length - 1].dateKey).map(k => ({ dateKey: k, tasks: taskMap[k] }));
     
@@ -211,13 +197,25 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return result;
   }, [filteredTarefas, weekOffset, dateRange]);
 
-  const stats = useMemo(() => {
-    const total = tarefas.length;
-    const completed = tarefas.filter(t => t.status === "concluida").length;
-    const overdueCount = tarefas.filter(t => t.prazoEntrega && isOverdue(t.prazoEntrega) && t.status !== "concluida").length;
-    const inProgress = tarefas.filter(t => t.status === "em_andamento").length;
-    return { total, completed, overdue: overdueCount, inProgress, rate: total > 0 ? Math.round((completed / total) * 100) : 0 };
-  }, [tarefas]);
+  const handleToggleDate = useCallback((dateKey: string) => {
+    setExpandedDate(prev => prev === dateKey ? null : dateKey);
+  }, []);
+
+  const handleToggleTask = useCallback((taskId: string) => {
+    setExpandedTaskId(prev => prev === taskId ? null : taskId);
+  }, []);
+
+  const prevWeek = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDateRange(undefined);
+    setWeekOffset(w => w - 1);
+  }, []);
+
+  const nextWeek = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDateRange(undefined);
+    setWeekOffset(w => w + 1);
+  }, []);
 
   let stepNumber = 0;
 
@@ -265,18 +263,12 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
           <PopoverTrigger asChild>
             <div className="flex items-center gap-0 rounded-lg border border-foreground/8 bg-card/60 overflow-hidden">
-              <button
-                onClick={(e) => { e.stopPropagation(); setDateRange(undefined); setWeekOffset(w => w - 1); }}
-                className="p-1.5 hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all"
-              >
+              <button onClick={prevWeek} className="p-1.5 hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <button
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-all",
-                  dateRange?.from
-                    ? "text-primary"
-                    : "text-primary"
+                  "flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold transition-all text-primary"
                 )}
               >
                 <CalendarRange className="w-3.5 h-3.5" />
@@ -289,10 +281,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   <span>Período</span>
                 )}
               </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); setDateRange(undefined); setWeekOffset(w => w + 1); }}
-                className="p-1.5 hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all"
-              >
+              <button onClick={nextWeek} className="p-1.5 hover:bg-foreground/5 text-muted-foreground hover:text-foreground transition-all">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -323,10 +312,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 selected={dateRange}
                 onSelect={(range, selectedDay) => {
                   if (!dateRange?.from || (dateRange.from && dateRange.to)) {
-                    // First click: start new range
                     setDateRange({ from: selectedDay, to: undefined });
                   } else {
-                    // Second click: complete the range
                     const from = dateRange.from;
                     const to = selectedDay;
                     if (from > to) {
@@ -346,9 +333,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   caption_label: "text-sm font-medium cursor-pointer hover:text-primary transition-colors",
                 }}
                 formatters={{
-                  formatCaption: (date) => {
-                    return format(date, "LLLL yyyy", { locale: ptBR });
-                  },
+                  formatCaption: (date) => format(date, "LLLL yyyy", { locale: ptBR }),
                 }}
                 onMonthChange={() => {}}
                 components={{
@@ -391,9 +376,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
       </div>
 
-      {/* ─── Vertical Timeline (tasks left, empresas right) ─── */}
+      {/* ─── Vertical Timeline ─── */}
       <div className="relative">
-        {/* Central vertical line */}
         <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-gradient-to-b from-primary/40 via-foreground/15 to-foreground/5 rounded-full" />
 
         <div className="space-y-0">
@@ -410,47 +394,35 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               ? "from-primary to-primary"
               : getGroupStepColor(tasks);
 
-            const dateLabel = noDate
-              ? "Sem Prazo"
-              : today
-                ? "HOJE"
-                : formatDateLabel(dateKey);
-
-            const fullDate = noDate
-              ? ""
-              : new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", {
-                  weekday: "short", day: "numeric", month: "short"
-                });
-
+            const dateLabel = noDate ? "Sem Prazo" : today ? "HOJE" : formatDateLabel(dateKey);
+            const fullDate = noDate ? "" : new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short", day: "numeric", month: "short" });
             const completedCount = tasks.filter(t => t.status === "concluida").length;
 
-            // Group tasks by empresa for the right panel
             const empresaMap: Record<string, { nome: string; total: number; done: number; priorities: string[] }> = {};
             tasks.forEach(t => {
               const nome = getEmpresaNome(t.empresaId);
-              if (!empresaMap[t.empresaId]) {
-                empresaMap[t.empresaId] = { nome, total: 0, done: 0, priorities: [] };
-              }
+              if (!empresaMap[t.empresaId]) empresaMap[t.empresaId] = { nome, total: 0, done: 0, priorities: [] };
               empresaMap[t.empresaId].total++;
               if (t.status === "concluida") empresaMap[t.empresaId].done++;
-              if (!empresaMap[t.empresaId].priorities.includes(t.prioridade)) {
-                empresaMap[t.empresaId].priorities.push(t.prioridade);
-              }
+              if (!empresaMap[t.empresaId].priorities.includes(t.prioridade)) empresaMap[t.empresaId].priorities.push(t.prioridade);
             });
             const empresas = Object.entries(empresaMap);
+
+            // Cap animation delay to avoid long waits on large lists
+            const animDelay = Math.min(groupIdx * 0.03, 0.4);
 
             return (
               <motion.div
                 key={dateKey}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: Math.min(groupIdx * 0.04, 0.6), duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+                transition={{ delay: animDelay, duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
                 className="relative flex items-start py-1"
               >
-                {/* ── Central dot / step number ── */}
+                {/* Central dot */}
                 <div className="absolute left-1/2 -translate-x-1/2 z-20 top-3">
                   <button
-                    onClick={() => setExpandedDate(isExpanded ? null : dateKey)}
+                    onClick={() => handleToggleDate(dateKey)}
                     className={`
                       w-8 h-8 rounded-full bg-gradient-to-br ${stepColor}
                       flex items-center justify-center shadow-lg transition-all
@@ -464,7 +436,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   </button>
                 </div>
 
-                {/* ── Left side: Tasks ── */}
+                {/* Left side: Tasks */}
                 <div className="w-[calc(65%-20px)]">
                   <div className="flex justify-end">
                     <CompactDayNode
@@ -479,9 +451,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                       noDate={noDate}
                       completedCount={completedCount}
                       isExpanded={isExpanded}
-                      onToggle={() => setExpandedDate(isExpanded ? null : dateKey)}
+                      onToggle={() => handleToggleDate(dateKey)}
                       expandedTaskId={expandedTaskId}
-                      setExpandedTaskId={setExpandedTaskId}
+                      setExpandedTaskId={handleToggleTask}
                       getEmpresaNome={getEmpresaNome}
                       onDelete={onDelete}
                       onStatusChange={onStatusChange}
@@ -492,13 +464,13 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   </div>
                 </div>
 
-                {/* ── Connector arms (both sides) ── */}
+                {/* Connector arms */}
                 <div className="w-10 flex-shrink-0 relative flex items-start pt-6">
                   <div className="absolute top-[19px] h-0.5 bg-gradient-to-r right-[20px] left-0 from-transparent to-foreground/20" />
                   <div className="absolute top-[19px] h-0.5 bg-gradient-to-r left-[20px] right-0 from-foreground/20 to-transparent" />
                 </div>
 
-                {/* ── Right side: Empresas summary ── */}
+                {/* Right side: Empresas summary */}
                 <div className="w-[calc(35%-20px)]">
                   <div className="flex justify-start">
                     <div className="w-full ml-0">
@@ -512,7 +484,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                                 key={empresaId}
                                 initial={{ opacity: 0, x: -8 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: groupIdx * 0.04 + eIdx * 0.03, duration: 0.3 }}
+                                transition={{ delay: animDelay + eIdx * 0.02, duration: 0.2 }}
                                 className={`
                                   flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all
                                   ${allEmpresaDone
@@ -524,11 +496,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                               >
                                 <div className={`
                                   w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
-                                  ${allEmpresaDone
-                                    ? "bg-green-500/15"
-                                    : hasUrgent
-                                      ? "bg-red-500/15"
-                                      : "bg-foreground/5"}
+                                  ${allEmpresaDone ? "bg-green-500/15" : hasUrgent ? "bg-red-500/15" : "bg-foreground/5"}
                                 `}>
                                   <Building2 className={`w-4 h-4 ${
                                     allEmpresaDone ? "text-green-500" : hasUrgent ? "text-red-500" : "text-muted-foreground/50"
@@ -591,7 +559,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   );
 }
 
-// ── Compact Day Node (collapsed = mini card, expanded = full tasks) ──
+// ── Compact Day Node (memoized) ──
 interface CompactDayNodeProps {
   dateKey: string;
   dateLabel: string;
@@ -606,7 +574,7 @@ interface CompactDayNodeProps {
   isExpanded: boolean;
   onToggle: () => void;
   expandedTaskId: string | null;
-  setExpandedTaskId: (id: string | null) => void;
+  setExpandedTaskId: (id: string) => void;
   getEmpresaNome: (id: string) => string;
   onDelete: (id: string) => void;
   onStatusChange: (id: string, status: Tarefa["status"]) => void;
@@ -615,7 +583,7 @@ interface CompactDayNodeProps {
   side: "left" | "right";
 }
 
-function CompactDayNode({
+const CompactDayNode = memo(function CompactDayNode({
   dateKey, dateLabel, fullDate, tasks, stepColor,
   today, overdue, allDone, noDate, completedCount,
   isExpanded, onToggle,
@@ -636,7 +604,7 @@ function CompactDayNode({
         ${isExpanded ? "shadow-lg" : "shadow-sm hover:shadow-md"}
         bg-card/80 backdrop-blur-sm
       `}>
-        {/* ── Compact header (always visible) ── */}
+        {/* Header */}
         <button
           onClick={onToggle}
           className={`w-full bg-gradient-to-r ${stepColor} px-4 py-2 flex items-center justify-between`}
@@ -660,7 +628,6 @@ function CompactDayNode({
                 {completedCount}/{totalCount}
               </span>
             )}
-            {/* Priority dots summary when collapsed */}
             {!isExpanded && totalCount > 0 && (
               <div className="flex gap-0.5">
                 {tasks.slice(0, 5).map((t, i) => (
@@ -673,7 +640,7 @@ function CompactDayNode({
           </div>
         </button>
 
-        {/* ── Expandable tasks area ── */}
+        {/* Expandable tasks */}
         <AnimatePresence>
           {isExpanded && (
             <motion.div
@@ -699,20 +666,17 @@ function CompactDayNode({
                           key={tarefa.id}
                           initial={{ opacity: 0, x: side === "left" ? 10 : -10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: tIdx * 0.05, duration: 0.2 }}
+                          transition={{ delay: Math.min(tIdx * 0.03, 0.2), duration: 0.2 }}
                           className={`
                             group relative rounded-lg border transition-all duration-200 overflow-hidden
-                            ${isTaskExpanded
-                              ? `${colorStyle.border} ${colorStyle.bg}`
-                              : `${colorStyle.border} ${colorStyle.bg} hover:shadow-sm`}
+                            ${colorStyle.border} ${colorStyle.bg} ${isTaskExpanded ? "" : "hover:shadow-sm"}
                           `}
                         >
-                          {/* Status color strip */}
                           <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorStyle.dot} rounded-l`} />
 
                           <div
                             className="flex items-start gap-2.5 p-2.5 pl-3 cursor-pointer"
-                            onClick={() => setExpandedTaskId(expandedTaskId === tarefa.id ? null : tarefa.id)}
+                            onClick={() => setExpandedTaskId(tarefa.id)}
                           >
                             <button
                               onClick={(e) => {
@@ -720,10 +684,7 @@ function CompactDayNode({
                                 const next = tarefa.status === "pendente" ? "em_andamento" : tarefa.status === "em_andamento" ? "concluida" : "pendente";
                                 onStatusChange(tarefa.id, next);
                               }}
-                              className={`
-                                mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all
-                                border-current ${colorStyle.text}
-                              `}
+                              className={`mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all border-current ${colorStyle.text}`}
                             >
                               {isDone && <CheckCircle2 className="w-2.5 h-2.5" />}
                               {tarefa.status === "em_andamento" && <div className={`w-1.5 h-1.5 rounded-full ${colorStyle.dot} animate-pulse`} />}
@@ -737,7 +698,6 @@ function CompactDayNode({
                                 <ChevronDown className={`w-3 h-3 text-muted-foreground/25 flex-shrink-0 transition-transform ${isTaskExpanded ? "rotate-180" : ""}`} />
                               </div>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                {/* Status color badge */}
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${colorStyle.bg} ${colorStyle.text} ${colorStyle.border} border`}>
                                   {colorStyle.label}
                                 </span>
@@ -812,7 +772,6 @@ function CompactDayNode({
                 )}
               </div>
 
-              {/* Bottom accent */}
               <div className={`h-0.5 bg-gradient-to-r ${stepColor} opacity-30`} />
             </motion.div>
           )}
@@ -829,4 +788,4 @@ function CompactDayNode({
       </div>
     </div>
   );
-}
+});

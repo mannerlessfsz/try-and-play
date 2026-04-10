@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tarefa, TarefaArquivo } from "@/types/task";
@@ -8,25 +8,27 @@ export function useTarefas() {
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const fetchTarefas = async () => {
+  const fetchTarefas = useCallback(async () => {
     try {
-      const { data: tarefasData, error: tarefasError } = await supabase
-        .from("tarefas")
-        .select(`
-          *,
-          empresa:empresas(id, nome)
-        `)
-        .order("created_at", { ascending: false });
+      const [tarefasRes, arquivosRes] = await Promise.all([
+        supabase
+          .from("tarefas")
+          .select("*, empresa:empresas(id, nome)")
+          .order("created_at", { ascending: false }),
+        supabase.from("tarefa_arquivos").select("*"),
+      ]);
 
-      if (tarefasError) throw tarefasError;
+      if (tarefasRes.error) throw tarefasRes.error;
+      if (arquivosRes.error) throw arquivosRes.error;
 
-      const { data: arquivosData, error: arquivosError } = await supabase
-        .from("tarefa_arquivos")
-        .select("*");
+      const arquivosByTarefa = new Map<string, TarefaArquivo[]>();
+      (arquivosRes.data || []).forEach((a) => {
+        const list = arquivosByTarefa.get(a.tarefa_id) || [];
+        list.push({ id: a.id, nome: a.nome, tamanho: a.tamanho, tipo: a.tipo, url: a.url || undefined });
+        arquivosByTarefa.set(a.tarefa_id, list);
+      });
 
-      if (arquivosError) throw arquivosError;
-
-      const tarefasFormatted: Tarefa[] = (tarefasData || []).map((t) => ({
+      const formatted: Tarefa[] = (tarefasRes.data || []).map((t) => ({
         id: t.id,
         titulo: t.titulo,
         descricao: t.descricao || "",
@@ -43,31 +45,19 @@ export function useTarefas() {
         responsavel: t.responsavel || undefined,
         departamento: t.departamento as Tarefa["departamento"] || undefined,
         contatoId: t.contato_id || undefined,
-        arquivos: (arquivosData || [])
-          .filter((a) => a.tarefa_id === t.id)
-          .map((a) => ({
-            id: a.id,
-            nome: a.nome,
-            tamanho: a.tamanho,
-            tipo: a.tipo,
-            url: a.url || undefined,
-          })),
+        arquivos: arquivosByTarefa.get(t.id) || [],
       }));
 
-      setTarefas(tarefasFormatted);
+      setTarefas(formatted);
     } catch (error) {
       console.error("Error fetching tarefas:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as tarefas",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível carregar as tarefas", variant: "destructive" });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
-  const addTarefa = async (tarefa: Omit<Tarefa, "id" | "arquivos">) => {
+  const addTarefa = useCallback(async (tarefa: Omit<Tarefa, "id" | "arquivos">) => {
     try {
       const { data, error } = await supabase
         .from("tarefas")
@@ -92,24 +82,18 @@ export function useTarefas() {
         .single();
 
       if (error) throw error;
-
       await fetchTarefas();
       return data.id;
     } catch (error) {
       console.error("Error adding tarefa:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível criar a tarefa",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
       return null;
     }
-  };
+  }, [fetchTarefas, toast]);
 
-  const updateTarefa = async (id: string, updates: Partial<Tarefa>) => {
+  const updateTarefa = useCallback(async (id: string, updates: Partial<Tarefa>) => {
     try {
       const updateData: Record<string, unknown> = {};
-      
       if (updates.titulo !== undefined) updateData.titulo = updates.titulo;
       if (updates.descricao !== undefined) updateData.descricao = updates.descricao;
       if (updates.empresaId !== undefined) updateData.empresa_id = updates.empresaId || null;
@@ -126,116 +110,73 @@ export function useTarefas() {
       if (updates.departamento !== undefined) updateData.departamento = updates.departamento || null;
       if (updates.contatoId !== undefined) updateData.contato_id = updates.contatoId || null;
 
-      const { error } = await supabase
-        .from("tarefas")
-        .update(updateData)
-        .eq("id", id);
-
+      const { error } = await supabase.from("tarefas").update(updateData).eq("id", id);
       if (error) throw error;
-      await fetchTarefas();
+
+      // Optimistic local update instead of full refetch
+      setTarefas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     } catch (error) {
       console.error("Error updating tarefa:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível atualizar a tarefa",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível atualizar a tarefa", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const deleteTarefa = async (id: string) => {
+  const deleteTarefa = useCallback(async (id: string) => {
     try {
       const { error } = await supabase.from("tarefas").delete().eq("id", id);
-
       if (error) throw error;
-      await fetchTarefas();
+      setTarefas(prev => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error("Error deleting tarefa:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir a tarefa",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const uploadArquivo = async (tarefaId: string, file: File) => {
+  const uploadArquivo = useCallback(async (tarefaId: string, file: File) => {
     try {
       const fileName = `${tarefaId}/${Date.now()}-${file.name}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from("task-files")
-        .upload(fileName, file);
-
+      const { error: uploadError } = await supabase.storage.from("task-files").upload(fileName, file);
       if (uploadError) throw uploadError;
 
-      const { data: urlData } = supabase.storage
-        .from("task-files")
-        .getPublicUrl(fileName);
-
-      const { error: dbError } = await supabase.from("tarefa_arquivos").insert({
-        tarefa_id: tarefaId,
-        nome: file.name,
-        tamanho: file.size,
-        tipo: file.type,
-        url: urlData.publicUrl,
-      });
-
+      const { data: urlData } = supabase.storage.from("task-files").getPublicUrl(fileName);
+      const { data: dbData, error: dbError } = await supabase.from("tarefa_arquivos").insert({
+        tarefa_id: tarefaId, nome: file.name, tamanho: file.size, tipo: file.type, url: urlData.publicUrl,
+      }).select().single();
       if (dbError) throw dbError;
 
-      await fetchTarefas();
-      toast({
-        title: "Sucesso",
-        description: "Arquivo enviado com sucesso",
-      });
+      // Optimistic update
+      setTarefas(prev => prev.map(t => {
+        if (t.id !== tarefaId) return t;
+        return { ...t, arquivos: [...(t.arquivos || []), { id: dbData.id, nome: file.name, tamanho: file.size, tipo: file.type, url: urlData.publicUrl }] };
+      }));
+      toast({ title: "Sucesso", description: "Arquivo enviado com sucesso" });
     } catch (error) {
       console.error("Error uploading file:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível enviar o arquivo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível enviar o arquivo", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  const deleteArquivo = async (arquivoId: string, url?: string) => {
+  const deleteArquivo = useCallback(async (arquivoId: string, url?: string) => {
     try {
       if (url) {
         const path = url.split("/task-files/")[1];
-        if (path) {
-          await supabase.storage.from("task-files").remove([path]);
-        }
+        if (path) await supabase.storage.from("task-files").remove([path]);
       }
-
-      const { error } = await supabase
-        .from("tarefa_arquivos")
-        .delete()
-        .eq("id", arquivoId);
-
+      const { error } = await supabase.from("tarefa_arquivos").delete().eq("id", arquivoId);
       if (error) throw error;
-      await fetchTarefas();
+
+      // Optimistic update
+      setTarefas(prev => prev.map(t => ({
+        ...t,
+        arquivos: (t.arquivos || []).filter(a => a.id !== arquivoId),
+      })));
     } catch (error) {
       console.error("Error deleting arquivo:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível excluir o arquivo",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível excluir o arquivo", variant: "destructive" });
     }
-  };
+  }, [toast]);
 
-  useEffect(() => {
-    fetchTarefas();
-  }, []);
+  useEffect(() => { fetchTarefas(); }, [fetchTarefas]);
 
-  return {
-    tarefas,
-    loading,
-    addTarefa,
-    updateTarefa,
-    deleteTarefa,
-    uploadArquivo,
-    deleteArquivo,
-    refetch: fetchTarefas,
-  };
+  return { tarefas, loading, addTarefa, updateTarefa, deleteTarefa, uploadArquivo, deleteArquivo, refetch: fetchTarefas };
 }
