@@ -46,15 +46,16 @@ function SidebarItem({
         }}
         className={cn(
           "w-full flex items-center gap-2.5 py-2 px-3 rounded-lg text-left transition-all duration-150",
-          "hover:bg-muted/50 group text-sm",
-          open && hasChildren && "bg-muted/30"
+          "hover:bg-white/15 dark:hover:bg-muted/50 group text-sm",
+          open && hasChildren && "bg-white/10 dark:bg-muted/30"
         )}
         style={{ paddingLeft: `${pl}px` }}
       >
-        <span className="shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" style={{ color: accent }}>
-          {item.icon}
+        <span className="shrink-0 opacity-80 group-hover:opacity-100 transition-opacity text-white dark:text-current" style={{ color: undefined }}>
+          <span className="hidden dark:inline" style={{ color: accent }}>{item.icon}</span>
+          <span className="dark:hidden">{item.icon}</span>
         </span>
-        <span className="flex-1 text-foreground/80 group-hover:text-foreground transition-colors font-medium text-[13px]">
+        <span className="flex-1 text-white/80 dark:text-foreground/80 group-hover:text-white dark:group-hover:text-foreground transition-colors font-medium text-[13px]">
           {item.label}
         </span>
         {hasChildren && (
@@ -134,7 +135,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
             />
             {/* Module header */}
             <button
-              className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
+              className="relative z-10 w-full flex items-center gap-3 p-4 hover:bg-white/10 dark:hover:bg-muted/30 transition-colors"
               onClick={() => {
                 if (!mod.hasAccess) return;
                 setExpandedModule(isExpanded ? null : mod.id);
@@ -160,7 +161,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                 <motion.div
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
-                  className="text-muted-foreground/50"
+                  className="text-white/60 dark:text-muted-foreground/50"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </motion.div>
@@ -175,9 +176,9 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden relative z-10"
                 >
-                  <div className="px-2 pb-3 border-t border-border/10 pt-2">
+                  <div className="px-2 pb-3 border-t border-white/20 dark:border-border/10 pt-2">
                     {mod.items.map((item, i) => (
                       <SidebarItem
                         key={`${item.label}-${i}`}
@@ -189,8 +190,8 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                     {/* Direct access button */}
                     <button
                       onClick={() => navigate(mod.href)}
-                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-muted/40"
-                      style={{ color: accent, borderTop: `1px solid ${accent}15` }}
+                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-white/15 dark:hover:bg-muted/40 text-white dark:text-current"
+                      style={{ borderTop: `1px solid hsl(0 0% 100% / 0.2)` }}
                     >
                       Acessar {mod.title} →
                     </button>
