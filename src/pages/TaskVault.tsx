@@ -12,7 +12,7 @@ import {
   ListTodo, Plus, Trash2, CheckCircle2,
   Calendar, Settings, Activity, List, Columns, Loader2, FileText,
   GanttChart, TrendingUp, Flame,
-  Timer, Search, X
+  Timer, Search, X, ChevronLeft, ChevronRight, CalendarRange
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,12 @@ import { useTarefas } from "@/hooks/useTarefas";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
@@ -40,6 +46,8 @@ export default function TaskVault() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleSetViewMode = useCallback((mode: "lista" | "kanban" | "timeline") => {
     setViewMode(mode);
@@ -99,6 +107,16 @@ export default function TaskVault() {
       const q = searchQuery.toLowerCase();
       list = list.filter(t => t.titulo.toLowerCase().includes(q) || t.descricao?.toLowerCase().includes(q));
     }
+    // Date range filter (for kanban/lista; timeline handles its own)
+    if (dateRange?.from && dateRange?.to && viewMode !== "timeline") {
+      const from = new Date(dateRange.from); from.setHours(0,0,0,0);
+      const to = new Date(dateRange.to); to.setHours(23,59,59,999);
+      list = list.filter(t => {
+        if (!t.prazoEntrega) return false;
+        const d = new Date(t.prazoEntrega + "T12:00:00");
+        return d >= from && d <= to;
+      });
+    }
     switch (activeFilter) {
       case "em_andamento": return list.filter(t => t.status !== "concluida");
       case "concluida": return list.filter(t => t.status === "concluida");
@@ -109,7 +127,7 @@ export default function TaskVault() {
       });
       default: return list;
     }
-  }, [tarefasFiltradas, searchQuery, activeFilter]);
+  }, [tarefasFiltradas, searchQuery, activeFilter, dateRange, viewMode]);
 
   const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
@@ -330,6 +348,89 @@ export default function TaskVault() {
                 </span>
                 <button onClick={() => setActiveFilter("all")} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
               </motion.div>
+            )}
+            {viewMode !== "timeline" && (
+              <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border/50 bg-card/60 text-sm font-medium text-primary hover:bg-card/80 transition-all">
+                    <CalendarRange className="w-3.5 h-3.5" />
+                    {dateRange?.from ? (
+                      <span>
+                        {format(dateRange.from, "dd MMM", { locale: ptBR })}
+                        {dateRange.to ? ` – ${format(dateRange.to, "dd MMM", { locale: ptBR })}` : ""}
+                      </span>
+                    ) : (
+                      <span>Período</span>
+                    )}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
+                  <div className="p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-foreground">Selecione o período</span>
+                      <div className="flex items-center gap-2">
+                        {dateRange?.from && (
+                          <button
+                            onClick={() => setDateRange(undefined)}
+                            className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded bg-muted/50"
+                          >
+                            Limpar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <CalendarPicker
+                      mode="range"
+                      selected={dateRange}
+                      onSelect={(range, selectedDay) => {
+                        if (!dateRange?.from || (dateRange.from && dateRange.to)) {
+                          setDateRange({ from: selectedDay, to: undefined });
+                        } else {
+                          const from = dateRange.from;
+                          const to = selectedDay;
+                          if (from > to) {
+                            setDateRange({ from: to, to: from });
+                          } else {
+                            setDateRange({ from, to });
+                          }
+                          setDatePickerOpen(false);
+                        }
+                      }}
+                      numberOfMonths={1}
+                      today={undefined as unknown as Date}
+                      defaultMonth={new Date()}
+                      locale={ptBR}
+                      className={cn("p-0 pointer-events-auto")}
+                      classNames={{
+                        caption_label: "text-sm font-medium cursor-pointer hover:text-primary transition-colors",
+                      }}
+                      components={{
+                        CaptionLabel: ({ displayMonth }: { displayMonth: Date }) => {
+                          const monthName = format(displayMonth, "LLLL yyyy", { locale: ptBR });
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const firstDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth(), 1);
+                                const lastDay = new Date(displayMonth.getFullYear(), displayMonth.getMonth() + 1, 0);
+                                setDateRange({ from: firstDay, to: lastDay });
+                                setDatePickerOpen(false);
+                              }}
+                              className="text-sm font-medium capitalize hover:text-primary hover:underline transition-colors"
+                              title={`Selecionar ${monthName} inteiro`}
+                            >
+                              {monthName}
+                            </button>
+                          );
+                        },
+                      }}
+                    />
+                    <p className="text-[10px] text-muted-foreground/50 text-center">
+                      Clique no nome do mês para selecionar o mês inteiro
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
             <Button variant="outline" size="sm" onClick={() => navigate("/taskvault/cadastro")} className="gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10">
               <FileText className="w-3.5 h-3.5" />
