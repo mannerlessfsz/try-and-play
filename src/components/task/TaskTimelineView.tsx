@@ -331,14 +331,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             const isExpanded = expandedDate === dateKey;
 
             stepNumber++;
-            const stepColorIdx = (stepNumber - 1) % STEP_COLORS.length;
-            const stepColor = overdue && !allDone
-              ? "from-red-500 to-red-600"
-              : allDone
-                ? "from-green-500 to-green-600"
-                : today
-                  ? "from-primary to-primary"
-                  : STEP_COLORS[stepColorIdx];
+            const stepColor = today && tasks.length === 0
+              ? "from-primary to-primary"
+              : getGroupStepColor(tasks);
 
             const dateLabel = noDate
               ? "Sem Prazo"
