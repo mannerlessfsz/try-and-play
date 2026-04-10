@@ -78,7 +78,8 @@ export default function TaskVault() {
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
   const [expandedKanbanId, setExpandedKanbanId] = useState<string | null>(null);
 
-  useEffect(() => { refetchTarefas(); }, [empresasDisponiveis]);
+  // Removed: empresasDisponiveis triggers on every render due to new array ref from react-query
+  // useTarefas already fetches on mount via its own useEffect
 
   const tarefasFiltradas = useMemo(
     () => selectedEmpresaId === "all" ? tarefas : tarefas.filter(t => t.empresaId === selectedEmpresaId),
@@ -254,14 +255,9 @@ export default function TaskVault() {
             <div className="relative px-5 py-4">
               <div className="flex items-center gap-5">
                 <div className="flex items-center gap-3 flex-shrink-0">
-                  <motion.div 
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                    className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative"
-                  >
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative">
                     <ListTodo className="w-5 h-5 text-primary-foreground" />
-                  </motion.div>
+                  </div>
                   <div>
                     <h1 className="text-xl font-bold text-foreground tracking-tight leading-none">TaskVault</h1>
                     <p className="text-xs text-muted-foreground mt-0.5">Central de tarefas e entregas</p>
@@ -278,15 +274,12 @@ export default function TaskVault() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-1">
-                  {metricSegments.map((seg, i) => {
+                  {metricSegments.map((seg) => {
                     const isActive = activeFilter === seg.id;
                     const Icon = seg.icon;
                     return (
-                      <motion.button
+                      <button
                         key={seg.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + i * 0.04 }}
                         onClick={() => handleFilterClick(seg.id)}
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group/metric
                           ${isActive 
@@ -300,7 +293,7 @@ export default function TaskVault() {
                           <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
                           <p className="text-base font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
                         </div>
-                      </motion.button>
+                      </button>
                     );
                   })}
                 </div>
