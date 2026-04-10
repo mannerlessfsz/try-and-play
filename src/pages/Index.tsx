@@ -520,7 +520,10 @@ const Index = () => {
       </motion.div>
 
       {/* ══════════ MAIN ══════════ */}
-      <div className="relative z-10 w-full min-h-screen flex items-center justify-center">
+      <div
+        className="relative z-10 w-full min-h-screen flex items-center justify-center"
+        onClick={activeModule ? handleBack : undefined}
+      >
         <AnimatePresence mode="wait">
           {!activeModule ? (
             <motion.div
@@ -572,6 +575,7 @@ const Index = () => {
               key="weapon-wheel"
               className="flex flex-col items-center gap-4"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Breadcrumb */}
               <motion.div
