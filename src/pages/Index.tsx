@@ -41,9 +41,9 @@ const modules: HudModule[] = [
     accentHsl: "var(--module-red)", module: "taskvault", href: "/taskvault",
     items: [
       { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", href: "/taskvault" },
-      { icon: <ClipboardList className="w-5 h-5" />, label: "Templates", href: "/taskvault/cadastro", children: [
-        { icon: <Plus className="w-4 h-4" />, label: "Cadastro Novo", href: "/taskvault/cadastro" },
-        { icon: <Edit className="w-4 h-4" />, label: "Editar Template", href: "/taskvault/cadastro" },
+      { icon: <ClipboardList className="w-5 h-5" />, label: "Templates", href: "/taskvault/templates", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Cadastro Novo", href: "/taskvault/templates" },
+        { icon: <Edit className="w-4 h-4" />, label: "Editar Template", href: "/taskvault/templates" },
       ]},
       { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", href: "/taskvault/cadastro", children: [
         { icon: <List className="w-4 h-4" />, label: "Tarefas", href: "/taskvault/cadastro" },

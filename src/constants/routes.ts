@@ -121,6 +121,14 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     description: 'Templates de documentos e palavras-chave para validação',
     module: 'taskvault',
   },
+  {
+    path: '/taskvault/templates',
+    name: 'Templates de Documentos',
+    type: 'module',
+    requires: 'Permissão: taskvault',
+    description: 'Upload e configuração de templates para validação automática',
+    module: 'taskvault',
+  },
 ];
 
 // ============================================================================

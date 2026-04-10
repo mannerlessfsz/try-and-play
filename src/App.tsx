@@ -46,6 +46,7 @@ const InstallApp = lazy(() => lazyRetry(() => import("./pages/InstallApp")));
 const ClienteTaskVault = lazy(() => lazyRetry(() => import("./pages/ClienteTaskVault")));
 const TaskVaultCadastro = lazy(() => lazyRetry(() => import("./pages/TaskVaultCadastro")));
 const TaskVaultDocumentos = lazy(() => lazyRetry(() => import("./pages/TaskVaultDocumentos")));
+const TaskVaultTemplates = lazy(() => lazyRetry(() => import("./pages/TaskVaultTemplates")));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-background flex items-center justify-center">
@@ -86,6 +87,7 @@ const App = () => {
                   <Route path="/taskvault" element={<ProtectedRoute module="taskvault"><TaskVault /></ProtectedRoute>} />
                   <Route path="/taskvault/cadastro" element={<ProtectedRoute module="taskvault"><TaskVaultCadastro /></ProtectedRoute>} />
                   <Route path="/taskvault/documentos" element={<ProtectedRoute module="taskvault"><TaskVaultDocumentos /></ProtectedRoute>} />
+                  <Route path="/taskvault/templates" element={<ProtectedRoute module="taskvault"><TaskVaultTemplates /></ProtectedRoute>} />
                   <Route path="/messenger" element={<ProtectedRoute module="messenger"><Messenger /></ProtectedRoute>} />
                   <Route path="/gestao" element={<ProtectedRoute module="gestao"><FinancialACE /></ProtectedRoute>} />
                   <Route path="/install" element={<InstallApp />} />
