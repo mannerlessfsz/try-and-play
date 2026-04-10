@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Tarefa, TarefaArquivo } from "@/types/task";
@@ -7,28 +7,21 @@ export function useTarefas() {
   const [tarefas, setTarefas] = useState<Tarefa[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const fetchIdRef = useRef(0);
 
   const fetchTarefas = useCallback(async () => {
+    const id = ++fetchIdRef.current;
     try {
-      const [tarefasRes, arquivosRes] = await Promise.all([
-        supabase
-          .from("tarefas")
-          .select("*, empresa:empresas(id, nome)")
-          .order("created_at", { ascending: false }),
-        supabase.from("tarefa_arquivos").select("*"),
-      ]);
+      // Single query with joined arquivos instead of two separate fetches
+      const { data, error } = await supabase
+        .from("tarefas")
+        .select("*, tarefa_arquivos(id, nome, tamanho, tipo, url)")
+        .order("created_at", { ascending: false });
 
-      if (tarefasRes.error) throw tarefasRes.error;
-      if (arquivosRes.error) throw arquivosRes.error;
+      if (error) throw error;
+      if (id !== fetchIdRef.current) return; // stale
 
-      const arquivosByTarefa = new Map<string, TarefaArquivo[]>();
-      (arquivosRes.data || []).forEach((a) => {
-        const list = arquivosByTarefa.get(a.tarefa_id) || [];
-        list.push({ id: a.id, nome: a.nome, tamanho: a.tamanho, tipo: a.tipo, url: a.url || undefined });
-        arquivosByTarefa.set(a.tarefa_id, list);
-      });
-
-      const formatted: Tarefa[] = (tarefasRes.data || []).map((t) => ({
+      const formatted: Tarefa[] = (data || []).map((t) => ({
         id: t.id,
         titulo: t.titulo,
         descricao: t.descricao || "",
@@ -45,15 +38,18 @@ export function useTarefas() {
         responsavel: t.responsavel || undefined,
         departamento: t.departamento as Tarefa["departamento"] || undefined,
         contatoId: t.contato_id || undefined,
-        arquivos: arquivosByTarefa.get(t.id) || [],
+        arquivos: ((t as any).tarefa_arquivos || []).map((a: any) => ({
+          id: a.id, nome: a.nome, tamanho: a.tamanho, tipo: a.tipo, url: a.url || undefined,
+        })),
       }));
 
       setTarefas(formatted);
     } catch (error) {
+      if (id !== fetchIdRef.current) return;
       console.error("Error fetching tarefas:", error);
       toast({ title: "Erro", description: "Não foi possível carregar as tarefas", variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current) setLoading(false);
     }
   }, [toast]);
 
@@ -62,36 +58,50 @@ export function useTarefas() {
       const { data, error } = await supabase
         .from("tarefas")
         .insert({
-          titulo: tarefa.titulo,
-          descricao: tarefa.descricao,
-          empresa_id: tarefa.empresaId || null,
-          status: tarefa.status,
-          prioridade: tarefa.prioridade,
-          data_vencimento: tarefa.dataVencimento || null,
-          prazo_entrega: tarefa.prazoEntrega || null,
-          requer_anexo: tarefa.requerAnexo ?? false,
-          justificativa: tarefa.justificativa || null,
-          envio_automatico: tarefa.envioAutomatico ?? false,
-          data_envio_automatico: tarefa.dataEnvioAutomatico || null,
-          progresso: tarefa.progresso || 0,
-          responsavel: tarefa.responsavel || null,
-          departamento: tarefa.departamento || null,
+          titulo: tarefa.titulo, descricao: tarefa.descricao,
+          empresa_id: tarefa.empresaId || null, status: tarefa.status,
+          prioridade: tarefa.prioridade, data_vencimento: tarefa.dataVencimento || null,
+          prazo_entrega: tarefa.prazoEntrega || null, requer_anexo: tarefa.requerAnexo ?? false,
+          justificativa: tarefa.justificativa || null, envio_automatico: tarefa.envioAutomatico ?? false,
+          data_envio_automatico: tarefa.dataEnvioAutomatico || null, progresso: tarefa.progresso || 0,
+          responsavel: tarefa.responsavel || null, departamento: tarefa.departamento || null,
           contato_id: tarefa.contatoId || null,
         })
         .select()
         .single();
 
       if (error) throw error;
-      await fetchTarefas();
+
+      // Optimistic: add to local state instead of full refetch
+      const newTarefa: Tarefa = {
+        id: data.id, titulo: data.titulo, descricao: data.descricao || "",
+        empresaId: data.empresa_id || "", status: data.status as Tarefa["status"],
+        prioridade: data.prioridade as Tarefa["prioridade"],
+        dataVencimento: data.data_vencimento || undefined,
+        prazoEntrega: data.prazo_entrega || undefined,
+        requerAnexo: data.requer_anexo ?? false,
+        justificativa: data.justificativa || undefined,
+        envioAutomatico: data.envio_automatico ?? false,
+        dataEnvioAutomatico: data.data_envio_automatico || undefined,
+        progresso: data.progresso || 0,
+        responsavel: data.responsavel || undefined,
+        departamento: data.departamento as Tarefa["departamento"] || undefined,
+        contatoId: data.contato_id || undefined,
+        arquivos: [],
+      };
+      setTarefas(prev => [newTarefa, ...prev]);
       return data.id;
     } catch (error) {
       console.error("Error adding tarefa:", error);
       toast({ title: "Erro", description: "Não foi possível criar a tarefa", variant: "destructive" });
       return null;
     }
-  }, [fetchTarefas, toast]);
+  }, [toast]);
 
   const updateTarefa = useCallback(async (id: string, updates: Partial<Tarefa>) => {
+    // Optimistic local update first
+    setTarefas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+
     try {
       const updateData: Record<string, unknown> = {};
       if (updates.titulo !== undefined) updateData.titulo = updates.titulo;
@@ -112,25 +122,26 @@ export function useTarefas() {
 
       const { error } = await supabase.from("tarefas").update(updateData).eq("id", id);
       if (error) throw error;
-
-      // Optimistic local update instead of full refetch
-      setTarefas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     } catch (error) {
       console.error("Error updating tarefa:", error);
+      // Revert on failure
+      fetchTarefas();
       toast({ title: "Erro", description: "Não foi possível atualizar a tarefa", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, fetchTarefas]);
 
   const deleteTarefa = useCallback(async (id: string) => {
+    // Optimistic
+    setTarefas(prev => prev.filter(t => t.id !== id));
     try {
       const { error } = await supabase.from("tarefas").delete().eq("id", id);
       if (error) throw error;
-      setTarefas(prev => prev.filter(t => t.id !== id));
     } catch (error) {
       console.error("Error deleting tarefa:", error);
+      fetchTarefas();
       toast({ title: "Erro", description: "Não foi possível excluir a tarefa", variant: "destructive" });
     }
-  }, [toast]);
+  }, [toast, fetchTarefas]);
 
   const uploadArquivo = useCallback(async (tarefaId: string, file: File) => {
     try {
@@ -144,7 +155,6 @@ export function useTarefas() {
       }).select().single();
       if (dbError) throw dbError;
 
-      // Optimistic update
       setTarefas(prev => prev.map(t => {
         if (t.id !== tarefaId) return t;
         return { ...t, arquivos: [...(t.arquivos || []), { id: dbData.id, nome: file.name, tamanho: file.size, tipo: file.type, url: urlData.publicUrl }] };
@@ -165,7 +175,6 @@ export function useTarefas() {
       const { error } = await supabase.from("tarefa_arquivos").delete().eq("id", arquivoId);
       if (error) throw error;
 
-      // Optimistic update
       setTarefas(prev => prev.map(t => ({
         ...t,
         arquivos: (t.arquivos || []).filter(a => a.id !== arquivoId),
