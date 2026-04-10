@@ -322,7 +322,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                       setDatePickerOpen(false);
                     }
                   }}
-                  numberOfMonths={2}
+                  numberOfMonths={1}
+                  defaultMonth={new Date()}
                   locale={ptBR}
                   className={cn("p-0 pointer-events-auto")}
                 />
