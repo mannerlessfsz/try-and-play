@@ -221,180 +221,139 @@ export default function TaskVault() {
     <ModulePageWrapper module="taskvault">
     <div className="min-h-screen bg-background" style={{ fontFamily: "'Inter', sans-serif" }}>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* HERO HEADER */}
-      {/* ═══════════════════════════════════════════ */}
-      <div className="relative overflow-hidden border-b border-border/30">
-        {/* Ambient background */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20" style={{ background: "hsl(var(--primary))" }} />
-          <div className="absolute -top-16 right-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10" style={{ background: "hsl(var(--primary))" }} />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-6 py-5">
-          {/* Single row: branding + metrics + progress */}
-          <div className="flex items-center gap-5">
-            {/* Logo + title */}
-            <div className="flex items-center gap-3 flex-shrink-0">
-              <motion.div 
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative"
-              >
-                <ListTodo className="w-5 h-5 text-primary-foreground" />
-              </motion.div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground tracking-tight leading-none">TaskVault</h1>
-                <p className="text-xs text-muted-foreground mt-0.5">Central de tarefas e entregas</p>
-              </div>
-            </div>
-
-            <div className="w-px h-10 bg-border/30 flex-shrink-0" />
-
-            {/* Completion ring */}
-            <div className="relative flex-shrink-0">
-              <svg width="44" height="44" viewBox="0 0 48 48" className="-rotate-90">
-                <circle cx="24" cy="24" r="22" fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth="2.5" />
-                <motion.circle
-                  cx="24" cy="24" r="22" fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  initial={{ strokeDashoffset: circumference }}
-                  animate={{ strokeDashoffset }}
-                  transition={{ duration: 1.2, ease: "easeOut" }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-xs font-bold text-foreground tabular-nums">{stats.rate}%</span>
-              </div>
-            </div>
-
-            {/* Metric chips */}
-            <div className="flex items-center gap-2 flex-1">
-              {metricSegments.map((seg, i) => {
-                const isActive = activeFilter === seg.id;
-                const Icon = seg.icon;
-                return (
-                  <motion.button
-                    key={seg.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 + i * 0.04 }}
-                    onClick={() => handleFilterClick(seg.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group/metric
-                      ${isActive 
-                        ? "bg-primary/15 border border-primary/30 shadow-[0_0_15px_hsl(var(--primary)/0.15)]" 
-                        : "bg-card/60 border border-border/40 hover:border-border hover:bg-card/80"}`}
-                  >
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isActive ? "bg-primary/20" : "bg-foreground/5 group-hover/metric:bg-foreground/8"}`}>
-                      <Icon className="w-3.5 h-3.5" style={{ color: seg.color }} />
-                    </div>
-                    <div className="text-left">
-                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
-                      <p className="text-base font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
-                    </div>
-                  </motion.button>
-                );
-              })}
-            </div>
-
-            {/* Stacked bar */}
-            <div className="flex flex-col items-end gap-1 flex-shrink-0">
-              <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50 uppercase tracking-wider">
-                <TrendingUp className="w-3 h-3" /> Progresso
-              </div>
-              <div className="w-28 h-1.5 rounded-full overflow-hidden flex bg-foreground/5">
-                {stats.total > 0 && (
-                  <>
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.done / stats.total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/70 h-full" />
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.active / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 }} className="bg-blue-500/50 h-full" />
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.overdue / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.2 }} className="bg-red-500/50 h-full" />
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════ */}
-      {/* TOOLBAR */}
-      {/* ═══════════════════════════════════════════ */}
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-border/30">
-        <div className="max-w-7xl mx-auto px-6 py-3 flex items-center gap-3">
-          {/* Empresa filter */}
-          <select 
-            value={selectedEmpresaId}
-            onChange={(e) => setSelectedEmpresaId(e.target.value)}
-            className="bg-card/60 border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/40"
-          >
-            <option value="all">Todas Empresas</option>
-            {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
-          </select>
-
-          {/* Search */}
-          <div className="relative flex-1 max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
-            <Input
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Buscar tarefas..."
-              className="h-9 pl-9 pr-8 text-sm bg-card/50 border-border/50 rounded-xl"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
-              </button>
-            )}
-          </div>
-
-          {activeFilter !== "all" && (
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-1.5">
-              <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/25">
-                {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
-              </span>
-              <button onClick={() => setActiveFilter("all")} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
-            </motion.div>
-          )}
-
-          <div className="flex-1" />
-
-          {/* View toggle */}
-          <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1">
-            {([
-              { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
-              { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
-              { mode: "lista" as const, icon: List, label: "Lista", shortcut: "⌘3" },
-            ]).map(({ mode, icon: MIcon, label, shortcut }) => (
-              <button 
-                key={mode} 
-                onClick={() => handleSetViewMode(mode)} 
-                title={`${label} (${shortcut})`}
-                className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-medium ${viewMode === mode ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {viewMode === mode && (
-                  <motion.div
-                    layoutId="taskvault-view-pill"
-                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary to-primary/70 shadow-[0_0_15px_hsl(var(--primary)/0.4)]"
-                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <MIcon className="w-3.5 h-3.5 relative z-10" />
-                <span className="hidden sm:inline relative z-10">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════ */}
-      {/* CONTENT */}
-      {/* ═══════════════════════════════════════════ */}
       <div className="max-w-[1600px] mx-auto px-6 py-6 flex gap-5">
-        <div className="flex-1 min-w-0 pb-8">
+        {/* Main column */}
+        <div className="flex-1 min-w-0 flex flex-col gap-5">
+
+          {/* ═══ HERO HEADER (inside main column) ═══ */}
+          <div className="relative overflow-hidden rounded-2xl border border-border/30 bg-card/40">
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute -top-32 left-1/4 w-96 h-96 rounded-full blur-[120px] opacity-20" style={{ background: "hsl(var(--primary))" }} />
+              <div className="absolute -top-16 right-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10" style={{ background: "hsl(var(--primary))" }} />
+            </div>
+            <div className="relative px-5 py-4">
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <motion.div 
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: "spring", stiffness: 200, damping: 15 }}
+                    className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative"
+                  >
+                    <ListTodo className="w-5 h-5 text-primary-foreground" />
+                  </motion.div>
+                  <div>
+                    <h1 className="text-xl font-bold text-foreground tracking-tight leading-none">TaskVault</h1>
+                    <p className="text-xs text-muted-foreground mt-0.5">Central de tarefas e entregas</p>
+                  </div>
+                </div>
+                <div className="w-px h-10 bg-border/30 flex-shrink-0" />
+                <div className="relative flex-shrink-0">
+                  <svg width="44" height="44" viewBox="0 0 48 48" className="-rotate-90">
+                    <circle cx="24" cy="24" r="22" fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth="2.5" />
+                    <motion.circle cx="24" cy="24" r="22" fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round" strokeDasharray={circumference} initial={{ strokeDashoffset: circumference }} animate={{ strokeDashoffset }} transition={{ duration: 1.2, ease: "easeOut" }} />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold text-foreground tabular-nums">{stats.rate}%</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-1">
+                  {metricSegments.map((seg, i) => {
+                    const isActive = activeFilter === seg.id;
+                    const Icon = seg.icon;
+                    return (
+                      <motion.button
+                        key={seg.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 + i * 0.04 }}
+                        onClick={() => handleFilterClick(seg.id)}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group/metric
+                          ${isActive 
+                            ? "bg-primary/15 border border-primary/30 shadow-[0_0_15px_hsl(var(--primary)/0.15)]" 
+                            : "bg-card/60 border border-border/40 hover:border-border hover:bg-card/80"}`}
+                      >
+                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isActive ? "bg-primary/20" : "bg-foreground/5 group-hover/metric:bg-foreground/8"}`}>
+                          <Icon className="w-3.5 h-3.5" style={{ color: seg.color }} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
+                          <p className="text-base font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50 uppercase tracking-wider">
+                    <TrendingUp className="w-3 h-3" /> Progresso
+                  </div>
+                  <div className="w-28 h-1.5 rounded-full overflow-hidden flex bg-foreground/5">
+                    {stats.total > 0 && (
+                      <>
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.done / stats.total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/70 h-full" />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.active / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.1 }} className="bg-blue-500/50 h-full" />
+                        <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.overdue / stats.total) * 100}%` }} transition={{ duration: 0.8, delay: 0.2 }} className="bg-red-500/50 h-full" />
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ TOOLBAR ═══ */}
+          <div className="rounded-2xl border border-border/30 bg-card/40 px-5 py-3 flex items-center gap-3">
+            <select 
+              value={selectedEmpresaId}
+              onChange={(e) => setSelectedEmpresaId(e.target.value)}
+              className="bg-card/60 border border-border/50 rounded-xl px-3 py-2 text-sm text-foreground/80 focus:outline-none focus:ring-1 focus:ring-primary/40"
+            >
+              <option value="all">Todas Empresas</option>
+              {empresasDisponiveis.map(e => <option key={e.id} value={e.id}>{e.nome}</option>)}
+            </select>
+            <div className="relative flex-1 max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40" />
+              <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Buscar tarefas..." className="h-9 pl-9 pr-8 text-sm bg-card/50 border-border/50 rounded-xl" />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                  <X className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
+                </button>
+              )}
+            </div>
+            {activeFilter !== "all" && (
+              <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center gap-1.5">
+                <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-primary/15 text-primary border border-primary/25">
+                  {activeFilter === "em_andamento" ? "Em Andamento" : activeFilter === "concluida" ? "Concluídas" : "Em Atraso"}
+                </span>
+                <button onClick={() => setActiveFilter("all")} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
+              </motion.div>
+            )}
+            <div className="flex-1" />
+            <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1">
+              {([
+                { mode: "timeline" as const, icon: GanttChart, label: "Timeline", shortcut: "⌘1" },
+                { mode: "kanban" as const, icon: Columns, label: "Kanban", shortcut: "⌘2" },
+                { mode: "lista" as const, icon: List, label: "Lista", shortcut: "⌘3" },
+              ]).map(({ mode, icon: MIcon, label, shortcut }) => (
+                <button 
+                  key={mode} 
+                  onClick={() => handleSetViewMode(mode)} 
+                  title={`${label} (${shortcut})`}
+                  className={`relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-medium ${viewMode === mode ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {viewMode === mode && (
+                    <motion.div layoutId="taskvault-view-pill" className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary to-primary/70 shadow-[0_0_15px_hsl(var(--primary)/0.4)]" transition={{ type: "spring", stiffness: 400, damping: 30 }} />
+                  )}
+                  <MIcon className="w-3.5 h-3.5 relative z-10" />
+                  <span className="hidden sm:inline relative z-10">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ═══ VIEW CONTENT ═══ */}
+          <div className="flex-1 min-h-0 pb-8">
         {/* Onboard tip */}
         <AnimatePresence>
           {showOnboardTip && (
@@ -565,11 +524,12 @@ export default function TaskVault() {
           </motion.div>
         )}
         </div>
+        </div>
 
-        {/* Activity sidebar */}
-        <div className="w-72 flex-shrink-0 hidden xl:block">
-          <div className="sticky top-20 rounded-2xl border border-border/30 bg-card/40 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20">
+        {/* Activity sidebar — spans full height of the flex row */}
+        <div className="w-72 flex-shrink-0 hidden xl:flex flex-col gap-5 self-stretch">
+          <div className="flex-1 rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20 flex-shrink-0">
               <div className="relative">
                 <Activity className="w-4 h-4 text-primary" />
                 <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -577,7 +537,7 @@ export default function TaskVault() {
               <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Atividade Recente</span>
               <span className="ml-auto text-[10px] text-muted-foreground/40 tabular-nums">{atividades.length}</span>
             </div>
-            <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto p-3">
               <ActivityPulseFeed atividades={atividades} />
             </div>
           </div>
