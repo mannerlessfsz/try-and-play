@@ -815,6 +815,7 @@ export default function Messenger() {
   }, [filteredContacts, activeTab]);
 
   return (
+    <ModulePageWrapper module="messenger">
     <div className={cn("min-h-screen overflow-hidden relative", styles.bg)}>
       <NebulaBackground theme={theme} />
       
@@ -1313,5 +1314,6 @@ export default function Messenger() {
         </div>
       )}
     </div>
+    </ModulePageWrapper>
   );
 }
