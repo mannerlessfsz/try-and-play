@@ -25,15 +25,15 @@
     --muted: 40 12% 90%;
     --muted-foreground: 220 10% 46%;
 
-    --accent: 38 90% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 45 100% 50%;
+    --accent-foreground: 0 0% 0%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 40 14% 85%;
     --input: 40 14% 87%;
-    --ring: 38 90% 50%;
+    --ring: 45 100% 50%;
 
     --radius: 1rem;
 
@@ -42,24 +42,24 @@
     --module-blue: 215 85% 50%;
     --module-orange: 25 95% 53%;
     --module-green: 152 65% 42%;
-    --gold: 38 90% 50%;
+    --gold: 45 100% 50%;
 
     /* Sidebar */
     --sidebar-background: 40 18% 97%;
     --sidebar-foreground: 220 20% 14%;
-    --sidebar-primary: 38 90% 50%;
+    --sidebar-primary: 45 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 40 14% 92%;
     --sidebar-accent-foreground: 220 20% 14%;
     --sidebar-border: 40 14% 87%;
-    --sidebar-ring: 38 90% 50%;
+    --sidebar-ring: 45 100% 50%;
 
     /* Gradients */
-    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(38 90% 50% / 0.08), hsl(215 85% 50% / 0.05), transparent);
-    --gradient-blue-glow: radial-gradient(ellipse 60% 40% at 100% 50%, hsl(215 85% 50% / 0.05), transparent);
+    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(45 100% 50% / 0.1), hsl(215 85% 50% / 0.05), transparent);
+    --gradient-blue-glow: radial-gradient(ellipse 60% 40% at 100% 50%, hsl(45 100% 50% / 0.06), transparent);
 
     /* Glow shadows (subtle in light) */
-    --glow-gold: 0 0 24px hsl(38 90% 50% / 0.15), 0 0 48px hsl(38 90% 50% / 0.08);
+    --glow-gold: 0 0 24px hsl(45 100% 50% / 0.2), 0 0 48px hsl(45 100% 50% / 0.1);
     --glow-red: 0 0 24px hsl(0 78% 55% / 0.12), 0 0 48px hsl(0 78% 55% / 0.06);
     --glow-blue: 0 0 24px hsl(215 85% 50% / 0.12), 0 0 48px hsl(215 85% 50% / 0.06);
     --glow-orange: 0 0 24px hsl(25 95% 53% / 0.12), 0 0 48px hsl(25 95% 53% / 0.06);
@@ -77,48 +77,48 @@
     --popover: 0 0% 5%;
     --popover-foreground: 45 20% 92%;
 
-    --primary: 42 92% 56%;
+    --primary: 48 100% 55%;
     --primary-foreground: 0 0% 4%;
 
-    --secondary: 42 30% 14%;
-    --secondary-foreground: 42 92% 56%;
+    --secondary: 48 40% 16%;
+    --secondary-foreground: 48 100% 55%;
 
     --muted: 0 0% 10%;
-    --muted-foreground: 42 15% 50%;
+    --muted-foreground: 48 20% 55%;
 
-    --accent: 42 92% 56%;
-    --accent-foreground: 0 0% 4%;
+    --accent: 48 100% 55%;
+    --accent-foreground: 0 0% 2%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 42 15% 14%;
-    --input: 42 10% 12%;
-    --ring: 42 92% 56%;
+    --border: 48 20% 16%;
+    --input: 48 15% 14%;
+    --ring: 48 100% 55%;
 
     /* Module colors — vivid neons */
     --module-red: 0 85% 58%;
     --module-blue: 215 95% 58%;
     --module-orange: 25 100% 58%;
     --module-green: 152 80% 48%;
-    --gold: 42 92% 56%;
+    --gold: 48 100% 55%;
 
     /* Sidebar */
     --sidebar-background: 0 0% 3%;
     --sidebar-foreground: 45 20% 92%;
-    --sidebar-primary: 42 92% 56%;
-    --sidebar-primary-foreground: 0 0% 4%;
-    --sidebar-accent: 42 15% 8%;
-    --sidebar-accent-foreground: 45 20% 92%;
-    --sidebar-border: 42 15% 12%;
-    --sidebar-ring: 42 92% 56%;
+    --sidebar-primary: 48 100% 55%;
+    --sidebar-primary-foreground: 0 0% 2%;
+    --sidebar-accent: 48 20% 10%;
+    --sidebar-accent-foreground: 48 100% 55%;
+    --sidebar-border: 48 20% 14%;
+    --sidebar-ring: 48 100% 55%;
 
     /* Gradients */
-    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(42 92% 50% / 0.15), hsl(0 0% 0% / 0), transparent);
-    --gradient-blue-glow: radial-gradient(ellipse 60% 40% at 100% 50%, hsl(42 92% 50% / 0.08), transparent);
+    --gradient-hero: radial-gradient(ellipse 80% 50% at 50% -20%, hsl(48 100% 55% / 0.18), hsl(0 0% 0% / 0), transparent);
+    --gradient-blue-glow: radial-gradient(ellipse 60% 40% at 100% 50%, hsl(48 100% 55% / 0.1), transparent);
 
     /* Glow shadows */
-    --glow-gold: 0 0 40px hsl(42 92% 56% / 0.35), 0 0 80px hsl(42 92% 56% / 0.15);
+    --glow-gold: 0 0 40px hsl(48 100% 55% / 0.45), 0 0 80px hsl(48 100% 55% / 0.2);
     --glow-red: 0 0 40px hsl(0 85% 58% / 0.35), 0 0 80px hsl(0 85% 58% / 0.15);
     --glow-blue: 0 0 40px hsl(215 95% 58% / 0.35), 0 0 80px hsl(215 95% 58% / 0.15);
     --glow-orange: 0 0 40px hsl(25 100% 58% / 0.35), 0 0 80px hsl(25 100% 58% / 0.15);
