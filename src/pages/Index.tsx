@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap,
   ListTodo, Building2, Eye, BarChart3, Users, Package, ShoppingCart,
@@ -7,7 +7,8 @@ import {
   TrendingUp, Target, CreditCard, Tags, Landmark,
   UserPlus, Search, Box, ClipboardList, Truck,
   Receipt, BarChart, MessageSquare, History, UserCheck, FolderPlus, Edit,
-  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, ArrowLeft
+  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, ArrowLeft,
+  LayoutGrid, CircleDot
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -16,6 +17,7 @@ import { useModulePermissions, AppModule } from "@/hooks/useModulePermissions";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 
 // ── Types ──
 interface WheelItem {
