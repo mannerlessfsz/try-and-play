@@ -175,9 +175,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     let startDate: Date;
     let totalDays: number;
 
-    if (dateRange?.from) {
+    if (dateRange?.from && dateRange?.to) {
       startDate = new Date(dateRange.from);
-      const endDate = dateRange.to ? new Date(dateRange.to) : new Date(startDate);
+      const endDate = new Date(dateRange.to);
       endDate.setDate(endDate.getDate() + 1);
       totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
     } else {
@@ -195,7 +195,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       days.push({ dateKey: key, tasks: taskMap[key] || [] });
     }
 
-    // Add extra dates with tasks outside the window
+    if (dateRange?.from && dateRange?.to) {
+      return days;
+    }
+
     const windowKeys = new Set(days.map(d => d.dateKey));
     const extraDates = Object.keys(taskMap)
       .filter(k => k !== "__no_date__" && !windowKeys.has(k))
