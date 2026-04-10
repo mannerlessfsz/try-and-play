@@ -126,7 +126,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
             {/* Light mode: colored bg / Dark mode: dark card */}
             <div
               className="absolute inset-0 rounded-xl dark:hidden"
-              style={{ background: `linear-gradient(135deg, ${accent}ee, ${accent}cc)` }}
+              style={{ background: `linear-gradient(135deg, hsl(${mod.accentHsl}), hsl(${mod.accentHsl} / 0.85))` }}
             />
             <div
               className="absolute inset-0 rounded-xl hidden dark:block"
