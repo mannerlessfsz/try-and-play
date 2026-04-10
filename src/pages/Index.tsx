@@ -531,6 +531,7 @@ const Index = () => {
                 <Settings className="w-3.5 h-3.5" /> Admin
               </Button>
             )}
+            <ThemeToggle />
             <Button variant="ghost" size="sm" onClick={signOut} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8">
               <LogOut className="w-3.5 h-3.5" /> Sair
             </Button>
