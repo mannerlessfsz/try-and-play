@@ -581,6 +581,7 @@ const Index = () => {
                 className="flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-xl"
                 style={{ borderColor: `${accent}30`, background: "hsl(0 0% 4% / 0.8)" }}
                 initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 {breadcrumb.map((crumb, i) => (
                   <span key={i} className="flex items-center gap-2">
