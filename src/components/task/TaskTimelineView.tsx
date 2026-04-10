@@ -296,7 +296,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </button>
       </div>
 
-      {/* ─── Vertical Timeline (alternating) ─── */}
+      {/* ─── Vertical Timeline (tasks left, empresas right) ─── */}
       <div className="relative">
         {/* Central vertical line */}
         <div className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 bg-gradient-to-b from-primary/40 via-foreground/15 to-foreground/5 rounded-full" />
@@ -304,12 +304,10 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         <div className="space-y-0">
           {timelineGroups.map((group, groupIdx) => {
             const { dateKey, tasks } = group;
-            const isLeft = groupIdx % 2 === 0;
             const today = isToday(dateKey);
             const overdue = dateKey !== "__no_date__" && isOverdue(dateKey);
             const allDone = tasks.length > 0 && tasks.every(t => t.status === "concluida");
             const noDate = dateKey === "__no_date__";
-            const hasTasks = tasks.length > 0;
             const isExpanded = expandedDate === dateKey;
 
             stepNumber++;
@@ -336,6 +334,21 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
 
             const completedCount = tasks.filter(t => t.status === "concluida").length;
 
+            // Group tasks by empresa for the right panel
+            const empresaMap: Record<string, { nome: string; total: number; done: number; priorities: string[] }> = {};
+            tasks.forEach(t => {
+              const nome = getEmpresaNome(t.empresaId);
+              if (!empresaMap[t.empresaId]) {
+                empresaMap[t.empresaId] = { nome, total: 0, done: 0, priorities: [] };
+              }
+              empresaMap[t.empresaId].total++;
+              if (t.status === "concluida") empresaMap[t.empresaId].done++;
+              if (!empresaMap[t.empresaId].priorities.includes(t.prioridade)) {
+                empresaMap[t.empresaId].priorities.push(t.prioridade);
+              }
+            });
+            const empresas = Object.entries(empresaMap);
+
             return (
               <motion.div
                 key={dateKey}
@@ -361,75 +374,107 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   </button>
                 </div>
 
-                {/* ── Left side ── */}
-                <div className={`w-[calc(50%-28px)] ${isLeft ? "" : "order-last"}`}>
-                  {isLeft && (
-                    <div className="flex justify-end">
-                      <CompactDayNode
-                        dateKey={dateKey}
-                        dateLabel={dateLabel}
-                        fullDate={fullDate}
-                        tasks={tasks}
-                        stepColor={stepColor}
-                        today={today}
-                        overdue={overdue && !allDone}
-                        allDone={allDone}
-                        noDate={noDate}
-                        completedCount={completedCount}
-                        isExpanded={isExpanded}
-                        onToggle={() => setExpandedDate(isExpanded ? null : dateKey)}
-                        expandedTaskId={expandedTaskId}
-                        setExpandedTaskId={setExpandedTaskId}
-                        getEmpresaNome={getEmpresaNome}
-                        onDelete={onDelete}
-                        onStatusChange={onStatusChange}
-                        onUploadArquivo={onUploadArquivo}
-                        onDeleteArquivo={onDeleteArquivo}
-                        side="left"
-                      />
-                    </div>
-                  )}
+                {/* ── Left side: Tasks ── */}
+                <div className="w-[calc(50%-28px)]">
+                  <div className="flex justify-end">
+                    <CompactDayNode
+                      dateKey={dateKey}
+                      dateLabel={dateLabel}
+                      fullDate={fullDate}
+                      tasks={tasks}
+                      stepColor={stepColor}
+                      today={today}
+                      overdue={overdue && !allDone}
+                      allDone={allDone}
+                      noDate={noDate}
+                      completedCount={completedCount}
+                      isExpanded={isExpanded}
+                      onToggle={() => setExpandedDate(isExpanded ? null : dateKey)}
+                      expandedTaskId={expandedTaskId}
+                      setExpandedTaskId={setExpandedTaskId}
+                      getEmpresaNome={getEmpresaNome}
+                      onDelete={onDelete}
+                      onStatusChange={onStatusChange}
+                      onUploadArquivo={onUploadArquivo}
+                      onDeleteArquivo={onDeleteArquivo}
+                      side="left"
+                    />
+                  </div>
                 </div>
 
-                {/* ── Connector arm ── */}
+                {/* ── Connector arms (both sides) ── */}
                 <div className="w-14 flex-shrink-0 relative flex items-start pt-7">
-                  <div className={`
-                    absolute top-[22px] h-0.5 bg-gradient-to-r
-                    ${isLeft
-                      ? "right-[28px] left-0 from-transparent to-foreground/20"
-                      : "left-[28px] right-0 from-foreground/20 to-transparent"
-                    }
-                  `} />
+                  <div className="absolute top-[22px] h-0.5 bg-gradient-to-r right-[28px] left-0 from-transparent to-foreground/20" />
+                  <div className="absolute top-[22px] h-0.5 bg-gradient-to-r left-[28px] right-0 from-foreground/20 to-transparent" />
                 </div>
 
-                {/* ── Right side ── */}
-                <div className={`w-[calc(50%-28px)] ${isLeft ? "order-last" : ""}`}>
-                  {!isLeft && (
-                    <div className="flex justify-start">
-                      <CompactDayNode
-                        dateKey={dateKey}
-                        dateLabel={dateLabel}
-                        fullDate={fullDate}
-                        tasks={tasks}
-                        stepColor={stepColor}
-                        today={today}
-                        overdue={overdue && !allDone}
-                        allDone={allDone}
-                        noDate={noDate}
-                        completedCount={completedCount}
-                        isExpanded={isExpanded}
-                        onToggle={() => setExpandedDate(isExpanded ? null : dateKey)}
-                        expandedTaskId={expandedTaskId}
-                        setExpandedTaskId={setExpandedTaskId}
-                        getEmpresaNome={getEmpresaNome}
-                        onDelete={onDelete}
-                        onStatusChange={onStatusChange}
-                        onUploadArquivo={onUploadArquivo}
-                        onDeleteArquivo={onDeleteArquivo}
-                        side="right"
-                      />
+                {/* ── Right side: Empresas summary ── */}
+                <div className="w-[calc(50%-28px)]">
+                  <div className="flex justify-start">
+                    <div className="w-full max-w-[360px] ml-0">
+                      {empresas.length > 0 ? (
+                        <div className="space-y-1.5 pt-1">
+                          {empresas.map(([empresaId, info], eIdx) => {
+                            const allEmpresaDone = info.done === info.total;
+                            const hasUrgent = info.priorities.includes("urgente") || info.priorities.includes("alta");
+                            return (
+                              <motion.div
+                                key={empresaId}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: groupIdx * 0.04 + eIdx * 0.03, duration: 0.3 }}
+                                className={`
+                                  flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-all
+                                  ${allEmpresaDone
+                                    ? "border-green-500/15 bg-green-500/5 opacity-60"
+                                    : hasUrgent
+                                      ? "border-red-500/15 bg-red-500/5"
+                                      : "border-foreground/8 bg-card/50 hover:bg-card/70"}
+                                `}
+                              >
+                                <div className={`
+                                  w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+                                  ${allEmpresaDone
+                                    ? "bg-green-500/15"
+                                    : hasUrgent
+                                      ? "bg-red-500/15"
+                                      : "bg-foreground/5"}
+                                `}>
+                                  <Building2 className={`w-4 h-4 ${
+                                    allEmpresaDone ? "text-green-500" : hasUrgent ? "text-red-500" : "text-muted-foreground/50"
+                                  }`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-foreground truncate">{info.nome}</p>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[10px] text-muted-foreground/50">
+                                      {info.done}/{info.total} {info.total === 1 ? "tarefa" : "tarefas"}
+                                    </span>
+                                    <div className="flex gap-0.5">
+                                      {info.priorities.map((p, pi) => (
+                                        <div key={pi} className={`w-1.5 h-1.5 rounded-full ${prioridadeDot[p]}`} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                                {allEmpresaDone && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />}
+                                {!allEmpresaDone && (
+                                  <div className="flex-shrink-0 w-10 h-1 bg-foreground/8 rounded-full overflow-hidden">
+                                    <div className="h-full bg-primary/60 rounded-full" style={{ width: `${Math.round((info.done / info.total) * 100)}%` }} />
+                                  </div>
+                                )}
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-foreground/6 bg-card/30 mt-1">
+                          <Building2 className="w-3.5 h-3.5 text-muted-foreground/20" />
+                          <span className="text-[10px] text-muted-foreground/25 italic">Nenhuma empresa</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </motion.div>
             );
