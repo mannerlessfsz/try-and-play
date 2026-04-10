@@ -586,35 +586,34 @@ const Index = () => {
                     whileHover={hasAccess ? { scale: 1.08, boxShadow: `0 0 60px ${a}40` } : {}}
                     whileTap={hasAccess ? { scale: 0.95 } : {}}
                   >
-                    {/* Dark mode: dark card + colored border. Light mode: colored bg */}
+                    {/* Dark mode: dark card. Light mode: colored bg */}
                     <div
                       className="absolute inset-0 rounded-2xl dark:hidden"
-                      style={{ background: `linear-gradient(135deg, ${a}, ${a}cc)`, borderColor: `${a}` }}
+                      style={{ background: `linear-gradient(135deg, hsl(${mod.accentHsl}), hsl(${mod.accentHsl} / 0.85))` }}
                     />
                     <div
-                      className="absolute inset-0 rounded-2xl hidden dark:block"
-                      style={{ background: "hsl(var(--card) / 0.97)", borderColor: `${a}50` }}
+                      className="absolute inset-0 rounded-2xl hidden dark:block border-2"
+                      style={{ background: "hsl(var(--card) / 0.97)", borderColor: `hsl(${mod.accentHsl} / 0.3)` }}
                     />
-                    <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: `radial-gradient(circle at center, hsl(0 0% 100% / 0.1) 0%, transparent 70%)` }} />
-                    <div className="relative" style={{ color: hasAccess ? "hsl(0 0% 100%)" : undefined }}>
+                    <div className="relative" style={{ color: hasAccess ? "white" : undefined }}>
                       <span className="dark:hidden">{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</span>
-                      <span className="hidden dark:inline" style={{ color: hasAccess ? a : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</span>
+                      <span className="hidden dark:inline" style={{ color: hasAccess ? `hsl(${mod.accentHsl})` : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</span>
                     </div>
                     <div className="relative flex flex-col items-center gap-0.5">
                       <span className="text-sm font-bold tracking-wider text-white dark:hidden">{mod.title}</span>
-                      <span className="text-sm font-bold tracking-wider hidden dark:inline" style={{ color: a }}>{mod.title}</span>
-                      <span className="text-[11px] text-white/70 dark:hidden">{mod.tagline}</span>
+                      <span className="text-sm font-bold tracking-wider hidden dark:inline" style={{ color: `hsl(${mod.accentHsl})` }}>{mod.title}</span>
+                      <span className="text-[11px] text-white/80 dark:hidden">{mod.tagline}</span>
                       <span className="text-[11px] text-foreground/60 hidden dark:inline">{mod.tagline}</span>
                     </div>
                     {hasAccess && (
-                      <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-transparent" style={{ backgroundColor: undefined }}>
-                        <span className="absolute dark:hidden w-6 h-6 rounded-full flex items-center justify-center bg-white shadow-md">
-                          <span className="text-[9px] font-bold" style={{ color: a }}>{mod.items.length}</span>
-                        </span>
-                        <span className="absolute hidden dark:flex w-6 h-6 rounded-full items-center justify-center" style={{ backgroundColor: a }}>
+                      <>
+                        <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center bg-white shadow-md dark:hidden">
+                          <span className="text-[9px] font-bold" style={{ color: `hsl(${mod.accentHsl})` }}>{mod.items.length}</span>
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full items-center justify-center hidden dark:flex" style={{ backgroundColor: `hsl(${mod.accentHsl})` }}>
                           <span className="text-[9px] font-bold text-black">{mod.items.length}</span>
-                        </span>
-                      </div>
+                        </div>
+                      </>
                     )}
                   </motion.button>
                 );
