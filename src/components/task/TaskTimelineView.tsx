@@ -318,9 +318,19 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
               <CalendarPicker
                 mode="range"
                 selected={dateRange}
-                onSelect={(range) => {
-                  setDateRange(range);
-                  if (range?.from && range?.to) {
+                onSelect={(range, selectedDay) => {
+                  if (!dateRange?.from || (dateRange.from && dateRange.to)) {
+                    // First click: start new range
+                    setDateRange({ from: selectedDay, to: undefined });
+                  } else {
+                    // Second click: complete the range
+                    const from = dateRange.from;
+                    const to = selectedDay;
+                    if (from > to) {
+                      setDateRange({ from: to, to: from });
+                    } else {
+                      setDateRange({ from, to });
+                    }
                     setDatePickerOpen(false);
                   }
                 }}
