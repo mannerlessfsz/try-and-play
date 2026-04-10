@@ -616,7 +616,8 @@ function CompactDayNode({
                     {tasks.map((tarefa, tIdx) => {
                       const isTaskExpanded = expandedTaskId === tarefa.id;
                       const isDone = tarefa.status === "concluida";
-                      const isTaskOverdue = tarefa.prazoEntrega && isOverdue(tarefa.prazoEntrega) && !isDone;
+                      const taskColor = getTaskStatusColor(tarefa);
+                      const colorStyle = STATUS_COLOR_STYLES[taskColor];
 
                       return (
                         <motion.div
@@ -626,15 +627,13 @@ function CompactDayNode({
                           transition={{ delay: tIdx * 0.05, duration: 0.2 }}
                           className={`
                             group relative rounded-lg border transition-all duration-200 overflow-hidden
-                            ${isDone ? "opacity-50" : ""}
                             ${isTaskExpanded
-                              ? "border-primary/30 bg-primary/5"
-                              : isTaskOverdue
-                                ? "border-red-500/15 bg-red-500/5 hover:border-red-500/25"
-                                : "border-foreground/6 bg-foreground/3 hover:border-foreground/12 hover:bg-foreground/5"}
+                              ? `${colorStyle.border} ${colorStyle.bg}`
+                              : `${colorStyle.border} ${colorStyle.bg} hover:shadow-sm`}
                           `}
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${prioridadeDot[tarefa.prioridade]} rounded-l`} />
+                          {/* Status color strip */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorStyle.dot} rounded-l`} />
 
                           <div
                             className="flex items-start gap-2.5 p-2.5 pl-3 cursor-pointer"
