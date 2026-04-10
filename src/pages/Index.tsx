@@ -516,6 +516,15 @@ const Index = () => {
             </motion.div>
           )}
           <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => setViewMode(v => v === "radial" ? "sidebar" : "radial")}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8"
+              title={viewMode === "radial" ? "Mudar para modo lista" : "Mudar para modo radial"}
+            >
+              {viewMode === "radial" ? <LayoutGrid className="w-3.5 h-3.5" /> : <CircleDot className="w-3.5 h-3.5" />}
+              {viewMode === "radial" ? "Lista" : "Radial"}
+            </Button>
             {isAdmin && (
               <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8">
                 <Settings className="w-3.5 h-3.5" /> Admin
