@@ -97,18 +97,38 @@ function exportCSV(tarefas: Tarefa[], getEmpresaNome: (id: string) => string) {
   URL.revokeObjectURL(url);
 }
 
-const STEP_COLORS = [
-  "from-blue-500 to-blue-600",
-  "from-emerald-500 to-emerald-600",
-  "from-amber-500 to-amber-600",
-  "from-rose-500 to-rose-600",
-  "from-violet-500 to-violet-600",
-  "from-cyan-500 to-cyan-600",
-  "from-orange-500 to-orange-600",
-  "from-pink-500 to-pink-600",
-  "from-teal-500 to-teal-600",
-  "from-indigo-500 to-indigo-600",
-];
+// Task status color based on deadline proximity
+// Verde = a fazer | Amarelo = 2 dias da entrega | Vermelho = 1+ dia após entrega | Azul = concluída | Laranja = concluída com justificativa
+type TaskStatusColor = "green" | "yellow" | "red" | "blue" | "orange";
+
+function getTaskStatusColor(tarefa: Tarefa): TaskStatusColor {
+  if (tarefa.status === "concluida") {
+    return tarefa.justificativa ? "orange" : "blue";
+  }
+  if (!tarefa.prazoEntrega) return "green";
+  const days = getDaysUntilDeadline(tarefa.prazoEntrega);
+  if (days < 0) return "red";
+  if (days <= 2) return "yellow";
+  return "green";
+}
+
+const STATUS_COLOR_STYLES: Record<TaskStatusColor, { gradient: string; bg: string; border: string; text: string; dot: string; label: string }> = {
+  green:  { gradient: "from-emerald-500 to-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/25", text: "text-emerald-500", dot: "bg-emerald-500", label: "A fazer" },
+  yellow: { gradient: "from-amber-400 to-yellow-500",    bg: "bg-amber-500/10",   border: "border-amber-500/25",   text: "text-amber-500",   dot: "bg-amber-500",   label: "Atenção" },
+  red:    { gradient: "from-red-500 to-red-600",         bg: "bg-red-500/10",     border: "border-red-500/25",     text: "text-red-500",     dot: "bg-red-500",     label: "Atrasada" },
+  blue:   { gradient: "from-blue-500 to-blue-600",       bg: "bg-blue-500/10",    border: "border-blue-500/25",    text: "text-blue-500",    dot: "bg-blue-500",    label: "Concluída" },
+  orange: { gradient: "from-orange-500 to-orange-600",   bg: "bg-orange-500/10",  border: "border-orange-500/25",  text: "text-orange-500",  dot: "bg-orange-500",  label: "Justificada" },
+};
+
+function getGroupStepColor(tasks: Tarefa[]): string {
+  if (tasks.length === 0) return "from-foreground/30 to-foreground/40";
+  const colors = tasks.map(getTaskStatusColor);
+  if (colors.includes("red")) return STATUS_COLOR_STYLES.red.gradient;
+  if (colors.includes("orange")) return STATUS_COLOR_STYLES.orange.gradient;
+  if (colors.includes("yellow")) return STATUS_COLOR_STYLES.yellow.gradient;
+  if (colors.includes("green")) return STATUS_COLOR_STYLES.green.gradient;
+  return STATUS_COLOR_STYLES.blue.gradient;
+}
 
 export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusChange, onTaskClick, onUploadArquivo, onDeleteArquivo }: TaskTimelineViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -311,14 +331,9 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             const isExpanded = expandedDate === dateKey;
 
             stepNumber++;
-            const stepColorIdx = (stepNumber - 1) % STEP_COLORS.length;
-            const stepColor = overdue && !allDone
-              ? "from-red-500 to-red-600"
-              : allDone
-                ? "from-green-500 to-green-600"
-                : today
-                  ? "from-primary to-primary"
-                  : STEP_COLORS[stepColorIdx];
+            const stepColor = today && tasks.length === 0
+              ? "from-primary to-primary"
+              : getGroupStepColor(tasks);
 
             const dateLabel = noDate
               ? "Sem Prazo"
@@ -574,7 +589,7 @@ function CompactDayNode({
             {!isExpanded && totalCount > 0 && (
               <div className="flex gap-0.5">
                 {tasks.slice(0, 5).map((t, i) => (
-                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${prioridadeDot[t.prioridade]} ring-1 ring-white/20`} />
+                  <div key={i} className={`w-1.5 h-1.5 rounded-full ${STATUS_COLOR_STYLES[getTaskStatusColor(t)].dot} ring-1 ring-white/20`} />
                 ))}
                 {totalCount > 5 && <span className="text-[8px] text-white/50 ml-0.5">+{totalCount - 5}</span>}
               </div>
@@ -601,7 +616,8 @@ function CompactDayNode({
                     {tasks.map((tarefa, tIdx) => {
                       const isTaskExpanded = expandedTaskId === tarefa.id;
                       const isDone = tarefa.status === "concluida";
-                      const isTaskOverdue = tarefa.prazoEntrega && isOverdue(tarefa.prazoEntrega) && !isDone;
+                      const taskColor = getTaskStatusColor(tarefa);
+                      const colorStyle = STATUS_COLOR_STYLES[taskColor];
 
                       return (
                         <motion.div
@@ -611,15 +627,13 @@ function CompactDayNode({
                           transition={{ delay: tIdx * 0.05, duration: 0.2 }}
                           className={`
                             group relative rounded-lg border transition-all duration-200 overflow-hidden
-                            ${isDone ? "opacity-50" : ""}
                             ${isTaskExpanded
-                              ? "border-primary/30 bg-primary/5"
-                              : isTaskOverdue
-                                ? "border-red-500/15 bg-red-500/5 hover:border-red-500/25"
-                                : "border-foreground/6 bg-foreground/3 hover:border-foreground/12 hover:bg-foreground/5"}
+                              ? `${colorStyle.border} ${colorStyle.bg}`
+                              : `${colorStyle.border} ${colorStyle.bg} hover:shadow-sm`}
                           `}
                         >
-                          <div className={`absolute left-0 top-0 bottom-0 w-0.5 ${prioridadeDot[tarefa.prioridade]} rounded-l`} />
+                          {/* Status color strip */}
+                          <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorStyle.dot} rounded-l`} />
 
                           <div
                             className="flex items-start gap-2.5 p-2.5 pl-3 cursor-pointer"
@@ -633,15 +647,11 @@ function CompactDayNode({
                               }}
                               className={`
                                 mt-0.5 flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all
-                                ${isDone
-                                  ? "border-green-500 bg-green-500 text-white"
-                                  : tarefa.status === "em_andamento"
-                                    ? "border-blue-500 bg-blue-500/20"
-                                    : "border-foreground/20 hover:border-primary"}
+                                border-current ${colorStyle.text}
                               `}
                             >
                               {isDone && <CheckCircle2 className="w-2.5 h-2.5" />}
-                              {tarefa.status === "em_andamento" && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />}
+                              {tarefa.status === "em_andamento" && <div className={`w-1.5 h-1.5 rounded-full ${colorStyle.dot} animate-pulse`} />}
                             </button>
 
                             <div className="flex-1 min-w-0">
@@ -652,12 +662,13 @@ function CompactDayNode({
                                 <ChevronDown className={`w-3 h-3 text-muted-foreground/25 flex-shrink-0 transition-transform ${isTaskExpanded ? "rotate-180" : ""}`} />
                               </div>
                               <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                                {/* Status color badge */}
+                                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold ${colorStyle.bg} ${colorStyle.text} ${colorStyle.border} border`}>
+                                  {colorStyle.label}
+                                </span>
                                 <span className="text-[10px] text-muted-foreground/40 flex items-center gap-0.5 truncate max-w-[120px]">
                                   <Building2 className="w-2.5 h-2.5 flex-shrink-0" />
                                   {getEmpresaNome(tarefa.empresaId)}
-                                </span>
-                                <span className={`text-[9px] px-1 py-0.5 rounded font-medium ${prioridadeColors[tarefa.prioridade]}`}>
-                                  {prioridadeLabels[tarefa.prioridade]}
                                 </span>
                                 {tarefa.arquivos && tarefa.arquivos.length > 0 && (
                                   <span className="text-[9px] text-muted-foreground/30 flex items-center gap-0.5">
@@ -668,7 +679,7 @@ function CompactDayNode({
                               {(tarefa.progresso ?? 0) > 0 && !isDone && (
                                 <div className="flex items-center gap-1.5 mt-1.5">
                                   <div className="flex-1 max-w-[80px] h-0.5 bg-foreground/8 rounded-full overflow-hidden">
-                                    <div className="h-full bg-primary rounded-full" style={{ width: `${tarefa.progresso}%` }} />
+                                    <div className={`h-full ${colorStyle.dot} rounded-full`} style={{ width: `${tarefa.progresso}%` }} />
                                   </div>
                                   <span className="text-[9px] text-muted-foreground/30">{tarefa.progresso}%</span>
                                 </div>
