@@ -138,28 +138,51 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Group by date, sorted chronologically
+  // Generate a fixed 30-day window (7 past + today + 22 future) and merge tasks into it
   const groupedByDate = useMemo(() => {
-    const map: Record<string, Tarefa[]> = {};
+    // Build task map
+    const taskMap: Record<string, Tarefa[]> = {};
     filteredTarefas.forEach(t => {
       const key = t.prazoEntrega || "__no_date__";
-      if (!map[key]) map[key] = [];
-      map[key].push(t);
+      if (!taskMap[key]) taskMap[key] = [];
+      taskMap[key].push(t);
     });
 
     // Sort tasks within each group by priority
     const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
-    Object.values(map).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
+    Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
-    // Sort date keys: overdue first, then today, then future, then no-date
-    const keys = Object.keys(map).filter(k => k !== "__no_date__").sort();
-    const todayKey = toDateKey(new Date());
-    const overdue = keys.filter(k => k < todayKey);
-    const todayAndFuture = keys.filter(k => k >= todayKey);
-    const sorted = [...overdue, ...todayAndFuture];
-    if (map["__no_date__"]) sorted.push("__no_date__");
+    // Generate 30-day calendar window
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 7);
 
-    return sorted.map(key => ({ dateKey: key, tasks: map[key] }));
+    const calendarDays: { dateKey: string; tasks: Tarefa[] }[] = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const key = toDateKey(d);
+      calendarDays.push({ dateKey: key, tasks: taskMap[key] || [] });
+    }
+
+    // Add any task dates outside the window (overdue beyond 7 days)
+    const windowStart = calendarDays[0].dateKey;
+    const windowEnd = calendarDays[calendarDays.length - 1].dateKey;
+    const extraDates = Object.keys(taskMap)
+      .filter(k => k !== "__no_date__" && (k < windowStart || k > windowEnd))
+      .sort();
+
+    const beforeWindow = extraDates.filter(k => k < windowStart).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+    const afterWindow = extraDates.filter(k => k > windowEnd).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+
+    const result = [...beforeWindow, ...calendarDays, ...afterWindow];
+
+    // Add no-date tasks at the end
+    if (taskMap["__no_date__"]?.length) {
+      result.push({ dateKey: "__no_date__", tasks: taskMap["__no_date__"] });
+    }
+
+    return result;
   }, [filteredTarefas]);
 
   // Stats
@@ -280,24 +303,53 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       </div>
 
       {/* ─── Vertical Timeline Feed ─── */}
-      {groupedByDate.length === 0 ? (
-        <div className="text-center py-16">
-          <Calendar className="w-10 h-10 text-muted-foreground/15 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground/40">Nenhuma tarefa encontrada</p>
-        </div>
-      ) : (
-        <div className="relative pl-8 md:pl-12">
-          {/* Vertical line */}
-          <div className="absolute left-[15px] md:left-[23px] top-0 bottom-0 w-px bg-gradient-to-b from-foreground/15 via-foreground/8 to-transparent" />
+      <div className="relative pl-8 md:pl-12">
+        {/* Vertical line */}
+        <div className="absolute left-[15px] md:left-[23px] top-0 bottom-0 w-px bg-gradient-to-b from-foreground/15 via-foreground/8 to-transparent" />
 
-          <div className="space-y-6">
+        <div className="space-y-1">
             {groupedByDate.map(({ dateKey, tasks }, groupIdx) => {
               const style = getDateGroupStyle(dateKey, tasks);
+              const totalCount = tasks.length;
+              const isWeekend = dateKey !== "__no_date__" && [0, 6].includes(new Date(dateKey + "T12:00:00").getDay());
+
+              // ── Empty day: compact row ──
+              if (totalCount === 0 && dateKey !== "__no_date__") {
+                const dayNum = new Date(dateKey + "T12:00:00").getDate();
+                const weekday = new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" });
+                const today = isToday(dateKey);
+
+                return (
+                  <div key={dateKey} className="relative flex items-center gap-3 py-1">
+                    {/* Timeline dot - small for empty days */}
+                    <div className="absolute -left-8 md:-left-12 flex items-center justify-center">
+                      <div className={`w-2 h-2 rounded-full ${today ? "bg-primary" : isWeekend ? "bg-foreground/8" : "bg-foreground/15"} ring-2 ring-background z-10`} />
+                      {today && (
+                        <div className="absolute w-5 h-5 rounded-full bg-primary/20 animate-ping" />
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium tabular-nums ${today ? "text-primary" : isWeekend ? "text-muted-foreground/25" : "text-muted-foreground/40"}`}>
+                        {dayNum}
+                      </span>
+                      <span className={`text-[10px] uppercase ${today ? "text-primary/70" : isWeekend ? "text-muted-foreground/20" : "text-muted-foreground/30"}`}>
+                        {weekday}
+                      </span>
+                      {today && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                          HOJE
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // ── Day with tasks: full card ──
               const dateLabel = dateKey === "__no_date__" ? "Sem prazo" : formatDateLabel(dateKey);
               const fullDate = dateKey === "__no_date__" ? "Tarefas sem data definida" : formatFullDate(dateKey);
-              const days = dateKey !== "__no_date__" ? getDaysUntilDeadline(dateKey) : null;
               const completedCount = tasks.filter(t => t.status === "concluida").length;
-              const totalCount = tasks.length;
               const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
               return (
@@ -305,7 +357,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   key={dateKey}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: groupIdx * 0.05, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  transition={{ delay: Math.min(groupIdx * 0.02, 0.5), duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="pt-2 pb-3"
                 >
                   {/* Date Header with dot on timeline */}
                   <div className="relative flex items-center gap-3 mb-3">
@@ -349,7 +402,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           }`}
                           initial={{ width: 0 }}
                           animate={{ width: `${completionRate}%` }}
-                          transition={{ duration: 0.6, delay: groupIdx * 0.05 + 0.2 }}
+                          transition={{ duration: 0.6, delay: Math.min(groupIdx * 0.02, 0.5) + 0.2 }}
                         />
                       </div>
                       <span className="text-[10px] text-muted-foreground/40 font-medium">{completionRate}%</span>
@@ -368,7 +421,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           key={tarefa.id}
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: groupIdx * 0.05 + ti * 0.03, duration: 0.3 }}
+                          transition={{ delay: Math.min(groupIdx * 0.02, 0.5) + ti * 0.03, duration: 0.3 }}
                           className={`
                             group relative rounded-xl border transition-all duration-200 overflow-hidden
                             ${isDone ? "opacity-60" : ""}
@@ -525,7 +578,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
