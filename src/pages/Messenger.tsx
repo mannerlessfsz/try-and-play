@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { motion, AnimatePresence } from "framer-motion";
