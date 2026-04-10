@@ -38,7 +38,7 @@ interface HudModule {
 const modules: HudModule[] = [
   {
     id: "taskvault", icon: <CheckSquare className="w-7 h-7" />, title: "TASKVAULT", tagline: "Gestão de tarefas",
-    accentHsl: "0 85% 55%", module: "taskvault", href: "/taskvault",
+    accentHsl: "var(--module-red)", module: "taskvault", href: "/taskvault",
     items: [
       { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", href: "/taskvault", children: [
         { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault", children: [
@@ -71,7 +71,7 @@ const modules: HudModule[] = [
   },
   {
     id: "gestao", icon: <DollarSign className="w-7 h-7" />, title: "GESTÃO", tagline: "ERP + Financeiro",
-    accentHsl: "210 100% 55%", module: "gestao", href: "/gestao",
+    accentHsl: "var(--module-blue)", module: "gestao", href: "/gestao",
     items: [
       { icon: <Wallet className="w-5 h-5" />, label: "Financeiro", href: "/gestao", children: [
         { icon: <Receipt className="w-4 h-4" />, label: "Transações", href: "/gestao", children: [
@@ -117,7 +117,7 @@ const modules: HudModule[] = [
   },
   {
     id: "messenger", icon: <MessageCircle className="w-7 h-7" />, title: "MESSENGER", tagline: "Comunicação",
-    accentHsl: "25 100% 55%", module: "messenger", href: "/messenger",
+    accentHsl: "var(--module-orange)", module: "messenger", href: "/messenger",
     items: [
       { icon: <Send className="w-5 h-5" />, label: "Conversas", href: "/messenger", children: [
         { icon: <MessageSquare className="w-4 h-4" />, label: "Nova", href: "/messenger", children: [
@@ -502,7 +502,7 @@ const Index = () => {
       <motion.div className="fixed top-0 left-0 right-0 z-50 px-4 py-3" initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, duration: 0.5 }}>
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <motion.div className="flex items-center gap-3" whileHover={{ scale: 1.02 }}>
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-xl border border-border/30">
+            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 backdrop-blur-xl border border-primary/20">
               <Zap className="w-5 h-5 text-primary fill-primary" />
             </div>
             <div>
