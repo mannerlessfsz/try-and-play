@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Atividade } from "@/types/task";
@@ -9,28 +9,23 @@ export function useAtividades(modulo?: ModuloAtividade, empresaId?: string) {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const fetchIdRef = useRef(0);
 
-  const fetchAtividades = async () => {
+  const fetchAtividades = useCallback(async () => {
+    const id = ++fetchIdRef.current;
     try {
       let query = supabase
         .from("atividades")
         .select("*")
         .order("created_at", { ascending: false })
-        .limit(50);
+        .limit(30);
 
-      // Filter by module if specified
-      if (modulo) {
-        query = query.eq("modulo", modulo);
-      }
-
-      // Filter by empresa if specified
-      if (empresaId) {
-        query = query.eq("empresa_id", empresaId);
-      }
+      if (modulo) query = query.eq("modulo", modulo);
+      if (empresaId) query = query.eq("empresa_id", empresaId);
 
       const { data, error } = await query;
-
       if (error) throw error;
+      if (id !== fetchIdRef.current) return;
 
       setAtividades(
         (data || []).map((a) => ({
@@ -41,18 +36,15 @@ export function useAtividades(modulo?: ModuloAtividade, empresaId?: string) {
         }))
       );
     } catch (error) {
+      if (id !== fetchIdRef.current) return;
       console.error("Error fetching atividades:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar as atividades",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível carregar as atividades", variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (id === fetchIdRef.current) setLoading(false);
     }
-  };
+  }, [modulo, empresaId, toast]);
 
-  const addAtividade = async (
+  const addAtividade = useCallback(async (
     tipo: Atividade["tipo"],
     descricao: string,
     options?: {
@@ -63,12 +55,10 @@ export function useAtividades(modulo?: ModuloAtividade, empresaId?: string) {
     }
   ) => {
     try {
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       
       const insertData = {
-        tipo,
-        descricao,
+        tipo, descricao,
         user_id: user?.id || null,
         tarefa_id: options?.tarefaId || null,
         empresa_id: options?.empresaId || empresaId || null,
@@ -77,27 +67,22 @@ export function useAtividades(modulo?: ModuloAtividade, empresaId?: string) {
       };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { error } = await supabase.from("atividades").insert(insertData as any);
-
       if (error) throw error;
-      await fetchAtividades();
+
+      // Optimistic: add to local state instead of refetch
+      setAtividades(prev => [{
+        id: crypto.randomUUID(),
+        tipo,
+        descricao,
+        data: new Date().toISOString(),
+      }, ...prev.slice(0, 29)]);
     } catch (error) {
       console.error("Error adding atividade:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível adicionar a atividade",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Não foi possível adicionar a atividade", variant: "destructive" });
     }
-  };
+  }, [modulo, empresaId, toast]);
 
-  useEffect(() => {
-    fetchAtividades();
-  }, [modulo, empresaId]);
+  useEffect(() => { fetchAtividades(); }, [fetchAtividades]);
 
-  return {
-    atividades,
-    loading,
-    addAtividade,
-    refetch: fetchAtividades,
-  };
+  return { atividades, loading, addAtividade, refetch: fetchAtividades };
 }

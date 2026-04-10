@@ -78,7 +78,8 @@ export default function TaskVault() {
   const [novaTarefa, setNovaTarefa] = useState<Partial<Tarefa>>({ prioridade: "media", status: "pendente" });
   const [expandedKanbanId, setExpandedKanbanId] = useState<string | null>(null);
 
-  useEffect(() => { refetchTarefas(); }, [empresasDisponiveis]);
+  // Removed: empresasDisponiveis triggers on every render due to new array ref from react-query
+  // useTarefas already fetches on mount via its own useEffect
 
   const tarefasFiltradas = useMemo(
     () => selectedEmpresaId === "all" ? tarefas : tarefas.filter(t => t.empresaId === selectedEmpresaId),
