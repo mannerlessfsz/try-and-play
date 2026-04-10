@@ -638,8 +638,8 @@ export default function TaskVault() {
         </div>
 
         {/* Activity sidebar */}
-        <div className="w-72 flex-shrink-0 hidden xl:flex flex-col gap-5 self-stretch">
-          <div className="flex-1 rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col">
+        <div className="w-56 flex-shrink-0 hidden xl:block self-start">
+          <div className="rounded-2xl border border-border/30 bg-card/40 overflow-hidden flex flex-col max-h-[420px]">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20 flex-shrink-0">
               <div className="relative">
                 <Activity className="w-4 h-4 text-primary" />
