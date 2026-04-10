@@ -141,16 +141,20 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
               }}
             >
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: `${accent}18`, color: accent }}
+                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-white/20 dark:bg-transparent"
+                style={{ color: "white" }}
               >
-                {mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}
+                <span className="dark:hidden">{mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}</span>
+                <span className="hidden dark:inline" style={{ color: accent }}>{mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}</span>
               </div>
               <div className="flex-1 text-left">
-                <span className="text-sm font-bold tracking-wider" style={{ color: accent }}>
+                <span className="text-sm font-bold tracking-wider text-white dark:hidden">
                   {mod.title}
                 </span>
-                <p className="text-[11px] text-muted-foreground">{mod.tagline}</p>
+                <span className="text-sm font-bold tracking-wider hidden dark:inline" style={{ color: accent }}>
+                  {mod.title}
+                </span>
+                <p className="text-[11px] text-white/70 dark:text-muted-foreground">{mod.tagline}</p>
               </div>
               {mod.hasAccess && (
                 <motion.div
