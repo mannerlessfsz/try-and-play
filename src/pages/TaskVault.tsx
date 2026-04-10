@@ -12,7 +12,7 @@ import {
   ListTodo, Plus, Trash2, CheckCircle2,
   Calendar, Settings, Activity, List, Columns, Loader2, FileText,
   GanttChart, TrendingUp, Flame,
-  Timer, Search, X, ChevronLeft, ChevronRight, CalendarRange
+  Timer, Search, X, ChevronLeft, ChevronRight, CalendarRange, ArrowLeft
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,6 +254,13 @@ export default function TaskVault() {
             </div>
             <div className="relative px-5 py-4">
               <div className="flex items-center gap-5">
+                <button
+                  onClick={() => navigate("/")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-all border border-border/40 hover:border-border flex-shrink-0"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Menu</span>
+                </button>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative">
                     <ListTodo className="w-5 h-5 text-primary-foreground" />
