@@ -40,34 +40,14 @@ const modules: HudModule[] = [
     id: "taskvault", icon: <CheckSquare className="w-7 h-7" />, title: "TASKVAULT", tagline: "Gestão de tarefas",
     accentHsl: "var(--module-red)", module: "taskvault", href: "/taskvault",
     items: [
+      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", href: "/taskvault" },
+      { icon: <ClipboardList className="w-5 h-5" />, label: "Templates", href: "/taskvault/cadastro", children: [
+        { icon: <Plus className="w-4 h-4" />, label: "Cadastro Novo", href: "/taskvault/cadastro" },
+        { icon: <Edit className="w-4 h-4" />, label: "Editar Template", href: "/taskvault/cadastro" },
+      ]},
       { icon: <ListTodo className="w-5 h-5" />, label: "Tarefas", href: "/taskvault", children: [
-        { icon: <Layers className="w-4 h-4" />, label: "Kanban", href: "/taskvault", children: [
-          { icon: <Filter className="w-3.5 h-3.5" />, label: "Filtrar", href: "/taskvault" },
-          { icon: <ArrowUpDown className="w-3.5 h-3.5" />, label: "Ordenar", href: "/taskvault" },
-        ]},
-        { icon: <List className="w-4 h-4" />, label: "Lista", href: "/taskvault", children: [
-          { icon: <Filter className="w-3.5 h-3.5" />, label: "Filtrar", href: "/taskvault" },
-          { icon: <Download className="w-3.5 h-3.5" />, label: "Exportar", href: "/taskvault" },
-        ]},
-        { icon: <Plus className="w-4 h-4" />, label: "Criar", href: "/taskvault" },
-      ]},
-      { icon: <Building2 className="w-5 h-5" />, label: "Empresas", href: "/taskvault", children: [
-        { icon: <Plus className="w-4 h-4" />, label: "Cadastrar", href: "/taskvault" },
-        { icon: <List className="w-4 h-4" />, label: "Listar", href: "/taskvault" },
-      ]},
-      { icon: <ClipboardList className="w-5 h-5" />, label: "Cadastro de Modelos", href: "/taskvault/cadastro" },
-      { icon: <FileText className="w-5 h-5" />, label: "Modelos de Documentos", href: "/taskvault/documentos" },
-      { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", href: "/taskvault", children: [
-        { icon: <BarChart3 className="w-4 h-4" />, label: "Dashboard", href: "/taskvault", children: [
-          { icon: <Clock className="w-3.5 h-3.5" />, label: "Hoje", href: "/taskvault" },
-          { icon: <Calendar className="w-3.5 h-3.5" />, label: "Semana", href: "/taskvault" },
-        ]},
-        { icon: <Calendar className="w-4 h-4" />, label: "Timeline", href: "/taskvault" },
-        { icon: <Target className="w-4 h-4" />, label: "Heatmap", href: "/taskvault" },
-      ]},
-      { icon: <BarChart3 className="w-5 h-5" />, label: "Relatórios", href: "/taskvault", children: [
-        { icon: <TrendingUp className="w-4 h-4" />, label: "Por Status", href: "/taskvault" },
-        { icon: <Calendar className="w-4 h-4" />, label: "Por Período", href: "/taskvault" },
+        { icon: <List className="w-4 h-4" />, label: "Tarefas", href: "/taskvault" },
+        { icon: <Plus className="w-4 h-4" />, label: "Nova Tarefa", href: "/taskvault" },
       ]},
     ],
   },
