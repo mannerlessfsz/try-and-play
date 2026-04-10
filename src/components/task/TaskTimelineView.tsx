@@ -303,17 +303,11 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       </div>
 
       {/* ─── Vertical Timeline Feed ─── */}
-      {groupedByDate.length === 0 ? (
-        <div className="text-center py-16">
-          <Calendar className="w-10 h-10 text-muted-foreground/15 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground/40">Nenhuma tarefa encontrada</p>
-        </div>
-      ) : (
-        <div className="relative pl-8 md:pl-12">
-          {/* Vertical line */}
-          <div className="absolute left-[15px] md:left-[23px] top-0 bottom-0 w-px bg-gradient-to-b from-foreground/15 via-foreground/8 to-transparent" />
+      <div className="relative pl-8 md:pl-12">
+        {/* Vertical line */}
+        <div className="absolute left-[15px] md:left-[23px] top-0 bottom-0 w-px bg-gradient-to-b from-foreground/15 via-foreground/8 to-transparent" />
 
-          <div className="space-y-6">
+        <div className="space-y-1">
             {groupedByDate.map(({ dateKey, tasks }, groupIdx) => {
               const style = getDateGroupStyle(dateKey, tasks);
               const dateLabel = dateKey === "__no_date__" ? "Sem prazo" : formatDateLabel(dateKey);
