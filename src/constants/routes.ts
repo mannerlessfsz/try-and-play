@@ -104,6 +104,23 @@ export const SYSTEM_ROUTES: SystemRoute[] = [
     requires: 'Autenticação',
     description: 'Visão do cliente para tarefas e documentos',
   },
+  // Sub-páginas TaskVault
+  {
+    path: '/taskvault/cadastro',
+    name: 'Cadastro de Modelos',
+    type: 'module',
+    requires: 'Permissão: taskvault',
+    description: 'Cadastro de modelos de tarefas e obrigações',
+    module: 'taskvault',
+  },
+  {
+    path: '/taskvault/documentos',
+    name: 'Modelos de Documentos',
+    type: 'module',
+    requires: 'Permissão: taskvault',
+    description: 'Templates de documentos e palavras-chave para validação',
+    module: 'taskvault',
+  },
 ];
 
 // ============================================================================

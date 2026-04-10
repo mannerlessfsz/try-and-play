@@ -55,6 +55,8 @@ const modules: HudModule[] = [
         { icon: <Plus className="w-4 h-4" />, label: "Cadastrar", href: "/taskvault" },
         { icon: <List className="w-4 h-4" />, label: "Listar", href: "/taskvault" },
       ]},
+      { icon: <ClipboardList className="w-5 h-5" />, label: "Cadastro de Modelos", href: "/taskvault/cadastro" },
+      { icon: <FileText className="w-5 h-5" />, label: "Modelos de Documentos", href: "/taskvault/documentos" },
       { icon: <Eye className="w-5 h-5" />, label: "Visão Geral", href: "/taskvault", children: [
         { icon: <BarChart3 className="w-4 h-4" />, label: "Dashboard", href: "/taskvault", children: [
           { icon: <Clock className="w-3.5 h-3.5" />, label: "Hoje", href: "/taskvault" },

@@ -436,6 +436,10 @@ export default function TaskVault() {
               <FileText className="w-3.5 h-3.5" />
               Cadastro
             </Button>
+            <Button variant="outline" size="sm" onClick={() => navigate("/taskvault/documentos")} className="gap-2 rounded-xl border-primary/30 text-primary hover:bg-primary/10">
+              <FileText className="w-3.5 h-3.5" />
+              Documentos
+            </Button>
             <div className="flex-1" />
             <div className="flex items-center gap-1 rounded-xl border border-border/50 bg-card/50 p-1">
               {([
