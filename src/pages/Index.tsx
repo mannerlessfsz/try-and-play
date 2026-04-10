@@ -214,7 +214,9 @@ const Index = () => {
                 {/* Orbit guide rings (visible when focused) */}
                 {isFocused && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="pointer-events-none">
-                    <div className="absolute rounded-full border border-dashed" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, borderColor: `${accent}15` }} />
+                    {/* R1 orbit ring */}
+                    <div className="absolute rounded-full border-2 border-dashed" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, borderColor: `${accent}25` }} />
+                    <div className="absolute rounded-full" style={{ width: R1 * 2, height: R1 * 2, left: MOD / 2 - R1, top: MOD / 2 - R1, background: `radial-gradient(circle, transparent 70%, ${accent}08 100%)` }} />
                   </motion.div>
                 )}
 
