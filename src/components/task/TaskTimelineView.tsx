@@ -4,12 +4,18 @@ import {
   Building2, FileText, CheckCircle2, Circle, Timer,
   Search, Download, X, ChevronDown, Flame, Sparkles,
   Calendar, AlertTriangle, ArrowUp, LayoutList,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, CalendarRange
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 interface TaskTimelineViewProps {
   tarefas: Tarefa[];
