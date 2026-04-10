@@ -435,6 +435,25 @@ const Index = () => {
         })}
       </div>
 
+      {/* "Acessar" button - truly fixed at bottom, outside transform context */}
+      <AnimatePresence>
+        {focusedMod && (
+          <motion.div
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+          >
+            <button
+              onClick={() => navigate(focusedMod.href)}
+              className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
+              style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `hsl(${focusedMod.accentHsl})50`, color: `hsl(${focusedMod.accentHsl})` }}
+            >
+              <span className="text-sm font-bold whitespace-nowrap">Acessar {focusedMod.title}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Backdrop overlay when focused */}
       <AnimatePresence>
         {focusedModule && (
