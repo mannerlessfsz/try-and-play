@@ -584,6 +584,11 @@ export default function TaskVault() {
         </div>
       </div>
 
+      {showModal && (
+        <TaskModal novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} empresas={empresasDisponiveis.map(e => ({ id: e.id, nome: e.nome, cnpj: e.cnpj || "", email: e.email || "" }))} onSave={handleSaveTarefa} onClose={() => setShowModal(false)} />
+      )}
+      <TaskSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} initialTab={settingsInitialTab} />
+
     </div>
     </ModulePageWrapper>
   );
