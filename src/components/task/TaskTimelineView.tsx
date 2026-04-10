@@ -4,12 +4,18 @@ import {
   Building2, FileText, CheckCircle2, Circle, Timer,
   Search, Download, X, ChevronDown, Flame, Sparkles,
   Calendar, AlertTriangle, ArrowUp, LayoutList,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, CalendarRange
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 interface TaskTimelineViewProps {
   tarefas: Tarefa[];
@@ -137,6 +143,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
   const [showCompleted, setShowCompleted] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const filteredTarefas = useMemo(() => {
     let list = tarefas;
@@ -153,7 +161,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Show 30 days (10 before today, today, 19 after)
+  // Calculate timeline window based on dateRange or default 30-day window
   const timelineGroups = useMemo(() => {
     const taskMap: Record<string, Tarefa[]> = {};
     const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
@@ -164,19 +172,30 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     });
     Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 10 + weekOffset * 7);
+    let startDate: Date;
+    let totalDays: number;
+
+    if (dateRange?.from) {
+      startDate = new Date(dateRange.from);
+      const endDate = dateRange.to ? new Date(dateRange.to) : new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    } else {
+      const today = new Date();
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 10 + weekOffset * 7);
+      totalDays = 30;
+    }
 
     const days: { dateKey: string; tasks: Tarefa[] }[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
       const key = toDateKey(d);
       days.push({ dateKey: key, tasks: taskMap[key] || [] });
     }
 
-    // Add extra dates with tasks outside the 30-day window
+    // Add extra dates with tasks outside the window
     const windowKeys = new Set(days.map(d => d.dateKey));
     const extraDates = Object.keys(taskMap)
       .filter(k => k !== "__no_date__" && !windowKeys.has(k))
@@ -187,7 +206,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     const result = [...before, ...days, ...after];
     if (taskMap["__no_date__"]?.length) result.push({ dateKey: "__no_date__", tasks: taskMap["__no_date__"] });
     return result;
-  }, [filteredTarefas, weekOffset]);
+  }, [filteredTarefas, weekOffset, dateRange]);
 
   const stats = useMemo(() => {
     const total = tarefas.length;
@@ -242,23 +261,74 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setWeekOffset(w => w - 1)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(w => w - 1); }}
             className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setWeekOffset(0)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(0); }}
             className="text-sm font-semibold px-4 py-1.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-all border border-primary/30"
           >
             <Calendar className="w-3.5 h-3.5 inline mr-1.5" />Hoje
           </button>
           <button
-            onClick={() => setWeekOffset(w => w + 1)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(w => w + 1); }}
             className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                  dateRange?.from
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-card/60 text-muted-foreground border-foreground/8 hover:bg-card hover:text-foreground"
+                )}
+              >
+                <CalendarRange className="w-3.5 h-3.5" />
+                {dateRange?.from ? (
+                  <span>
+                    {format(dateRange.from, "dd/MM", { locale: ptBR })}
+                    {dateRange.to ? ` – ${format(dateRange.to, "dd/MM", { locale: ptBR })}` : ""}
+                  </span>
+                ) : (
+                  <span>Período</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
+              <div className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">Selecione o período</span>
+                  {dateRange?.from && (
+                    <button
+                      onClick={() => { setDateRange(undefined); setDatePickerOpen(false); }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded bg-muted/50"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                <CalendarPicker
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    if (range?.from && range?.to) {
+                      setDatePickerOpen(false);
+                    }
+                  }}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  className={cn("p-0 pointer-events-auto")}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <button
