@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { EmpresaAtivaProvider } from "@/contexts/EmpresaAtivaContext";
+import { ThemeProvider } from "@/components/ThemeProvider";
 import { lazy, Suspense } from "react";
 import LandingPage from "./pages/LandingPage";
 import ClientAuth from "./pages/ClientAuth";
@@ -62,6 +63,7 @@ const App = () => {
   }, []);
 
   return (
+    <ThemeProvider>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <EmpresaAtivaProvider>
@@ -90,6 +92,7 @@ const App = () => {
         </EmpresaAtivaProvider>
       </AuthProvider>
     </QueryClientProvider>
+    </ThemeProvider>
   );
 };
 
