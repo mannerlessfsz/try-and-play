@@ -161,7 +161,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Show 30 days (10 before today, today, 19 after)
+  // Calculate timeline window based on dateRange or default 30-day window
   const timelineGroups = useMemo(() => {
     const taskMap: Record<string, Tarefa[]> = {};
     const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
@@ -172,19 +172,30 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     });
     Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
-    const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 10 + weekOffset * 7);
+    let startDate: Date;
+    let totalDays: number;
+
+    if (dateRange?.from) {
+      startDate = new Date(dateRange.from);
+      const endDate = dateRange.to ? new Date(dateRange.to) : new Date(startDate);
+      endDate.setDate(endDate.getDate() + 1);
+      totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+    } else {
+      const today = new Date();
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 10 + weekOffset * 7);
+      totalDays = 30;
+    }
 
     const days: { dateKey: string; tasks: Tarefa[] }[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < totalDays; i++) {
       const d = new Date(startDate);
       d.setDate(startDate.getDate() + i);
       const key = toDateKey(d);
       days.push({ dateKey: key, tasks: taskMap[key] || [] });
     }
 
-    // Add extra dates with tasks outside the 30-day window
+    // Add extra dates with tasks outside the window
     const windowKeys = new Set(days.map(d => d.dateKey));
     const extraDates = Object.keys(taskMap)
       .filter(k => k !== "__no_date__" && !windowKeys.has(k))
@@ -195,7 +206,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     const result = [...before, ...days, ...after];
     if (taskMap["__no_date__"]?.length) result.push({ dateKey: "__no_date__", tasks: taskMap["__no_date__"] });
     return result;
-  }, [filteredTarefas, weekOffset]);
+  }, [filteredTarefas, weekOffset, dateRange]);
 
   const stats = useMemo(() => {
     const total = tarefas.length;
