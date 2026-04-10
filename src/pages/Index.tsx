@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   CheckSquare, MessageCircle, DollarSign, Settings, LogOut, Zap,
   ListTodo, Building2, Eye, BarChart3, Users, Package, ShoppingCart,
@@ -7,7 +7,8 @@ import {
   TrendingUp, Target, CreditCard, Tags, Landmark,
   UserPlus, Search, Box, ClipboardList, Truck,
   Receipt, BarChart, MessageSquare, History, UserCheck, FolderPlus, Edit,
-  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, ArrowLeft
+  ArrowUpDown, Filter, Download, Upload, Star, Clock, Repeat, Hash, ArrowLeft,
+  LayoutGrid, CircleDot
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { GradientMesh } from "@/components/GradientMesh";
@@ -16,6 +17,7 @@ import { useModulePermissions, AppModule } from "@/hooks/useModulePermissions";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { DashboardSidebar } from "@/components/DashboardSidebar";
 
 // ── Types ──
 interface WheelItem {
@@ -391,6 +393,13 @@ const Index = () => {
 
   const [activeModule, setActiveModule] = useState<HudModule | null>(null);
   const [selections, setSelections] = useState<(number | null)[]>([]);
+  const [viewMode, setViewMode] = useState<"radial" | "sidebar">(() => {
+    return (localStorage.getItem("dashboard-view-mode") as "radial" | "sidebar") || "radial";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("dashboard-view-mode", viewMode);
+  }, [viewMode]);
 
   const accent = activeModule ? `hsl(${activeModule.accentHsl})` : "hsl(var(--primary))";
 
@@ -507,6 +516,15 @@ const Index = () => {
             </motion.div>
           )}
           <div className="flex items-center gap-1.5">
+            <Button
+              variant="ghost" size="sm"
+              onClick={() => setViewMode(v => v === "radial" ? "sidebar" : "radial")}
+              className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8"
+              title={viewMode === "radial" ? "Mudar para modo lista" : "Mudar para modo radial"}
+            >
+              {viewMode === "radial" ? <LayoutGrid className="w-3.5 h-3.5" /> : <CircleDot className="w-3.5 h-3.5" />}
+              {viewMode === "radial" ? "Lista" : "Radial"}
+            </Button>
             {isAdmin && (
               <Button variant="ghost" size="sm" onClick={() => navigate("/admin")} className="gap-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/10 h-8">
                 <Settings className="w-3.5 h-3.5" /> Admin
@@ -525,7 +543,20 @@ const Index = () => {
         onClick={activeModule ? closeWheel : undefined}
       >
         <AnimatePresence mode="wait">
-          {!activeModule ? (
+          {viewMode === "sidebar" ? (
+            <motion.div
+              key="sidebar-view"
+              className="w-full max-w-sm pt-20 pb-10 px-4"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            >
+              <DashboardSidebar
+                modules={modules.map(mod => ({
+                  ...mod,
+                  hasAccess: hasModuleAccessFlexible(mod.module, empresaAtiva?.id),
+                }))}
+              />
+            </motion.div>
+          ) : !activeModule ? (
             <motion.div
               key="module-cards"
               className="flex items-center gap-8"
