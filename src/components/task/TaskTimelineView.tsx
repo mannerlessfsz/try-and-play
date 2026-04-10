@@ -319,7 +319,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
       {/* ─── Vertical Timeline (tasks left, empresas right) ─── */}
       <div className="relative">
         {/* Central vertical line */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-1 -translate-x-1/2 bg-gradient-to-b from-primary/40 via-foreground/15 to-foreground/5 rounded-full" />
+        <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 bg-gradient-to-b from-primary/40 via-foreground/15 to-foreground/5 rounded-full" />
 
         <div className="space-y-0">
           {timelineGroups.map((group, groupIdx) => {
@@ -370,27 +370,27 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(groupIdx * 0.04, 0.6), duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-                className="relative flex items-start py-2"
+                className="relative flex items-start py-1"
               >
                 {/* ── Central dot / step number ── */}
-                <div className="absolute left-1/2 -translate-x-1/2 z-20 top-4">
+                <div className="absolute left-1/2 -translate-x-1/2 z-20 top-3">
                   <button
                     onClick={() => setExpandedDate(isExpanded ? null : dateKey)}
                     className={`
-                      w-10 h-10 rounded-full bg-gradient-to-br ${stepColor}
+                      w-8 h-8 rounded-full bg-gradient-to-br ${stepColor}
                       flex items-center justify-center shadow-lg transition-all
-                      ${today ? "ring-4 ring-primary/30 animate-pulse-glow" : "ring-2 ring-background"}
+                      ${today ? "ring-3 ring-primary/30 animate-pulse-glow" : "ring-2 ring-background"}
                       ${isExpanded ? "scale-125 shadow-xl" : "hover:scale-110"}
                     `}
                   >
-                    <span className="text-sm font-bold text-white">
+                    <span className="text-xs font-bold text-white">
                       {noDate ? "?" : String(stepNumber).padStart(2, "0")}
                     </span>
                   </button>
                 </div>
 
                 {/* ── Left side: Tasks ── */}
-                <div className="w-[calc(50%-28px)]">
+                <div className="w-[calc(50%-20px)]">
                   <div className="flex justify-end">
                     <CompactDayNode
                       dateKey={dateKey}
@@ -418,15 +418,15 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 </div>
 
                 {/* ── Connector arms (both sides) ── */}
-                <div className="w-14 flex-shrink-0 relative flex items-start pt-7">
-                  <div className="absolute top-[22px] h-0.5 bg-gradient-to-r right-[28px] left-0 from-transparent to-foreground/20" />
-                  <div className="absolute top-[22px] h-0.5 bg-gradient-to-r left-[28px] right-0 from-foreground/20 to-transparent" />
+                <div className="w-10 flex-shrink-0 relative flex items-start pt-6">
+                  <div className="absolute top-[19px] h-0.5 bg-gradient-to-r right-[20px] left-0 from-transparent to-foreground/20" />
+                  <div className="absolute top-[19px] h-0.5 bg-gradient-to-r left-[20px] right-0 from-foreground/20 to-transparent" />
                 </div>
 
                 {/* ── Right side: Empresas summary ── */}
-                <div className="w-[calc(50%-28px)]">
+                <div className="w-[calc(50%-20px)]">
                   <div className="flex justify-start">
-                    <div className="w-full max-w-[360px] ml-0">
+                    <div className="w-full max-w-[420px] ml-0">
                       {empresas.length > 0 ? (
                         <div className="space-y-1.5 pt-1">
                           {empresas.map(([empresaId, info], eIdx) => {
