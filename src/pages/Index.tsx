@@ -192,7 +192,7 @@ function WheelSegment({
   return (
     <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onSelect(); }} onMouseEnter={onHover} onMouseLeave={onLeave}>
       {/* Dark bg */}
-      <path d={d} className="fill-card" fillOpacity={0.92} />
+      <path d={d} fill="hsl(var(--card))" fillOpacity={0.92} />
       {/* Color overlay */}
       <motion.path
         d={d} fill={accent} stroke={accent}
