@@ -231,75 +231,30 @@ export default function TaskVault() {
           <div className="absolute -top-16 right-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10" style={{ background: "hsl(var(--primary))" }} />
         </div>
 
-        <div className="relative max-w-7xl mx-auto px-6 pt-8 pb-6">
-          {/* Top row: branding + quick actions */}
-          <div className="flex items-start justify-between mb-8">
-            <div className="flex items-center gap-4">
+        <div className="relative max-w-7xl mx-auto px-6 py-5">
+          {/* Single row: branding + metrics + progress */}
+          <div className="flex items-center gap-5">
+            {/* Logo + title */}
+            <div className="flex items-center gap-3 flex-shrink-0">
               <motion.div 
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_40px_hsl(var(--primary)/0.4)] relative"
+                className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center shadow-[0_0_30px_hsl(var(--primary)/0.4)] relative"
               >
-                <ListTodo className="w-7 h-7 text-primary-foreground" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-background border-2 border-primary flex items-center justify-center">
-                  <Sparkles className="w-2 h-2 text-primary" />
-                </div>
+                <ListTodo className="w-5 h-5 text-primary-foreground" />
               </motion.div>
               <div>
-                <motion.h1 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="text-2xl font-bold text-foreground tracking-tight"
-                >
-                  TaskVault
-                </motion.h1>
-                <motion.p 
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-sm text-muted-foreground"
-                >
-                  Central de tarefas e entregas
-                </motion.p>
+                <h1 className="text-xl font-bold text-foreground tracking-tight leading-none">TaskVault</h1>
+                <p className="text-xs text-muted-foreground mt-0.5">Central de tarefas e entregas</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={refetchTarefas} className="h-9 w-9 p-0 rounded-xl">
-                <RefreshCw className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={handleGerarTarefasMes} className="h-9 gap-1.5 rounded-xl text-xs">
-                <Calendar className="w-3.5 h-3.5" /> Gerar Mês
-              </Button>
-              <div className="w-px h-6 bg-border/50" />
-              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl" onClick={() => { setSettingsInitialTab("modelos"); setShowSettingsModal(true); }}>
-                <FileText className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl" onClick={() => { setSettingsInitialTab("regimes"); setShowSettingsModal(true); }}>
-                <Settings className="w-4 h-4" />
-              </Button>
-              <div className="w-px h-6 bg-border/50" />
-              <Button 
-                size="sm" 
-                onClick={() => setShowModal(true)} 
-                className="h-9 gap-1.5 rounded-xl bg-gradient-to-r from-primary to-primary/70 text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.35)] hover:shadow-[0_0_30px_hsl(var(--primary)/0.5)] transition-shadow"
-              >
-                <Plus className="w-4 h-4" /> Nova Tarefa
-              </Button>
-            </div>
-          </div>
+            <div className="w-px h-10 bg-border/30 flex-shrink-0" />
 
-          {/* Metrics strip */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="flex items-center gap-4"
-          >
             {/* Completion ring */}
             <div className="relative flex-shrink-0">
-              <svg width="56" height="56" viewBox="0 0 48 48" className="-rotate-90">
+              <svg width="44" height="44" viewBox="0 0 48 48" className="-rotate-90">
                 <circle cx="24" cy="24" r="22" fill="none" stroke="hsl(var(--foreground) / 0.06)" strokeWidth="2.5" />
                 <motion.circle
                   cx="24" cy="24" r="22" fill="none"
@@ -313,7 +268,7 @@ export default function TaskVault() {
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold text-foreground tabular-nums">{stats.rate}%</span>
+                <span className="text-xs font-bold text-foreground tabular-nums">{stats.rate}%</span>
               </div>
             </div>
 
@@ -325,23 +280,21 @@ export default function TaskVault() {
                 return (
                   <motion.button
                     key={seg.id}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 + i * 0.05 }}
+                    transition={{ delay: 0.1 + i * 0.04 }}
                     onClick={() => handleFilterClick(seg.id)}
-                    className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-200 group/metric
+                    className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all duration-200 group/metric
                       ${isActive 
                         ? "bg-primary/15 border border-primary/30 shadow-[0_0_15px_hsl(var(--primary)/0.15)]" 
                         : "bg-card/60 border border-border/40 hover:border-border hover:bg-card/80"}`}
                   >
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isActive ? "bg-primary/20" : "bg-foreground/5 group-hover/metric:bg-foreground/8"}`}
-                      style={isActive ? {} : { }}
-                    >
-                      <Icon className="w-4 h-4" style={{ color: seg.color }} />
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${isActive ? "bg-primary/20" : "bg-foreground/5 group-hover/metric:bg-foreground/8"}`}>
+                      <Icon className="w-3.5 h-3.5" style={{ color: seg.color }} />
                     </div>
                     <div className="text-left">
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
-                      <p className="text-lg font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
+                      <p className="text-[9px] uppercase tracking-wider text-muted-foreground/60 leading-none mb-0.5">{seg.label}</p>
+                      <p className="text-base font-bold text-foreground tabular-nums leading-none">{seg.value}</p>
                     </div>
                   </motion.button>
                 );
@@ -349,11 +302,11 @@ export default function TaskVault() {
             </div>
 
             {/* Stacked bar */}
-            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+            <div className="flex flex-col items-end gap-1 flex-shrink-0">
               <div className="flex items-center gap-1 text-[9px] text-muted-foreground/50 uppercase tracking-wider">
                 <TrendingUp className="w-3 h-3" /> Progresso
               </div>
-              <div className="w-32 h-2 rounded-full overflow-hidden flex bg-foreground/5">
+              <div className="w-28 h-1.5 rounded-full overflow-hidden flex bg-foreground/5">
                 {stats.total > 0 && (
                   <>
                     <motion.div initial={{ width: 0 }} animate={{ width: `${(stats.done / stats.total) * 100}%` }} transition={{ duration: 0.8 }} className="bg-green-500/70 h-full" />
@@ -363,7 +316,7 @@ export default function TaskVault() {
                 )}
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
 
