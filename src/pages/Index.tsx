@@ -120,11 +120,35 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
   });
 }
 
+// ── Bead chain: small dots connecting parent to child ──
+function BeadChain({ x, y, accent, count = 3, size = 4, expanded = false }: { x: number; y: number; accent: string; count?: number; size?: number; expanded?: boolean }) {
+  const beads = Array.from({ length: count }, (_, i) => {
+    const t = (i + 1) / (count + 1);
+    return { cx: -x * t, cy: -y * t };
+  });
+  return (
+    <svg className="absolute pointer-events-none" style={{ top: 0, left: 0, width: 1, height: 1, overflow: "visible" }}>
+      {beads.map((b, i) => (
+        <motion.circle
+          key={i}
+          cx={b.cx} cy={b.cy}
+          fill={accent}
+          initial={{ r: 0, opacity: 0 }}
+          animate={{
+            r: expanded ? size * 1.4 : size,
+            opacity: expanded ? 0.7 : 0.35,
+          }}
+          transition={{ delay: i * 0.05, type: "spring", stiffness: 300, damping: 20 }}
+        />
+      ))}
+    </svg>
+  );
+}
+
 // ── Radii per level (distance from PARENT, not from center) ──
-// Calculated to fit within viewport: max total reach ~480px from center
 const R1 = 240; // actions from module
 const R2 = 160; // sub-actions from action  
-const R3 = 110; // leaves from sub-action
+const R3 = 80;  // leaves from sub-action (closer together)
 
 const Index = () => {
   const navigate = useNavigate();
