@@ -393,7 +393,8 @@ export default function TaskVault() {
       {/* ═══════════════════════════════════════════ */}
       {/* CONTENT */}
       {/* ═══════════════════════════════════════════ */}
-      <div className="max-w-7xl mx-auto px-6 py-6 pb-32">
+      <div className="max-w-[1600px] mx-auto px-6 py-6 flex gap-5">
+        <div className="flex-1 min-w-0 pb-8">
         {/* Onboard tip */}
         <AnimatePresence>
           {showOnboardTip && (
@@ -563,47 +564,30 @@ export default function TaskVault() {
             )}
           </motion.div>
         )}
+        </div>
+
+        {/* Activity sidebar */}
+        <div className="w-72 flex-shrink-0 hidden xl:block">
+          <div className="sticky top-20 rounded-2xl border border-border/30 bg-card/40 overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/20">
+              <div className="relative">
+                <Activity className="w-4 h-4 text-primary" />
+                <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              </div>
+              <span className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Atividade Recente</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/40 tabular-nums">{atividades.length}</span>
+            </div>
+            <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3">
+              <ActivityPulseFeed atividades={atividades} />
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* ═══════════════════════════════════════════ */}
-      {/* MODALS */}
-      {/* ═══════════════════════════════════════════ */}
       {showModal && (
         <TaskModal novaTarefa={novaTarefa} setNovaTarefa={setNovaTarefa} empresas={empresasDisponiveis.map(e => ({ id: e.id, nome: e.nome, cnpj: e.cnpj || "", email: e.email || "" }))} onSave={handleSaveTarefa} onClose={() => setShowModal(false)} />
       )}
       <TaskSettingsModal isOpen={showSettingsModal} onClose={() => setShowSettingsModal(false)} initialTab={settingsInitialTab} />
-
-      {/* ═══════════════════════════════════════════ */}
-      {/* ACTIVITY PANEL */}
-      {/* ═══════════════════════════════════════════ */}
-      <div className="fixed bottom-0 left-0 right-0 z-30">
-        <button
-          onClick={() => setActivityPanelOpen(prev => !prev)}
-          className="w-full flex items-center gap-2 px-6 py-2.5 bg-background/80 backdrop-blur-xl border-t border-border/30 hover:bg-card/60 transition-all relative overflow-hidden group/activity"
-        >
-          <div className="absolute inset-0 opacity-0 group-hover/activity:opacity-100 transition-opacity pointer-events-none" style={{ background: "radial-gradient(ellipse at 20% 50%, hsl(var(--primary) / 0.06), transparent 60%)" }} />
-          <div className="relative z-10 flex items-center gap-2 w-full max-w-7xl mx-auto">
-            <div className="relative">
-              <Activity className="w-3.5 h-3.5 text-primary" />
-              <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            </div>
-            <span className="text-[10px] font-semibold text-foreground/60 uppercase tracking-wider">Atividade Recente</span>
-            <span className="text-[9px] text-muted-foreground/40 tabular-nums">{atividades.length}</span>
-            <motion.div className="ml-auto" animate={{ rotate: activityPanelOpen ? 180 : 0 }}>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50" />
-            </motion.div>
-          </div>
-        </button>
-        <AnimatePresence>
-          {activityPanelOpen && (
-            <motion.div initial={{ height: 0 }} animate={{ height: 200 }} exit={{ height: 0 }} className="overflow-hidden bg-background/90 backdrop-blur-xl border-t border-border/20">
-              <div className="h-full overflow-y-auto p-4 max-w-7xl mx-auto">
-                <ActivityPulseFeed atividades={atividades} />
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
 
     </div>
     </ModulePageWrapper>
