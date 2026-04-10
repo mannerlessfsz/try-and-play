@@ -276,7 +276,7 @@ function MultiRingWheel({
       <svg
         width={svgSize} height={svgSize}
         viewBox={`${-svgSize / 2} ${-svgSize / 2} ${svgSize} ${svgSize}`}
-        onClick={onBack}
+        onClick={(e) => { e.stopPropagation(); onBack(); }}
       >
         {/* Clickable background to catch empty area clicks */}
         <rect x={-svgSize / 2} y={-svgSize / 2} width={svgSize} height={svgSize} fill="transparent" />
