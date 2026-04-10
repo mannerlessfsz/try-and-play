@@ -121,9 +121,10 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
 }
 
 // ── Radii per level (distance from PARENT, not from center) ──
-const R1 = 320; // actions from module
-const R2 = 220; // sub-actions from action
-const R3 = 150; // leaves from sub-action
+// Calculated to fit within viewport: max total reach ~480px from center
+const R1 = 240; // actions from module
+const R2 = 160; // sub-actions from action  
+const R3 = 110; // leaves from sub-action
 
 const Index = () => {
   const navigate = useNavigate();
@@ -142,7 +143,7 @@ const Index = () => {
   const focusedMod = focusedModule ? modules.find(m => m.id === focusedModule) : null;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen bg-background relative overflow-auto">
       <GradientMesh />
 
       {/* Grid */}
@@ -180,7 +181,7 @@ const Index = () => {
       </motion.div>
 
       {/* ══════════════ MODULE CARDS (resting state) ══════════════ */}
-      <div className="relative z-10 w-full h-screen flex items-center justify-center">
+      <div className="relative z-10 w-full min-h-screen flex items-center justify-center" style={{ minHeight: "100vh", minWidth: "100vw" }}>
         {/* Inter-module lines */}
         <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
           {!focusedModule && modules.map((m, i) =>
@@ -258,22 +259,7 @@ const Index = () => {
                   </motion.button>
                 )}
 
-                {/* "Acessar" button - fixed at bottom of screen */}
-                {isFocused && (
-                  <motion.div
-                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-50"
-                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                  >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate(mod.href); }}
-                      className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
-                      style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
-                    >
-                      <span className="text-sm font-bold whitespace-nowrap">Acessar {mod.title}</span>
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </motion.div>
-                )}
+                {/* "Acessar" button moved outside - rendered via portal below */}
 
                 {/* ═══ LEVEL 2: ACTIONS (orbit around module) ═══ */}
                 <AnimatePresence>
@@ -448,6 +434,25 @@ const Index = () => {
           );
         })}
       </div>
+
+      {/* "Acessar" button - truly fixed at bottom, outside transform context */}
+      <AnimatePresence>
+        {focusedMod && (
+          <motion.div
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50"
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+          >
+            <button
+              onClick={() => navigate(focusedMod.href)}
+              className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
+              style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `hsl(${focusedMod.accentHsl})50`, color: `hsl(${focusedMod.accentHsl})` }}
+            >
+              <span className="text-sm font-bold whitespace-nowrap">Acessar {focusedMod.title}</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Backdrop overlay when focused */}
       <AnimatePresence>
