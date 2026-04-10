@@ -261,23 +261,74 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setWeekOffset(w => w - 1)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(w => w - 1); }}
             className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
-            onClick={() => setWeekOffset(0)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(0); }}
             className="text-sm font-semibold px-4 py-1.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-all border border-primary/30"
           >
             <Calendar className="w-3.5 h-3.5 inline mr-1.5" />Hoje
           </button>
           <button
-            onClick={() => setWeekOffset(w => w + 1)}
+            onClick={() => { setDateRange(undefined); setWeekOffset(w => w + 1); }}
             className="p-1.5 rounded-lg bg-card/60 border border-foreground/8 hover:bg-card text-muted-foreground hover:text-foreground transition-all"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
+
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                  dateRange?.from
+                    ? "bg-primary/15 text-primary border-primary/30"
+                    : "bg-card/60 text-muted-foreground border-foreground/8 hover:bg-card hover:text-foreground"
+                )}
+              >
+                <CalendarRange className="w-3.5 h-3.5" />
+                {dateRange?.from ? (
+                  <span>
+                    {format(dateRange.from, "dd/MM", { locale: ptBR })}
+                    {dateRange.to ? ` – ${format(dateRange.to, "dd/MM", { locale: ptBR })}` : ""}
+                  </span>
+                ) : (
+                  <span>Período</span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="center" sideOffset={8}>
+              <div className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground">Selecione o período</span>
+                  {dateRange?.from && (
+                    <button
+                      onClick={() => { setDateRange(undefined); setDatePickerOpen(false); }}
+                      className="text-[10px] text-muted-foreground hover:text-foreground px-2 py-0.5 rounded bg-muted/50"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                <CalendarPicker
+                  mode="range"
+                  selected={dateRange}
+                  onSelect={(range) => {
+                    setDateRange(range);
+                    if (range?.from && range?.to) {
+                      setDatePickerOpen(false);
+                    }
+                  }}
+                  numberOfMonths={2}
+                  locale={ptBR}
+                  className={cn("p-0 pointer-events-auto")}
+                />
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
         <div className="flex items-center gap-2 ml-auto">
           <button
