@@ -121,9 +121,9 @@ function orbit(count: number, radius: number, offsetDeg = -90) {
 }
 
 // ── Radii per level (distance from PARENT, not from center) ──
-const R1 = 180; // actions from module
-const R2 = 110; // sub-actions from action
-const R3 = 80;  // leaves from sub-action
+const R1 = 220; // actions from module
+const R2 = 140; // sub-actions from action
+const R3 = 100; // leaves from sub-action
 
 const Index = () => {
   const navigate = useNavigate();
