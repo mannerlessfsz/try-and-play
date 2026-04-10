@@ -12,7 +12,7 @@ import {
   ListTodo, Plus, Trash2, CheckCircle2,
   Calendar, Settings, Activity, List, Columns, Loader2, FileText,
   GanttChart, TrendingUp, Flame,
-  Timer, Search, X
+  Timer, Search, X, ChevronLeft, ChevronRight, CalendarRange
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,12 @@ import { useTarefas } from "@/hooks/useTarefas";
 import { useEmpresaAtiva } from "@/hooks/useEmpresaAtiva";
 import { useTarefasModelo } from "@/hooks/useTarefasModelo";
 import { supabase } from "@/integrations/supabase/client";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
