@@ -603,7 +603,7 @@ const Index = () => {
               />
 
               <motion.button
-                onClick={() => navigate(activeModule.href)}
+                onClick={(e) => { e.stopPropagation(); navigate(activeModule.href); }}
                 className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
                 style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
                 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
