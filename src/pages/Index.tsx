@@ -575,28 +575,45 @@ const Index = () => {
                     key={mod.id}
                     onClick={() => hasAccess && openModule(mod)}
                     disabled={!hasAccess}
-                    className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 transition-colors duration-300 ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
+                    className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 transition-colors duration-300 group ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
                     style={{
                       width: 170, height: 170,
-                      backgroundColor: "hsl(var(--card) / 0.97)",
-                      borderColor: `${a}50`,
                       backdropFilter: "blur(24px)",
                     }}
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ delay: 0.2 + mIdx * 0.12, type: "spring", stiffness: 180, damping: 18 }}
-                    whileHover={hasAccess ? { scale: 1.08, borderColor: `${a}90`, boxShadow: `0 0 60px ${a}25` } : {}}
+                    whileHover={hasAccess ? { scale: 1.08, boxShadow: `0 0 60px ${a}40` } : {}}
                     whileTap={hasAccess ? { scale: 0.95 } : {}}
                   >
-                    <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: `radial-gradient(circle at center, ${a}10 0%, transparent 70%)` }} />
-                    <div style={{ color: hasAccess ? a : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</div>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-sm font-bold tracking-wider" style={{ color: a }}>{mod.title}</span>
-                      <span className="text-[11px] text-foreground/60">{mod.tagline}</span>
+                    {/* Dark mode: dark card + colored border. Light mode: colored bg */}
+                    <div
+                      className="absolute inset-0 rounded-2xl dark:hidden"
+                      style={{ background: `linear-gradient(135deg, ${a}, ${a}cc)`, borderColor: `${a}` }}
+                    />
+                    <div
+                      className="absolute inset-0 rounded-2xl hidden dark:block"
+                      style={{ background: "hsl(var(--card) / 0.97)", borderColor: `${a}50` }}
+                    />
+                    <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ background: `radial-gradient(circle at center, hsl(0 0% 100% / 0.1) 0%, transparent 70%)` }} />
+                    <div className="relative" style={{ color: hasAccess ? "hsl(0 0% 100%)" : undefined }}>
+                      <span className="dark:hidden">{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</span>
+                      <span className="hidden dark:inline" style={{ color: hasAccess ? a : undefined }}>{hasAccess ? mod.icon : <Lock className="w-7 h-7" />}</span>
+                    </div>
+                    <div className="relative flex flex-col items-center gap-0.5">
+                      <span className="text-sm font-bold tracking-wider text-white dark:hidden">{mod.title}</span>
+                      <span className="text-sm font-bold tracking-wider hidden dark:inline" style={{ color: a }}>{mod.title}</span>
+                      <span className="text-[11px] text-white/70 dark:hidden">{mod.tagline}</span>
+                      <span className="text-[11px] text-foreground/60 hidden dark:inline">{mod.tagline}</span>
                     </div>
                     {hasAccess && (
-                      <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: a }}>
-                        <span className="text-[9px] font-bold text-black">{mod.items.length}</span>
+                      <div className="absolute -bottom-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center bg-white dark:bg-transparent" style={{ backgroundColor: undefined }}>
+                        <span className="absolute dark:hidden w-6 h-6 rounded-full flex items-center justify-center bg-white shadow-md">
+                          <span className="text-[9px] font-bold" style={{ color: a }}>{mod.items.length}</span>
+                        </span>
+                        <span className="absolute hidden dark:flex w-6 h-6 rounded-full items-center justify-center" style={{ backgroundColor: a }}>
+                          <span className="text-[9px] font-bold text-black">{mod.items.length}</span>
+                        </span>
                       </div>
                     )}
                   </motion.button>
