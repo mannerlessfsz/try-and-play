@@ -38,10 +38,10 @@ export function GradientMesh({ className = '' }: GradientMeshProps) {
     const animate = () => {
       time++;
 
-      ctx.fillStyle = isDark ? 'hsl(240, 10%, 4%)' : 'hsl(220, 20%, 97%)';
+      ctx.fillStyle = isDark ? 'hsl(230, 22%, 5%)' : 'hsl(225, 18%, 95%)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      const blobAlpha = isDark ? [0.4, 0.15] : [0.12, 0.04];
+      const blobAlpha = isDark ? [0.35, 0.12] : [0.18, 0.06];
 
       blobs.forEach((blob) => {
         const offsetX = Math.sin(time * blob.speed + blob.phase) * 0.1;
