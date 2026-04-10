@@ -407,7 +407,7 @@ export default function TaskVault() {
       <WidgetRibbon 
         groups={widgetGroups} 
         title="TaskVault" 
-        accentColor="magenta" 
+        accentColor="magenta"
         sidebarContent={sidebarContent}
       />
       
