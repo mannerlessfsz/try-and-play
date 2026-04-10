@@ -575,7 +575,6 @@ const Index = () => {
               key="weapon-wheel"
               className="flex flex-col items-center gap-4"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
             >
               {/* Breadcrumb */}
               <motion.div
