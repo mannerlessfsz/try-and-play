@@ -160,7 +160,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                 <motion.div
                   animate={{ rotate: isExpanded ? 180 : 0 }}
                   transition={{ duration: 0.2 }}
-                  className="text-muted-foreground/50"
+                  className="text-white/60 dark:text-muted-foreground/50"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </motion.div>
@@ -175,9 +175,9 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
                   transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
+                  className="overflow-hidden relative z-10"
                 >
-                  <div className="px-2 pb-3 border-t border-border/10 pt-2">
+                  <div className="px-2 pb-3 border-t border-white/20 dark:border-border/10 pt-2">
                     {mod.items.map((item, i) => (
                       <SidebarItem
                         key={`${item.label}-${i}`}
