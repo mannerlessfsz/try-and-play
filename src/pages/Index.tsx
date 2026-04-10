@@ -192,7 +192,7 @@ function WheelSegment({
   return (
     <g className="cursor-pointer" onClick={(e) => { e.stopPropagation(); onSelect(); }} onMouseEnter={onHover} onMouseLeave={onLeave}>
       {/* Dark bg */}
-      <path d={d} fill="hsl(0 0% 4%)" fillOpacity={0.88} />
+      <path d={d} className="fill-card" fillOpacity={0.92} />
       {/* Color overlay */}
       <motion.path
         d={d} fill={accent} stroke={accent}
@@ -578,7 +578,7 @@ const Index = () => {
                     className={`relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 transition-colors duration-300 ${hasAccess ? "cursor-pointer" : "cursor-not-allowed opacity-30 grayscale"}`}
                     style={{
                       width: 170, height: 170,
-                      backgroundColor: "hsl(0 0% 6% / 0.97)",
+                      backgroundColor: "hsl(var(--card) / 0.97)",
                       borderColor: `${a}50`,
                       backdropFilter: "blur(24px)",
                     }}
@@ -612,7 +612,7 @@ const Index = () => {
               {/* Breadcrumb */}
               <motion.div
                 className="flex items-center gap-2 px-4 py-2 rounded-full border backdrop-blur-xl"
-                style={{ borderColor: `${accent}30`, background: "hsl(0 0% 4% / 0.8)" }}
+                style={{ borderColor: `${accent}30`, background: "hsl(var(--card) / 0.9)" }}
                 initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -638,7 +638,7 @@ const Index = () => {
               <motion.button
                 onClick={(e) => { e.stopPropagation(); navigate(activeModule.href); }}
                 className="flex items-center gap-2 px-6 py-3 rounded-full border backdrop-blur-xl hover:scale-105 transition-transform"
-                style={{ backgroundColor: "hsl(0 0% 6% / 0.95)", borderColor: `${accent}50`, color: accent }}
+                style={{ backgroundColor: "hsl(var(--card) / 0.95)", borderColor: `${accent}50`, color: accent }}
                 initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }}
               >
                 <span className="text-sm font-bold">Acessar {activeModule.title}</span>
