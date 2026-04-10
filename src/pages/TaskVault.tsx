@@ -828,5 +828,6 @@ export default function TaskVault() {
       </div>
 
     </div>
+    </ModulePageWrapper>
   );
 }
