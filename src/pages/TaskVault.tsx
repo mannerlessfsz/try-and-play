@@ -107,6 +107,16 @@ export default function TaskVault() {
       const q = searchQuery.toLowerCase();
       list = list.filter(t => t.titulo.toLowerCase().includes(q) || t.descricao?.toLowerCase().includes(q));
     }
+    // Date range filter (for kanban/lista; timeline handles its own)
+    if (dateRange?.from && dateRange?.to && viewMode !== "timeline") {
+      const from = new Date(dateRange.from); from.setHours(0,0,0,0);
+      const to = new Date(dateRange.to); to.setHours(23,59,59,999);
+      list = list.filter(t => {
+        if (!t.prazoEntrega) return false;
+        const d = new Date(t.prazoEntrega + "T12:00:00");
+        return d >= from && d <= to;
+      });
+    }
     switch (activeFilter) {
       case "em_andamento": return list.filter(t => t.status !== "concluida");
       case "concluida": return list.filter(t => t.status === "concluida");
@@ -117,7 +127,7 @@ export default function TaskVault() {
       });
       default: return list;
     }
-  }, [tarefasFiltradas, searchQuery, activeFilter]);
+  }, [tarefasFiltradas, searchQuery, activeFilter, dateRange, viewMode]);
 
   const handleFilterClick = useCallback((filter: FilterType) => {
     setActiveFilter(prev => prev === filter ? "all" : filter);
