@@ -276,7 +276,7 @@ function MultiRingWheel({
       <svg
         width={svgSize} height={svgSize}
         viewBox={`${-svgSize / 2} ${-svgSize / 2} ${svgSize} ${svgSize}`}
-        onClick={onBack}
+        onClick={(e) => { e.stopPropagation(); onBack(); }}
       >
         {/* Clickable background to catch empty area clicks */}
         <rect x={-svgSize / 2} y={-svgSize / 2} width={svgSize} height={svgSize} fill="transparent" />
@@ -437,7 +437,7 @@ const Index = () => {
       }
 
       currentItems = item.children;
-      const isPartial = d >= 1; // depth 2+ = partial
+      const isPartial = d >= 0; // depth 1+ = partial arcs above parent
       result.push({
         items: currentItems,
         selectedIndex: selections[d + 1] ?? null,
@@ -522,7 +522,7 @@ const Index = () => {
       {/* ══════════ MAIN ══════════ */}
       <div
         className="relative z-10 w-full min-h-screen flex items-center justify-center"
-        onClick={activeModule ? handleBack : undefined}
+        onClick={activeModule ? closeWheel : undefined}
       >
         <AnimatePresence mode="wait">
           {!activeModule ? (
@@ -623,7 +623,7 @@ const Index = () => {
             className="fixed inset-0 z-[4]"
             style={{ backgroundColor: "hsl(0 0% 0% / 0.65)" }}
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={handleBack}
+            onClick={closeWheel}
           />
         )}
       </AnimatePresence>
