@@ -115,17 +115,23 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
           <motion.div
             key={mod.id}
             className={cn(
-              "rounded-xl border backdrop-blur-xl overflow-hidden transition-colors duration-200",
+              "rounded-xl border backdrop-blur-xl overflow-hidden transition-colors duration-200 relative",
               mod.hasAccess ? "cursor-pointer" : "opacity-30 grayscale cursor-not-allowed"
             )}
             style={{
               borderColor: isExpanded ? `${accent}50` : "hsl(var(--border) / 0.3)",
-              background: isExpanded
-                ? `hsl(var(--card) / 0.97)`
-                : "hsl(var(--card) / 0.85)",
             }}
             layout
           >
+            {/* Light mode: colored bg / Dark mode: dark card */}
+            <div
+              className="absolute inset-0 rounded-xl dark:hidden"
+              style={{ background: `linear-gradient(135deg, ${accent}ee, ${accent}cc)` }}
+            />
+            <div
+              className="absolute inset-0 rounded-xl hidden dark:block"
+              style={{ background: isExpanded ? "hsl(var(--card) / 0.97)" : "hsl(var(--card) / 0.85)" }}
+            />
             {/* Module header */}
             <button
               className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
@@ -135,16 +141,20 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
               }}
             >
               <div
-                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: `${accent}18`, color: accent }}
+                className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 bg-white/20 dark:bg-transparent"
+                style={{ color: "white" }}
               >
-                {mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}
+                <span className="dark:hidden">{mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}</span>
+                <span className="hidden dark:inline" style={{ color: accent }}>{mod.hasAccess ? mod.icon : <Lock className="w-5 h-5" />}</span>
               </div>
               <div className="flex-1 text-left">
-                <span className="text-sm font-bold tracking-wider" style={{ color: accent }}>
+                <span className="text-sm font-bold tracking-wider text-white dark:hidden">
                   {mod.title}
                 </span>
-                <p className="text-[11px] text-muted-foreground">{mod.tagline}</p>
+                <span className="text-sm font-bold tracking-wider hidden dark:inline" style={{ color: accent }}>
+                  {mod.title}
+                </span>
+                <p className="text-[11px] text-white/70 dark:text-muted-foreground">{mod.tagline}</p>
               </div>
               {mod.hasAccess && (
                 <motion.div
