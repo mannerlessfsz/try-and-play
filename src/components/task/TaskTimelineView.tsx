@@ -310,11 +310,46 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
         <div className="space-y-1">
             {groupedByDate.map(({ dateKey, tasks }, groupIdx) => {
               const style = getDateGroupStyle(dateKey, tasks);
+              const totalCount = tasks.length;
+              const isWeekend = dateKey !== "__no_date__" && [0, 6].includes(new Date(dateKey + "T12:00:00").getDay());
+
+              // ── Empty day: compact row ──
+              if (totalCount === 0 && dateKey !== "__no_date__") {
+                const dayNum = new Date(dateKey + "T12:00:00").getDate();
+                const weekday = new Date(dateKey + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "short" });
+                const today = isToday(dateKey);
+
+                return (
+                  <div key={dateKey} className="relative flex items-center gap-3 py-1">
+                    {/* Timeline dot - small for empty days */}
+                    <div className="absolute -left-8 md:-left-12 flex items-center justify-center">
+                      <div className={`w-2 h-2 rounded-full ${today ? "bg-primary" : isWeekend ? "bg-foreground/8" : "bg-foreground/15"} ring-2 ring-background z-10`} />
+                      {today && (
+                        <div className="absolute w-5 h-5 rounded-full bg-primary/20 animate-ping" />
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-medium tabular-nums ${today ? "text-primary" : isWeekend ? "text-muted-foreground/25" : "text-muted-foreground/40"}`}>
+                        {dayNum}
+                      </span>
+                      <span className={`text-[10px] uppercase ${today ? "text-primary/70" : isWeekend ? "text-muted-foreground/20" : "text-muted-foreground/30"}`}>
+                        {weekday}
+                      </span>
+                      {today && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">
+                          HOJE
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              }
+
+              // ── Day with tasks: full card ──
               const dateLabel = dateKey === "__no_date__" ? "Sem prazo" : formatDateLabel(dateKey);
               const fullDate = dateKey === "__no_date__" ? "Tarefas sem data definida" : formatFullDate(dateKey);
-              const days = dateKey !== "__no_date__" ? getDaysUntilDeadline(dateKey) : null;
               const completedCount = tasks.filter(t => t.status === "concluida").length;
-              const totalCount = tasks.length;
               const completionRate = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
               return (
@@ -322,7 +357,8 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                   key={dateKey}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: groupIdx * 0.05, duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  transition={{ delay: Math.min(groupIdx * 0.02, 0.5), duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  className="pt-2 pb-3"
                 >
                   {/* Date Header with dot on timeline */}
                   <div className="relative flex items-center gap-3 mb-3">
@@ -366,7 +402,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           }`}
                           initial={{ width: 0 }}
                           animate={{ width: `${completionRate}%` }}
-                          transition={{ duration: 0.6, delay: groupIdx * 0.05 + 0.2 }}
+                          transition={{ duration: 0.6, delay: Math.min(groupIdx * 0.02, 0.5) + 0.2 }}
                         />
                       </div>
                       <span className="text-[10px] text-muted-foreground/40 font-medium">{completionRate}%</span>
@@ -385,7 +421,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                           key={tarefa.id}
                           initial={{ opacity: 0, x: -12 }}
                           animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: groupIdx * 0.05 + ti * 0.03, duration: 0.3 }}
+                          transition={{ delay: Math.min(groupIdx * 0.02, 0.5) + ti * 0.03, duration: 0.3 }}
                           className={`
                             group relative rounded-xl border transition-all duration-200 overflow-hidden
                             ${isDone ? "opacity-60" : ""}
@@ -542,7 +578,6 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
             </div>
           )}
         </div>
-      )}
     </div>
   );
 }
