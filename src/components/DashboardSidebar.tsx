@@ -46,8 +46,8 @@ function SidebarItem({
         }}
         className={cn(
           "w-full flex items-center gap-2.5 py-2 px-3 rounded-lg text-left transition-all duration-150",
-          "hover:bg-white/[0.06] group text-sm",
-          open && hasChildren && "bg-white/[0.04]"
+          "hover:bg-muted/50 group text-sm",
+          open && hasChildren && "bg-muted/30"
         )}
         style={{ paddingLeft: `${pl}px` }}
       >
@@ -121,14 +121,14 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
             style={{
               borderColor: isExpanded ? `${accent}50` : "hsl(var(--border) / 0.3)",
               background: isExpanded
-                ? `linear-gradient(135deg, hsl(0 0% 6% / 0.97), hsl(0 0% 8% / 0.95))`
-                : "hsl(0 0% 6% / 0.85)",
+                ? `hsl(var(--card) / 0.97)`
+                : "hsl(var(--card) / 0.85)",
             }}
             layout
           >
             {/* Module header */}
             <button
-              className="w-full flex items-center gap-3 p-4 hover:bg-white/[0.03] transition-colors"
+              className="w-full flex items-center gap-3 p-4 hover:bg-muted/30 transition-colors"
               onClick={() => {
                 if (!mod.hasAccess) return;
                 setExpandedModule(isExpanded ? null : mod.id);
@@ -179,7 +179,7 @@ export function DashboardSidebar({ modules }: { modules: SidebarModule[] }) {
                     {/* Direct access button */}
                     <button
                       onClick={() => navigate(mod.href)}
-                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-white/[0.06]"
+                      className="w-full mt-2 py-2 px-3 rounded-lg text-xs font-bold tracking-wider text-center transition-colors hover:bg-muted/40"
                       style={{ color: accent, borderTop: `1px solid ${accent}15` }}
                     >
                       Acessar {mod.title} →
