@@ -426,7 +426,7 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
                 {/* ── Right side: Empresas summary ── */}
                 <div className="w-[calc(50%-20px)]">
                   <div className="flex justify-start">
-                    <div className="w-full max-w-[420px] ml-0">
+                    <div className="w-full ml-0">
                       {empresas.length > 0 ? (
                         <div className="space-y-1.5 pt-1">
                           {empresas.map(([empresaId, info], eIdx) => {
@@ -551,7 +551,7 @@ function CompactDayNode({
   const totalCount = tasks.length;
 
   return (
-    <div className={`w-full max-w-[420px] ${side === "left" ? "mr-0" : "ml-0"}`}>
+    <div className={`w-full ${side === "left" ? "mr-0" : "ml-0"}`}>
       <div className={`
         rounded-xl border overflow-hidden transition-all duration-300 cursor-pointer
         ${today ? "border-primary/30" :
