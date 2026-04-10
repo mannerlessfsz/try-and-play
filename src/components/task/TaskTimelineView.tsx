@@ -138,28 +138,51 @@ export function TaskTimelineView({ tarefas, getEmpresaNome, onDelete, onStatusCh
     return list;
   }, [tarefas, searchQuery, filterMode, showCompleted, getEmpresaNome]);
 
-  // Group by date, sorted chronologically
+  // Generate a fixed 30-day window (7 past + today + 22 future) and merge tasks into it
   const groupedByDate = useMemo(() => {
-    const map: Record<string, Tarefa[]> = {};
+    // Build task map
+    const taskMap: Record<string, Tarefa[]> = {};
     filteredTarefas.forEach(t => {
       const key = t.prazoEntrega || "__no_date__";
-      if (!map[key]) map[key] = [];
-      map[key].push(t);
+      if (!taskMap[key]) taskMap[key] = [];
+      taskMap[key].push(t);
     });
 
     // Sort tasks within each group by priority
     const prioOrder = { urgente: 0, alta: 1, media: 2, baixa: 3 };
-    Object.values(map).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
+    Object.values(taskMap).forEach(arr => arr.sort((a, b) => (prioOrder[a.prioridade] ?? 9) - (prioOrder[b.prioridade] ?? 9)));
 
-    // Sort date keys: overdue first, then today, then future, then no-date
-    const keys = Object.keys(map).filter(k => k !== "__no_date__").sort();
-    const todayKey = toDateKey(new Date());
-    const overdue = keys.filter(k => k < todayKey);
-    const todayAndFuture = keys.filter(k => k >= todayKey);
-    const sorted = [...overdue, ...todayAndFuture];
-    if (map["__no_date__"]) sorted.push("__no_date__");
+    // Generate 30-day calendar window
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 7);
 
-    return sorted.map(key => ({ dateKey: key, tasks: map[key] }));
+    const calendarDays: { dateKey: string; tasks: Tarefa[] }[] = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const key = toDateKey(d);
+      calendarDays.push({ dateKey: key, tasks: taskMap[key] || [] });
+    }
+
+    // Add any task dates outside the window (overdue beyond 7 days)
+    const windowStart = calendarDays[0].dateKey;
+    const windowEnd = calendarDays[calendarDays.length - 1].dateKey;
+    const extraDates = Object.keys(taskMap)
+      .filter(k => k !== "__no_date__" && (k < windowStart || k > windowEnd))
+      .sort();
+
+    const beforeWindow = extraDates.filter(k => k < windowStart).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+    const afterWindow = extraDates.filter(k => k > windowEnd).map(k => ({ dateKey: k, tasks: taskMap[k] }));
+
+    const result = [...beforeWindow, ...calendarDays, ...afterWindow];
+
+    // Add no-date tasks at the end
+    if (taskMap["__no_date__"]?.length) {
+      result.push({ dateKey: "__no_date__", tasks: taskMap["__no_date__"] });
+    }
+
+    return result;
   }, [filteredTarefas]);
 
   // Stats
