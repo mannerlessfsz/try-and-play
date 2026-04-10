@@ -46,6 +46,8 @@ export default function TaskVault() {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all");
   const [selectedEmpresaId, setSelectedEmpresaId] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const handleSetViewMode = useCallback((mode: "lista" | "kanban" | "timeline") => {
     setViewMode(mode);
