@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { ModulePageWrapper } from "@/components/ModulePageWrapper";
 import { KanbanCard } from "@/components/task/KanbanCard";
 import { ExpandedTaskCard } from "@/components/task/ExpandedTaskCard";
@@ -27,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 type FilterType = "all" | "em_andamento" | "concluida" | "urgente";
 
 export default function TaskVault() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"lista" | "kanban" | "timeline">(() => {
     const saved = localStorage.getItem("taskvault-view-mode");
     if (saved === "lista" || saved === "kanban" || saved === "timeline") return saved;
